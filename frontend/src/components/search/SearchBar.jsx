@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, ChevronDown, ChevronUp, SlidersHorizontal, Key } from 'lucide-react';
+import { Search, SlidersHorizontal, Cpu, Bot } from 'lucide-react';
 
 export default function SearchBar({ 
   searchQuery, 
@@ -11,20 +11,30 @@ export default function SearchBar({
   language,
   setLanguage,
   articleType,
-  setArticleType
+  setArticleType,
+  darkMode
 }) {
   return (
-    <div className="mota-card p-6 space-y-6">
-      {/* Top Header Row - API Key Status */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+    <div className={`p-6 rounded-2xl border transition-colors space-y-6 ${
+      darkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'
+    }`}>
+      {/* Top Header Row - Multi-Agent Engine Status */}
+      <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b ${
+        darkMode ? 'border-slate-700' : 'border-slate-100'
+      }`}>
         <div>
-          <h3 className="font-bold text-slate-800 text-sm">Xây dựng truy vấn chính</h3>
-          <p className="text-xs text-slate-500">Hãy nhập từ khóa như cách bạn tìm kiếm trên Google Scholar hoặc Scopus.</p>
+          <h3 className="font-bold text-sm flex items-center gap-2">
+            <span>Xây dựng truy vấn tìm kiếm Multi-Agent</span>
+            <span className="text-[10px] font-extrabold bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full">Scopus & WoS</span>
+          </h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400">Gõ từ khóa khoa học để biệt đội Agents tự động thu thập và sàng lọc bài báo.</p>
         </div>
-        <div className="flex items-center gap-2 text-xs bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
-          <Key className="w-3.5 h-3.5 text-blue-600" />
-          <span className="font-semibold text-slate-700">Dữ liệu kết nối:</span>
-          <span className="font-bold text-emerald-600">Scopus & Web of Science API</span>
+        <div className={`flex items-center gap-2 text-xs px-3 py-1.5 rounded-xl border ${
+          darkMode ? 'bg-slate-900 border-slate-700 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'
+        }`}>
+          <Bot className="w-3.5 h-3.5 text-purple-500" />
+          <span className="font-semibold">Engine:</span>
+          <span className="font-bold text-purple-600 dark:text-purple-400">ScraperAgent + RetrieverAgent</span>
         </div>
       </div>
 
@@ -36,60 +46,73 @@ export default function SearchBar({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Nhập từ khóa (ví dụ: 'large language models in healthcare')..."
-            className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-600 focus:border-blue-600 text-slate-800 font-medium text-sm transition-all"
+            placeholder="Nhập chủ đề nghiên cứu (ví dụ: 'large language models in medical diagnostics')..."
+            className={`w-full pl-12 pr-4 py-3 border rounded-xl font-medium text-sm transition-all focus:outline-none focus:ring-2 focus:ring-purple-500 ${
+              darkMode 
+                ? 'bg-slate-900 border-slate-700 text-white placeholder-slate-500' 
+                : 'bg-slate-50 border-slate-300 text-slate-800 placeholder-slate-400'
+            }`}
           />
         </div>
-        <button className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-3 rounded-xl text-sm transition-all shadow-sm">
-          Tìm kiếm
+        <button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:opacity-95 text-white font-bold px-8 py-3 rounded-xl text-sm transition-all shadow-md">
+          Chạy Multi-Agent Search
         </button>
       </div>
 
-      {/* Toggle Advanced Filters Button (AIoT Lab Style) */}
+      {/* Toggle Advanced Filters Button */}
       <div className="text-center">
         <button
           onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-          className="inline-flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-6 py-2 rounded-lg text-xs transition-all border border-slate-200"
+          className={`inline-flex items-center gap-2 font-semibold px-6 py-2 rounded-xl text-xs transition-all border ${
+            darkMode 
+              ? 'bg-slate-700/60 hover:bg-slate-700 text-slate-200 border-slate-600' 
+              : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+          }`}
         >
           <SlidersHorizontal className="w-3.5 h-3.5" />
-          <span>Bộ lọc khác {showAdvancedFilters ? '↑' : '↓'}</span>
+          <span>Bộ lọc nghiên cứu chuyên sâu {showAdvancedFilters ? '↑' : '↓'}</span>
         </button>
       </div>
 
-      {/* Collapsible Advanced Filters Panel (Identical Layout to AIoT Lab) */}
+      {/* Collapsible Advanced Filters Panel */}
       {showAdvancedFilters && (
-        <div className="pt-6 border-t border-slate-200 space-y-6">
-          
+        <div className={`pt-6 border-t space-y-6 ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
           {/* Section 1: Bộ lọc Xuất bản */}
           <div>
-            <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-2 mb-4">
-              Bộ lọc Xuất bản
+            <h4 className="text-xs font-bold uppercase tracking-wider pb-2 mb-4 border-b border-slate-200/40">
+              Bộ lọc Xuất bản & Tác giả
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs">
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Tác giả</label>
+                <label className="block font-semibold mb-1">Tác giả</label>
                 <input
                   type="text"
                   placeholder="ví dụ: Smith J"
-                  className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className={`w-full p-2 border rounded-lg ${
+                    darkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300'
+                  }`}
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Tạp chí</label>
+                <label className="block font-semibold mb-1">Tạp chí khoa học</label>
                 <input
                   type="text"
                   placeholder="ví dụ: Lancet, Nature"
-                  className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className={`w-full p-2 border rounded-lg ${
+                    darkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300'
+                  }`}
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Loại bài báo</label>
+                <label className="block font-semibold mb-1">Loại bài báo</label>
                 <select 
                   value={articleType} 
                   onChange={e => setArticleType(e.target.value)}
-                  className="w-full p-2 border border-slate-300 rounded-lg bg-white"
+                  className={`w-full p-2 border rounded-lg ${
+                    darkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300'
+                  }`}
                 >
                   <option value="All">Tất cả các loại</option>
                   <option value="Review">Systematic Review</option>
@@ -99,11 +122,13 @@ export default function SearchBar({
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Ngôn ngữ</label>
+                <label className="block font-semibold mb-1">Ngôn ngữ</label>
                 <select 
                   value={language} 
                   onChange={e => setLanguage(e.target.value)}
-                  className="w-full p-2 border border-slate-300 rounded-lg bg-white"
+                  className={`w-full p-2 border rounded-lg ${
+                    darkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300'
+                  }`}
                 >
                   <option value="english">Tiếng Anh</option>
                   <option value="vietnamese">Tiếng Việt</option>
@@ -115,15 +140,15 @@ export default function SearchBar({
 
           {/* Section 2: Bộ lọc Thời gian */}
           <div>
-            <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-2 mb-3">
-              Bộ lọc Thời gian
+            <h4 className="text-xs font-bold uppercase tracking-wider pb-2 mb-3 border-b border-slate-200/40">
+              Bộ lọc Khoảng thời gian
             </h4>
-            <div className="flex flex-wrap items-center gap-6 text-xs text-slate-700">
+            <div className="flex flex-wrap items-center gap-6 text-xs">
               {[
-                { id: 'any', label: 'Bất kỳ' },
-                { id: '1', label: '1 năm' },
-                { id: '5', label: '5 năm' },
-                { id: '10', label: '10 năm' },
+                { id: 'any', label: 'Tất cả các năm' },
+                { id: '1', label: '1 năm gần nhất' },
+                { id: '5', label: '5 năm gần nhất' },
+                { id: '10', label: '10 năm gần nhất' },
               ].map(opt => (
                 <label key={opt.id} className="flex items-center gap-2 font-medium cursor-pointer">
                   <input
@@ -132,7 +157,7 @@ export default function SearchBar({
                     value={opt.id}
                     checked={dateRange === opt.id}
                     onChange={e => setDateRange(e.target.value)}
-                    className="text-blue-600 focus:ring-blue-500"
+                    className="text-purple-600 focus:ring-purple-500"
                   />
                   <span>{opt.label}</span>
                 </label>
@@ -140,31 +165,30 @@ export default function SearchBar({
             </div>
           </div>
 
-          {/* Section 3: Bộ lọc Đối tượng & Chất lượng */}
+          {/* Section 3: Bộ lọc Chất lượng */}
           <div>
-            <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-2 mb-3">
-              Bộ lọc Chất lượng & Đối tượng
+            <h4 className="text-xs font-bold uppercase tracking-wider pb-2 mb-3 border-b border-slate-200/40">
+              Bộ lọc Chất lượng Dữ liệu
             </h4>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs text-slate-700">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
               <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" defaultChecked className="rounded text-blue-600" />
+                <input type="checkbox" defaultChecked className="rounded text-purple-600" />
                 <span>Có tóm tắt (Abstract)</span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" defaultChecked className="rounded text-blue-600" />
+                <input type="checkbox" defaultChecked className="rounded text-purple-600" />
                 <span>Toàn văn miễn phí</span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" className="rounded text-blue-600" />
+                <input type="checkbox" className="rounded text-purple-600" />
                 <span>Chỉ mục MEDLINE</span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" defaultChecked className="rounded text-blue-600" />
+                <input type="checkbox" defaultChecked className="rounded text-purple-600" />
                 <span>Loại trừ Preprints</span>
               </label>
             </div>
           </div>
-
         </div>
       )}
     </div>

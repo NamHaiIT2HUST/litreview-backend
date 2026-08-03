@@ -2,14 +2,15 @@ import React, { useState } from 'react';
 import SearchBar from './SearchBar';
 import StatCards from './StatCards';
 import PaperTable from './PaperTable';
-import { Download, Sparkles, CheckSquare, Square } from 'lucide-react';
+import { Download, Sparkles } from 'lucide-react';
 import { exportPapersToExcel } from '../../utils/excelExport';
 
 export default function SearchEngineTab({ 
   papers, 
   selectedPaperIds, 
   setSelectedPaperIds, 
-  pushToWorkspace 
+  pushToWorkspace,
+  darkMode
 }) {
   const [searchQuery, setSearchQuery] = useState('large language models in healthcare');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
@@ -32,13 +33,14 @@ export default function SearchEngineTab({
 
   return (
     <div className="space-y-6">
-      {/* 1. MotaAdmin Top Stat Cards */}
+      {/* 1. Top Stat Cards */}
       <StatCards 
         totalPapers={papers.length} 
         selectedCount={selectedPaperIds.length} 
+        darkMode={darkMode}
       />
 
-      {/* 2. AIoT Lab Style Search & Advanced Filters */}
+      {/* 2. Search & Advanced Filters */}
       <SearchBar
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
@@ -50,17 +52,20 @@ export default function SearchEngineTab({
         setLanguage={setLanguage}
         articleType={articleType}
         setArticleType={setArticleType}
+        darkMode={darkMode}
       />
 
       {/* 3. Action Bar (Export Excel & Push Workspace) */}
-      <div className="mota-card p-4 flex flex-col sm:flex-row items-center justify-between gap-4 bg-white">
+      <div className={`p-4 flex flex-col sm:flex-row items-center justify-between gap-4 rounded-2xl border transition-colors ${
+        darkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'
+      }`}>
         <div className="flex items-center gap-3">
-          <span className="text-xs font-bold text-slate-700">
-            Đã chọn: <strong className="text-blue-600 text-sm">{selectedPaperIds.length}</strong> / {papers.length} bài báo
+          <span className="text-xs font-bold">
+            Đã chọn: <strong className="text-purple-500 text-sm">{selectedPaperIds.length}</strong> / {papers.length} bài báo
           </span>
           <button
             onClick={() => setSelectedPaperIds(papers.map(p => p.id))}
-            className="text-xs text-blue-600 hover:underline font-bold"
+            className="text-xs text-purple-600 dark:text-purple-400 hover:underline font-bold"
           >
             Chọn tất cả
           </button>
@@ -97,6 +102,7 @@ export default function SearchEngineTab({
         papers={papers}
         selectedPaperIds={selectedPaperIds}
         toggleSelectPaper={toggleSelectPaper}
+        darkMode={darkMode}
       />
     </div>
   );
