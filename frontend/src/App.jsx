@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Sidebar from './components/Sidebar';
 import Navbar from './components/Navbar';
 import SearchEngineTab from './components/search/SearchEngineTab';
 import WorkspaceTab from './components/workspace/WorkspaceTab';
@@ -13,7 +14,7 @@ export default function App() {
   const [chatMessages, setChatMessages] = useState([
     {
       sender: 'ai',
-      text: `Based on your **${workspacePapers.length} selected papers** from Scopus & Web of Science, here is the synthesis:\n\n1. **Clinical Diagnostics**: Large language models have reached passing-level diagnostic accuracy (over 89%) across multiple medical specialties [1]. However, clinical deployment is hindered by a baseline 11% hallucination rate in patient record synthesis [1].\n\n2. **RAG Mitigation**: To eliminate these hallucinations, recent fine-tuning methods (such as SciRAG-FineTune) enforce strict citation alignment [2]. By fine-tuning Llama-3-8B on curated academic abstracts, researchers achieved 99.4% citation accuracy [2].`
+      text: `Dựa trên **${workspacePapers.length} bài báo đã chọn** từ Scopus & Web of Science, dưới đây là tổng quan tài liệu (Literature Synthesis):\n\n1. **Chẩn đoán Lâm sàng**: Các mô hình ngôn ngữ lớn đạt độ chính xác chẩn đoán trên 89% ở 15 chuyên khoa [1]. Tuy nhiên, ứng dụng thực tế vẫn cần giám sát do tỷ lệ ảo giác 11% [1].\n\n2. **Khắc phục Ảo giác (RAG)**: Thử nghiệm Fine-tune Llama-3-8B với nhãn trích dẫn nghiêm ngặt (SciRAG) đạt độ chính xác trích dẫn 99.4% [2].`
     }
   ]);
 
@@ -27,37 +28,44 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      {/* NAVBAR COMPONENT */}
-      <Navbar 
+    <div className="flex min-h-screen bg-slate-100 font-sans">
+      {/* 1. MotaAdmin Left Sidebar */}
+      <Sidebar 
         activeTab={activeTab} 
         setActiveTab={setActiveTab} 
         workspaceCount={workspacePapers.length} 
       />
 
-      {/* MAIN CONTENT AREA */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6">
-        {activeTab === 'search' && (
-          <SearchEngineTab
-            papers={MOCK_PAPERS}
-            selectedPaperIds={selectedPaperIds}
-            setSelectedPaperIds={setSelectedPaperIds}
-            pushToWorkspace={pushToWorkspace}
-          />
-        )}
+      {/* 2. Right Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0">
+        <Navbar 
+          activeTab={activeTab} 
+          setActiveTab={setActiveTab} 
+        />
 
-        {activeTab === 'workspace' && (
-          <WorkspaceTab
-            workspacePapers={workspacePapers}
-            chatMessages={chatMessages}
-            setChatMessages={setChatMessages}
-            activeCitation={activeCitation}
-            setActiveCitation={setActiveCitation}
-          />
-        )}
+        <main className="flex-1 p-4 md:p-6 max-w-7xl w-full mx-auto">
+          {activeTab === 'search' && (
+            <SearchEngineTab
+              papers={MOCK_PAPERS}
+              selectedPaperIds={selectedPaperIds}
+              setSelectedPaperIds={setSelectedPaperIds}
+              pushToWorkspace={pushToWorkspace}
+            />
+          )}
 
-        {activeTab === 'history' && <HistoryTab />}
-      </main>
+          {activeTab === 'workspace' && (
+            <WorkspaceTab
+              workspacePapers={workspacePapers}
+              chatMessages={chatMessages}
+              setChatMessages={setChatMessages}
+              activeCitation={activeCitation}
+              setActiveCitation={setActiveCitation}
+            />
+          )}
+
+          {activeTab === 'history' && <HistoryTab />}
+        </main>
+      </div>
     </div>
   );
 }
