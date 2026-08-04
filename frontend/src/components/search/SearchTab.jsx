@@ -1,5 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Search, Download, ExternalLink, PlusCircle, CheckCircle2, Award, Key, Loader2, AlertCircle } from 'lucide-react';
+import SearchHistoryPanel from './SearchHistoryPanel';
+
+const API_BASE = 'http://localhost:8000/api/v1';
+const DEFAULT_PROJECT_ID = '00000000-0000-0000-0000-000000000001';
+
+/**
+ * Chuyển đổi PaperRecord (từ DB) sang định dạng Paper (Pydantic) để render.
+ * DB dùng snake_case (lit_score, external_id); FE dùng camelCase (litScore, id).
+ */
+function dbPaperToPaperSchema(dbPaper) {
+  return {
+    id: dbPaper.external_id || dbPaper.id,
+    title: dbPaper.title,
+    authors: dbPaper.authors,
+    year: dbPaper.year,
+    abstract: dbPaper.abstract || '',
+    journal: dbPaper.journal || '',
+    doi: dbPaper.doi || 'N/A',
+    url: dbPaper.url || '#',
+    citations: dbPaper.citations,
+    litScore: dbPaper.lit_score,
+    tldr: dbPaper.tldr || null,
+  };
+}
 
 export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleSelectPaper, setActiveTab, darkMode }) {
   const [searchQuery, setSearchQuery] = useState('large language models in healthcare');
@@ -7,12 +31,72 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Search History state
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [activeQueryId, setActiveQueryId] = useState(null); // ID của lần search đang hiển thị
+
   const handleApiKeyChange = (e) => {
     const val = e.target.value;
     setApiKey(val);
     localStorage.setItem('serp_api_key', val);
   };
 
+  // ────────────────────────────────────────────────
+  // Tải lịch sử search từ backend
+  // ────────────────────────────────────────────────
+  const fetchHistory = useCallback(async () => {
+    try {
+      setHistoryLoading(true);
+      const res = await fetch(`${API_BASE}/projects/${DEFAULT_PROJECT_ID}/search-history`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setHistory(data.history || []);
+      return data.history || [];
+    } catch {
+      // Nếu backend chưa chạy, im lặng — không hiện lỗi ở đây
+      return [];
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
+  // ────────────────────────────────────────────────
+  // Tải papers của 1 lần search cụ thể từ backend
+  // ────────────────────────────────────────────────
+  const loadPapersForQuery = useCallback(async (queryId) => {
+    try {
+      const res = await fetch(`${API_BASE}/search-queries/${queryId}/papers`);
+      if (!res.ok) return;
+      const dbPapers = await res.json();
+      const converted = dbPapers.map(dbPaperToPaperSchema);
+      setPapers(converted);
+      setActiveQueryId(queryId);
+    } catch (err) {
+      console.error('Failed to load papers for query:', err);
+    }
+  }, [setPapers]);
+
+  // ────────────────────────────────────────────────
+  // Khi component mount: khôi phục state từ backend
+  // Lấy lần search gần nhất → tải papers của nó
+  // ────────────────────────────────────────────────
+  useEffect(() => {
+    // Chỉ restore nếu papers đang rỗng (tránh ghi đè khi user đã search rồi mới chuyển tab về)
+    const restore = async () => {
+      const historyList = await fetchHistory();
+      if (historyList && historyList.length > 0 && papers.length === 0) {
+        // Lấy lần search mới nhất (index 0 vì backend đã sort DESC)
+        const latestQuery = historyList[0];
+        await loadPapersForQuery(latestQuery.id);
+      }
+    };
+    restore();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps — chỉ chạy 1 lần khi mount
+
+  // ────────────────────────────────────────────────
+  // Thực hiện search mới
+  // ────────────────────────────────────────────────
   const handleSearch = async (e) => {
     if (e) e.preventDefault();
     if (!searchQuery.trim()) return;
@@ -26,7 +110,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
     setError('');
 
     try {
-      const response = await fetch(`http://localhost:8000/api/v1/search?query=${encodeURIComponent(searchQuery)}`, {
+      const response = await fetch(`${API_BASE}/search?query=${encodeURIComponent(searchQuery)}`, {
         headers: {
           'X-API-Key': apiKey.trim()
         }
@@ -40,6 +124,11 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
       const data = await response.json();
       if (data.papers && data.papers.length > 0) {
         setPapers(data.papers);
+        if (data.search_query_id) {
+          setActiveQueryId(data.search_query_id);
+        }
+        // Làm mới lịch sử sau khi search thành công
+        await fetchHistory();
       } else {
         setError('Không tìm thấy bài báo nào phù hợp với từ khóa này.');
       }
@@ -53,6 +142,13 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
     } finally {
       setLoading(false);
     }
+  };
+
+  // Callback khi user bấm Duplicate trong SearchHistoryPanel
+  const handleDuplicate = (queryString) => {
+    setSearchQuery(queryString);
+    // Scroll lên đầu để user thấy ô search đã được điền
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
@@ -148,6 +244,15 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
         </div>
       </form>
 
+      {/* Search History Panel — hiển thị phía dưới search bar */}
+      <SearchHistoryPanel
+        history={history}
+        onLoadPapers={loadPapersForQuery}
+        onDuplicate={handleDuplicate}
+        darkMode={darkMode}
+        loading={historyLoading}
+      />
+
       {/* Error Alert */}
       {error && (
         <div className="p-4 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/60 text-red-700 dark:text-red-300 text-sm font-semibold flex items-center gap-3">
@@ -159,9 +264,16 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
       {/* Results List Cards */}
       <div className="space-y-6">
         <div className="flex items-center justify-between px-2">
-          <span className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-            Kết quả tìm thấy ({papers.length} bài báo)
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              Kết quả tìm thấy ({papers.length} bài báo)
+            </span>
+            {activeQueryId && (
+              <span className="text-xs font-mono text-slate-400 dark:text-slate-500">
+                (đã lưu)
+              </span>
+            )}
+          </div>
           {selectedPaperIds.length > 0 && (
             <span className="text-sm font-bold text-blue-600 dark:text-sky-400">
               Đã chọn {selectedPaperIds.length} bài để đưa lên AI

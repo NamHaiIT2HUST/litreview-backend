@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import SearchTab from './components/search/SearchTab';
 import UploadTab from './components/upload/UploadTab';
@@ -6,7 +6,14 @@ import WorkspaceTab from './components/workspace/WorkspaceTab';
 import InsightsTab from './components/insights/InsightsTab';
 import HomeTab from './components/home/HomeTab';
 export default function App() {
-  const [activeTab, setActiveTab] = useState('home'); // 'home' | 'search' | 'upload' | 'workspace' | 'insights'
+  const [activeTab, setActiveTab] = useState(() => {
+    return localStorage.getItem('litreview_active_tab') || 'home';
+  }); // 'home' | 'search' | 'upload' | 'workspace' | 'insights'
+
+  useEffect(() => {
+    localStorage.setItem('litreview_active_tab', activeTab);
+  }, [activeTab]);
+
   const [darkMode, setDarkMode] = useState(false);
   const [papers, setPapers] = useState([]);
   const [selectedPaperIds, setSelectedPaperIds] = useState([]);
