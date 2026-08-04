@@ -162,10 +162,24 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
           <span className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
             Kết quả tìm thấy ({papers.length} bài báo)
           </span>
-          <span className="text-sm font-bold text-blue-600 dark:text-sky-400">
-            Đã chọn {selectedPaperIds.length} bài để đưa lên AI
-          </span>
+          {selectedPaperIds.length > 0 && (
+            <span className="text-sm font-bold text-blue-600 dark:text-sky-400">
+              Đã chọn {selectedPaperIds.length} bài để đưa lên AI
+            </span>
+          )}
         </div>
+
+        {papers.length === 0 && !loading && (
+          <div className={`p-12 text-center rounded-3xl border ${
+            darkMode ? 'bg-slate-900/60 border-slate-800 text-slate-400' : 'bg-white border-slate-200 text-slate-500'
+          }`}>
+            <Search className="w-12 h-12 mx-auto mb-4 opacity-30 text-blue-500" />
+            <h3 className="text-lg font-bold mb-1">Chưa có kết quả tìm kiếm nào</h3>
+            <p className="text-sm max-w-md mx-auto">
+              Hãy nhập SerpApi Key / S2 Key ở trên, sau đó gõ từ khóa nghiên cứu và nhấn nút <strong>"Tìm bài báo"</strong> để kết nối dữ liệu thật!
+            </p>
+          </div>
+        )}
 
         {papers.map((paper) => {
           const isSelected = selectedPaperIds.includes(paper.id);
