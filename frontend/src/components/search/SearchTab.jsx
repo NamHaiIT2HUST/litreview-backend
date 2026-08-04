@@ -1,8 +1,59 @@
 import React, { useState } from 'react';
-import { Search, Download, ExternalLink, PlusCircle, CheckCircle2, Award } from 'lucide-react';
+import { Search, Download, ExternalLink, PlusCircle, CheckCircle2, Award, Key, Loader2, AlertCircle } from 'lucide-react';
 
-export default function SearchTab({ papers, selectedPaperIds, toggleSelectPaper, setActiveTab, darkMode }) {
+export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleSelectPaper, setActiveTab, darkMode }) {
   const [searchQuery, setSearchQuery] = useState('large language models in healthcare');
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem('serp_api_key') || '');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleApiKeyChange = (e) => {
+    const val = e.target.value;
+    setApiKey(val);
+    localStorage.setItem('serp_api_key', val);
+  };
+
+  const handleSearch = async (e) => {
+    if (e) e.preventDefault();
+    if (!searchQuery.trim()) return;
+
+    if (!apiKey.trim()) {
+      setError('Vui lòng nhập SerpApi Key của bạn để bắt đầu tìm kiếm dữ liệu thật!');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch(`http://localhost:8000/api/v1/search?query=${encodeURIComponent(searchQuery)}`, {
+        headers: {
+          'X-API-Key': apiKey.trim()
+        }
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.detail || 'Lỗi tìm kiếm từ server');
+      }
+
+      const data = await response.json();
+      if (data.papers && data.papers.length > 0) {
+        setPapers(data.papers);
+      } else {
+        setError('Không tìm thấy bài báo nào phù hợp với từ khóa này.');
+      }
+    } catch (err) {
+      console.error(err);
+      if (err.name === 'TypeError' && err.message.includes('fetch')) {
+        setError('Không thể kết nối đến Backend (http://localhost:8000). Vui lòng đảm bảo bạn đã bật Backend bằng lệnh `uvicorn src.main:app --reload` trên máy!');
+      } else {
+        setError(err.message || 'Lỗi không xác định khi gọi Backend.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-8 max-w-5xl mx-auto py-4">
@@ -13,12 +64,56 @@ export default function SearchTab({ papers, selectedPaperIds, toggleSelectPaper,
           1. Tra cứu bài báo & Lấy Link PDF
         </h2>
         <p className={`text-base max-w-2xl mx-auto font-medium ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-          Tìm kiếm bài báo khoa học từ Scopus & Web of Science, đọc tóm tắt Abstract và lấy link tải file PDF gốc về máy.
+          Tìm kiếm bài báo khoa học trực tiếp từ Google Scholar qua SerpApi, tự động tính điểm uy tín (LitScore) & lấy link PDF gốc.
         </p>
       </div>
 
+      {/* BYOK API Key Banner */}
+      <div className={`p-4 md:p-5 rounded-2xl border transition-all ${
+        darkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-100'
+      }`}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-sm font-bold text-blue-700 dark:text-sky-300">
+            <Key className="w-4 h-4 shrink-0 text-blue-600 dark:text-sky-400" />
+            <span>API Key (SerpApi / S2 Key):</span>
+          </div>
+          <div className="flex-1 max-w-md flex items-center gap-2">
+            <input
+              type="password"
+              value={apiKey}
+              onChange={handleApiKeyChange}
+              placeholder="Dán SerpApi Key hoặc S2 Key (s2k-...) vào đây..."
+              className={`w-full px-4 py-2 border rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-600 ${
+                darkMode ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500' : 'bg-white border-slate-300 text-slate-900'
+              }`}
+            />
+          </div>
+          <div className="flex items-center gap-3 text-xs font-bold text-blue-600 dark:text-sky-400 shrink-0">
+            <a
+              href="https://serpapi.com/users/sign_up"
+              target="_blank"
+              rel="noreferrer"
+              className="hover:underline flex items-center gap-1"
+            >
+              <span>Lấy SerpApi Key</span>
+              <ExternalLink className="w-3 h-3" />
+            </a>
+            <span>•</span>
+            <a
+              href="https://www.semanticscholar.org/product/api"
+              target="_blank"
+              rel="noreferrer"
+              className="hover:underline flex items-center gap-1"
+            >
+              <span>Lấy S2 Key</span>
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          </div>
+        </div>
+      </div>
+
       {/* Spacious Search Bar */}
-      <div className={`p-4 md:p-6 rounded-3xl border shadow-lg transition-colors ${
+      <form onSubmit={handleSearch} className={`p-4 md:p-6 rounded-3xl border shadow-lg transition-colors ${
         darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
       }`}>
         <div className="flex flex-col sm:flex-row gap-3">
@@ -36,11 +131,30 @@ export default function SearchTab({ papers, selectedPaperIds, toggleSelectPaper,
               }`}
             />
           </div>
-          <button className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-4 rounded-2xl text-base transition-all shadow-md">
-            Tìm bài báo
+          <button
+            type="submit"
+            disabled={loading}
+            className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold px-8 py-4 rounded-2xl text-base transition-all shadow-md flex items-center justify-center gap-2 shrink-0"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span>Đang tìm kiếm...</span>
+              </>
+            ) : (
+              <span>Tìm bài báo</span>
+            )}
           </button>
         </div>
-      </div>
+      </form>
+
+      {/* Error Alert */}
+      {error && (
+        <div className="p-4 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/60 text-red-700 dark:text-red-300 text-sm font-semibold flex items-center gap-3">
+          <AlertCircle className="w-5 h-5 shrink-0 text-red-500" />
+          <span>{error}</span>
+        </div>
+      )}
 
       {/* Results List Cards */}
       <div className="space-y-6">

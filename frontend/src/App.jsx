@@ -10,6 +10,7 @@ import { MOCK_PAPERS } from './data/mockPapers';
 export default function App() {
   const [activeTab, setActiveTab] = useState('home'); // 'home' | 'search' | 'upload' | 'workspace' | 'insights'
   const [darkMode, setDarkMode] = useState(false);
+  const [papers, setPapers] = useState(MOCK_PAPERS);
   const [selectedPaperIds, setSelectedPaperIds] = useState(['WOS-2024-001', 'SCOPUS-2024-089']);
   const [workspacePapers, setWorkspacePapers] = useState([MOCK_PAPERS[0], MOCK_PAPERS[1]]);
   const [activeCitation, setActiveCitation] = useState(MOCK_PAPERS[0]);
@@ -28,7 +29,7 @@ export default function App() {
     }
   };
 
-  const selectedPapers = MOCK_PAPERS.filter(p => selectedPaperIds.includes(p.id));
+  const selectedPapers = papers.filter(p => selectedPaperIds.includes(p.id));
 
   return (
     <div className={`min-h-screen font-sans transition-colors ${darkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
@@ -50,7 +51,8 @@ export default function App() {
 
         {activeTab === 'search' && (
           <SearchTab
-            papers={MOCK_PAPERS}
+            papers={papers}
+            setPapers={setPapers}
             selectedPaperIds={selectedPaperIds}
             toggleSelectPaper={toggleSelectPaper}
             setActiveTab={setActiveTab}
