@@ -1,6 +1,6 @@
-from pydantic import BaseModel, Field
-from typing import List, Optional
 from datetime import datetime
+
+from pydantic import BaseModel, Field
 
 
 class ChatRequest(BaseModel):
@@ -21,11 +21,11 @@ class Paper(BaseModel):
     url: str
     citations: int
     litScore: int
-    tldr: Optional[str] = None
+    tldr: str | None = None
 
 class SearchResponse(BaseModel):
-    papers: List[Paper]
-    search_query_id: Optional[str] = None  # ID của record vừa lưu, dùng cho frontend
+    papers: list[Paper]
+    search_query_id: str | None = None  # ID của record vừa lưu, dùng cho frontend
 
 
 # ──────────────────────────────────────────────────
@@ -45,7 +45,7 @@ class PaperRecord(BaseModel):
     url: str
     citations: int
     lit_score: int
-    tldr: Optional[str] = None
+    tldr: str | None = None
     dedup_key: str
 
     model_config = {"from_attributes": True}
@@ -56,10 +56,10 @@ class SearchQueryRecord(BaseModel):
     id: str
     project_id: str
     query_string: str
-    strategy_label: Optional[str] = None
+    strategy_label: str | None = None
     result_count: int
     executed_at: datetime
-    is_duplicated_from: Optional[str] = None
+    is_duplicated_from: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -67,7 +67,7 @@ class SearchQueryRecord(BaseModel):
 class SearchHistoryResponse(BaseModel):
     """Response cho GET /projects/{id}/search-history."""
     project_id: str
-    history: List[SearchQueryRecord]
+    history: list[SearchQueryRecord]
 
 
 class DuplicateQueryResponse(BaseModel):

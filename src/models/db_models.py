@@ -5,10 +5,15 @@ DEFAULT_PROJECT_ID được dùng cho MVP — khi Module 1 (Research Project Set
 được implement, sẽ thay bằng FK thật tới bảng projects.
 """
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import (
-    Column, String, Integer, Text, DateTime, ForeignKey, Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
 )
 from sqlalchemy.orm import relationship
 
@@ -19,7 +24,7 @@ DEFAULT_PROJECT_ID = "00000000-0000-0000-0000-000000000001"
 
 
 def _now_utc():
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class SearchQuery(Base):

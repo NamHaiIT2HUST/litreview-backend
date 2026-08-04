@@ -13,19 +13,21 @@ Search History (Module 2 — P0):
 """
 import re
 import uuid
-from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Header
-from sqlalchemy import select, desc
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.agents.graph import agent
 from src.database import get_db
-from src.models.db_models import CachedPaper, SearchQuery, DEFAULT_PROJECT_ID
+from src.models.db_models import DEFAULT_PROJECT_ID, CachedPaper, SearchQuery
 from src.models.schemas import (
-    ChatRequest, ChatResponse,
-    DuplicateQueryResponse, PaperRecord,
-    SearchHistoryResponse, SearchQueryRecord,
+    ChatRequest,
+    ChatResponse,
+    DuplicateQueryResponse,
+    PaperRecord,
+    SearchHistoryResponse,
+    SearchQueryRecord,
     SearchResponse,
 )
 from src.services.scholar_api import search_papers_auto
@@ -55,8 +57,8 @@ async def _persist_search(
     query_string: str,
     papers_pydantic,
     project_id: str = DEFAULT_PROJECT_ID,
-    strategy_label: Optional[str] = None,
-    is_duplicated_from: Optional[str] = None,
+    strategy_label: str | None = None,
+    is_duplicated_from: str | None = None,
 ) -> str:
     """
     Lưu 1 lần search vào DB:
@@ -116,8 +118,8 @@ async def _persist_search(
 @router.get("/search", response_model=SearchResponse)
 async def search_papers(
     query: str = Query(..., description="Từ khóa tìm kiếm"),
-    x_api_key: Optional[str] = Header(None, description="SerpApi hoặc Semantic Scholar Key"),
-    provider: Optional[str] = Query("auto", description="Nguồn dữ liệu: auto, serpapi, semanticscholar"),
+    x_api_key: str | None = Header(None, description="SerpApi hoặc Semantic Scholar Key"),
+    provider: str | None = Query("auto", description="Nguồn dữ liệu: auto, serpapi, semanticscholar"),
     db: AsyncSession = Depends(get_db),
 ) -> SearchResponse:
     """Tra cứu bài báo học thuật và lưu vào Search History."""
