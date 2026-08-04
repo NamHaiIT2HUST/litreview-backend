@@ -58,9 +58,9 @@ export default function SearchTab({ papers, selectedPaperIds, toggleSelectPaper,
           return (
             <div
               key={paper.id}
-              className={`p-6 md:p-8 rounded-3xl border transition-all space-y-5 shadow-sm ${
-                darkMode ? 'bg-slate-900 border-slate-800 text-slate-200' : 'bg-white border-slate-200'
-              } ${isSelected ? 'ring-2 ring-blue-500 border-blue-500' : ''}`}
+              className={`p-6 md:p-8 rounded-3xl border transition-all duration-300 space-y-5 shadow-sm hover:shadow-xl hover:-translate-y-1 ${
+                darkMode ? 'bg-slate-900 border-slate-800 text-slate-200 hover:shadow-blue-900/20' : 'bg-white border-slate-200 hover:shadow-slate-300'
+              } ${isSelected ? 'ring-2 ring-blue-500 border-blue-500 shadow-md' : ''}`}
             >
               {/* Paper Header */}
               <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
@@ -89,10 +89,16 @@ export default function SearchTab({ papers, selectedPaperIds, toggleSelectPaper,
                 </div>
               </div>
 
-              {/* Abstract Section */}
+              {/* Abstract & TL;DR Section */}
               <div className={`p-5 rounded-2xl text-sm leading-relaxed border ${
                 darkMode ? 'bg-slate-800/80 border-slate-700 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'
               }`}>
+                {paper.tldr && (
+                  <div className="mb-3 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-800/50">
+                    <p className="font-bold text-emerald-700 dark:text-emerald-400">⚡ Tóm tắt siêu tốc (AI TL;DR):</p>
+                    <p className="text-emerald-800 dark:text-emerald-300 mt-1">{paper.tldr.replace('TL;DR: ', '')}</p>
+                  </div>
+                )}
                 <p className="font-bold text-blue-600 dark:text-sky-400 mb-1">📝 Tóm tắt Abstract:</p>
                 <p>{paper.abstract}</p>
               </div>
@@ -132,12 +138,12 @@ export default function SearchTab({ papers, selectedPaperIds, toggleSelectPaper,
                     {isSelected ? (
                       <>
                         <CheckCircle2 className="w-4 h-4" />
-                        <span>Đã chọn bài này</span>
+                        <span>Đã thêm vào Workspace</span>
                       </>
                     ) : (
                       <>
                         <PlusCircle className="w-4 h-4" />
-                        <span>Chọn bài để Upload</span>
+                        <span>Thêm vào AI Workspace</span>
                       </>
                     )}
                   </button>
@@ -156,15 +162,15 @@ export default function SearchTab({ papers, selectedPaperIds, toggleSelectPaper,
               </div>
               <div>
                 <p className="font-bold text-sm">Đã chọn {selectedPaperIds.length} bài báo</p>
-                <p className="text-xs text-slate-400">Sẵn sàng để chuyển sang Bước 2 (Upload vào NotebookLM)</p>
+                <p className="text-xs text-slate-400">Sẵn sàng để đưa vào không gian làm việc của AI</p>
               </div>
             </div>
 
             <button
-              onClick={() => setActiveTab('upload')}
+              onClick={() => setActiveTab('workspace')}
               className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3.5 rounded-2xl text-xs transition-all shadow-lg w-full sm:w-auto"
             >
-              Chuyển sang Bước 2: Upload vào AI System →
+              Chuyển sang AI Workspace →
             </button>
           </div>
         )}

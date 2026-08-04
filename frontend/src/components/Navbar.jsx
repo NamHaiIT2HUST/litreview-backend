@@ -1,12 +1,13 @@
 import React from 'react';
-import { Search, Upload, Sparkles, PieChart, Sun, Moon } from 'lucide-react';
+import { Search, Upload, Sparkles, PieChart, Sun, Moon, Home } from 'lucide-react';
 
 export default function Navbar({ activeTab, setActiveTab, darkMode, setDarkMode, uploadedCount }) {
   const navItems = [
-    { id: 'search', label: '1. Tra cứu bài báo', icon: Search },
-    { id: 'upload', label: '2. Upload (NotebookLM)', icon: Upload, count: uploadedCount },
-    { id: 'workspace', label: '3. AI Workspace', icon: Sparkles },
-    { id: 'insights', label: '4. Phân tích RAG', icon: PieChart },
+    { id: 'home', label: 'Trang chủ', icon: Home },
+    { id: 'search', label: 'Tra cứu', icon: Search },
+    { id: 'upload', label: 'Upload PDF', icon: Upload, count: uploadedCount },
+    { id: 'workspace', label: 'AI Workspace', icon: Sparkles },
+    { id: 'insights', label: 'Phân tích', icon: PieChart },
   ];
 
   return (
@@ -19,7 +20,7 @@ export default function Navbar({ activeTab, setActiveTab, darkMode, setDarkMode,
         
         {/* Left Logo */}
         <div 
-          onClick={() => setActiveTab('search')}
+          onClick={() => setActiveTab('home')}
           className="flex items-center gap-3 cursor-pointer group"
         >
           <div className="w-10 h-10 rounded-xl bg-blue-600 text-white font-black text-xl flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
@@ -29,7 +30,7 @@ export default function Navbar({ activeTab, setActiveTab, darkMode, setDarkMode,
             <h1 className="font-extrabold text-base md:text-lg tracking-tight leading-none">
               LitReview Agent
             </h1>
-            <span className="text-[11px] font-semibold text-blue-600 dark:text-sky-400">
+            <span className="text-[11px] font-semibold text-blue-600 dark:text-sky-400 whitespace-nowrap">
               Closed-Domain RAG System
             </span>
           </div>
@@ -46,7 +47,7 @@ export default function Navbar({ activeTab, setActiveTab, darkMode, setDarkMode,
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
-                className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-xl transition-all ${
+                className={`flex items-center gap-2 px-3 py-2 text-sm font-bold rounded-xl transition-all ${
                   isActive
                     ? 'bg-blue-600 text-white shadow-md'
                     : darkMode
@@ -97,6 +98,7 @@ export default function Navbar({ activeTab, setActiveTab, darkMode, setDarkMode,
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
+          const mobileLabel = item.label.includes('.') ? item.label.split('.')[1] : item.label;
           return (
             <button
               key={item.id}
@@ -106,7 +108,7 @@ export default function Navbar({ activeTab, setActiveTab, darkMode, setDarkMode,
               }`}
             >
               <Icon className="w-5 h-5" />
-              <span className="text-[11px]">{item.label.split('.')[1]}</span>
+              <span className="text-[11px]">{mobileLabel}</span>
             </button>
           );
         })}

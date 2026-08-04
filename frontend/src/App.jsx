@@ -4,10 +4,11 @@ import SearchTab from './components/search/SearchTab';
 import UploadTab from './components/upload/UploadTab';
 import WorkspaceTab from './components/workspace/WorkspaceTab';
 import InsightsTab from './components/insights/InsightsTab';
+import HomeTab from './components/home/HomeTab';
 import { MOCK_PAPERS } from './data/mockPapers';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('search'); // 'search' | 'upload' | 'workspace' | 'insights'
+  const [activeTab, setActiveTab] = useState('home'); // 'home' | 'search' | 'upload' | 'workspace' | 'insights'
   const [darkMode, setDarkMode] = useState(false);
   const [selectedPaperIds, setSelectedPaperIds] = useState(['WOS-2024-001', 'SCOPUS-2024-089']);
   const [workspacePapers, setWorkspacePapers] = useState([MOCK_PAPERS[0], MOCK_PAPERS[1]]);
@@ -43,6 +44,10 @@ export default function App() {
 
       {/* Main Multi-Step Navigation Content Area */}
       <main className="p-4 md:p-8 max-w-7xl mx-auto">
+        {activeTab === 'home' && (
+          <HomeTab setActiveTab={setActiveTab} darkMode={darkMode} />
+        )}
+
         {activeTab === 'search' && (
           <SearchTab
             papers={MOCK_PAPERS}
