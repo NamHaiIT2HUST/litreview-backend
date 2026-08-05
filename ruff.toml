@@ -8,3 +8,7 @@ ignore = ["E501"]
 [format]
 quote-style = "double"
 indent-style = "space"
+
+[lint.per-file-ignores]
+"scripts/log_hook.py" = ["N806"]
+"src/models/schemas.py" = ["N815"]

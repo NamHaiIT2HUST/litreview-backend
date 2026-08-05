@@ -1,8 +1,10 @@
+import asyncio
 import datetime
 import hashlib
 import re
-import asyncio
-from typing import List, Optional
+from typing import Optional
+
+import httpx
 from fastapi import HTTPException
 
 from src.models.schemas import Paper
@@ -20,6 +22,7 @@ def calculate_litscore(citations: int, year: int) -> int:
     score = 70 - age_penalty + citation_bonus
     return int(max(10, min(100, score)))
 
+
 def reconstruct_abstract_from_openalex(inverted_index: dict) -> str:
     """Giải mã chỉ mục ngược (abstract_inverted_index) của OpenAlex thành văn bản Full Abstract hoàn chỉnh."""
     if not inverted_index or not isinstance(inverted_index, dict):
@@ -31,6 +34,7 @@ def reconstruct_abstract_from_openalex(inverted_index: dict) -> str:
                 pos_map[pos] = word
     sorted_words = [pos_map[i] for i in sorted(pos_map.keys())]
     return " ".join(sorted_words)
+
 
 async def fetch_full_abstract_openalex(client: httpx.AsyncClient, title: str) -> tuple[Optional[str], str]:
     """Tự động tra cứu OpenAlex (miễn phí, 250M+ bài báo) để lấy Full Abstract nguyên bản và DOI."""
@@ -50,6 +54,7 @@ async def fetch_full_abstract_openalex(client: httpx.AsyncClient, title: str) ->
     except Exception:
         pass
     return None, "N/A"
+
 
 async def fetch_full_abstract_s2(client: httpx.AsyncClient, title: str) -> tuple[Optional[str], Optional[str], str]:
     """Tra cứu phụ từ Semantic Scholar để bổ sung TL;DR nếu có."""
@@ -76,7 +81,8 @@ async def fetch_full_abstract_s2(client: httpx.AsyncClient, title: str) -> tuple
         pass
     return None, None, "N/A"
 
-async def search_papers_openalex(query: str, limit: int = 10) -> List[Paper]:
+
+async def search_papers_openalex(query: str, limit: int = 10) -> list[Paper]:
     """Tìm kiếm trực tiếp từ OpenAlex API (Tốc độ cao, không cần API Key, không bao giờ bị 429)."""
     url = "https://api.openalex.org/works"
     params = {"search": query, "per-page": limit}
@@ -95,7 +101,6 @@ async def search_papers_openalex(query: str, limit: int = 10) -> List[Paper]:
     for res in results:
         title = res.get("display_name") or res.get("title") or "Unknown Title"
         
-        # Authors
         authorships = res.get("authorships") or []
         author_names = []
         for auth in authorships:
@@ -113,11 +118,9 @@ async def search_papers_openalex(query: str, limit: int = 10) -> List[Paper]:
         abstract = reconstruct_abstract_from_openalex(inv_abstract) or "No abstract provided."
         citations = res.get("cited_by_count") or 0
 
-        # PDF / URL
         primary_loc = res.get("primary_location") or {}
         landing_url = primary_loc.get("landing_page_url") or primary_loc.get("pdf_url") or "#"
 
-        # DOI
         raw_doi = res.get("doi")
         doi = raw_doi.replace("https://doi.org/", "") if (raw_doi and isinstance(raw_doi, str)) else "N/A"
 
@@ -140,7 +143,8 @@ async def search_papers_openalex(query: str, limit: int = 10) -> List[Paper]:
 
     return papers
 
-async def search_papers_semanticscholar(query: str, api_key: str = None, limit: int = 10) -> List[Paper]:
+
+async def search_papers_semanticscholar(query: str, api_key: str = None, limit: int = 10) -> list[Paper]:
     """Search for papers using Semantic Scholar (S2) Graph API. Fallback to OpenAlex if 429 occurs."""
     url = "https://api.semanticscholar.org/graph/v1/paper/search"
     params = {
@@ -160,13 +164,11 @@ async def search_papers_semanticscholar(query: str, api_key: str = None, limit: 
             data = response.json()
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 429:
-                # Semantic Scholar bị Rate Limit (429) -> Tự động Fallback sang OpenAlex API!
                 return await search_papers_openalex(query, limit)
             elif e.response.status_code in (401, 403):
                 raise HTTPException(status_code=401, detail="Invalid Semantic Scholar API Key")
             raise HTTPException(status_code=500, detail=f"Semantic Scholar API error: {str(e)}")
         except Exception:
-            # Tự động Fallback sang OpenAlex API nếu Semantic Scholar gặp sự cố
             return await search_papers_openalex(query, limit)
 
     results = data.get("data", [])
@@ -176,7 +178,6 @@ async def search_papers_semanticscholar(query: str, api_key: str = None, limit: 
         paper_id = str(res.get("paperId", ""))
         title = res.get("title") or "Unknown Title"
         
-        # Format authors
         raw_authors = res.get("authors", [])
         author_names = [a.get("name", "") for a in raw_authors if isinstance(a, dict) and a.get("name")]
         authors_str = ", ".join(author_names[:4]) if author_names else "Unknown Authors"
@@ -187,21 +188,18 @@ async def search_papers_semanticscholar(query: str, api_key: str = None, limit: 
         abstract = res.get("abstract") or "No abstract provided."
         citations = res.get("citationCount") or 0
         
-        # TLDR
         tldr_obj = res.get("tldr")
         tldr_str = tldr_obj.get("text") if isinstance(tldr_obj, dict) else None
 
-        # PDF URL
         pdf_info = res.get("openAccessPdf") or {}
         url_link = pdf_info.get("url") if isinstance(pdf_info, dict) else None
         if not url_link:
             url_link = f"https://www.semanticscholar.org/paper/{paper_id}"
 
-        # DOI
         ext_ids = res.get("externalIds") or {}
         raw_doi = ext_ids.get("DOI") if isinstance(ext_ids, dict) else None
         doi = raw_doi if (raw_doi and isinstance(raw_doi, str)) else "N/A"
-        
+
         paper = Paper(
             id=f"S2_{paper_id[:10]}",
             title=title,
@@ -219,7 +217,8 @@ async def search_papers_semanticscholar(query: str, api_key: str = None, limit: 
 
     return papers
 
-async def search_papers_serpapi(query: str, api_key: str, limit: int = 10) -> List[Paper]:
+
+async def search_papers_serpapi(query: str, api_key: str, limit: int = 10) -> list[Paper]:
     """Search for papers using SerpApi (Google Scholar) and enrich with Full Abstract from OpenAlex & Semantic Scholar."""
     if not api_key:
         raise HTTPException(status_code=401, detail="API Key is required for SerpApi")
@@ -247,7 +246,6 @@ async def search_papers_serpapi(query: str, api_key: str, limit: int = 10) -> Li
         
         results = data.get("organic_results", [])
         
-        # Enrich full abstracts concurrently using OpenAlex & Semantic Scholar
         oa_tasks = [fetch_full_abstract_openalex(client, res.get("title", "")) for res in results]
         s2_tasks = [fetch_full_abstract_s2(client, res.get("title", "")) for res in results]
         
@@ -277,7 +275,6 @@ async def search_papers_serpapi(query: str, api_key: str, limit: int = 10) -> Li
 
         paper_id = hashlib.md5(title.encode()).hexdigest()[:10]
         
-        # Determine best full abstract, TL;DR, and DOI
         oa_abstract, oa_doi = None, "N/A"
         if idx < len(oa_results) and not isinstance(oa_results[idx], Exception):
             oa_abstract, oa_doi = oa_results[idx]
@@ -286,7 +283,6 @@ async def search_papers_serpapi(query: str, api_key: str, limit: int = 10) -> Li
         if idx < len(s2_results) and not isinstance(s2_results[idx], Exception):
             s2_abstract, tldr_text, s2_doi = s2_results[idx]
             
-        # Select longest valid abstract
         final_abstract = snippet_abstract
         if oa_abstract and len(oa_abstract) > len(final_abstract):
             final_abstract = oa_abstract
@@ -305,12 +301,13 @@ async def search_papers_serpapi(query: str, api_key: str, limit: int = 10) -> Li
             doi=final_doi if (final_doi and isinstance(final_doi, str)) else "N/A",
             url=str(url_link),
             citations=int(citations),
-            litScore=calculate_litscore(int(citations), year),
+            litScore=calculate_litscore(citations, year),
             tldr=tldr_text
         )
         papers.append(paper)
 
     return papers
+
 
 async def search_papers_auto(query: str, api_key: str = None, provider: str = "auto", limit: int = 10) -> list[Paper]:
     """Auto-detect provider or use specified provider."""
