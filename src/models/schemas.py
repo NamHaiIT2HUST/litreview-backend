@@ -1,5 +1,4 @@
 from datetime import datetime
-
 from pydantic import BaseModel, Field
 
 
@@ -20,7 +19,7 @@ class Paper(BaseModel):
     doi: str
     url: str
     citations: int
-    litScore: int
+    litScore: int  # noqa: N815
     tldr: str | None = None
 
 class SearchResponse(BaseModel):
@@ -75,4 +74,3 @@ class DuplicateQueryResponse(BaseModel):
     new_query_id: str
     query_string: str
     duplicated_from: str
-

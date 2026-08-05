@@ -1,6 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Download, ExternalLink, PlusCircle, CheckCircle2, Award, Key, Loader2, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { 
+  Search, Download, ExternalLink, PlusCircle, CheckCircle2, Award, Key, Loader2, AlertCircle, ChevronDown, ChevronUp 
+} from 'lucide-react';
 import SearchHistoryPanel from './SearchHistoryPanel';
+import FilterSortBar from './FilterSortBar';
+import PaperTable from './PaperTable';
+import { exportPapersToExcel } from '../../utils/excelExport';
 
 const API_BASE = 'http://localhost:8000/api/v1';
 const DEFAULT_PROJECT_ID = '00000000-0000-0000-0000-000000000001';
@@ -34,7 +39,30 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
   // Search History state
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [activeQueryId, setActiveQueryId] = useState(null); // ID của lần search đang hiển thị
+  const [activeQueryId, setActiveQueryId] = useState(null);
+
+  // --- Filter & Sort States ---
+  const [inResultQuery, setInResultQuery] = useState('');
+  const [sortBy, setSortBy] = useState('litscore_desc');
+  const [viewMode, setViewMode] = useState('cards'); // 'cards' | 'table'
+  const [activePreset, setActivePreset] = useState('all');
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [minLitScore, setMinLitScore] = useState(0);
+  const [minCitations, setMinCitations] = useState(0);
+  const [startYear, setStartYear] = useState('');
+  const [endYear, setEndYear] = useState('');
+  const [selectedJournal, setSelectedJournal] = useState('All');
+
+  // --- Expand Abstract State ---
+  const [expandedPaperIds, setExpandedPaperIds] = useState([]);
+
+  const toggleExpandAbstract = (id) => {
+    if (expandedPaperIds.includes(id)) {
+      setExpandedPaperIds(expandedPaperIds.filter(item => item !== id));
+    } else {
+      setExpandedPaperIds([...expandedPaperIds, id]);
+    }
+  };
 
   const handleApiKeyChange = (e) => {
     const val = e.target.value;
@@ -42,9 +70,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
     localStorage.setItem('serp_api_key', val);
   };
 
-  // ────────────────────────────────────────────────
   // Tải lịch sử search từ backend
-  // ────────────────────────────────────────────────
   const fetchHistory = useCallback(async () => {
     try {
       setHistoryLoading(true);
@@ -54,16 +80,13 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
       setHistory(data.history || []);
       return data.history || [];
     } catch {
-      // Nếu backend chưa chạy, im lặng — không hiện lỗi ở đây
       return [];
     } finally {
       setHistoryLoading(false);
     }
   }, []);
 
-  // ────────────────────────────────────────────────
   // Tải papers của 1 lần search cụ thể từ backend
-  // ────────────────────────────────────────────────
   const loadPapersForQuery = useCallback(async (queryId) => {
     try {
       const res = await fetch(`${API_BASE}/search-queries/${queryId}/papers`);
@@ -77,32 +100,25 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
     }
   }, [setPapers]);
 
-  // ────────────────────────────────────────────────
-  // Khi component mount: khôi phục state từ backend
-  // Lấy lần search gần nhất → tải papers của nó
-  // ────────────────────────────────────────────────
+  // Khôi phục lịch sử search gần nhất khi mount
   useEffect(() => {
-    // Chỉ restore nếu papers đang rỗng (tránh ghi đè khi user đã search rồi mới chuyển tab về)
     const restore = async () => {
       const historyList = await fetchHistory();
       if (historyList && historyList.length > 0 && papers.length === 0) {
-        // Lấy lần search mới nhất (index 0 vì backend đã sort DESC)
         const latestQuery = historyList[0];
         await loadPapersForQuery(latestQuery.id);
       }
     };
     restore();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps — chỉ chạy 1 lần khi mount
+  }, []);
 
-  // ────────────────────────────────────────────────
   // Thực hiện search mới
-  // ────────────────────────────────────────────────
   const handleSearch = async (e) => {
     if (e) e.preventDefault();
     if (!searchQuery.trim()) return;
 
     if (!apiKey.trim()) {
-      setError('Vui lòng nhập SerpApi Key của bạn để bắt đầu tìm kiếm dữ liệu thật!');
+      setError('Vui lòng nhập SerpApi Key hoặc S2 Key của bạn để bắt đầu tìm kiếm dữ liệu thật!');
       return;
     }
 
@@ -127,7 +143,6 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
         if (data.search_query_id) {
           setActiveQueryId(data.search_query_id);
         }
-        // Làm mới lịch sử sau khi search thành công
         await fetchHistory();
       } else {
         setError('Không tìm thấy bài báo nào phù hợp với từ khóa này.');
@@ -144,28 +159,104 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
     }
   };
 
-  // Callback khi user bấm Duplicate trong SearchHistoryPanel
   const handleDuplicate = (queryString) => {
     setSearchQuery(queryString);
-    // Scroll lên đầu để user thấy ô search đã được điền
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const availableJournals = useMemo(() => {
+    const journals = papers.map(p => p.journal).filter(Boolean);
+    return Array.from(new Set(journals));
+  }, [papers]);
+
+  const hasActiveFilters = useMemo(() => {
+    return (
+      inResultQuery !== '' ||
+      activePreset !== 'all' ||
+      minLitScore > 0 ||
+      minCitations > 0 ||
+      startYear !== '' ||
+      endYear !== '' ||
+      selectedJournal !== 'All'
+    );
+  }, [inResultQuery, activePreset, minLitScore, minCitations, startYear, endYear, selectedJournal]);
+
+  const resetFilters = () => {
+    setInResultQuery('');
+    setActivePreset('all');
+    setMinLitScore(0);
+    setMinCitations(0);
+    setStartYear('');
+    setEndYear('');
+    setSelectedJournal('All');
+  };
+
+  const filteredAndSortedPapers = useMemo(() => {
+    let result = [...papers];
+
+    if (activePreset === 'high_score') {
+      result = result.filter(p => p.litScore >= 70);
+    } else if (activePreset === 'recent') {
+      const currentYear = new Date().getFullYear();
+      result = result.filter(p => p.year >= currentYear - 3);
+    } else if (activePreset === 'top_cited') {
+      result = result.filter(p => p.citations >= 50);
+    } else if (activePreset === 'has_tldr') {
+      result = result.filter(p => Boolean(p.tldr));
+    }
+
+    if (inResultQuery.trim()) {
+      const q = inResultQuery.toLowerCase().trim();
+      result = result.filter(p =>
+        p.title.toLowerCase().includes(q) ||
+        p.authors.toLowerCase().includes(q) ||
+        p.journal.toLowerCase().includes(q) ||
+        (p.abstract && p.abstract.toLowerCase().includes(q))
+      );
+    }
+
+    if (minLitScore > 0) result = result.filter(p => p.litScore >= minLitScore);
+    if (minCitations > 0) result = result.filter(p => p.citations >= minCitations);
+    if (startYear !== '') result = result.filter(p => p.year >= Number(startYear));
+    if (endYear !== '') result = result.filter(p => p.year <= Number(endYear));
+    if (selectedJournal !== 'All') result = result.filter(p => p.journal === selectedJournal);
+
+    result.sort((a, b) => {
+      switch (sortBy) {
+        case 'litscore_desc': return b.litScore - a.litScore;
+        case 'litscore_asc': return a.litScore - b.litScore;
+        case 'year_desc': return b.year - a.year;
+        case 'year_asc': return a.year - b.year;
+        case 'citations_desc': return b.citations - a.citations;
+        case 'title_asc': return a.title.localeCompare(b.title);
+        default: return b.litScore - a.litScore;
+      }
+    });
+
+    return result;
+  }, [papers, activePreset, inResultQuery, minLitScore, minCitations, startYear, endYear, selectedJournal, sortBy]);
+
+  const handleExportExcel = () => {
+    const dataToExport = selectedPaperIds.length > 0
+      ? papers.filter(p => selectedPaperIds.includes(p.id))
+      : filteredAndSortedPapers;
+    exportPapersToExcel(dataToExport, `LitReview_Export_${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
   return (
     <div className="space-y-8 max-w-5xl mx-auto py-4">
-      
       {/* Page Title Header */}
       <div className="text-center space-y-3">
         <h2 className={`text-3xl md:text-4xl font-extrabold tracking-tight ${darkMode ? 'text-white' : 'text-slate-900'}`}>
           1. Tra cứu bài báo & Lấy Link PDF
         </h2>
         <p className={`text-base max-w-2xl mx-auto font-medium ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-          Tìm kiếm bài báo khoa học trực tiếp từ Google Scholar qua SerpApi, tự động tính điểm uy tín (LitScore) & lấy link PDF gốc.
+          Tìm kiếm bài báo khoa học trực tiếp từ Google Scholar & Semantic Scholar, tự động lấy Full Abstract, tính điểm uy tín (LitScore), lọc & sắp xếp bài báo chuyên sâu.
         </p>
       </div>
 
       {/* BYOK API Key Banner */}
-      <div className={`p-4 md:p-5 rounded-2xl border transition-all ${
+      <div className={`p-4 md:p-5 rounded-3xl border transition-all ${
         darkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-100'
       }`}>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -185,22 +276,12 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
             />
           </div>
           <div className="flex items-center gap-3 text-xs font-bold text-blue-600 dark:text-sky-400 shrink-0">
-            <a
-              href="https://serpapi.com/users/sign_up"
-              target="_blank"
-              rel="noreferrer"
-              className="hover:underline flex items-center gap-1"
-            >
+            <a href="https://serpapi.com/users/sign_up" target="_blank" rel="noreferrer" className="hover:underline flex items-center gap-1">
               <span>Lấy SerpApi Key</span>
               <ExternalLink className="w-3 h-3" />
             </a>
             <span>•</span>
-            <a
-              href="https://www.semanticscholar.org/product/api"
-              target="_blank"
-              rel="noreferrer"
-              className="hover:underline flex items-center gap-1"
-            >
+            <a href="https://www.semanticscholar.org/product/api" target="_blank" rel="noreferrer" className="hover:underline flex items-center gap-1">
               <span>Lấy S2 Key</span>
               <ExternalLink className="w-3 h-3" />
             </a>
@@ -208,7 +289,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
         </div>
       </div>
 
-      {/* Spacious Search Bar */}
+      {/* Search Bar */}
       <form onSubmit={handleSearch} className={`p-4 md:p-6 rounded-3xl border shadow-lg transition-colors ${
         darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
       }`}>
@@ -244,7 +325,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
         </div>
       </form>
 
-      {/* Search History Panel — hiển thị phía dưới search bar */}
+      {/* Search History Panel */}
       <SearchHistoryPanel
         history={history}
         onLoadPapers={loadPapersForQuery}
@@ -261,7 +342,40 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
         </div>
       )}
 
-      {/* Results List Cards */}
+      {/* Filter & Sort Controls Bar */}
+      {papers.length > 0 && (
+        <FilterSortBar
+          totalCount={papers.length}
+          filteredCount={filteredAndSortedPapers.length}
+          inResultQuery={inResultQuery}
+          setInResultQuery={setInResultQuery}
+          sortBy={sortBy}
+          setSortBy={setSortBy}
+          viewMode={viewMode}
+          setViewMode={setViewMode}
+          activePreset={activePreset}
+          setActivePreset={setActivePreset}
+          showAdvanced={showAdvanced}
+          setShowAdvanced={setShowAdvanced}
+          minLitScore={minLitScore}
+          setMinLitScore={setMinLitScore}
+          minCitations={minCitations}
+          setMinCitations={setMinCitations}
+          startYear={startYear}
+          setStartYear={setStartYear}
+          endYear={endYear}
+          setEndYear={setEndYear}
+          selectedJournal={selectedJournal}
+          setSelectedJournal={setSelectedJournal}
+          availableJournals={availableJournals}
+          resetFilters={resetFilters}
+          hasActiveFilters={hasActiveFilters}
+          onExportExcel={handleExportExcel}
+          darkMode={darkMode}
+        />
+      )}
+
+      {/* Results Container */}
       <div className="space-y-6">
         <div className="flex items-center justify-between px-2">
           <div className="flex items-center gap-2">
@@ -281,6 +395,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
           )}
         </div>
 
+        {/* Empty State */}
         {papers.length === 0 && !loading && (
           <div className={`p-12 text-center rounded-3xl border ${
             darkMode ? 'bg-slate-900/60 border-slate-800 text-slate-400' : 'bg-white border-slate-200 text-slate-500'
@@ -293,8 +408,40 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
           </div>
         )}
 
-        {papers.map((paper) => {
+        {/* Filter Empty State */}
+        {papers.length > 0 && filteredAndSortedPapers.length === 0 && (
+          <div className={`p-10 text-center rounded-3xl border ${
+            darkMode ? 'bg-slate-900/60 border-slate-800 text-slate-400' : 'bg-white border-slate-200 text-slate-500'
+          }`}>
+            <Search className="w-10 h-10 mx-auto mb-3 opacity-40 text-amber-500" />
+            <h3 className="text-base font-bold text-slate-800 dark:text-slate-200 mb-1">Không có bài báo nào phù hợp với bộ lọc</h3>
+            <p className="text-xs max-w-sm mx-auto mb-4">
+              Vui lòng thử nới lỏng các tiêu chí lọc hoặc nhấn "Xóa bộ lọc" để hiển thị lại toàn bộ kết quả.
+            </p>
+            <button
+              onClick={resetFilters}
+              className="px-4 py-2 bg-blue-600 text-white font-bold text-xs rounded-xl hover:bg-blue-700 transition-colors"
+            >
+              Xóa bộ lọc hiện tại
+            </button>
+          </div>
+        )}
+
+        {/* View Mode: Table View */}
+        {papers.length > 0 && viewMode === 'table' && filteredAndSortedPapers.length > 0 && (
+          <PaperTable
+            papers={filteredAndSortedPapers}
+            selectedPaperIds={selectedPaperIds}
+            toggleSelectPaper={toggleSelectPaper}
+            darkMode={darkMode}
+          />
+        )}
+
+        {/* View Mode: Cards View */}
+        {papers.length > 0 && viewMode === 'cards' && filteredAndSortedPapers.map((paper) => {
           const isSelected = selectedPaperIds.includes(paper.id);
+          const isExpanded = expandedPaperIds.includes(paper.id);
+
           return (
             <div
               key={paper.id}
@@ -302,7 +449,6 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
                 darkMode ? 'bg-slate-900 border-slate-800 text-slate-200 hover:shadow-blue-900/20' : 'bg-white border-slate-200 hover:shadow-slate-300'
               } ${isSelected ? 'ring-2 ring-blue-500 border-blue-500 shadow-md' : ''}`}
             >
-              {/* Paper Header */}
               <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                 <div className="space-y-2 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -329,8 +475,8 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
                 </div>
               </div>
 
-              {/* Abstract & TL;DR Section */}
-              <div className={`p-5 rounded-2xl text-sm leading-relaxed border ${
+              {/* Abstract & TL;DR */}
+              <div className={`p-5 rounded-2xl text-sm leading-relaxed border transition-all ${
                 darkMode ? 'bg-slate-800/80 border-slate-700 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'
               }`}>
                 {paper.tldr && (
@@ -339,18 +485,40 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
                     <p className="text-emerald-800 dark:text-emerald-300 mt-1">{paper.tldr.replace('TL;DR: ', '')}</p>
                   </div>
                 )}
+                
                 <p className="font-bold text-blue-600 dark:text-sky-400 mb-1">📝 Tóm tắt Abstract:</p>
-                <p>{paper.abstract}</p>
+
+                <p className={`text-slate-700 dark:text-slate-300 leading-relaxed font-normal ${
+                  isExpanded ? 'whitespace-pre-line' : 'line-clamp-3'
+                }`}>
+                  {paper.abstract}
+                </p>
+
+                <button
+                  onClick={() => toggleExpandAbstract(paper.id)}
+                  className="mt-3 text-xs font-extrabold text-blue-600 dark:text-sky-400 hover:underline flex items-center gap-1 transition-colors"
+                >
+                  {isExpanded ? (
+                    <>
+                      <ChevronUp className="w-4 h-4 text-blue-600 dark:text-sky-400" />
+                      <span>Thu gọn tóm tắt</span>
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown className="w-4 h-4 text-blue-600 dark:text-sky-400" />
+                      <span>Xem thêm tóm tắt đầy đủ...</span>
+                    </>
+                  )}
+                </button>
               </div>
 
               {/* Action Buttons Footer */}
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 font-mono">
-                  DOI: {paper.doi} • {paper.citations.toLocaleString()} lượt trích dẫn
+                  DOI: {paper.doi} • {paper.citations ? paper.citations.toLocaleString() : 0} lượt trích dẫn
                 </div>
 
                 <div className="flex items-center gap-3 w-full sm:w-auto">
-                  {/* Download PDF Button */}
                   <a
                     href={paper.url}
                     target="_blank"
@@ -366,7 +534,6 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
                     <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
                   </a>
 
-                  {/* Toggle Select Button */}
                   <button
                     onClick={() => toggleSelectPaper(paper.id)}
                     className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-xs font-bold transition-all shadow-md ${
@@ -414,7 +581,6 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
             </button>
           </div>
         )}
-
       </div>
     </div>
   );
