@@ -1,11 +1,12 @@
-import httpx
 import datetime
 import hashlib
 import re
 import asyncio
 from typing import List, Optional
 from fastapi import HTTPException
+
 from src.models.schemas import Paper
+
 
 def calculate_litscore(citations: int, year: int) -> int:
     """Tính điểm uy tín LitScore dựa trên trích dẫn và năm xuất bản."""
@@ -13,7 +14,7 @@ def calculate_litscore(citations: int, year: int) -> int:
     age = current_year - year
     if age < 0:
         age = 0
-    
+
     age_penalty = age * 2
     citation_bonus = min(citations / 5, 50)  # max 50 points bonus
     score = 70 - age_penalty + citation_bonus
@@ -147,7 +148,7 @@ async def search_papers_semanticscholar(query: str, api_key: str = None, limit: 
         "limit": limit,
         "fields": "paperId,title,authors,year,abstract,tldr,citationCount,openAccessPdf,externalIds"
     }
-    
+
     headers = {}
     if api_key and api_key.strip():
         headers["x-api-key"] = api_key.strip()
@@ -170,7 +171,7 @@ async def search_papers_semanticscholar(query: str, api_key: str = None, limit: 
 
     results = data.get("data", [])
     papers = []
-    
+
     for res in results:
         paper_id = str(res.get("paperId", ""))
         title = res.get("title") or "Unknown Title"
@@ -181,7 +182,7 @@ async def search_papers_semanticscholar(query: str, api_key: str = None, limit: 
         authors_str = ", ".join(author_names[:4]) if author_names else "Unknown Authors"
         if len(author_names) > 4:
             authors_str += " et al."
-            
+
         year = res.get("year") or datetime.datetime.now().year
         abstract = res.get("abstract") or "No abstract provided."
         citations = res.get("citationCount") or 0
@@ -215,14 +216,14 @@ async def search_papers_semanticscholar(query: str, api_key: str = None, limit: 
             tldr=tldr_str
         )
         papers.append(paper)
-        
+
     return papers
 
 async def search_papers_serpapi(query: str, api_key: str, limit: int = 10) -> List[Paper]:
     """Search for papers using SerpApi (Google Scholar) and enrich with Full Abstract from OpenAlex & Semantic Scholar."""
     if not api_key:
         raise HTTPException(status_code=401, detail="API Key is required for SerpApi")
-        
+
     url = "https://serpapi.com/search"
     params = {
         "engine": "google_scholar",
@@ -231,7 +232,7 @@ async def search_papers_serpapi(query: str, api_key: str, limit: int = 10) -> Li
         "num": limit,
         "hl": "en"
     }
-    
+
     async with httpx.AsyncClient() as client:
         try:
             response = await client.get(url, params=params, timeout=15.0)
@@ -273,7 +274,7 @@ async def search_papers_serpapi(query: str, api_key: str, limit: int = 10) -> Li
         inline_links = res.get("inline_links", {}) if isinstance(res.get("inline_links"), dict) else {}
         cited_by = inline_links.get("cited_by", {}) if isinstance(inline_links, dict) else {}
         citations = cited_by.get("total", 0) if isinstance(cited_by, dict) else 0
-        
+
         paper_id = hashlib.md5(title.encode()).hexdigest()[:10]
         
         # Determine best full abstract, TL;DR, and DOI
@@ -308,13 +309,13 @@ async def search_papers_serpapi(query: str, api_key: str, limit: int = 10) -> Li
             tldr=tldr_text
         )
         papers.append(paper)
-        
+
     return papers
 
-async def search_papers_auto(query: str, api_key: str = None, provider: str = "auto", limit: int = 10) -> List[Paper]:
+async def search_papers_auto(query: str, api_key: str = None, provider: str = "auto", limit: int = 10) -> list[Paper]:
     """Auto-detect provider or use specified provider."""
     key = api_key.strip() if api_key else ""
-    
+
     if provider == "semanticscholar" or key.startswith("s2k-") or (provider == "auto" and (key.startswith("s2k-") or not key)):
         return await search_papers_semanticscholar(query, key, limit)
     else:

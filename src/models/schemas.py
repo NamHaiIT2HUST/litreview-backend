@@ -1,5 +1,6 @@
+
 from pydantic import BaseModel, Field
-from typing import List, Optional
+
 
 class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=5000, description="Tin nhắn từ user")
@@ -18,8 +19,8 @@ class Paper(BaseModel):
     doi: str
     url: str
     citations: int
-    litScore: int
-    tldr: Optional[str] = None
+    litScore: int  # noqa: N815
+    tldr: str | None = None
 
 class SearchResponse(BaseModel):
-    papers: List[Paper]
+    papers: list[Paper]
