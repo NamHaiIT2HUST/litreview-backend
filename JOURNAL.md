@@ -52,3 +52,4 @@
 ---
 
 <!-- Tiếp tục copy block trên cho Week 3, 4, 5, 6 -->
+- Đã test setup Copilot Chat + Gemini CLI thành công (26/07)
