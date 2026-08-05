@@ -17,10 +17,14 @@ class Paper(BaseModel):
     abstract: str
     journal: str
     doi: str
+    issn: str | None = None  # cần cho Module 4 Quality Check — có thể null nếu nguồn không trả về
     url: str
     citations: int
     litScore: int  # noqa: N815
     tldr: str | None = None
+    scopus_status: str | None = "undetermined"
+    scopus_quartile: str | None = None
+    coverage_year_status: str | None = None
 
 class SearchResponse(BaseModel):
     papers: list[Paper]
@@ -32,7 +36,8 @@ class SearchResponse(BaseModel):
 # ──────────────────────────────────────────────────
 
 class PaperRecord(BaseModel):
-    """Paper đã được lưu vào DB (trả về từ GET /search-queries/{id}/papers)."""
+    """Paper đã được lưu vào DB (trả về từ GET /search-queries/{id}/papers
+    và POST /papers/{id}/quality-check)."""
     id: str               # UUID trong DB
     external_id: str      # id gốc từ API, dùng để render trên FE
     title: str
@@ -41,11 +46,18 @@ class PaperRecord(BaseModel):
     abstract: str
     journal: str
     doi: str
+    issn: str | None = None
     url: str
     citations: int
     lit_score: int
     tldr: str | None = None
     dedup_key: str
+
+    # Module 4 — Quality Verification
+    scopus_status: str        # indexed | not_indexed | undetermined
+    scopus_quartile: str | None = None
+    coverage_year_status: str | None = None  # ok | out_of_coverage | not_applicable | None
+    oa_status: str             # gold | hybrid | bronze | green | closed | undetermined
 
     model_config = {"from_attributes": True}
 

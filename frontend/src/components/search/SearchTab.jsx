@@ -455,6 +455,21 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
                     <span className="px-3 py-1 bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-sky-300 text-xs font-bold rounded-lg border border-blue-200 dark:border-blue-800">
                       {paper.journal} ({paper.year})
                     </span>
+                    {paper.scopus_status === 'indexed' && paper.coverage_year_status === 'ok' && (
+                      <span className="px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 text-xs font-bold rounded-lg border border-emerald-300 dark:border-emerald-800 flex items-center gap-1">
+                        🟢 Scopus Indexed
+                      </span>
+                    )}
+                    {paper.scopus_status === 'indexed' && paper.coverage_year_status === 'out_of_coverage' && (
+                      <span className="px-2.5 py-1 bg-amber-50 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 text-xs font-bold rounded-lg border border-amber-300 dark:border-amber-800 flex items-center gap-1">
+                        ⚠️ Out of Coverage
+                      </span>
+                    )}
+                    {(paper.scopus_status === 'undetermined' || !paper.scopus_status) && (
+                      <span className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-xs font-bold rounded-lg border border-slate-200 dark:border-slate-700 flex items-center gap-1">
+                        ⚪ Undetermined
+                      </span>
+                    )}
                     <span className="text-xs font-mono font-bold text-slate-400">ID: {paper.id}</span>
                   </div>
 

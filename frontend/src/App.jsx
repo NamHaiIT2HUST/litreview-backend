@@ -26,11 +26,40 @@ export default function App() {
     }
   ]);
 
-  const toggleSelectPaper = (id) => {
+  const toggleSelectPaper = async (id) => {
+    const isSelecting = !selectedPaperIds.includes(id);
+
     if (selectedPaperIds.includes(id)) {
       setSelectedPaperIds(selectedPaperIds.filter(item => item !== id));
     } else {
       setSelectedPaperIds([...selectedPaperIds, id]);
+    }
+
+    // Khi người dùng chọn Keep paper (Thêm vào AI Workspace), tự động trigger Quality Check API
+    if (isSelecting) {
+      try {
+        const res = await fetch(`http://localhost:8000/api/v1/papers/${id}/quality-check`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        if (res.ok) {
+          const updated = await res.json();
+          setPapers(prevPapers => prevPapers.map(p => {
+            if (p.id === id || p.id === updated.external_id) {
+              return {
+                ...p,
+                issn: updated.issn,
+                scopus_status: updated.scopus_status,
+                scopus_quartile: updated.scopus_quartile,
+                coverage_year_status: updated.coverage_year_status
+              };
+            }
+            return p;
+          }));
+        }
+      } catch (err) {
+        console.warn('Quality check trigger failed:', err);
+      }
     }
   };
 
