@@ -8,10 +8,11 @@
 
 | Member | Task | Status | Output | Time |
 |--------|------|--------|--------|------|
+| Nam Hải | Tích hợp Vector Database (ChromaDB) và Google Embeddings | ✅ Done | API `GET /workspace/test-search` | 2h |
 | Nam Hải | Viết Ingestion Pipeline (Upload PDF, bóc tách và cắt chunk bằng LangChain) | ✅ Done | API `POST /workspace/upload` | 2h |
 | Nam Hải | Ẩn bảo mật 3 API Keys Google Gemini vào biến môi trường `.env` | ✅ Done | Tăng tính bảo mật cho Repo | 0.5h |
 
-**Tổng kết ngày:** Xây dựng thành công tiền đề cho hệ thống RAG (Nhận file PDF, lưu trữ và tiền xử lý văn bản). Sẵn sàng kết nối Vector DB ở bước tiếp theo.
+**Tổng kết ngày:** Xây dựng thành công tiền đề cho hệ thống RAG (Nhận file PDF, lưu trữ, nhúng Vector và tìm kiếm tương đồng trên ChromaDB). Đã sẵn sàng kết nối API Chatbot cuối cùng.
 
 ---
 
