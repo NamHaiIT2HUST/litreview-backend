@@ -14,11 +14,31 @@ export default function App() {
     localStorage.setItem('litreview_active_tab', activeTab);
   }, [activeTab]);
 
-  const [darkMode, setDarkMode] = useState(false);
-  const [papers, setPapers] = useState([]);
-  const [selectedPaperIds, setSelectedPaperIds] = useState([]);
+  const [darkMode, setDarkMode] = useState(() => {
+    return localStorage.getItem('litreview_dark_mode') === 'true';
+  });
+  const [papers, setPapers] = useState(() => {
+    const saved = sessionStorage.getItem('litreview_papers');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [selectedPaperIds, setSelectedPaperIds] = useState(() => {
+    const saved = sessionStorage.getItem('litreview_selected_paper_ids');
+    return saved ? JSON.parse(saved) : [];
+  });
   const [workspacePapers, setWorkspacePapers] = useState([]);
   const [activeCitation, setActiveCitation] = useState(null);
+
+  useEffect(() => {
+    localStorage.setItem('litreview_dark_mode', darkMode);
+  }, [darkMode]);
+
+  useEffect(() => {
+    sessionStorage.setItem('litreview_papers', JSON.stringify(papers));
+  }, [papers]);
+
+  useEffect(() => {
+    sessionStorage.setItem('litreview_selected_paper_ids', JSON.stringify(selectedPaperIds));
+  }, [selectedPaperIds]);
   const [chatMessages, setChatMessages] = useState([
     {
       sender: 'ai',
