@@ -47,7 +47,7 @@ export default function FilterSortBar({
 
   const presets = [
     { id: 'all', label: 'Tất cả bài báo', icon: Sparkles },
-    { id: 'high_score', label: 'LitScore ≥ 70 (Uy tín cao)', icon: Award },
+    { id: 'scopus_only', label: '🟢 Thuộc Scopus', icon: Award },
     { id: 'recent', label: 'Bài mới (3 năm gần đây)', icon: Calendar },
     { id: 'top_cited', label: 'Trích dẫn nhiều (≥ 50)', icon: Quote },
     { id: 'has_tldr', label: 'Có AI TL;DR', icon: FileText }
@@ -98,11 +98,9 @@ export default function FilterSortBar({
                 darkMode ? 'text-white bg-slate-900' : 'text-slate-800 bg-white'
               }`}
             >
-              <option value="litscore_desc">🎖️ LitScore (Cao → Thấp)</option>
-              <option value="litscore_asc">LitScore (Thấp → Cao)</option>
+              <option value="citations_desc">💬 Trích dẫn (Nhiều nhất)</option>
               <option value="year_desc">📅 Năm (Mới nhất)</option>
               <option value="year_asc">Năm (Cũ nhất)</option>
-              <option value="citations_desc">💬 Trích dẫn (Nhiều nhất)</option>
               <option value="title_asc">🔤 Tiêu đề (A → Z)</option>
             </select>
           </div>

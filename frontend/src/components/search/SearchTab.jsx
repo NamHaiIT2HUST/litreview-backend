@@ -43,7 +43,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
 
   // --- Filter & Sort States ---
   const [inResultQuery, setInResultQuery] = useState('');
-  const [sortBy, setSortBy] = useState('litscore_desc');
+  const [sortBy, setSortBy] = useState('citations_desc');
   const [viewMode, setViewMode] = useState('cards'); // 'cards' | 'table'
   const [activePreset, setActivePreset] = useState('all');
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -194,8 +194,8 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
   const filteredAndSortedPapers = useMemo(() => {
     let result = [...papers];
 
-    if (activePreset === 'high_score') {
-      result = result.filter(p => p.litScore >= 70);
+    if (activePreset === 'scopus_only') {
+      result = result.filter(p => p.scopus_status === 'indexed');
     } else if (activePreset === 'recent') {
       const currentYear = new Date().getFullYear();
       result = result.filter(p => p.year >= currentYear - 3);
@@ -215,7 +215,6 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
       );
     }
 
-    if (minLitScore > 0) result = result.filter(p => p.litScore >= minLitScore);
     if (minCitations > 0) result = result.filter(p => p.citations >= minCitations);
     if (startYear !== '') result = result.filter(p => p.year >= Number(startYear));
     if (endYear !== '') result = result.filter(p => p.year <= Number(endYear));
@@ -223,13 +222,11 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
 
     result.sort((a, b) => {
       switch (sortBy) {
-        case 'litscore_desc': return b.litScore - a.litScore;
-        case 'litscore_asc': return a.litScore - b.litScore;
+        case 'citations_desc': return b.citations - a.citations;
         case 'year_desc': return b.year - a.year;
         case 'year_asc': return a.year - b.year;
-        case 'citations_desc': return b.citations - a.citations;
         case 'title_asc': return a.title.localeCompare(b.title);
-        default: return b.litScore - a.litScore;
+        default: return b.citations - a.citations;
       }
     });
 
@@ -455,6 +452,21 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
                     <span className="px-3 py-1 bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-sky-300 text-xs font-bold rounded-lg border border-blue-200 dark:border-blue-800">
                       {paper.journal} ({paper.year})
                     </span>
+                    {paper.scopus_status === 'indexed' && paper.coverage_year_status === 'ok' && (
+                      <span className="px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 text-xs font-bold rounded-lg border border-emerald-300 dark:border-emerald-800 flex items-center gap-1">
+                        🟢 Scopus Indexed
+                      </span>
+                    )}
+                    {paper.scopus_status === 'indexed' && paper.coverage_year_status === 'out_of_coverage' && (
+                      <span className="px-2.5 py-1 bg-amber-50 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 text-xs font-bold rounded-lg border border-amber-300 dark:border-amber-800 flex items-center gap-1">
+                        ⚠️ Out of Coverage
+                      </span>
+                    )}
+                    {(paper.scopus_status === 'undetermined' || !paper.scopus_status) && (
+                      <span className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-xs font-bold rounded-lg border border-slate-200 dark:border-slate-700 flex items-center gap-1">
+                        ⚪ Undetermined
+                      </span>
+                    )}
                     <span className="text-xs font-mono font-bold text-slate-400">ID: {paper.id}</span>
                   </div>
 
@@ -465,13 +477,6 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
                   <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
                     Tác giả: {paper.authors}
                   </p>
-                </div>
-
-                <div className="shrink-0">
-                  <span className="px-3 py-1.5 bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 text-xs font-bold rounded-xl flex items-center gap-1.5">
-                    <Award className="w-4 h-4 text-amber-500" />
-                    <span>LitScore: {paper.litScore}/100</span>
-                  </span>
                 </div>
               </div>
 

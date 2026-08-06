@@ -10,6 +10,13 @@ Search History (Module 2 — P0):
 - GET  /projects/{project_id}/search-history     — lịch sử tìm kiếm
 - GET  /search-queries/{query_id}/papers         — papers của 1 lần search
 - POST /search-queries/{query_id}/duplicate      — duplicate query để sửa
+
+Quality Verification (Module 4):
+- POST /papers/{paper_id}/quality-check          — chạy Scopus/Coverage-year check
+                                                      cho 1 paper CỤ THỂ (đã Keep),
+                                                      KHÔNG chạy hàng loạt trên /search
+                                                      (xem Flow Module 4 trong spec:
+                                                      "Keep Paper → Quality Check").
 """
 import re
 import uuid
@@ -31,6 +38,7 @@ from src.models.schemas import (
     SearchResponse,
 )
 from src.services.scholar_api import search_papers_auto
+from src.services.scopus_matcher import quality_check as run_scopus_quality_check
 
 router = APIRouter()
 
@@ -66,8 +74,11 @@ async def _persist_search(
     2. Dedup: kiểm tra dedup_key đã tồn tại trong project chưa.
     3. Insert CachedPaper cho mỗi paper chưa trùng.
     Trả về search_query_id vừa tạo.
+
+    Lưu ý: scopus_status/oa_status của paper mới GIỮ NGUYÊN default "undetermined"
+    của DB tại bước này — Quality Check (Module 4) chỉ chạy sau khi user Keep,
+    qua POST /papers/{id}/quality-check, KHÔNG chạy ở đây.
     """
-    # 1. Tạo SearchQuery record
     sq = SearchQuery(
         id=str(uuid.uuid4()),
         project_id=project_id,
@@ -78,15 +89,16 @@ async def _persist_search(
     )
     db.add(sq)
 
-    # 2. Lấy tất cả dedup_key đã tồn tại trong project
     existing_keys_result = await db.execute(
         select(CachedPaper.dedup_key).where(CachedPaper.project_id == project_id)
     )
     existing_keys = {row[0] for row in existing_keys_result.fetchall()}
 
-    # 3. Insert paper chưa trùng
     for p in papers_pydantic:
         key = _compute_dedup_key(p.doi, p.title, p.authors, p.year)
+        if key in existing_keys:
+            continue  # bỏ qua bản trùng, không insert (đúng thuật toán dedup spec)
+
         paper_row = CachedPaper(
             id=str(uuid.uuid4()),
             project_id=project_id,
@@ -98,14 +110,18 @@ async def _persist_search(
             abstract=p.abstract,
             journal=p.journal,
             doi=p.doi,
+            issn=p.issn,
             url=p.url,
             citations=p.citations,
             lit_score=p.litScore,
             tldr=p.tldr,
+            scopus_status=getattr(p, 'scopus_status', 'undetermined'),
+            scopus_quartile=getattr(p, 'scopus_quartile', None),
+            coverage_year_status=getattr(p, 'coverage_year_status', None),
             dedup_key=key,
         )
         db.add(paper_row)
-        existing_keys.add(key)  # tránh trùng trong cùng batch này
+        existing_keys.add(key)
 
     await db.flush()
     return sq.id
@@ -131,11 +147,24 @@ async def search_papers(
     if not papers:
         return SearchResponse(papers=[], search_query_id=None)
 
-    # Lưu vào DB TRƯỚC khi trả về (spec yêu cầu)
+    # TỰ ĐỘNG ĐỐI CHIẾU SCOPUS TẤT CẢ BÀI BÁO NGAY KHI TRA CỨU
+    for p in papers:
+        cp = CachedPaper(
+            title=p.title,
+            authors=p.authors,
+            year=p.year,
+            journal=p.journal,
+            doi=p.doi,
+            issn=p.issn
+        )
+        checked = await run_scopus_quality_check(db, cp)
+        p.scopus_status = checked.scopus_status
+        p.scopus_quartile = checked.scopus_quartile
+        p.coverage_year_status = checked.coverage_year_status
+
     try:
         sq_id = await _persist_search(db, query_string=query, papers_pydantic=papers)
     except Exception as exc:
-        # Không để lỗi DB chặn kết quả search trả về user
         import logging
         logging.getLogger(__name__).error("Failed to persist search: %s", exc)
         sq_id = None
@@ -193,7 +222,6 @@ async def get_papers_for_query(
     """
     Lấy danh sách paper (đã dedup) của 1 lần search cụ thể.
     """
-    # Kiểm tra search query tồn tại
     sq_result = await db.execute(
         select(SearchQuery).where(SearchQuery.id == query_id)
     )
@@ -221,7 +249,6 @@ async def duplicate_search_query(
     Tạo 1 record SearchQuery mới với is_duplicated_from = query_id,
     result_count = 0 (chưa chạy).
     """
-    # Lấy query gốc
     sq_result = await db.execute(
         select(SearchQuery).where(SearchQuery.id == query_id)
     )
@@ -245,3 +272,40 @@ async def duplicate_search_query(
         query_string=new_sq.query_string,
         duplicated_from=query_id,
     )
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Quality Verification endpoint (Module 4)
+# ──────────────────────────────────────────────────────────────────────────────
+
+@router.post("/papers/{paper_id}/quality-check", response_model=PaperRecord)
+async def quality_check_paper(
+    paper_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> PaperRecord:
+    """
+    Trigger Quality Check (Scopus + Coverage Year) cho 1 paper cụ thể.
+
+    Theo Flow Module 4: chỉ chạy cho paper user đã Keep, KHÔNG chạy hàng loạt
+    trên toàn bộ kết quả /search.
+
+    404 nếu paper không tồn tại. OA status KHÔNG được xử lý ở đây — xem
+    docstring trong src/services/scopus_matcher.py.
+    """
+    from sqlalchemy import or_
+    result = await db.execute(
+        select(CachedPaper).where(
+            or_(CachedPaper.id == paper_id, CachedPaper.external_id == paper_id)
+        )
+    )
+    paper = result.scalar_one_or_none()
+    if not paper:
+        raise HTTPException(status_code=404, detail=f"Paper '{paper_id}' not found")
+
+    await run_scopus_quality_check(db, paper)
+    await db.flush()
+
+    # TODO (Module 3): gọi recompute_priority(paper.id) ở đây khi priority_score
+    # được implement.
+
+    return PaperRecord.model_validate(paper)
