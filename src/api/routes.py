@@ -37,11 +37,12 @@ from src.models.schemas import (
     SearchQueryRecord,
     SearchResponse,
 )
-from src.models.workspace_schemas import UploadResponse
+from src.models.workspace_schemas import UploadResponse, WorkspaceChatRequest, WorkspaceChatResponse
 from src.services.scholar_api import search_papers_auto
 from src.services.scopus_matcher import quality_check as run_scopus_quality_check
 from src.services.document_processor import DocumentProcessor
 from src.services.vector_store import vector_store_service
+from src.services.rag_service import rag_service
 
 processor = DocumentProcessor()
 
@@ -365,5 +366,23 @@ async def test_vector_search(query: str = Query(...)):
                 "metadata": doc.metadata
             })
         return {"query": query, "results": formatted}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/workspace/chat", response_model=WorkspaceChatResponse)
+async def workspace_chat(request: WorkspaceChatRequest) -> WorkspaceChatResponse:
+    """
+    Chat với trợ lý AI về các bài báo đã tải lên (RAG).
+    """
+    try:
+        # Bước 1: Tìm kiếm tài liệu liên quan trong ChromaDB
+        chunks = await vector_store_service.search_similar_documents(request.message, top_k=4)
+        
+        # Bước 2: Sinh câu trả lời dựa trên context
+        answer = await rag_service.generate_answer(request.message, chunks)
+        
+        # Bước 3: Đóng gói phản hồi
+        context_used = [doc.page_content for doc in chunks]
+        return WorkspaceChatResponse(answer=answer, context_used=context_used)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
