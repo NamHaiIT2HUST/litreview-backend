@@ -8,7 +8,14 @@ python-dotenv>=1.0.0
 # AI / LangChain
 langchain>=0.3.0
 langchain-openai>=0.3.0
+langchain-google-genai>=2.0.0
+langchain-community>=0.3.0
+langchain-text-splitters>=0.3.0
 langgraph>=0.2.0
+
+# Document Ingestion
+pypdf>=5.1.0
+python-multipart>=0.0.18
 
 # Database
 sqlalchemy>=2.0.0
