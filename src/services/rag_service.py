@@ -19,7 +19,7 @@ class RAGService:
             os.environ["GOOGLE_API_KEY"] = api_key
             
         self.llm = ChatGoogleGenerativeAI(
-            model="gemini-1.5-flash",
+            model="gemini-flash-latest",
             temperature=0.2,
             max_tokens=1024,
             timeout=30
