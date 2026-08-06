@@ -10,6 +10,9 @@ load_dotenv()
 
 class RAGService:
     def __init__(self):
+        # Tắt LangSmith tracing để tránh lỗi 403 Forbidden nếu user không có LANGCHAIN_API_KEY hợp lệ
+        os.environ["LANGCHAIN_TRACING_V2"] = "false"
+        
         # We assume GEMINI_API_KEY_1 is loaded in environment via python-dotenv
         api_key = os.getenv("GEMINI_API_KEY_1")
         if api_key and not os.getenv("GOOGLE_API_KEY"):
