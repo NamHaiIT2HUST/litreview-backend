@@ -16,7 +16,7 @@ class VectorStoreService:
         if api_key and not os.getenv("GOOGLE_API_KEY"):
             os.environ["GOOGLE_API_KEY"] = api_key
             
-        self.embeddings = GoogleGenerativeAIEmbeddings(model="models/text-embedding-004")
+        self.embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
         
         self.vector_store = Chroma(
             collection_name="litreview_papers",
