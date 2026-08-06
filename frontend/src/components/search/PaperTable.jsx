@@ -76,7 +76,6 @@ export default function PaperTable({ papers, selectedPaperIds, toggleSelectPaper
                 />
               </th>
               <th className="p-4">Tên bài báo & Định danh DOI</th>
-              <th className="p-4 w-28 text-center">LitScore</th>
               <th className="p-4">Tác giả & Tạp chí</th>
               <th className="p-4 w-28 text-center">Trích dẫn</th>
               <th className="p-4">Tóm tắt AI (TL;DR) & Abstract</th>
@@ -159,14 +158,6 @@ export default function PaperTable({ papers, selectedPaperIds, toggleSelectPaper
                           )}
                         </div>
                       </div>
-                    </td>
-
-                    {/* LitScore Badge */}
-                    <td className="p-4 text-center">
-                      <span className="px-2.5 py-1 bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 text-xs font-bold rounded-xl inline-flex items-center gap-1">
-                        <Award className="w-3.5 h-3.5 text-amber-500" />
-                        <span>{paper.litScore}/100</span>
-                      </span>
                     </td>
 
                     {/* Authors & Journal */}
