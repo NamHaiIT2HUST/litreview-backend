@@ -21,7 +21,7 @@ Quality Verification (Module 4):
 import re
 import uuid
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, UploadFile, File, Form
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -37,8 +37,12 @@ from src.models.schemas import (
     SearchQueryRecord,
     SearchResponse,
 )
+from src.models.workspace_schemas import UploadResponse
 from src.services.scholar_api import search_papers_auto
 from src.services.scopus_matcher import quality_check as run_scopus_quality_check
+from src.services.document_processor import DocumentProcessor
+
+processor = DocumentProcessor()
 
 router = APIRouter()
 
@@ -309,3 +313,37 @@ async def quality_check_paper(
     # được implement.
 
     return PaperRecord.model_validate(paper)
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Workspace endpoints (Phase 1 RAG)
+# ──────────────────────────────────────────────────────────────────────────────
+
+@router.post("/workspace/upload", response_model=UploadResponse)
+async def upload_paper_pdf(
+    file: UploadFile = File(...),
+    paper_id: str = Form(...)
+) -> UploadResponse:
+    """
+    Nhận file PDF do user upload, lưu xuống disk và cắt thành các chunk (chuẩn bị cho Vector DB).
+    """
+    if not file.filename.endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF files are allowed.")
+        
+    try:
+        # Bước 1: Lưu file vật lý
+        file_path = await processor.save_upload_file(file)
+        
+        # Bước 2: Bóc tách và cắt chunk
+        pages, chunks = processor.extract_and_chunk(file_path)
+        
+        # TODO: Lưu thông tin chunk vào Vector Database ở bước sau.
+        
+        return UploadResponse(
+            file_id=file_path.split("/")[-1].split("\\")[-1],
+            filename=file.filename,
+            total_pages=len(pages),
+            total_chunks=len(chunks),
+            message=f"Successfully processed PDF into {len(chunks)} chunks."
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
