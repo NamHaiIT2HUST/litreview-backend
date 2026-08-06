@@ -8,11 +8,12 @@
 
 | Member | Task | Status | Output | Time |
 |--------|------|--------|--------|------|
+| Nam Hải | Xây dựng não bộ RAG (LangChain + Gemini 1.5 Flash) trả lời câu hỏi | ✅ Done | API `POST /workspace/chat` | 1.5h |
 | Nam Hải | Tích hợp Vector Database (ChromaDB) và Google Embeddings | ✅ Done | API `GET /workspace/test-search` | 2h |
 | Nam Hải | Viết Ingestion Pipeline (Upload PDF, bóc tách và cắt chunk bằng LangChain) | ✅ Done | API `POST /workspace/upload` | 2h |
 | Nam Hải | Ẩn bảo mật 3 API Keys Google Gemini vào biến môi trường `.env` | ✅ Done | Tăng tính bảo mật cho Repo | 0.5h |
 
-**Tổng kết ngày:** Xây dựng thành công tiền đề cho hệ thống RAG (Nhận file PDF, lưu trữ, nhúng Vector và tìm kiếm tương đồng trên ChromaDB). Đã sẵn sàng kết nối API Chatbot cuối cùng.
+**Tổng kết ngày:** Hoàn thiện 100% Core Logic Backend cho hệ thống RAG (Upload -> Chunking -> VectorDB -> LLM RAG Chat). API đã sẵn sàng để Frontend kết nối.
 
 ---
 
