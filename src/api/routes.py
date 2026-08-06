@@ -41,6 +41,7 @@ from src.models.workspace_schemas import UploadResponse
 from src.services.scholar_api import search_papers_auto
 from src.services.scopus_matcher import quality_check as run_scopus_quality_check
 from src.services.document_processor import DocumentProcessor
+from src.services.vector_store import vector_store_service
 
 processor = DocumentProcessor()
 
@@ -336,14 +337,33 @@ async def upload_paper_pdf(
         # Bước 2: Bóc tách và cắt chunk
         pages, chunks = processor.extract_and_chunk(file_path)
         
-        # TODO: Lưu thông tin chunk vào Vector Database ở bước sau.
+        # Bước 3: Lưu chunk vào Vector Database
+        num_added = await vector_store_service.add_documents(chunks)
         
         return UploadResponse(
             file_id=file_path.split("/")[-1].split("\\")[-1],
             filename=file.filename,
             total_pages=len(pages),
             total_chunks=len(chunks),
-            message=f"Successfully processed PDF into {len(chunks)} chunks."
+            message=f"Successfully processed and stored {num_added} chunks into Vector Database."
         )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/workspace/test-search")
+async def test_vector_search(query: str = Query(...)):
+    """
+    API test thử chức năng query Vector DB để xem có trả ra văn bản đúng không.
+    """
+    try:
+        results = await vector_store_service.search_similar_documents(query)
+        # Format lại kết quả cho dễ đọc
+        formatted = []
+        for doc in results:
+            formatted.append({
+                "content": doc.page_content,
+                "metadata": doc.metadata
+            })
+        return {"query": query, "results": formatted}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
