@@ -97,6 +97,8 @@ export default function App() {
         {activeTab === 'upload' && (
           <UploadTab
             selectedPapers={selectedPapers}
+            workspacePapers={workspacePapers}
+            setWorkspacePapers={setWorkspacePapers}
             setActiveTab={setActiveTab}
             darkMode={darkMode}
           />
