@@ -5,10 +5,14 @@ import UploadTab from './components/upload/UploadTab';
 import WorkspaceTab from './components/workspace/WorkspaceTab';
 import InsightsTab from './components/insights/InsightsTab';
 import HomeTab from './components/home/HomeTab';
+import ResearchSetupTab from './components/setup/ResearchSetupTab';
+
+import ScreeningTab from './components/screening/ScreeningTab';
+
 export default function App() {
   const [activeTab, setActiveTab] = useState(() => {
     return localStorage.getItem('litreview_active_tab') || 'home';
-  }); // 'home' | 'search' | 'upload' | 'workspace' | 'insights'
+  }); // 'home' | 'setup' | 'search' | 'screening' | 'upload' | 'workspace' | 'insights'
 
   useEffect(() => {
     localStorage.setItem('litreview_active_tab', activeTab);
@@ -84,11 +88,7 @@ export default function App() {
         )}
 
         {activeTab === 'setup' && (
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow p-6 border dark:border-slate-800">
-            <h2 className="text-2xl font-bold mb-4">Module 1: Research Project Setup</h2>
-            <p className="text-slate-600 dark:text-slate-400 mb-4">Define your research question and criteria here.</p>
-            {/* TODO: Implement Setup Component */}
-          </div>
+          <ResearchSetupTab setActiveTab={setActiveTab} darkMode={darkMode} />
         )}
 
         {activeTab === 'search' && (
@@ -103,10 +103,11 @@ export default function App() {
         )}
 
         {activeTab === 'screening' && (
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow p-6 border dark:border-slate-800">
-            <h2 className="text-2xl font-bold mb-4">Module 3: AI Screening</h2>
-            <p className="text-slate-600 dark:text-slate-400 mb-4">Let AI evaluate papers against your criteria.</p>
-          </div>
+          <ScreeningTab
+            papers={papers}
+            setPapers={setPapers}
+            darkMode={darkMode}
+          />
         )}
 
         {activeTab === 'quality' && (

@@ -41,6 +41,8 @@ from src.models.schemas import (
     SearchResponse,
 )
 from src.models.workspace_schemas import UploadResponse, WorkspaceChatRequest, WorkspaceChatResponse
+from src.models.search_schemas import SearchExecuteRequest, SearchStrategiesResponse
+from src.services.search_service import generate_search_strategies
 from src.services.scholar_api import search_papers_auto
 from src.services.scopus_matcher import quality_check as run_scopus_quality_check
 from src.services.document_processor import DocumentProcessor
@@ -135,39 +137,75 @@ async def _persist_search(
 # Existing endpoints
 # ──────────────────────────────────────────────────────────────────────────────
 
-@router.get("/search", response_model=SearchResponse)
+from src.models.db_models import Project
+
+@router.post("/projects/{project_id}/search-strategies", response_model=SearchStrategiesResponse)
+async def get_search_strategies(
+    project_id: str,
+    x_api_key: str | None = Header(None, description="SerpApi Key"),
+    db: AsyncSession = Depends(get_db),
+) -> SearchStrategiesResponse:
+    """Module 2: Paper Discovery - AI gợi ý 3 chiến lược tìm kiếm."""
+    result = await db.execute(select(Project).where(Project.id == project_id))
+    project = result.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    if not x_api_key:
+        # Lấy từ env 
+        import os
+        x_api_key = os.getenv("SERPAPI_KEY", "")
+
+    strategies = await generate_search_strategies(
+        research_question=project.research_question,
+        research_field=project.research_field,
+        criteria_include=project.criteria_include,
+        criteria_exclude=project.criteria_exclude,
+        api_key=x_api_key
+    )
+    return SearchStrategiesResponse(strategies=strategies)
+
+@router.post("/projects/{project_id}/search", response_model=SearchResponse)
 async def search_papers(
-    query: str = Query(..., description="Từ khóa tìm kiếm"),
+    project_id: str,
+    request: SearchExecuteRequest,
     x_api_key: str | None = Header(None, description="SerpApi hoặc Semantic Scholar Key"),
     provider: str | None = Query("auto", description="Nguồn dữ liệu: auto, serpapi, semanticscholar"),
     db: AsyncSession = Depends(get_db),
 ) -> SearchResponse:
-    """Tra cứu bài báo học thuật và lưu vào Search History."""
+    """Module 2: Paper Discovery - Tra cứu bài báo học thuật và lưu vào Search History."""
     if not x_api_key and provider != "auto":
         raise HTTPException(status_code=401, detail="X-API-Key header is missing")
 
-    papers = await search_papers_auto(query=query, api_key=x_api_key or "", provider=provider, limit=10)
+    papers = await search_papers_auto(query=request.query_string, api_key=x_api_key or "", provider=provider, limit=10)
 
     if not papers:
         return SearchResponse(papers=[], search_query_id=None)
 
-    # TỰ ĐỘNG ĐỐI CHIẾU SCOPUS TẤT CẢ BÀI BÁO NGAY KHI TRA CỨU
-    for p in papers:
-        cp = Paper(
-            title=p.title,
-            authors=p.authors,
-            year=p.year,
-            journal=p.journal,
-            doi=p.doi,
-            issn=p.issn
-        )
-        checked = await run_scopus_quality_check(db, cp)
-        p.scopus_status = checked.scopus_status
-        p.scopus_quartile = checked.scopus_quartile
-        p.coverage_year_status = checked.coverage_year_status
+    # Đã gỡ bỏ tự động đối chiếu Scopus để tối ưu, chỉ chạy Quality Check ở Module 4 khi Keep Paper.
 
     try:
-        sq_id = await _persist_search(db, query_string=query, papers_pydantic=papers)
+        sq_id = await _persist_search(
+            db, 
+            query_string=request.query_string, 
+            papers_pydantic=papers, 
+            project_id=project_id,
+            strategy_label=request.strategy_label
+        )
+        
+        if sq_id:
+            keys = [_compute_dedup_key(p.doi, p.title, p.authors, p.year) for p in papers]
+            result = await db.execute(
+                select(Paper).where(Paper.project_id == project_id, Paper.dedup_key.in_(keys))
+            )
+            db_papers = result.scalars().all()
+            dedup_to_id = {p.dedup_key: str(p.id) for p in db_papers}
+            
+            for p in papers:
+                key = _compute_dedup_key(p.doi, p.title, p.authors, p.year)
+                if key in dedup_to_id:
+                    p.id = dedup_to_id[key]
+            
     except Exception as exc:
         import logging
         logging.getLogger(__name__).error("Failed to persist search: %s", exc)

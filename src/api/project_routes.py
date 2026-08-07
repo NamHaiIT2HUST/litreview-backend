@@ -73,9 +73,15 @@ async def suggest_keywords(project_id: UUID, db: AsyncSession = Depends(get_db))
     
     try:
         response = await rag_service.llm.ainvoke(prompt)
-        content = response.content.strip()
+        content = response.content
+        if isinstance(content, list):
+            content = content[0].get("text", "")
+        content = content.strip()
+        
         if content.startswith("```json"):
             content = content.replace("```json", "").replace("```", "").strip()
+        elif content.startswith("```"):
+            content = content.replace("```", "").strip()
         
         keywords = json.loads(content)
         if not isinstance(keywords, list):

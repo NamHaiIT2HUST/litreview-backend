@@ -126,10 +126,16 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
     setError('');
 
     try {
-      const response = await fetch(`${API_BASE}/search?query=${encodeURIComponent(searchQuery)}`, {
+      const response = await fetch(`${API_BASE}/projects/${DEFAULT_PROJECT_ID}/search`, {
+        method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
           'X-API-Key': apiKey.trim()
-        }
+        },
+        body: JSON.stringify({
+          query_string: searchQuery,
+          strategy_label: null
+        })
       });
 
       if (!response.ok) {

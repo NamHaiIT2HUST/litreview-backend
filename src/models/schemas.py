@@ -39,7 +39,7 @@ class PaperRecord(BaseModel):
     """Paper đã được lưu vào DB (trả về từ GET /search-queries/{id}/papers
     và POST /papers/{id}/quality-check)."""
     id: str               # UUID trong DB
-    external_id: str      # id gốc từ API, dùng để render trên FE
+    external_id: str | None = None      # id gốc từ API, dùng để render trên FE
     title: str
     authors: str
     year: int
