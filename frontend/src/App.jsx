@@ -79,8 +79,16 @@ export default function App() {
 
       {/* Main Multi-Step Navigation Content Area */}
       <main className="p-4 md:p-8 max-w-7xl mx-auto">
-        {activeTab === 'home' && (
+        {activeTab === 'overview' && (
           <HomeTab setActiveTab={setActiveTab} darkMode={darkMode} />
+        )}
+
+        {activeTab === 'setup' && (
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow p-6 border dark:border-slate-800">
+            <h2 className="text-2xl font-bold mb-4">Module 1: Research Project Setup</h2>
+            <p className="text-slate-600 dark:text-slate-400 mb-4">Define your research question and criteria here.</p>
+            {/* TODO: Implement Setup Component */}
+          </div>
         )}
 
         {activeTab === 'search' && (
@@ -94,7 +102,21 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'upload' && (
+        {activeTab === 'screening' && (
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow p-6 border dark:border-slate-800">
+            <h2 className="text-2xl font-bold mb-4">Module 3: AI Screening</h2>
+            <p className="text-slate-600 dark:text-slate-400 mb-4">Let AI evaluate papers against your criteria.</p>
+          </div>
+        )}
+
+        {activeTab === 'quality' && (
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow p-6 border dark:border-slate-800">
+            <h2 className="text-2xl font-bold mb-4">Module 4: Quality Verification</h2>
+            <p className="text-slate-600 dark:text-slate-400 mb-4">Check Scopus and coverage year.</p>
+          </div>
+        )}
+
+        {activeTab === 'library' && (
           <UploadTab
             selectedPapers={selectedPapers}
             workspacePapers={workspacePapers}
@@ -104,7 +126,7 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'workspace' && (
+        {activeTab === 'synthesis' && (
           <WorkspaceTab
             workspacePapers={workspacePapers}
             chatMessages={chatMessages}
@@ -115,11 +137,11 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'insights' && (
-          <InsightsTab
-            workspacePapers={workspacePapers}
-            darkMode={darkMode}
-          />
+        {activeTab === 'export' && (
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow p-6 border dark:border-slate-800">
+            <h2 className="text-2xl font-bold mb-4">Module 7: Export</h2>
+            <p className="text-slate-600 dark:text-slate-400 mb-4">Export your findings and citations to BibTeX/CSV.</p>
+          </div>
         )}
       </main>
     </div>

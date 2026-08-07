@@ -1,113 +1,197 @@
-"""
-SQLAlchemy ORM models cho Search History feature + Module 4 (Quality Verification).
-
-DEFAULT_PROJECT_ID được dùng cho MVP — khi Module 1 (Research Project Setup)
-được implement, sẽ thay bằng FK thật tới bảng projects.
-"""
 import uuid
-from datetime import UTC, datetime
-
-from sqlalchemy import (
-    Column,
-    DateTime,
-    ForeignKey,
-    Integer,
-    String,
-    Text,
-)
+from datetime import datetime, UTC
+from typing import List, Optional
+from sqlalchemy import Column, String, Text, Integer, Float, Boolean, DateTime, ForeignKey, Enum as SQLEnum
+from sqlalchemy.dialects.postgresql import UUID, JSONB, ARRAY
 from sqlalchemy.orm import relationship
+import enum
 
 from src.database import Base
-
-# Project ID mặc định cho MVP (thay bằng thật khi làm Module 1)
-DEFAULT_PROJECT_ID = "00000000-0000-0000-0000-000000000001"
-
 
 def _now_utc():
     return datetime.now(UTC)
 
+class RelevanceBucket(str, enum.Enum):
+    high = "high"
+    medium = "medium"
+    low = "low"
+    insufficient_info = "insufficient_info"
+
+class ScreeningDecision(str, enum.Enum):
+    keep = "keep"
+    remove = "remove"
+    maybe = "maybe"
+    pending = "pending"
+
+class ScopusStatus(str, enum.Enum):
+    indexed = "indexed"
+    not_indexed = "not_indexed"
+    undetermined = "undetermined"
+
+class CoverageYearStatus(str, enum.Enum):
+    ok = "ok"
+    out_of_coverage = "out_of_coverage"
+    not_applicable = "not_applicable"
+
+class OAStatus(str, enum.Enum):
+    gold = "gold"
+    hybrid = "hybrid"
+    bronze = "bronze"
+    green = "green"
+    closed = "closed"
+    undetermined = "undetermined"
+
+class PDFStatus(str, enum.Enum):
+    not_uploaded = "not_uploaded"
+    oa_auto_fetched = "oa_auto_fetched"
+    user_uploaded = "user_uploaded"
+
+class ExtractionStatus(str, enum.Enum):
+    not_extracted = "not_extracted"
+    extracted = "extracted"
+
+class SynthesisStatus(str, enum.Enum):
+    processing = "processing"
+    done = "done"
+    failed = "failed"
+
+
+class Project(Base):
+    __tablename__ = "projects"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String, nullable=False)
+    research_question = Column(Text, nullable=False)
+    research_field = Column(String, nullable=False)
+    year_from = Column(Integer, nullable=True)
+    year_to = Column(Integer, nullable=True)
+    criteria_include = Column(ARRAY(Text), nullable=True)
+    criteria_exclude = Column(ARRAY(Text), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=_now_utc)
+    updated_at = Column(DateTime(timezone=True), default=_now_utc, onupdate=_now_utc)
+
+    queries = relationship("SearchQuery", back_populates="project")
+    papers = relationship("Paper", back_populates="project")
+    synthesis_sessions = relationship("SynthesisSession", back_populates="project")
 
 class SearchQuery(Base):
-    """Lưu mỗi lần user bấm Search. Spec: search_queries table."""
     __tablename__ = "search_queries"
-
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    project_id = Column(String(36), nullable=False, default=DEFAULT_PROJECT_ID, index=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_id = Column(UUID(as_uuid=True), ForeignKey("projects.id"))
     query_string = Column(Text, nullable=False)
-    strategy_label = Column(String(255), nullable=True)
-    result_count = Column(Integer, nullable=False, default=0)
-    executed_at = Column(DateTime(timezone=True), nullable=False, default=_now_utc)
-    is_duplicated_from = Column(String(36), ForeignKey("search_queries.id"), nullable=True)
+    strategy_label = Column(String, nullable=True)
+    result_count = Column(Integer, default=0)
+    executed_at = Column(DateTime(timezone=True), default=_now_utc)
+    is_duplicated_from = Column(UUID(as_uuid=True), ForeignKey("search_queries.id"), nullable=True)
 
-    papers = relationship("CachedPaper", back_populates="search_query", cascade="all, delete-orphan")
+    project = relationship("Project", back_populates="queries")
+    papers = relationship("Paper", back_populates="search_query")
 
-
-class CachedPaper(Base):
-    """
-    Cache kết quả paper của mỗi lần search.
-    Spec: papers table — field cơ bản (Module 2) + field Quality Check (Module 4).
-    Đặt tên CachedPaper để không trùng với Pydantic schema Paper.
-    """
+class Paper(Base):
     __tablename__ = "papers"
-
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    project_id = Column(String(36), nullable=False, default=DEFAULT_PROJECT_ID, index=True)
-    search_query_id = Column(String(36), ForeignKey("search_queries.id"), nullable=False, index=True)
-
-    external_id = Column(String(100), nullable=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_id = Column(UUID(as_uuid=True), ForeignKey("projects.id"))
+    search_query_id = Column(UUID(as_uuid=True), ForeignKey("search_queries.id"), nullable=True)
+    
     title = Column(Text, nullable=False)
-    authors = Column(Text, nullable=False)
-    year = Column(Integer, nullable=False)
     abstract = Column(Text, nullable=True)
-    journal = Column(String(500), nullable=True)
-    doi = Column(String(500), nullable=True)
-    issn = Column(String(20), nullable=True)
-    url = Column(Text, nullable=True)
-    citations = Column(Integer, nullable=False, default=0)
-    lit_score = Column(Integer, nullable=False, default=0)
-    tldr = Column(Text, nullable=True)
-    source = Column(String(50), nullable=True)
+    authors = Column(ARRAY(Text), nullable=True)
+    year = Column(Integer, nullable=True)
+    doi = Column(String, nullable=True)
+    issn = Column(String, nullable=True)
+    journal = Column(String, nullable=True)
+    source = Column(String, default="scholar")
+    dedup_key = Column(String, nullable=False, unique=True)
+    
+    # Module 3: AI Screening
+    relevance_bucket = Column(SQLEnum(RelevanceBucket), nullable=True)
+    relevance_reason = Column(JSONB, nullable=True)
+    priority_score = Column(Float, nullable=True)
+    screening_decision = Column(SQLEnum(ScreeningDecision), default=ScreeningDecision.pending)
 
-    dedup_key = Column(String(1000), nullable=False, index=True)
+    # Module 4: Quality Verification
+    scopus_status = Column(SQLEnum(ScopusStatus), default=ScopusStatus.undetermined)
+    scopus_quartile = Column(String, nullable=True)
+    coverage_year_status = Column(SQLEnum(CoverageYearStatus), nullable=True)
+    oa_status = Column(SQLEnum(OAStatus), default=OAStatus.undetermined)
 
-    # ── Module 4: Quality Verification ────────────────────────────────────
-    scopus_status = Column(String(20), nullable=False, default="undetermined")
-    # scopus_quartile: LUÔN None ở bản này — file Source title list của Elsevier
-    # KHÔNG chứa Quartile (cần file CiteScore riêng, theo subject category, chưa
-    # tích hợp). Giữ field để tương thích schema, không xoá, nhưng không suy diễn.
-    scopus_quartile = Column(String(2), nullable=True)
-    coverage_year_status = Column(String(20), nullable=True)  # ok / out_of_coverage / not_applicable
-    oa_status = Column(String(20), nullable=False, default="undetermined")
+    # Module 5 & 6: Library & Extraction
+    pdf_status = Column(SQLEnum(PDFStatus), default=PDFStatus.not_uploaded)
+    extraction_status = Column(SQLEnum(ExtractionStatus), default=ExtractionStatus.not_extracted)
 
-    created_at = Column(DateTime(timezone=True), nullable=False, default=_now_utc)
+    created_at = Column(DateTime(timezone=True), default=_now_utc)
 
+    project = relationship("Project", back_populates="papers")
     search_query = relationship("SearchQuery", back_populates="papers")
+    screening_history = relationship("ScreeningHistory", back_populates="paper", cascade="all, delete-orphan")
+    extraction = relationship("Extraction", back_populates="paper", uselist=False, cascade="all, delete-orphan")
+    pdf_chunks = relationship("PDFChunk", back_populates="paper", cascade="all, delete-orphan")
 
+class ScreeningHistory(Base):
+    __tablename__ = "screening_history"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    paper_id = Column(UUID(as_uuid=True), ForeignKey("papers.id"))
+    decision = Column(SQLEnum(ScreeningDecision), nullable=False)
+    ai_reason = Column(JSONB, nullable=True)
+    user_note = Column(Text, nullable=True)
+    decided_at = Column(DateTime(timezone=True), default=_now_utc)
+
+    paper = relationship("Paper", back_populates="screening_history")
 
 class ScopusSource(Base):
-    """
-    Danh mục Tạp chí Scopus chính thức — import từ file "Source title list"
-    (Elsevier, https://www.elsevier.com/products/scopus/content, cập nhật hàng
-    tháng, job nội bộ — KHÔNG phải API user-facing).
-
-    Khớp đúng cấu trúc file thật (6 cột): Sourcerecord ID, Source Title, ISSN,
-    EISSN, Active or Inactive, Coverage.
-
-    sourcerecord_id dùng làm PK (định danh ổn định từ Elsevier) thay vì ISSN,
-    vì 1 tạp chí có thể có cả ISSN in và EISSN riêng biệt — cần match được cả 2,
-    nên issn/eissn tách thành 2 cột có index riêng, không dùng làm PK.
-
-    coverage_ranges lưu dạng JSON text — vd "[[2019,2024],[2016,2017]]" — vì
-    1 tạp chí có thể có NHIỀU khoảng năm được index rời rạc (bị gián đoạn giữa
-    chừng), không phải luôn luôn 1 khoảng liên tục duy nhất.
-    """
     __tablename__ = "scopus_sources"
+    issn = Column(String, primary_key=True)
+    title = Column(String, nullable=False)
+    quartile = Column(String, nullable=True)
+    coverage_year_start = Column(Integer, nullable=True)
+    coverage_year_end = Column(Integer, nullable=True)
 
-    sourcerecord_id = Column(String(30), primary_key=True)
-    title = Column(String(500), nullable=True)
-    issn = Column(String(20), nullable=True, index=True)
-    eissn = Column(String(20), nullable=True, index=True)
-    active_status = Column(String(20), nullable=True)  # "Active" | "Inactive" — nguyên văn từ file
-    coverage_ranges = Column(Text, nullable=True)  # JSON list các [start, end]
-    # quartile: LUÔN None hiện tại, xem ghi chú ở CachedPaper.scopus_quartile
-    quartile = Column(String(2), nullable=True)
+class Extraction(Base):
+    __tablename__ = "extractions"
+    paper_id = Column(UUID(as_uuid=True), ForeignKey("papers.id"), primary_key=True)
+    objective = Column(Text, nullable=True)
+    method = Column(Text, nullable=True)
+    finding = Column(Text, nullable=True)
+    limitation = Column(Text, nullable=True)
+    research_gap = Column(Text, nullable=True)
+    extracted_at = Column(DateTime(timezone=True), default=_now_utc)
+
+    paper = relationship("Paper", back_populates="extraction")
+
+class SynthesisSession(Base):
+    __tablename__ = "synthesis_sessions"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_id = Column(UUID(as_uuid=True), ForeignKey("projects.id"))
+    paper_ids = Column(ARRAY(UUID(as_uuid=True)), nullable=False)
+    status = Column(SQLEnum(SynthesisStatus), default=SynthesisStatus.processing)
+    review_markdown = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=_now_utc)
+
+    project = relationship("Project", back_populates="synthesis_sessions")
+    citations = relationship("Citation", back_populates="synthesis_session", cascade="all, delete-orphan")
+
+class Citation(Base):
+    __tablename__ = "citations"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    synthesis_session_id = Column(UUID(as_uuid=True), ForeignKey("synthesis_sessions.id"))
+    paper_id = Column(UUID(as_uuid=True), ForeignKey("papers.id"))
+    citation_marker = Column(String, nullable=False)
+    review_char_start = Column(Integer, nullable=True)
+    review_char_end = Column(Integer, nullable=True)
+    source_page = Column(Integer, nullable=True)
+    source_char_start = Column(Integer, nullable=True)
+    source_char_end = Column(Integer, nullable=True)
+    quoted_snippet = Column(Text, nullable=True)
+
+    synthesis_session = relationship("SynthesisSession", back_populates="citations")
+
+class PDFChunk(Base):
+    __tablename__ = "pdf_chunks"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    paper_id = Column(UUID(as_uuid=True), ForeignKey("papers.id"))
+    chunk_text = Column(Text, nullable=False)
+    page = Column(Integer, nullable=True)
+    char_start = Column(Integer, nullable=True)
+    char_end = Column(Integer, nullable=True)
+    # embedding is handled by Qdrant/Chroma, so we don't store it in Postgres
+
+    paper = relationship("Paper", back_populates="pdf_chunks")

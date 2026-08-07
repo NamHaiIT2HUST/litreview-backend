@@ -3,6 +3,9 @@ Database setup module.
 Sử dụng SQLAlchemy async với SQLite (dev) / PostgreSQL (prod).
 """
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
