@@ -14,7 +14,7 @@ from src.models.project_schemas import (
 )
 
 # For LLM Keyword generation
-from src.agents.graph import llm  # using the same llm instance
+from src.services.rag_service import rag_service
 
 router = APIRouter()
 
@@ -72,8 +72,7 @@ async def suggest_keywords(project_id: UUID, db: AsyncSession = Depends(get_db))
     """
     
     try:
-        # Assuming llm has ainvoke method
-        response = await llm.ainvoke(prompt)
+        response = await rag_service.llm.ainvoke(prompt)
         content = response.content.strip()
         if content.startswith("```json"):
             content = content.replace("```json", "").replace("```", "").strip()

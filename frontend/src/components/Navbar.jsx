@@ -19,7 +19,7 @@ export default function Navbar({ activeTab, setActiveTab, darkMode, setDarkMode,
         ? 'bg-slate-900/95 border-slate-800 text-white backdrop-blur-md' 
         : 'bg-white/95 border-slate-200 text-slate-900 backdrop-blur-md'
     }`}>
-      <div className="max-w-7xl mx-auto px-4 md:px-8 h-18 flex items-center justify-between py-3">
+      <div className="w-full px-4 md:px-8 lg:px-12 h-18 flex items-center justify-between py-3">
         
         {/* Left Logo */}
         <div 
