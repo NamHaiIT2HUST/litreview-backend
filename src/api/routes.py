@@ -27,7 +27,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.agents.graph import agent
 from src.database import get_db
-from src.models.db_models import DEFAULT_PROJECT_ID, CachedPaper, SearchQuery
+from src.models.db_models import Paper, SearchQuery
+
+DEFAULT_PROJECT_ID = "00000000-0000-0000-0000-000000000001"
+
 from src.models.schemas import (
     ChatRequest,
     ChatResponse,
@@ -96,7 +99,7 @@ async def _persist_search(
     db.add(sq)
 
     existing_keys_result = await db.execute(
-        select(CachedPaper.dedup_key).where(CachedPaper.project_id == project_id)
+        select(Paper.dedup_key).where(Paper.project_id == project_id)
     )
     existing_keys = {row[0] for row in existing_keys_result.fetchall()}
 
@@ -105,11 +108,10 @@ async def _persist_search(
         if key in existing_keys:
             continue  # bỏ qua bản trùng, không insert (đúng thuật toán dedup spec)
 
-        paper_row = CachedPaper(
+        paper_row = Paper(
             id=str(uuid.uuid4()),
             project_id=project_id,
             search_query_id=sq.id,
-            external_id=p.id,
             title=p.title,
             authors=p.authors,
             year=p.year,
@@ -117,10 +119,6 @@ async def _persist_search(
             journal=p.journal,
             doi=p.doi,
             issn=p.issn,
-            url=p.url,
-            citations=p.citations,
-            lit_score=p.litScore,
-            tldr=p.tldr,
             scopus_status=getattr(p, 'scopus_status', 'undetermined'),
             scopus_quartile=getattr(p, 'scopus_quartile', None),
             coverage_year_status=getattr(p, 'coverage_year_status', None),
@@ -155,7 +153,7 @@ async def search_papers(
 
     # TỰ ĐỘNG ĐỐI CHIẾU SCOPUS TẤT CẢ BÀI BÁO NGAY KHI TRA CỨU
     for p in papers:
-        cp = CachedPaper(
+        cp = Paper(
             title=p.title,
             authors=p.authors,
             year=p.year,
@@ -236,9 +234,8 @@ async def get_papers_for_query(
         raise HTTPException(status_code=404, detail=f"Search query '{query_id}' not found")
 
     result = await db.execute(
-        select(CachedPaper)
-        .where(CachedPaper.search_query_id == query_id)
-        .order_by(desc(CachedPaper.citations))
+        select(Paper)
+        .where(Paper.search_query_id == query_id)
     )
     papers = result.scalars().all()
     return [PaperRecord.model_validate(p) for p in papers]
@@ -298,11 +295,8 @@ async def quality_check_paper(
     404 nếu paper không tồn tại. OA status KHÔNG được xử lý ở đây — xem
     docstring trong src/services/scopus_matcher.py.
     """
-    from sqlalchemy import or_
     result = await db.execute(
-        select(CachedPaper).where(
-            or_(CachedPaper.id == paper_id, CachedPaper.external_id == paper_id)
-        )
+        select(Paper).where(Paper.id == paper_id)
     )
     paper = result.scalar_one_or_none()
     if not paper:
