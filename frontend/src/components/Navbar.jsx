@@ -1,13 +1,16 @@
 import React from 'react';
-import { Search, Upload, Sparkles, PieChart, Sun, Moon, Home } from 'lucide-react';
+import { Search, Upload, Sparkles, PieChart, Sun, Moon, Home, Settings, Filter, ShieldCheck, Library, Download } from 'lucide-react';
 
 export default function Navbar({ activeTab, setActiveTab, darkMode, setDarkMode, uploadedCount }) {
   const navItems = [
-    { id: 'home', label: 'Trang chủ', icon: Home },
-    { id: 'search', label: 'Tra cứu', icon: Search },
-    { id: 'upload', label: 'Upload PDF', icon: Upload, count: uploadedCount },
-    { id: 'workspace', label: 'AI Workspace', icon: Sparkles },
-    { id: 'insights', label: 'Phân tích', icon: PieChart },
+    { id: 'overview', label: 'Overview', icon: Home },
+    { id: 'setup', label: 'Research Setup', icon: Settings },
+    { id: 'search', label: 'Search Papers', icon: Search },
+    { id: 'screening', label: 'Screening', icon: Filter },
+    { id: 'quality', label: 'Quality Check', icon: ShieldCheck },
+    { id: 'library', label: 'Library', icon: Library, count: uploadedCount },
+    { id: 'synthesis', label: 'Synthesis', icon: Sparkles },
+    { id: 'export', label: 'Export', icon: Download },
   ];
 
   return (
