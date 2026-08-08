@@ -12,6 +12,7 @@ from src.models.project_schemas import (
     CriteriaUpdateRequest,
     KeywordSuggestionResponse
 )
+from src.models.schemas import PaperRecord
 
 # For LLM Keyword generation
 from src.services.rag_service import rag_service
@@ -26,6 +27,23 @@ async def get_project(project_id: UUID, db: AsyncSession = Depends(get_db)):
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     return project
+
+@router.get("/projects/{project_id}/papers", response_model=list[PaperRecord])
+async def get_project_papers(
+    project_id: UUID,
+    decision: str = None,
+    db: AsyncSession = Depends(get_db)
+):
+    """Module 4: Get papers for a project, optionally filtered by screening decision."""
+    from src.models.db_models import Paper
+    
+    stmt = select(Paper).where(Paper.project_id == project_id)
+    if decision:
+        stmt = stmt.where(Paper.screening_decision == decision)
+        
+    result = await db.execute(stmt)
+    papers = result.scalars().all()
+    return [PaperRecord.model_validate(p) for p in papers]
 
 @router.put("/projects/{project_id}", response_model=ProjectResponse)
 async def update_project(project_id: UUID, request: ProjectCreateRequest, db: AsyncSession = Depends(get_db)):

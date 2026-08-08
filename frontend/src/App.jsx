@@ -8,6 +8,7 @@ import HomeTab from './components/home/HomeTab';
 import ResearchSetupTab from './components/setup/ResearchSetupTab';
 
 import ScreeningTab from './components/screening/ScreeningTab';
+import QualityCheckTab from './components/quality/QualityCheckTab';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState(() => {
@@ -111,10 +112,7 @@ export default function App() {
         )}
 
         {activeTab === 'quality' && (
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow p-6 border dark:border-slate-800">
-            <h2 className="text-2xl font-bold mb-4">Module 4: Quality Verification</h2>
-            <p className="text-slate-600 dark:text-slate-400 mb-4">Check Scopus and coverage year.</p>
-          </div>
+          <QualityCheckTab darkMode={darkMode} />
         )}
 
         {activeTab === 'library' && (

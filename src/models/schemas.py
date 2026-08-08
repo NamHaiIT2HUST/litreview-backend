@@ -11,7 +11,7 @@ class ChatResponse(BaseModel):
     analysis: str = Field(default="", description="Phân tích nội bộ")
 
 class Paper(BaseModel):
-    id: UUID
+    id: str
     title: str
     authors: list[str]
     year: int
