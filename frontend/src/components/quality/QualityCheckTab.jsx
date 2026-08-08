@@ -8,6 +8,7 @@ export default function QualityCheckTab({ darkMode }) {
   const [papers, setPapers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [checkingIds, setCheckingIds] = useState({});
+  const [checkedIds, setCheckedIds] = useState({});
   const [errorMsg, setErrorMsg] = useState(null);
 
   useEffect(() => {
@@ -40,6 +41,7 @@ export default function QualityCheckTab({ darkMode }) {
       if (res.ok) {
         const updated = await res.json();
         setPapers(prev => prev.map(p => p.id === paperId ? updated : p));
+        setCheckedIds(prev => ({ ...prev, [paperId]: true }));
       } else {
         console.error('Quality check failed');
       }
@@ -70,6 +72,17 @@ export default function QualityCheckTab({ darkMode }) {
     return <span className="text-slate-500 font-medium">Không xác định</span>;
   };
 
+  const renderQuartileBadge = (quartile) => {
+    if (!quartile || quartile === 'N/A') return <span className="font-bold text-slate-800 dark:text-slate-200">N/A</span>;
+    let colorClass = "bg-slate-100 text-slate-700 border-slate-200";
+    if (quartile === 'Q1') colorClass = "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-400 dark:border-emerald-800";
+    if (quartile === 'Q2') colorClass = "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/40 dark:text-blue-400 dark:border-blue-800";
+    if (quartile === 'Q3') colorClass = "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900/40 dark:text-orange-400 dark:border-orange-800";
+    if (quartile === 'Q4') colorClass = "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/40 dark:text-red-400 dark:border-red-800";
+    
+    return <span className={`inline-flex px-2 py-0.5 rounded text-xs font-bold border ${colorClass}`}>{quartile}</span>;
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center p-20 text-slate-500">
@@ -84,10 +97,10 @@ export default function QualityCheckTab({ darkMode }) {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
         <div className="space-y-3">
           <h2 className={`text-3xl font-extrabold ${darkMode ? 'text-white' : 'text-slate-900'}`}>
-            Module 4: Quality Verification
+            Kiểm Duyệt Nguồn Gốc (Scopus)
           </h2>
           <p className={`text-base max-w-2xl ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-            Kiểm tra nguồn gốc bài báo với cơ sở dữ liệu Scopus. Tính năng này chỉ áp dụng cho những bài báo bạn đã chọn <span className="font-semibold text-emerald-600">Keep</span>.
+            Hệ thống sẽ tự động đối chiếu các bài báo bạn đã chọn <span className="font-semibold text-emerald-600">Keep</span> với dữ liệu chuẩn của Scopus.
           </p>
         </div>
         
@@ -125,11 +138,14 @@ export default function QualityCheckTab({ darkMode }) {
                     {paper.title}
                   </h3>
                   
-                  <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-600 dark:text-slate-400">
-                    <div><span className="font-semibold text-slate-700 dark:text-slate-300">Tạp chí:</span> {paper.journal || 'N/A'}</div>
-                    <div><span className="font-semibold text-slate-700 dark:text-slate-300">Năm:</span> {paper.year}</div>
-                    <div><span className="font-semibold text-slate-700 dark:text-slate-300">ISSN:</span> {paper.issn || 'N/A'}</div>
-                    <div><span className="font-semibold text-slate-700 dark:text-slate-300">Citations:</span> {paper.citations}</div>
+                  <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500 dark:text-slate-400 font-medium">
+                    <span>{paper.journal || 'Tạp chí không xác định'}</span>
+                    <span>•</span>
+                    <span>Năm {paper.year}</span>
+                    <span>•</span>
+                    <span>ISSN: {paper.issn || 'N/A'}</span>
+                    <span>•</span>
+                    <span>{paper.citations} trích dẫn</span>
                   </div>
                 </div>
 
@@ -142,29 +158,36 @@ export default function QualityCheckTab({ darkMode }) {
                   
                   {paper.scopus_status === 'indexed' && (
                     <>
-                      <div className="flex justify-between items-center border-t border-slate-200 dark:border-slate-700 pt-2">
+                      <div className="flex justify-between items-center border-t border-slate-200 dark:border-slate-700 pt-2 mt-1">
                         <span className="text-sm text-slate-600 dark:text-slate-400">Quartile</span>
-                        <span className="font-bold text-slate-800 dark:text-slate-200">{paper.scopus_quartile || 'N/A'}</span>
+                        <span className="text-sm text-right">{renderQuartileBadge(paper.scopus_quartile)}</span>
                       </div>
                       <div className="flex justify-between items-center border-t border-slate-200 dark:border-slate-700 pt-2">
-                        <span className="text-sm text-slate-600 dark:text-slate-400">Coverage Year</span>
+                        <span className="text-sm text-slate-600 dark:text-slate-400">Hiệu lực</span>
                         <span className="text-sm text-right">{renderCoverageBadge(paper.coverage_year_status)}</span>
                       </div>
                     </>
                   )}
 
                   {paper.scopus_status === 'undetermined' && (
-                    <button 
-                      onClick={() => handleQualityCheck(paper.id)}
-                      disabled={checkingIds[paper.id]}
-                      className="mt-2 w-full py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 dark:text-blue-400 font-bold text-xs rounded-lg flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
-                    >
-                      {checkingIds[paper.id] ? (
-                        <><Loader2 className="w-4 h-4 animate-spin"/> Đang kiểm tra...</>
-                      ) : (
-                        <><PlayCircle className="w-4 h-4"/> Kiểm tra chất lượng</>
+                    <div className="mt-2 space-y-1">
+                      <button 
+                        onClick={() => handleQualityCheck(paper.id)}
+                        disabled={checkingIds[paper.id]}
+                        className="w-full py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 dark:text-blue-400 font-bold text-xs rounded-lg flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                      >
+                        {checkingIds[paper.id] ? (
+                          <><Loader2 className="w-4 h-4 animate-spin"/> Đang kiểm tra...</>
+                        ) : (
+                          <><PlayCircle className="w-4 h-4"/> {checkedIds[paper.id] ? 'Kiểm tra lại' : 'Kiểm tra chất lượng'}</>
+                        )}
+                      </button>
+                      {checkedIds[paper.id] && (
+                        <p className="text-[10px] text-center text-slate-500 dark:text-slate-400 leading-tight mt-1">
+                          Không tìm thấy trong DB Scopus.
+                        </p>
                       )}
-                    </button>
+                    </div>
                   )}
                 </div>
 

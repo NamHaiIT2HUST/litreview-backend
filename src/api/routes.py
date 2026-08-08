@@ -20,6 +20,7 @@ Quality Verification (Module 4):
 """
 import re
 import uuid
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, UploadFile, File, Form
 from sqlalchemy import desc, select
@@ -58,7 +59,7 @@ router = APIRouter()
 # Helpers
 # ──────────────────────────────────────────────────────────────────────────────
 
-def _compute_dedup_key(doi: str, title: str, authors: str, year: int) -> str:
+def _compute_dedup_key(doi: str, title: str, authors: list[str] | str, year: int) -> str:
     """
     Thuật toán dedup theo spec:
       - Có DOI → normalize(doi)
@@ -67,7 +68,13 @@ def _compute_dedup_key(doi: str, title: str, authors: str, year: int) -> str:
     if doi and doi.strip() and doi.strip().upper() not in ("N/A", ""):
         return doi.strip().lower()
     title_norm = re.sub(r"\s+", " ", title.lower()).strip()
-    first_author = authors.split(",")[0].strip() if authors else ""
+    
+    first_author = ""
+    if isinstance(authors, list) and len(authors) > 0:
+        first_author = authors[0].strip()
+    elif isinstance(authors, str) and authors:
+        first_author = authors.split(",")[0].strip()
+        
     return f"{title_norm}|{first_author}|{year}"
 
 
@@ -91,7 +98,7 @@ async def _persist_search(
     qua POST /papers/{id}/quality-check, KHÔNG chạy ở đây.
     """
     sq = SearchQuery(
-        id=str(uuid.uuid4()),
+        id=uuid.uuid4(),
         project_id=project_id,
         query_string=query_string,
         strategy_label=strategy_label,
@@ -111,7 +118,7 @@ async def _persist_search(
             continue  # bỏ qua bản trùng, không insert (đúng thuật toán dedup spec)
 
         paper_row = Paper(
-            id=str(uuid.uuid4()),
+            id=uuid.uuid4(),
             project_id=project_id,
             search_query_id=sq.id,
             title=p.title,
@@ -301,7 +308,7 @@ async def duplicate_search_query(
         raise HTTPException(status_code=404, detail=f"Search query '{query_id}' not found")
 
     new_sq = SearchQuery(
-        id=str(uuid.uuid4()),
+        id=uuid.uuid4(),
         project_id=original.project_id,
         query_string=original.query_string,
         strategy_label=None,
@@ -324,7 +331,7 @@ async def duplicate_search_query(
 
 @router.post("/papers/{paper_id}/quality-check", response_model=PaperRecord)
 async def quality_check_paper(
-    paper_id: str,
+    paper_id: UUID,
     db: AsyncSession = Depends(get_db),
 ) -> PaperRecord:
     """
