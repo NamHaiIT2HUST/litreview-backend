@@ -8,30 +8,46 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
   
-  // State for project
   const [projectData, setProjectData] = useState({
-    name: 'Tác động của sinh viên kiệt sức',
-    research_question: 'Sinh viên kiệt sức ảnh hưởng thế nào đến kết quả học tập?',
-    research_field: 'Giáo dục học',
+    name: '',
+    research_question: '',
+    research_field: '',
     year_from: 2018,
     year_to: 2024,
-    criteria_include: ['Nghiên cứu định lượng', 'Sinh viên đại học'],
-    criteria_exclude: ['Học sinh phổ thông']
+    criteria_include: [],
+    criteria_exclude: []
   });
 
   const [newInclude, setNewInclude] = useState('');
   const [newExclude, setNewExclude] = useState('');
   const [suggestedKeywords, setSuggestedKeywords] = useState([]);
   const [loadingKeywords, setLoadingKeywords] = useState(false);
+  const [errorMsg, setErrorMsg] = useState(null);
+
+  React.useEffect(() => {
+    const fetchProject = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/projects/${DEFAULT_PROJECT_ID}`);
+        if (res.ok) {
+          const data = await res.json();
+          setProjectData(data);
+        } else {
+          // If not found or error, leave as empty
+          console.warn("Could not fetch default project");
+        }
+      } catch (err) {
+        console.error("DB connection error:", err);
+        setErrorMsg("Không thể kết nối đến Database. Vui lòng kiểm tra Docker!");
+      }
+    };
+    fetchProject();
+  }, []);
 
   const handleSave = async () => {
     setLoading(true);
     try {
-      // Vì đang dùng 1 project tĩnh mặc định, ta chỉ cần gọi PATCH criteria hoặc tạo mới nếu chưa có
-      // Tạm gọi tạo Project (hoặc bỏ qua call API để tiết kiệm thời gian nếu DB đã có)
-      // Để hoàn chỉnh:
-      const res = await fetch(`${API_BASE}/projects`, {
-        method: 'POST',
+      const res = await fetch(`${API_BASE}/projects/${DEFAULT_PROJECT_ID}`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(projectData)
       });
@@ -46,16 +62,22 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
 
   const handleSuggestKeywords = async () => {
     setLoadingKeywords(true);
+    setErrorMsg(null);
     try {
       const res = await fetch(`${API_BASE}/projects/${DEFAULT_PROJECT_ID}/suggest-keywords`, {
-        method: 'POST'
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(projectData)
       });
       if (res.ok) {
         const data = await res.json();
         setSuggestedKeywords(data.suggested_keywords || []);
+      } else {
+        setErrorMsg("Lỗi khi lấy gợi ý từ AI. Hãy chắc chắn Server đang chạy và DB hoạt động.");
       }
     } catch (err) {
       console.error(err);
+      setErrorMsg("Mất kết nối đến Server. Vui lòng kiểm tra Docker / DB!");
     } finally {
       setLoadingKeywords(false);
     }
@@ -82,6 +104,12 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
           <BookOpen className="w-8 h-8 text-blue-600 dark:text-sky-400" />
           <h2 className="text-2xl font-extrabold">Cấu hình Đề tài Nghiên cứu</h2>
         </div>
+        
+        {errorMsg && (
+          <div className="mb-6 p-4 rounded-xl bg-red-50 text-red-700 border border-red-200 font-medium">
+            {errorMsg}
+          </div>
+        )}
 
         <div className="space-y-5">
           <div>
@@ -151,7 +179,7 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
             </div>
             <ul className="space-y-2 mt-3">
               {projectData.criteria_include.map((item, idx) => (
-                <li key={idx} className="flex justify-between items-center bg-emerald-50 dark:bg-emerald-900/30 p-2 rounded-lg text-sm border border-emerald-100 dark:border-emerald-800">
+                <li key={idx} className="flex justify-between items-center bg-emerald-50 dark:bg-emerald-900/30 p-2 rounded-lg text-sm border border-emerald-100 dark:border-emerald-800 animate-in fade-in slide-in-from-left-4 duration-300">
                   <span>{item}</span>
                   <button onClick={() => setProjectData(p => ({...p, criteria_include: p.criteria_include.filter((_, i) => i !== idx)}))}><X className="w-4 h-4 text-emerald-600"/></button>
                 </li>
@@ -175,7 +203,7 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
             </div>
             <ul className="space-y-2 mt-3">
               {projectData.criteria_exclude.map((item, idx) => (
-                <li key={idx} className="flex justify-between items-center bg-red-50 dark:bg-red-900/30 p-2 rounded-lg text-sm border border-red-100 dark:border-red-800">
+                <li key={idx} className="flex justify-between items-center bg-red-50 dark:bg-red-900/30 p-2 rounded-lg text-sm border border-red-100 dark:border-red-800 animate-in fade-in slide-in-from-right-4 duration-300">
                   <span>{item}</span>
                   <button onClick={() => setProjectData(p => ({...p, criteria_exclude: p.criteria_exclude.filter((_, i) => i !== idx)}))}><X className="w-4 h-4 text-red-600"/></button>
                 </li>
@@ -214,7 +242,7 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
           </h4>
           <div className="flex flex-wrap gap-2">
             {suggestedKeywords.map((kw, i) => (
-              <span key={i} className="px-3 py-1.5 bg-white dark:bg-slate-800 text-indigo-700 dark:text-indigo-400 rounded-xl text-sm font-semibold border shadow-sm">
+              <span key={i} className="px-3 py-1.5 bg-white dark:bg-slate-800 text-indigo-700 dark:text-indigo-400 rounded-xl text-sm font-semibold border shadow-sm animate-in zoom-in duration-300 hover:scale-105 transition-transform cursor-default" style={{ animationDelay: `${i * 50}ms`, animationFillMode: 'both' }}>
                 {kw}
               </span>
             ))}

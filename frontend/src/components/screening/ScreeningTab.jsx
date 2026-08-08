@@ -5,17 +5,38 @@ const API_BASE = 'http://localhost:8000/api/v1';
 
 export default function ScreeningTab({ papers, setPapers, darkMode }) {
   const [screeningLoading, setScreeningLoading] = useState({});
+  const [projectData, setProjectData] = useState(null);
+  const [errorMsg, setErrorMsg] = useState(null);
+
+  React.useEffect(() => {
+    const fetchProject = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/projects/00000000-0000-0000-0000-000000000001`);
+        if (res.ok) {
+          const data = await res.json();
+          setProjectData(data);
+        }
+      } catch (err) {
+        console.error("Lỗi khi fetch project:", err);
+      }
+    };
+    fetchProject();
+  }, []);
 
   const handleScreenPaper = async (paperId) => {
     setScreeningLoading(prev => ({ ...prev, [paperId]: true }));
+    setErrorMsg(null);
     try {
       const res = await fetch(`${API_BASE}/papers/${paperId}/screen`, { method: 'POST' });
       if (res.ok) {
         const data = await res.json();
         setPapers(prev => prev.map(p => p.id === paperId ? { ...p, screening_data: data } : p));
+      } else {
+        setErrorMsg("Lỗi khi Screening. DB có thể đang đóng hoặc API lỗi.");
       }
     } catch (err) {
       console.error(err);
+      setErrorMsg("Mất kết nối với Server. Vui lòng kiểm tra Docker!");
     } finally {
       setScreeningLoading(prev => ({ ...prev, [paperId]: false }));
     }
@@ -47,6 +68,33 @@ export default function ScreeningTab({ papers, setPapers, darkMode }) {
           Đánh giá mức độ liên quan dựa trên Tiêu chí Inclusion / Exclusion.
         </p>
       </div>
+
+      {errorMsg && (
+        <div className="p-4 rounded-xl bg-red-50 text-red-700 border border-red-200 font-medium">
+          {errorMsg}
+        </div>
+      )}
+
+      {projectData && (
+        <div className={`p-5 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-blue-50 border-blue-100'} mb-6`}>
+          <h3 className="font-bold text-lg mb-2">Chủ đề: {projectData.name}</h3>
+          <p className="text-sm mb-3"><span className="font-semibold">Câu hỏi NC:</span> {projectData.research_question}</p>
+          <div className="flex gap-6 text-sm">
+            <div>
+              <span className="font-semibold text-emerald-600">Nên có (Inclusion):</span>
+              <ul className="list-disc ml-5 opacity-80">
+                {projectData.criteria_include?.map((c, i) => <li key={i}>{c}</li>)}
+              </ul>
+            </div>
+            <div>
+              <span className="font-semibold text-red-600">Loại trừ (Exclusion):</span>
+              <ul className="list-disc ml-5 opacity-80">
+                {projectData.criteria_exclude?.map((c, i) => <li key={i}>{c}</li>)}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="space-y-6">
         {papers.length === 0 ? (

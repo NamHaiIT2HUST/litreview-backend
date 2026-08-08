@@ -1,147 +1,123 @@
 import React from 'react';
-import { Search, Upload, Sparkles, PieChart, ArrowRight, ShieldCheck, Zap, Users } from 'lucide-react';
+import { Search, BrainCircuit, FileDown, ArrowRight, Settings, CheckCircle2, MessageSquare, Zap } from 'lucide-react';
 
 export default function HomeTab({ setActiveTab, darkMode }) {
-  const features = [
-    {
-      icon: Search,
-      title: 'Tra cứu Thông minh',
-      description: 'Tìm kiếm hàng triệu bài báo khoa học từ Scopus & Web of Science với độ chính xác cao.',
-      color: 'text-blue-500',
-      bg: 'bg-blue-500/10'
-    },
-    {
-      icon: Upload,
-      title: 'Không gian NotebookLM',
-      description: 'Upload các bài báo PDF của riêng bạn và quản lý chúng dễ dàng như NotebookLM của Google.',
-      color: 'text-emerald-500',
-      bg: 'bg-emerald-500/10'
-    },
-    {
-      icon: Sparkles,
-      title: 'Chat RAG Chuyên sâu',
-      description: 'Hỏi đáp trực tiếp với tài liệu. AI sẽ trích xuất chính xác dẫn chứng từ bài báo của bạn.',
-      color: 'text-amber-500',
-      bg: 'bg-amber-500/10'
-    },
-    {
-      icon: Users,
-      title: 'Multi-Agent Phân tích',
-      description: 'Đội ngũ chuyên gia AI ảo tự động tóm tắt, tìm điểm mới và đánh giá chất lượng bài báo.',
-      color: 'text-purple-500',
-      bg: 'bg-purple-500/10'
-    }
-  ];
-
   return (
-    <div className={`space-y-12 pb-12 animate-in fade-in zoom-in-95 duration-500`}>
-      {/* Hero Section */}
-      <section className={`relative overflow-hidden rounded-3xl p-8 md:p-16 text-center ${
-        darkMode ? 'bg-slate-900 border border-slate-800' : 'bg-white border border-slate-200'
-      } shadow-sm`}>
-        {/* Background Decorative Blobs */}
-        <div className="absolute top-0 left-1/4 w-72 h-72 bg-blue-400 rounded-full mix-blend-multiply filter blur-[100px] opacity-30 dark:opacity-20 animate-blob"></div>
-        <div className="absolute top-0 right-1/4 w-72 h-72 bg-sky-400 rounded-full mix-blend-multiply filter blur-[100px] opacity-30 dark:opacity-20 animate-blob animation-delay-2000"></div>
-        <div className="absolute -bottom-8 left-1/3 w-72 h-72 bg-indigo-400 rounded-full mix-blend-multiply filter blur-[100px] opacity-30 dark:opacity-20 animate-blob animation-delay-4000"></div>
-        
-        <div className="relative z-10 max-w-3xl mx-auto space-y-6">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-sky-400 mb-4 border border-blue-100 dark:border-blue-800/50 animate-float">
-            <Sparkles className="w-4 h-4 text-amber-500 animate-pulse" />
-            <span>Nền tảng Review Bài báo Khoa học bằng AI</span>
-          </div>
-          
-          <h1 className="text-4xl md:text-6xl font-black tracking-tight leading-tight">
-            Nghiên cứu nhanh hơn với <br className="hidden md:block"/>
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-sky-400 to-indigo-600 animate-gradient-x">LitReview Agent</span>
-          </h1>
-          
-          <p className={`text-lg md:text-xl font-medium ${darkMode ? 'text-slate-400' : 'text-slate-600'} leading-relaxed`}>
-            Khám phá, tổng hợp và phân tích hàng ngàn bài báo khoa học trong tích tắc với sức mạnh của Multi-Agent RAG System. Giao diện trực quan, thân thiện và mạnh mẽ.
-          </p>
-
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-            <button
-              onClick={() => setActiveTab('search')}
-              className="flex items-center gap-2 px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold text-lg shadow-lg shadow-blue-500/30 transition-all hover:scale-105 active:scale-95 w-full sm:w-auto justify-center"
-            >
-              Bắt đầu Tra cứu ngay
-              <ArrowRight className="w-5 h-5" />
-            </button>
-            <button
-              onClick={() => setActiveTab('upload')}
-              className={`flex items-center gap-2 px-8 py-4 rounded-2xl font-bold text-lg transition-all hover:scale-105 active:scale-95 w-full sm:w-auto justify-center ${
-                darkMode 
-                  ? 'bg-slate-800 hover:bg-slate-700 text-white border border-slate-700' 
-                  : 'bg-slate-100 hover:bg-slate-200 text-slate-900 border border-slate-200'
-              }`}
-            >
-              Upload PDF của bạn
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/* Features Grid */}
-      <section className="space-y-8">
-        <div className="text-center space-y-4">
-          <h2 className="text-3xl md:text-4xl font-black">Tính năng Nổi bật</h2>
-          <p className={`text-lg font-medium max-w-2xl mx-auto ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-            Được thiết kế chuyên biệt cho sinh viên, giảng viên và các nhà nghiên cứu để tối ưu hóa thời gian đọc hiểu tài liệu.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {features.map((feat, idx) => {
-            const Icon = feat.icon;
-            return (
-              <div 
-                key={idx}
-                className={`group p-6 rounded-3xl border transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl ${
-                  darkMode 
-                    ? 'bg-slate-900 border-slate-800 hover:shadow-blue-900/20 hover:border-slate-700' 
-                    : 'bg-white border-slate-200 hover:shadow-slate-300 hover:border-slate-300'
-                }`}
-              >
-                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-6 ${feat.bg} ${feat.color} group-hover:scale-110 group-hover:-rotate-3 transition-transform duration-300`}>
-                  <Icon className="w-7 h-7" />
-                </div>
-                <h3 className="text-xl font-bold mb-3 group-hover:text-blue-600 dark:group-hover:text-sky-400 transition-colors">{feat.title}</h3>
-                <p className={`text-sm font-medium leading-relaxed ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                  {feat.description}
-                </p>
-              </div>
-            );
-          })}
-        </div>
-      </section>
+    <div className={`space-y-16 pb-16 animate-in fade-in duration-500 ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>
       
-      {/* Footer Banner */}
-      <section className={`p-8 rounded-3xl flex flex-col md:flex-row items-center justify-between gap-6 border ${
-        darkMode ? 'bg-gradient-to-r from-blue-900/40 to-slate-900 border-blue-900/50' : 'bg-gradient-to-r from-blue-50 to-white border-blue-100'
-      }`}>
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/20">
-            <ShieldCheck className="w-6 h-6" />
-          </div>
-          <div>
-            <h4 className="font-bold text-lg">Bảo mật & Riêng tư</h4>
-            <p className={`text-sm font-medium ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-              Tài liệu của bạn chỉ được lưu trữ cho mục đích tra cứu cá nhân.
-            </p>
-          </div>
+      {/* Hero Section */}
+      <section className="text-center pt-12 pb-8 px-4 max-w-4xl mx-auto space-y-6">
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-sky-400 mb-2 border border-blue-100 dark:border-blue-800 animate-in fade-in zoom-in duration-500 hover:scale-105 transition-transform cursor-default">
+          <Zap className="w-4 h-4 text-amber-500 animate-bounce" />
+          <span>LitReview Agent</span>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-amber-500 text-white flex items-center justify-center shadow-lg shadow-amber-500/20">
-            <Zap className="w-6 h-6" />
-          </div>
-          <div>
-            <h4 className="font-bold text-lg">Tốc độ & Hiệu suất</h4>
-            <p className={`text-sm font-medium ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-              Truy vấn và trả lời trong vài giây nhờ hệ thống RAG tối ưu.
-            </p>
-          </div>
+        
+        <h1 className="text-4xl md:text-5xl font-black tracking-tight leading-tight">
+          Công cụ Tổng hợp Bài báo Khoa học Thông minh
+        </h1>
+        
+        <p className={`text-lg md:text-xl font-medium max-w-2xl mx-auto ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+          Giải pháp toàn diện để tìm kiếm, sàng lọc tự động (AI Screening), và trích xuất thông tin bài báo khoa học từ các nguồn uy tín.
+        </p>
+
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-6">
+          <button
+            onClick={() => setActiveTab('setup')}
+            className="flex items-center gap-2 px-8 py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-lg shadow-lg shadow-blue-500/20 transition-all w-full sm:w-auto justify-center"
+          >
+            Bắt đầu ngay <ArrowRight className="w-5 h-5" />
+          </button>
+          <a
+            href="#features"
+            className={`flex items-center gap-2 px-8 py-3.5 rounded-xl font-bold text-lg transition-all w-full sm:w-auto justify-center ${
+              darkMode 
+                ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' 
+                : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+            }`}
+          >
+            Tìm hiểu thêm
+          </a>
         </div>
       </section>
+
+      {/* Features Section */}
+      <section id="features" className="max-w-5xl mx-auto px-4 space-y-10">
+        <div className="text-center space-y-3">
+          <h2 className="text-3xl font-black">Tính năng nổi bật</h2>
+          <p className={darkMode ? 'text-slate-400' : 'text-slate-500'}>
+            Những công cụ mạnh mẽ giúp bạn tối ưu hóa quy trình nghiên cứu
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {[
+            {
+              icon: Search,
+              title: 'Tìm kiếm Thông minh',
+              desc: 'Tìm kiếm nhanh chóng từ Google Scholar & Semantic Scholar. Tự động lấy Full Abstract và tính điểm LitScore.'
+            },
+            {
+              icon: BrainCircuit,
+              title: 'AI Sàng lọc (Screening)',
+              desc: 'Đánh giá mức độ phù hợp của bài báo dựa trên các tiêu chí Inclusion/Exclusion do bạn cấu hình.'
+            },
+            {
+              icon: FileDown,
+              title: 'Xuất dữ liệu Dễ dàng',
+              desc: 'Quản lý thư viện bài báo và trích xuất tự động các Insight quan trọng ra định dạng chuẩn.'
+            }
+          ].map((feat, i) => (
+            <div key={i} className={`p-8 rounded-3xl border transition-all ${
+              darkMode ? 'bg-slate-900 border-slate-800 hover:border-slate-700' : 'bg-white border-slate-200 hover:border-slate-300'
+            } text-center group`}>
+              <div className="w-16 h-16 mx-auto rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-sky-400 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                <feat.icon className="w-8 h-8" />
+              </div>
+              <h3 className="text-xl font-bold mb-3">{feat.title}</h3>
+              <p className={`text-sm leading-relaxed ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{feat.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* How it works */}
+      <section className={`max-w-5xl mx-auto rounded-3xl p-8 md:p-12 border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+        <div className="text-center space-y-3 mb-10">
+          <h2 className="text-3xl font-black">Cách sử dụng</h2>
+          <p className={darkMode ? 'text-slate-400' : 'text-slate-500'}>Chỉ với 4 bước đơn giản</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 relative">
+          {[
+            { icon: Settings, title: 'Cấu hình Đề tài', desc: 'Nhập câu hỏi nghiên cứu và tiêu chí sàng lọc' },
+            { icon: Search, title: 'Tra cứu bài báo', desc: 'Tìm kiếm tự động qua các nguồn học thuật uy tín' },
+            { icon: CheckCircle2, title: 'Sàng lọc (AI)', desc: 'AI chấm điểm và loại bỏ các bài không liên quan' },
+            { icon: MessageSquare, title: 'Tổng hợp & Chat', desc: 'Trò chuyện với tài liệu và bóc tách dữ liệu' }
+          ].map((step, i) => (
+            <div key={i} className="text-center relative z-10">
+              <div className="w-14 h-14 mx-auto rounded-full bg-white dark:bg-slate-800 border-2 border-blue-500 text-blue-600 dark:text-sky-400 flex items-center justify-center font-bold text-xl mb-4 shadow-sm relative z-10">
+                {i + 1}
+              </div>
+              <h3 className="font-bold text-lg mb-2">{step.title}</h3>
+              <p className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{step.desc}</p>
+            </div>
+          ))}
+          {/* Connecting Line (hidden on mobile) */}
+          <div className="hidden md:block absolute top-7 left-[12%] right-[12%] h-0.5 bg-blue-200 dark:bg-blue-900/50 -z-0"></div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="text-center max-w-2xl mx-auto pt-8">
+        <h2 className="text-3xl font-black mb-6">Sẵn sàng bắt đầu?</h2>
+        <button
+          onClick={() => setActiveTab('setup')}
+          className="px-10 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-lg shadow-lg shadow-blue-500/20 transition-all hover:-translate-y-1"
+        >
+          Bắt đầu sử dụng công cụ
+        </button>
+      </section>
+
     </div>
   );
 }
