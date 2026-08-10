@@ -8,12 +8,12 @@ import HomeTab from './components/home/HomeTab';
 import ResearchSetupTab from './components/setup/ResearchSetupTab';
 
 import ScreeningTab from './components/screening/ScreeningTab';
-import QualityCheckTab from './components/quality/QualityCheckTab';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState(() => {
-    return localStorage.getItem('litreview_active_tab') || 'home';
-  }); // 'home' | 'setup' | 'search' | 'screening' | 'upload' | 'workspace' | 'insights'
+    const savedTab = localStorage.getItem('litreview_active_tab') || 'overview';
+    return savedTab === 'home' || savedTab === 'quality' ? 'overview' : savedTab;
+  }); // 'overview' | 'setup' | 'search' | 'screening' | 'library' | 'synthesis' | 'export'
 
   useEffect(() => {
     localStorage.setItem('litreview_active_tab', activeTab);
@@ -27,44 +27,15 @@ export default function App() {
   const [chatMessages, setChatMessages] = useState([
     {
       sender: 'ai',
-      text: `Chào mừng bạn đến với **LitReview Agent**! Hãy tra cứu bài báo ở bước 1 và đưa vào AI Workspace để bắt đầu phân tích.`
+      text: `Chào mừng bạn đến với **LitReview Agent**! Hãy tìm Top 20 bằng Google Scholar, đối chiếu Scopus, rồi đưa bài đã chọn sang Screening và Synthesis.`
     }
   ]);
 
-  const toggleSelectPaper = async (id) => {
-    const isSelecting = !selectedPaperIds.includes(id);
-
+  const toggleSelectPaper = (id) => {
     if (selectedPaperIds.includes(id)) {
       setSelectedPaperIds(selectedPaperIds.filter(item => item !== id));
     } else {
       setSelectedPaperIds([...selectedPaperIds, id]);
-    }
-
-    // Khi người dùng chọn Keep paper (Thêm vào AI Workspace), tự động trigger Quality Check API
-    if (isSelecting) {
-      try {
-        const res = await fetch(`http://localhost:8000/api/v1/papers/${id}/quality-check`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
-        });
-        if (res.ok) {
-          const updated = await res.json();
-          setPapers(prevPapers => prevPapers.map(p => {
-            if (p.id === id || p.id === updated.external_id) {
-              return {
-                ...p,
-                issn: updated.issn,
-                scopus_status: updated.scopus_status,
-                scopus_quartile: updated.scopus_quartile,
-                coverage_year_status: updated.coverage_year_status
-              };
-            }
-            return p;
-          }));
-        }
-      } catch (err) {
-        console.warn('Quality check trigger failed:', err);
-      }
     }
   };
 
@@ -109,10 +80,6 @@ export default function App() {
             setPapers={setPapers}
             darkMode={darkMode}
           />
-        )}
-
-        {activeTab === 'quality' && (
-          <QualityCheckTab darkMode={darkMode} />
         )}
 
         {activeTab === 'library' && (

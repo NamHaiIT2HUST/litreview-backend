@@ -30,6 +30,12 @@ class Paper(BaseModel):
 class SearchResponse(BaseModel):
     papers: list[Paper]
     search_query_id: UUID | None = None  # ID của record vừa lưu, dùng cho frontend
+    provider: str = "google_scholar"
+    limit: int = 20
+    total_found: int = 0
+    total_confirmed: int = 0
+    total_undetermined: int = 0
+    duplicates: int = 0
 
 
 # ──────────────────────────────────────────────────

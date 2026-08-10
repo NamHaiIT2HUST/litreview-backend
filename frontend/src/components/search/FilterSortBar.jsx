@@ -46,7 +46,9 @@ export default function FilterSortBar({
 }) {
 
   const presets = [
-    { id: 'all', label: 'Tất cả bài báo', icon: Sparkles },
+    { id: 'scopus_confirmed', label: 'Scopus confirmed', icon: Sparkles },
+    { id: 'undetermined', label: 'Undetermined', icon: FileText },
+    { id: 'all', label: 'Tất cả bài báo', icon: FileText },
     { id: 'high_score', label: 'LitScore ≥ 70 (Uy tín cao)', icon: Award },
     { id: 'recent', label: 'Bài mới (3 năm gần đây)', icon: Calendar },
     { id: 'top_cited', label: 'Trích dẫn nhiều (≥ 50)', icon: Quote },
@@ -98,6 +100,7 @@ export default function FilterSortBar({
                 darkMode ? 'text-white bg-slate-900' : 'text-slate-800 bg-white'
               }`}
             >
+              <option value="source_order">Google Scholar Rank</option>
               <option value="litscore_desc">🎖️ LitScore (Cao → Thấp)</option>
               <option value="litscore_asc">LitScore (Thấp → Cao)</option>
               <option value="year_desc">📅 Năm (Mới nhất)</option>

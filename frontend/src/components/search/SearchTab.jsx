@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
-  Search, Download, ExternalLink, PlusCircle, CheckCircle2, Award, Key, Loader2, AlertCircle, ChevronDown, ChevronUp 
+  Search, Download, ExternalLink, PlusCircle, CheckCircle2, Award, Key, Loader2, AlertCircle, ChevronDown, ChevronUp, ShieldCheck, CircleHelp
 } from 'lucide-react';
 import SearchHistoryPanel from './SearchHistoryPanel';
 import FilterSortBar from './FilterSortBar';
@@ -27,6 +27,11 @@ function dbPaperToPaperSchema(dbPaper) {
     citations: dbPaper.citations,
     litScore: dbPaper.lit_score,
     tldr: dbPaper.tldr || null,
+    issn: dbPaper.issn || null,
+    scopus_status: dbPaper.scopus_status || 'undetermined',
+    scopus_quartile: dbPaper.scopus_quartile || null,
+    coverage_year_status: dbPaper.coverage_year_status || null,
+    oa_status: dbPaper.oa_status || 'undetermined',
   };
 }
 
@@ -35,6 +40,14 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('serp_api_key') || '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [searchMeta, setSearchMeta] = useState({
+    provider: 'google_scholar',
+    limit: 20,
+    total_found: 0,
+    total_confirmed: 0,
+    total_undetermined: 0,
+    duplicates: 0,
+  });
 
   // Search History state
   const [history, setHistory] = useState([]);
@@ -43,9 +56,9 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
 
   // --- Filter & Sort States ---
   const [inResultQuery, setInResultQuery] = useState('');
-  const [sortBy, setSortBy] = useState('litscore_desc');
+  const [sortBy, setSortBy] = useState('source_order');
   const [viewMode, setViewMode] = useState('cards'); // 'cards' | 'table'
-  const [activePreset, setActivePreset] = useState('all');
+  const [activePreset, setActivePreset] = useState('scopus_confirmed');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [minLitScore, setMinLitScore] = useState(0);
   const [minCitations, setMinCitations] = useState(0);
@@ -94,6 +107,14 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
       const dbPapers = await res.json();
       const converted = dbPapers.map(dbPaperToPaperSchema);
       setPapers(converted);
+      setSearchMeta({
+        provider: 'saved_search',
+        limit: 20,
+        total_found: converted.length,
+        total_confirmed: converted.filter(p => p.scopus_status === 'indexed').length,
+        total_undetermined: converted.filter(p => p.scopus_status === 'undetermined').length,
+        duplicates: 0,
+      });
       setActiveQueryId(queryId);
     } catch (err) {
       console.error('Failed to load papers for query:', err);
@@ -118,7 +139,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
     if (!searchQuery.trim()) return;
 
     if (!apiKey.trim()) {
-      setError('Vui lòng nhập SerpApi Key hoặc S2 Key của bạn để bắt đầu tìm kiếm dữ liệu thật!');
+      setError('Vui lòng nhập SerpApi Key để lấy Top 20 từ Google Scholar.');
       return;
     }
 
@@ -146,6 +167,14 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
       const data = await response.json();
       if (data.papers && data.papers.length > 0) {
         setPapers(data.papers);
+        setSearchMeta({
+          provider: data.provider || 'google_scholar',
+          limit: data.limit || 20,
+          total_found: data.total_found ?? data.papers.length,
+          total_confirmed: data.total_confirmed ?? data.papers.filter(p => p.scopus_status === 'indexed').length,
+          total_undetermined: data.total_undetermined ?? data.papers.filter(p => p.scopus_status === 'undetermined').length,
+          duplicates: data.duplicates ?? 0,
+        });
         if (data.search_query_id) {
           setActiveQueryId(data.search_query_id);
         }
@@ -178,7 +207,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
   const hasActiveFilters = useMemo(() => {
     return (
       inResultQuery !== '' ||
-      activePreset !== 'all' ||
+      activePreset !== 'scopus_confirmed' ||
       minLitScore > 0 ||
       minCitations > 0 ||
       startYear !== '' ||
@@ -189,7 +218,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
 
   const resetFilters = () => {
     setInResultQuery('');
-    setActivePreset('all');
+    setActivePreset('scopus_confirmed');
     setMinLitScore(0);
     setMinCitations(0);
     setStartYear('');
@@ -200,7 +229,11 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
   const filteredAndSortedPapers = useMemo(() => {
     let result = [...papers];
 
-    if (activePreset === 'high_score') {
+    if (activePreset === 'scopus_confirmed') {
+      result = result.filter(p => p.scopus_status === 'indexed');
+    } else if (activePreset === 'undetermined') {
+      result = result.filter(p => p.scopus_status === 'undetermined' || !p.scopus_status);
+    } else if (activePreset === 'high_score') {
       result = result.filter(p => p.litScore >= 70);
     } else if (activePreset === 'recent') {
       const currentYear = new Date().getFullYear();
@@ -215,8 +248,8 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
       const q = inResultQuery.toLowerCase().trim();
       result = result.filter(p =>
         p.title.toLowerCase().includes(q) ||
-        p.authors.toLowerCase().includes(q) ||
-        p.journal.toLowerCase().includes(q) ||
+        (Array.isArray(p.authors) ? p.authors.join(', ') : String(p.authors || '')).toLowerCase().includes(q) ||
+        String(p.journal || '').toLowerCase().includes(q) ||
         (p.abstract && p.abstract.toLowerCase().includes(q))
       );
     }
@@ -235,7 +268,8 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
         case 'year_asc': return a.year - b.year;
         case 'citations_desc': return b.citations - a.citations;
         case 'title_asc': return a.title.localeCompare(b.title);
-        default: return b.litScore - a.litScore;
+        case 'source_order':
+        default: return 0;
       }
     });
 
@@ -254,10 +288,10 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
       {/* Page Title Header */}
       <div className="text-center space-y-3">
         <h2 className={`text-3xl md:text-4xl font-extrabold tracking-tight ${darkMode ? 'text-white' : 'text-slate-900'}`}>
-          1. Tra cứu bài báo & Lấy Link PDF
+          Search & Verify
         </h2>
         <p className={`text-base max-w-2xl mx-auto font-medium ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-          Tìm kiếm bài báo khoa học trực tiếp từ Google Scholar & Semantic Scholar, tự động lấy Full Abstract, tính điểm uy tín (LitScore), lọc & sắp xếp bài báo chuyên sâu.
+          Lấy Top 20 từ Google Scholar theo đúng thứ tự Google trả về, sau đó đối chiếu Scopus trước khi hiển thị để bạn chọn bài đưa vào Screening.
         </p>
       </div>
 
@@ -268,14 +302,14 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-sm font-bold text-blue-700 dark:text-sky-300">
             <Key className="w-4 h-4 shrink-0 text-blue-600 dark:text-sky-400" />
-            <span>API Key (SerpApi / S2 Key):</span>
+            <span>API Key Google Scholar qua SerpApi:</span>
           </div>
           <div className="flex-1 max-w-md flex items-center gap-2">
             <input
               type="password"
               value={apiKey}
               onChange={handleApiKeyChange}
-              placeholder="Dán SerpApi Key hoặc S2 Key (s2k-...) vào đây..."
+              placeholder="Dán SerpApi Key vào đây..."
               className={`w-full px-4 py-2 border rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-600 ${
                 darkMode ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500' : 'bg-white border-slate-300 text-slate-900'
               }`}
@@ -284,11 +318,6 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
           <div className="flex items-center gap-3 text-xs font-bold text-blue-600 dark:text-sky-400 shrink-0">
             <a href="https://serpapi.com/users/sign_up" target="_blank" rel="noreferrer" className="hover:underline flex items-center gap-1">
               <span>Lấy SerpApi Key</span>
-              <ExternalLink className="w-3 h-3" />
-            </a>
-            <span>•</span>
-            <a href="https://www.semanticscholar.org/product/api" target="_blank" rel="noreferrer" className="hover:underline flex items-center gap-1">
-              <span>Lấy S2 Key</span>
               <ExternalLink className="w-3 h-3" />
             </a>
           </div>
@@ -325,11 +354,38 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
                 <span>Đang tìm kiếm...</span>
               </>
             ) : (
-              <span>Tìm bài báo</span>
+                <span>Tìm Top 20</span>
             )}
           </button>
         </div>
       </form>
+
+      {papers.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+            <p className="text-xs font-bold text-slate-500 uppercase">Provider</p>
+            <p className="mt-1 text-sm font-extrabold flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-blue-600" />
+              {searchMeta.provider === 'google_scholar' ? 'Google Scholar' : searchMeta.provider}
+            </p>
+          </div>
+          <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+            <p className="text-xs font-bold text-slate-500 uppercase">Top results</p>
+            <p className="mt-1 text-2xl font-extrabold">{searchMeta.total_found}/{searchMeta.limit}</p>
+          </div>
+          <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+            <p className="text-xs font-bold text-slate-500 uppercase">Scopus confirmed</p>
+            <p className="mt-1 text-2xl font-extrabold text-emerald-600">{searchMeta.total_confirmed}</p>
+          </div>
+          <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+            <p className="text-xs font-bold text-slate-500 uppercase">Undetermined</p>
+            <p className="mt-1 text-2xl font-extrabold text-slate-500 flex items-center gap-2">
+              {searchMeta.total_undetermined}
+              <CircleHelp className="w-4 h-4" title="Thiếu dữ liệu để kết luận, không phải Not indexed" />
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Search History Panel */}
       <SearchHistoryPanel
@@ -409,7 +465,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
             <Search className="w-12 h-12 mx-auto mb-4 opacity-30 text-blue-500" />
             <h3 className="text-lg font-bold mb-1">Chưa có kết quả tìm kiếm nào</h3>
             <p className="text-sm max-w-md mx-auto">
-              Hãy nhập SerpApi Key / S2 Key ở trên, sau đó gõ từ khóa nghiên cứu và nhấn nút <strong>"Tìm bài báo"</strong> để kết nối dữ liệu thật!
+              Hãy nhập SerpApi Key ở trên, sau đó gõ từ khóa nghiên cứu và nhấn nút <strong>"Tìm Top 20"</strong> để lấy kết quả Google Scholar đã đối chiếu Scopus.
             </p>
           </div>
         )}
@@ -566,12 +622,12 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
                     {isSelected ? (
                       <>
                         <CheckCircle2 className="w-4 h-4" />
-                        <span>Đã thêm vào Workspace</span>
+                        <span>Đã thêm vào Screening</span>
                       </>
                     ) : (
                       <>
                         <PlusCircle className="w-4 h-4" />
-                        <span>Thêm vào AI Workspace</span>
+                        <span>Thêm vào Screening</span>
                       </>
                     )}
                   </button>
@@ -590,15 +646,15 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
               </div>
               <div>
                 <p className="font-bold text-sm">Đã chọn {selectedPaperIds.length} bài báo</p>
-                <p className="text-xs text-slate-400">Sẵn sàng để đưa vào không gian làm việc của AI</p>
+              <p className="text-xs text-slate-400">Sẵn sàng để AI screening theo criteria của project</p>
               </div>
             </div>
 
             <button
-              onClick={() => setActiveTab('workspace')}
+              onClick={() => setActiveTab('screening')}
               className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3.5 rounded-2xl text-xs transition-all shadow-lg w-full sm:w-auto"
             >
-              Chuyển sang AI Workspace →
+              Chuyển sang Screening →
             </button>
           </div>
         )}
