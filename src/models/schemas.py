@@ -1,5 +1,5 @@
-from uuid import UUID
 from datetime import datetime
+from uuid import UUID
 from pydantic import BaseModel, Field
 
 
@@ -8,10 +8,20 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     response: str = Field(..., description="Phản hồi từ agent")
-    analysis: str = Field(default="", description="Phân tích nội bộ")
+    citations: list[dict] = Field(
+        default_factory=list,
+        description="Mỗi câu trong response kèm chunk_id/source làm bằng chứng",
+    )
+    blocked_sources: list[dict] = Field(
+        default_factory=list,
+        description="Nguồn bị Integrity Guard chặn do retracted (Crossref)",
+    )
 
 class Paper(BaseModel):
     id: str
+    # Canonical UUID assigned by our database after search persistence. The
+    # provider ID remains in ``id`` so no search metadata is lost.
+    db_id: str | None = None
     title: str
     authors: list[str]
     year: int
@@ -29,7 +39,7 @@ class Paper(BaseModel):
 
 class SearchResponse(BaseModel):
     papers: list[Paper]
-    search_query_id: UUID | None = None  # ID của record vừa lưu, dùng cho frontend
+    search_query_id: UUID | None = None  # canonical DB UUID; JSON serializes as string
     provider: str = "google_scholar"
     limit: int = 20
     total_found: int = 0
@@ -43,28 +53,28 @@ class SearchResponse(BaseModel):
 # ──────────────────────────────────────────────────
 
 class PaperRecord(BaseModel):
-    """Paper đã được lưu vào DB (trả về từ GET /search-queries/{id}/papers
-    và POST /papers/{id}/quality-check)."""
-    id: UUID               # UUID trong DB
-    external_id: str | None = None      # id gốc từ API, dùng để render trên FE
+    """Canonical paper row returned from our database."""
+    id: UUID
+    external_id: str | None = None
     title: str
-    authors: list[str]
-    year: int
+    authors: list[str] | str | None = None
+    year: int | None = None
     abstract: str | None = None
     journal: str | None = None
     doi: str | None = None
     issn: str | None = None
-    url: str | None = None
-    citations: int
-    lit_score: int
+    # These provider-only fields are not yet persisted by the legacy schema.
+    url: str = "#"
+    citations: int = 0
+    lit_score: int = 0
     tldr: str | None = None
     dedup_key: str
 
     # Module 4 — Quality Verification
-    scopus_status: str        # indexed | not_indexed | undetermined
+    scopus_status: str = "undetermined"
     scopus_quartile: str | None = None
-    coverage_year_status: str | None = None  # ok | out_of_coverage | not_applicable | None
-    oa_status: str             # gold | hybrid | bronze | green | closed | undetermined
+    coverage_year_status: str | None = None
+    oa_status: str = "undetermined"
 
     model_config = {"from_attributes": True}
 
@@ -84,12 +94,12 @@ class SearchQueryRecord(BaseModel):
 
 class SearchHistoryResponse(BaseModel):
     """Response cho GET /projects/{id}/search-history."""
-    project_id: str
+    project_id: UUID
     history: list[SearchQueryRecord]
 
 
 class DuplicateQueryResponse(BaseModel):
     """Response cho POST /search-queries/{id}/duplicate."""
-    new_query_id: str
+    new_query_id: UUID
     query_string: str
-    duplicated_from: str
+    duplicated_from: UUID

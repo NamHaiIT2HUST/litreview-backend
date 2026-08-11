@@ -17,6 +17,7 @@ Quality Verification (Module 4):
                                                       re-check/detail. Pipeline /search
                                                       đã chạy Scopus cross-check cho Top 20.
 """
+import os
 import re
 import uuid
 from uuid import UUID
@@ -26,8 +27,9 @@ from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.agents.graph import agent
+from src.config import get_settings
 from src.database import get_db
-from src.models.db_models import Paper, SearchQuery
+from src.models.db_models import Citation, Paper, Project, SearchQuery, SynthesisSession, SynthesisStatus
 
 DEFAULT_PROJECT_ID = "00000000-0000-0000-0000-000000000001"
 
@@ -42,10 +44,19 @@ from src.models.schemas import (
 )
 from src.models.workspace_schemas import UploadResponse, WorkspaceChatRequest, WorkspaceChatResponse
 from src.models.search_schemas import SearchExecuteRequest, SearchStrategiesResponse
+from src.models.synthesis_schemas import (
+    SynthesisCitationResponse,
+    SynthesisSessionCreateRequest,
+    SynthesisSessionCreatedResponse,
+    SynthesisSessionResponse,
+)
 from src.services.search_service import generate_search_strategies
 from src.services.scholar_api import search_papers_auto
 from src.services.scopus_matcher import quality_check as run_scopus_quality_check
 from src.services.document_processor import DocumentProcessor
+from src.services.ingestion_service import persist_pdf_provenance
+from src.services.paper_persistence_utils import normalize_authors_for_db
+from src.services.vector_cleanup_service import create_vector_cleanup_job
 from src.services.vector_store import vector_store_service
 from src.services.rag_service import rag_service
 
@@ -78,6 +89,28 @@ def _compute_dedup_key(doi: str, title: str, authors: list[str] | str, year: int
     return f"{title_norm}|{first_author}|{year}"
 
 
+
+
+def _paper_record_from_db(paper: Paper) -> PaperRecord:
+    """Serialize the legacy DB Paper shape without inventing provider metadata."""
+    return PaperRecord(
+        id=paper.id,
+        title=paper.title,
+        authors=list(paper.authors or []),
+        year=paper.year,
+        abstract=paper.abstract,
+        journal=paper.journal,
+        doi=paper.doi,
+        issn=paper.issn,
+        dedup_key=paper.dedup_key,
+        scopus_status=getattr(paper.scopus_status, "value", paper.scopus_status or "undetermined"),
+        scopus_quartile=paper.scopus_quartile,
+        coverage_year_status=getattr(
+            paper.coverage_year_status, "value", paper.coverage_year_status
+        ),
+        oa_status=getattr(paper.oa_status, "value", paper.oa_status or "undetermined"),
+    )
+
 async def _persist_search(
     db: AsyncSession,
     query_string: str,
@@ -97,34 +130,42 @@ async def _persist_search(
     để UI render kết quả Top 20 đã xác minh. Endpoint quality-check chỉ còn là
     re-check/detail cho từng paper.
     """
+    project_uuid = uuid.UUID(str(project_id))
+    duplicated_from_uuid = (
+        uuid.UUID(str(is_duplicated_from)) if is_duplicated_from else None
+    )
     sq = SearchQuery(
         id=uuid.uuid4(),
-        project_id=project_id,
+        project_id=project_uuid,
         query_string=query_string,
         strategy_label=strategy_label,
         result_count=len(papers_pydantic),
-        is_duplicated_from=is_duplicated_from,
+        is_duplicated_from=duplicated_from_uuid,
     )
     db.add(sq)
 
-    existing_keys_result = await db.execute(
-        select(Paper.dedup_key).where(Paper.project_id == project_id)
+    existing_rows_result = await db.execute(
+        select(Paper.id, Paper.dedup_key).where(Paper.project_id == project_uuid)
     )
-    existing_keys = {row[0] for row in existing_keys_result.fetchall()}
+    existing_by_key = {row[1]: row[0] for row in existing_rows_result.fetchall()}
 
     duplicate_count = 0
     for p in papers_pydantic:
         key = _compute_dedup_key(p.doi, p.title, p.authors, p.year)
-        if key in existing_keys:
+        existing_id = existing_by_key.get(key)
+        if existing_id is not None:
+            # Return the canonical DB UUID to the frontend even for deduplicated hits.
+            p.db_id = str(existing_id)
             duplicate_count += 1
-            continue  # bỏ qua bản trùng, không insert (đúng thuật toán dedup spec)
+            continue
 
+        paper_id = uuid.uuid4()
         paper_row = Paper(
-            id=uuid.uuid4(),
-            project_id=project_id,
+            id=paper_id,
+            project_id=project_uuid,
             search_query_id=sq.id,
             title=p.title,
-            authors=p.authors,
+            authors=normalize_authors_for_db(p.authors),
             year=p.year,
             abstract=p.abstract,
             journal=p.journal,
@@ -140,7 +181,8 @@ async def _persist_search(
         )
         await run_scopus_quality_check(db, paper_row)
         db.add(paper_row)
-        existing_keys.add(key)
+        existing_by_key[key] = paper_id
+        p.db_id = str(paper_id)
 
     await db.flush()
     return sq.id, duplicate_count
@@ -222,9 +264,10 @@ async def search_papers(
         )
         
         if sq_id:
+            project_uuid = uuid.UUID(str(project_id))
             keys = [_compute_dedup_key(p.doi, p.title, p.authors, p.year) for p in papers]
             result = await db.execute(
-                select(Paper).where(Paper.project_id == project_id, Paper.dedup_key.in_(keys))
+                select(Paper).where(Paper.project_id == project_uuid, Paper.dedup_key.in_(keys))
             )
             db_papers = result.scalars().all()
             dedup_to_paper = {p.dedup_key: p for p in db_papers}
@@ -233,7 +276,7 @@ async def search_papers(
                 key = _compute_dedup_key(p.doi, p.title, p.authors, p.year)
                 db_paper = dedup_to_paper.get(key)
                 if db_paper:
-                    p.id = str(db_paper.id)
+                    p.db_id = str(db_paper.id)
                     p.issn = db_paper.issn
                     p.scopus_status = db_paper.scopus_status.value if hasattr(db_paper.scopus_status, "value") else db_paper.scopus_status
                     p.scopus_quartile = db_paper.scopus_quartile
@@ -266,7 +309,8 @@ async def chat(request: ChatRequest) -> ChatResponse:
         result = await agent.ainvoke({"query": request.message})
         return ChatResponse(
             response=result.get("response", ""),
-            analysis=result.get("analysis", ""),
+            citations=result.get("citations", []),
+            blocked_sources=result.get("blocked_sources", []),
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -321,7 +365,7 @@ async def get_papers_for_query(
         .where(Paper.search_query_id == query_id)
     )
     papers = result.scalars().all()
-    return [PaperRecord.model_validate(p) for p in papers]
+    return [_paper_record_from_db(p) for p in papers]
 
 
 @router.post("/search-queries/{query_id}/duplicate", response_model=DuplicateQueryResponse)
@@ -348,7 +392,7 @@ async def duplicate_search_query(
         query_string=original.query_string,
         strategy_label=None,
         result_count=0,
-        is_duplicated_from=query_id,
+        is_duplicated_from=uuid.UUID(str(query_id)),
     )
     db.add(new_sq)
     await db.flush()
@@ -356,7 +400,7 @@ async def duplicate_search_query(
     return DuplicateQueryResponse(
         new_query_id=new_sq.id,
         query_string=new_sq.query_string,
-        duplicated_from=query_id,
+        duplicated_from=uuid.UUID(str(query_id)),
     )
 
 
@@ -391,7 +435,7 @@ async def quality_check_paper(
     # TODO (Module 3): gọi recompute_priority(paper.id) ở đây khi priority_score
     # được implement.
 
-    return PaperRecord.model_validate(paper)
+    return _paper_record_from_db(paper)
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Workspace endpoints (Phase 1 RAG)
@@ -400,31 +444,108 @@ async def quality_check_paper(
 @router.post("/workspace/upload", response_model=UploadResponse)
 async def upload_paper_pdf(
     file: UploadFile = File(...),
-    paper_id: str = Form(...)
+    paper_id: str = Form(...),
+    doi: str = Form(None),
+    db: AsyncSession = Depends(get_db),
 ) -> UploadResponse:
+    """Upload PDF and persist page/chunk provenance before vector indexing.
+
+    PageText stores the exact PyPDFLoader text. Chroma receives only chunks plus
+    canonical DB identifiers/offsets, so later synthesis can ground evidence
+    without trusting an LLM-generated chunk ID.
     """
-    Nhận file PDF do user upload, lưu xuống disk và cắt thành các chunk (chuẩn bị cho Vector DB).
-    """
-    if not file.filename.endswith(".pdf"):
+    if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are allowed.")
-        
+
     try:
-        # Bước 1: Lưu file vật lý
+        try:
+            paper_uuid = uuid.UUID(paper_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail="paper_id must be a valid UUID.") from exc
+
+        paper_result = await db.execute(select(Paper).where(Paper.id == paper_uuid))
+        paper = paper_result.scalar_one_or_none()
+        if paper is None:
+            raise HTTPException(status_code=404, detail=f"Paper '{paper_id}' not found")
+
         file_path = await processor.save_upload_file(file)
-        
-        # Bước 2: Bóc tách và cắt chunk
         pages, chunks = processor.extract_and_chunk(file_path)
-        
-        # Bước 3: Lưu chunk vào Vector Database
-        num_added = await vector_store_service.add_documents(chunks)
-        
+        if not chunks or all(not chunk.page_content.strip() for chunk in chunks):
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "PDF không trích được văn bản — có thể là file scan/ảnh; "
+                    "OCR chưa được hỗ trợ trong phiên bản này."
+                ),
+            )
+
+        ingestion_id = await persist_pdf_provenance(
+            db=db,
+            paper=paper,
+            pages=pages,
+            chunks=chunks,
+            parser_metadata=processor.parser_metadata(),
+        )
+
+        effective_doi = doi or paper.doi
+        if effective_doi:
+            for chunk in chunks:
+                chunk.metadata["doi"] = effective_doi
+
+        old_vector_ids: list[str] = []
+        cleanup_job = None
+        try:
+            # Stage the new vectors while retaining the previously committed set.
+            # Persist a cleanup-outbox row in the SAME DB transaction that switches
+            # active_ingestion_id. A crash after commit therefore cannot lose the
+            # knowledge of which stale vector IDs still need deletion.
+            old_vector_ids = await vector_store_service.stage_documents_for_paper(
+                str(paper.id), chunks
+            )
+            cleanup_job = await create_vector_cleanup_job(
+                db,
+                paper_id=paper.id,
+                ingestion_id=ingestion_id,
+                vector_ids=old_vector_ids,
+            )
+            await db.commit()
+        except Exception:
+            # New-vector cleanup is safe because every new chunk carries ingestion_id.
+            await vector_store_service.delete_documents_by_ingestion(str(ingestion_id))
+            await db.rollback()
+            raise
+
+        if cleanup_job is not None:
+            try:
+                from src.tasks.vector_cleanup_tasks import run_vector_cleanup_job
+
+                run_vector_cleanup_job.delay(str(cleanup_job.id))
+            except Exception as cleanup_enqueue_exc:
+                # The durable DB outbox remains pending; Celery beat will pick it up.
+                import logging
+
+                logging.getLogger(__name__).warning(
+                    "Committed PDF ingestion %s; vector cleanup job %s will be "
+                    "retried by the periodic outbox drain because immediate enqueue "
+                    "failed: %s",
+                    ingestion_id,
+                    cleanup_job.id,
+                    cleanup_enqueue_exc,
+                )
+
+        num_added = len(chunks)
         return UploadResponse(
-            file_id=file_path.split("/")[-1].split("\\")[-1],
+            file_id=os.path.basename(file_path),
             filename=file.filename,
             total_pages=len(pages),
             total_chunks=len(chunks),
-            message=f"Successfully processed and stored {num_added} chunks into Vector Database."
+            message=(
+                f"Successfully processed {len(pages)} pages and stored "
+                f"{num_added} provenance-aware chunks into Vector Database."
+            ),
         )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -463,3 +584,132 @@ async def workspace_chat(request: WorkspaceChatRequest) -> WorkspaceChatResponse
         return WorkspaceChatResponse(answer=answer, context_used=context_used)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Synthesis endpoints (evidence-first, async job)
+# ──────────────────────────────────────────────────────────────────────────────
+
+@router.post(
+    "/synthesis-sessions",
+    response_model=SynthesisSessionCreatedResponse,
+    status_code=202,
+)
+async def create_synthesis_session(
+    request: SynthesisSessionCreateRequest,
+    db: AsyncSession = Depends(get_db),
+) -> SynthesisSessionCreatedResponse:
+    """Create and enqueue a long-running evidence-first synthesis session."""
+    project_result = await db.execute(select(Project).where(Project.id == request.project_id))
+    project = project_result.scalar_one_or_none()
+    if project is None:
+        raise HTTPException(status_code=404, detail=f"Project '{request.project_id}' not found")
+
+    # Keep first occurrence/order because citation numbering follows user selection.
+    paper_ids = list(dict.fromkeys(request.paper_ids))
+    max_papers = get_settings().synthesis_max_papers
+    if len(paper_ids) > max_papers:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Synthesis accepts at most {max_papers} papers per session.",
+        )
+    paper_result = await db.execute(select(Paper).where(Paper.id.in_(paper_ids)))
+    papers = list(paper_result.scalars().all())
+    by_id = {paper.id: paper for paper in papers}
+
+    missing = [paper_id for paper_id in paper_ids if paper_id not in by_id]
+    if missing:
+        raise HTTPException(
+            status_code=404,
+            detail="Papers not found: " + ", ".join(str(item) for item in missing),
+        )
+
+    foreign_project = [
+        paper.id for paper in papers if paper.project_id != request.project_id
+    ]
+    if foreign_project:
+        raise HTTPException(
+            status_code=409,
+            detail="Papers do not belong to the selected project: "
+            + ", ".join(str(item) for item in foreign_project),
+        )
+
+    not_ingested = [paper.id for paper in papers if paper.active_ingestion_id is None]
+    if not_ingested:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "PDF provenance ingestion is required before synthesis for papers: "
+                + ", ".join(str(item) for item in not_ingested)
+            ),
+        )
+
+    session = SynthesisSession(
+        id=uuid.uuid4(),
+        project_id=request.project_id,
+        paper_ids=paper_ids,
+        status=SynthesisStatus.processing,
+    )
+    db.add(session)
+    # Commit before queueing so a fast worker can already read the session.
+    await db.commit()
+
+    try:
+        from src.tasks.synthesis_tasks import run_synthesis_task
+
+        run_synthesis_task.delay(str(session.id))
+    except Exception as exc:
+        session.status = SynthesisStatus.failed
+        session.error_message = f"Failed to enqueue synthesis task: {exc}"
+        await db.commit()
+        raise HTTPException(status_code=503, detail=session.error_message) from exc
+
+    return SynthesisSessionCreatedResponse(
+        session_id=session.id,
+        status=session.status.value,
+    )
+
+
+@router.get(
+    "/synthesis-sessions/{session_id}",
+    response_model=SynthesisSessionResponse,
+)
+async def get_synthesis_session(
+    session_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+) -> SynthesisSessionResponse:
+    """Poll synthesis status and retrieve the final review/citation provenance."""
+    result = await db.execute(
+        select(SynthesisSession).where(SynthesisSession.id == session_id)
+    )
+    session = result.scalar_one_or_none()
+    if session is None:
+        raise HTTPException(status_code=404, detail=f"Synthesis session '{session_id}' not found")
+
+    citation_result = await db.execute(
+        select(Citation)
+        .where(Citation.synthesis_session_id == session_id)
+        .order_by(Citation.review_char_start, Citation.id)
+    )
+    citations = list(citation_result.scalars().all())
+
+    return SynthesisSessionResponse(
+        id=session.id,
+        status=session.status.value,
+        review_markdown=session.review_markdown,
+        error_message=session.error_message,
+        citations=[
+            SynthesisCitationResponse(
+                id=item.id,
+                marker_display=item.citation_marker,
+                paper_id=item.paper_id,
+                review_char_start=item.review_char_start,
+                review_char_end=item.review_char_end,
+                source_page=item.source_page,
+                source_page_display=(item.source_page + 1 if item.source_page is not None else None),
+                source_char_start=item.source_char_start,
+                source_char_end=item.source_char_end,
+                quoted_snippet=item.quoted_snippet,
+            )
+            for item in citations
+        ],
+    )

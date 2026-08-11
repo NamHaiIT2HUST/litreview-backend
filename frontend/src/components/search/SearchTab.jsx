@@ -16,22 +16,32 @@ const DEFAULT_PROJECT_ID = '00000000-0000-0000-0000-000000000001';
  */
 function dbPaperToPaperSchema(dbPaper) {
   return {
-    id: dbPaper.external_id || dbPaper.id,
+    // Always use our canonical DB UUID for Keep/Quality/Upload/Synthesis.
+    id: dbPaper.id,
+    externalId: dbPaper.external_id || null,
     title: dbPaper.title,
-    authors: dbPaper.authors,
+    authors: Array.isArray(dbPaper.authors) ? dbPaper.authors.join(', ') : (dbPaper.authors || ''),
     year: dbPaper.year,
     abstract: dbPaper.abstract || '',
     journal: dbPaper.journal || '',
     doi: dbPaper.doi || 'N/A',
     url: dbPaper.url || '#',
-    citations: dbPaper.citations,
-    litScore: dbPaper.lit_score,
+    citations: dbPaper.citations || 0,
+    litScore: dbPaper.lit_score || 0,
     tldr: dbPaper.tldr || null,
     issn: dbPaper.issn || null,
     scopus_status: dbPaper.scopus_status || 'undetermined',
     scopus_quartile: dbPaper.scopus_quartile || null,
     coverage_year_status: dbPaper.coverage_year_status || null,
     oa_status: dbPaper.oa_status || 'undetermined',
+  };
+}
+
+function apiPaperToCanonicalSchema(apiPaper) {
+  return {
+    ...apiPaper,
+    externalId: apiPaper.id,
+    id: apiPaper.db_id || apiPaper.id,
   };
 }
 
@@ -166,13 +176,14 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
 
       const data = await response.json();
       if (data.papers && data.papers.length > 0) {
-        setPapers(data.papers);
+        const canonicalPapers = data.papers.map(apiPaperToCanonicalSchema);
+        setPapers(canonicalPapers);
         setSearchMeta({
           provider: data.provider || 'google_scholar',
           limit: data.limit || 20,
-          total_found: data.total_found ?? data.papers.length,
-          total_confirmed: data.total_confirmed ?? data.papers.filter(p => p.scopus_status === 'indexed').length,
-          total_undetermined: data.total_undetermined ?? data.papers.filter(p => p.scopus_status === 'undetermined').length,
+          total_found: data.total_found ?? canonicalPapers.length,
+          total_confirmed: data.total_confirmed ?? canonicalPapers.filter(p => p.scopus_status === 'indexed').length,
+          total_undetermined: data.total_undetermined ?? canonicalPapers.filter(p => p.scopus_status === 'undetermined').length,
           duplicates: data.duplicates ?? 0,
         });
         if (data.search_query_id) {
