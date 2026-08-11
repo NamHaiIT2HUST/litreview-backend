@@ -119,42 +119,26 @@ export default function ChatPanel({
         )}
       </div>
 
-      {/* Auto-Generated Comparison Table Widget */}
+      {/* Workspace source registry — no synthetic findings are shown here. */}
       <div className={`p-4 rounded-2xl border space-y-3 ${
         darkMode ? 'bg-slate-800/80 border-slate-700' : 'bg-slate-50 border-slate-200'
       }`}>
-        <div className="flex items-center justify-between">
-          <h4 className="font-bold text-xs md:text-sm flex items-center gap-2">
-            <Layers className="w-4 h-4 text-blue-600 dark:text-sky-400" />
-            <span>Bảng So Sánh Tự Động (Multi-Agent Synthesis)</span>
-          </h4>
-          <span className="text-xs bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-sky-300 px-2 py-0.5 rounded-md font-bold">Auto-Generated</span>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className={`w-full text-left text-xs border-collapse rounded-xl overflow-hidden border ${
-            darkMode ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'
-          }`}>
-            <thead>
-              <tr className={`font-bold border-b ${
-                darkMode ? 'bg-slate-800 text-slate-300 border-slate-700' : 'bg-slate-100 text-slate-700 border-slate-200'
-              }`}>
-                <th className="p-3">Bài báo</th>
-                <th className="p-3">Trọng tâm Nghiên cứu</th>
-                <th className="p-3">Hạn chế / Research Gap</th>
-              </tr>
-            </thead>
-            <tbody className={`divide-y ${darkMode ? 'divide-slate-700' : 'divide-slate-100'}`}>
-              {workspacePapers.map((paper, idx) => (
-                <tr key={idx} className="hover:bg-blue-50/20">
-                  <td className="p-3 font-bold text-blue-600 dark:text-sky-400">[{idx+1}] {paper.id}</td>
-                  <td className="p-3">{paper.tldr.slice(7, 60)}...</td>
-                  <td className="p-3 text-slate-400">Cần mở rộng thử nghiệm lâm sàng</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <h4 className="font-bold text-xs md:text-sm flex items-center gap-2">
+          <Layers className="w-4 h-4 text-blue-600 dark:text-sky-400" />
+          <span>Nguồn đã ingest ({workspacePapers.length})</span>
+        </h4>
+        {workspacePapers.length === 0 ? (
+          <p className="text-xs text-slate-400">Chưa có PDF có provenance.</p>
+        ) : (
+          <div className="space-y-2">
+            {workspacePapers.map((paper, idx) => (
+              <div key={paper.id} className="text-xs flex gap-2">
+                <span className="font-bold text-blue-600 dark:text-sky-400">[{idx + 1}]</span>
+                <span className="truncate">{paper.title}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Chat Input Bar */}

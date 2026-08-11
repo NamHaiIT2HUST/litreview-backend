@@ -1,3 +1,7 @@
+import os
+os.environ["LANGCHAIN_TRACING_V2"] = "false"
+os.environ["LANGSMITH_TRACING"] = "false"
+
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI

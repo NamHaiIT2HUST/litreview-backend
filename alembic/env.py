@@ -10,12 +10,12 @@ from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 from alembic import context
 
-from src.database import Base
+from src.database import Base, DATABASE_URL
 from src.models import db_models
 
 config = context.config
 
-config.set_main_option("sqlalchemy.url", os.environ.get("DATABASE_URL", "postgresql+asyncpg://postgres:password@localhost:5432/litreview"))
+config.set_main_option("sqlalchemy.url", DATABASE_URL)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)

@@ -11,19 +11,29 @@ langchain-openai>=0.3.0
 langchain-google-genai>=2.0.0
 langchain-community>=0.3.0
 langchain-text-splitters>=0.3.0
+langchain-huggingface>=0.1.0
 langgraph>=0.2.0
+langgraph-checkpoint-postgres>=2.0.0
+sentence-transformers>=3.0.0
 
 # Document Ingestion
 pypdf>=5.1.0
 python-multipart>=0.0.18
 
-# Database
+# Database / migrations
 sqlalchemy>=2.0.0
+alembic>=1.14.0
 aiosqlite>=0.19.0
+asyncpg>=0.30.0
+psycopg[binary,pool]>=3.2.0
 
-# Vector Store (uncomment as needed)
+# Vector Store
 chromadb>=0.5.0
 langchain-chroma>=0.1.0
+
+# Background jobs
+celery>=5.4.0
+redis>=5.2.0
 
 # Dev tools
 ruff>=0.8.0
