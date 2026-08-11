@@ -10,22 +10,46 @@ export default function ChatPanel({
   darkMode
 }) {
   const [inputQuestion, setInputQuestion] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
 
-  const handleSendMessage = (e) => {
+  const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!inputQuestion.trim()) return;
 
-    const userMsg = { sender: 'user', text: inputQuestion };
+    const question = inputQuestion;
+    const userMsg = { sender: 'user', text: question };
     setChatMessages(prev => [...prev, userMsg]);
     setInputQuestion('');
+    setIsTyping(true);
 
-    setTimeout(() => {
+    try {
+      const response = await fetch("http://localhost:8000/api/v1/workspace/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: question }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Chat request failed");
+      }
+
+      const data = await response.json();
+      
       const aiReply = {
         sender: 'ai',
-        text: `SynthesizerAgent trả lời cho câu hỏi "${inputQuestion}": Dựa trên ${workspacePapers.length} bài báo bạn vừa upload, việc kết hợp RetrieverAgent với LLM local giúp giảm thiểu rủi ro ảo giác đáng kể [2]. Đối với thử nghiệm lâm sàng, mô hình GPT-4 vẫn yêu cầu bác sĩ thẩm định lại [1].`
+        text: data.answer,
+        context_used: data.context_used
       };
       setChatMessages(prev => [...prev, aiReply]);
-    }, 800);
+    } catch (error) {
+      console.error("Chat error:", error);
+      setChatMessages(prev => [...prev, {
+        sender: 'ai',
+        text: "Xin lỗi, đã có lỗi kết nối tới AI Agent. Vui lòng thử lại sau."
+      }]);
+    } finally {
+      setIsTyping(false);
+    }
   };
 
   return (
@@ -55,70 +79,66 @@ export default function ChatPanel({
             >
               <div dangerouslySetInnerHTML={{ __html: msg.text.replace(/\n/g, '<br/>') }} />
 
-              {/* Render Citation Clickable Buttons if AI message */}
-              {msg.sender === 'ai' && (
-                <div className={`pt-3 mt-3 border-t flex items-center gap-2 flex-wrap ${
+              {/* Render Context Used if available */}
+              {msg.sender === 'ai' && msg.context_used && msg.context_used.length > 0 && (
+                <div className={`pt-3 mt-3 border-t space-y-2 ${
                   darkMode ? 'border-slate-700' : 'border-slate-200'
                 }`}>
-                  <span className="text-xs font-bold text-slate-400 uppercase">Click để xem gốc:</span>
-                  {workspacePapers.map((paper, pIdx) => (
-                    <button
-                      key={pIdx}
-                      onClick={() => setActiveCitation(paper)}
-                      className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${
-                        activeCitation?.id === paper.id
-                          ? 'bg-blue-600 text-white shadow-sm'
-                          : darkMode
-                            ? 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                            : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
-                      }`}
-                    >
-                      [{pIdx + 1}] {paper.id}
-                    </button>
-                  ))}
+                  <span className="text-xs font-bold text-slate-400 uppercase">Trích dẫn (Context):</span>
+                  <div className="flex flex-col gap-2">
+                    {msg.context_used.map((ctx, pIdx) => (
+                      <details key={pIdx} className="text-xs">
+                        <summary className="cursor-pointer text-blue-600 dark:text-sky-400 font-medium">
+                          Nguồn #{pIdx + 1}
+                        </summary>
+                        <p className="mt-1 p-2 bg-slate-100 dark:bg-slate-900 rounded text-slate-600 dark:text-slate-400">
+                          {ctx}
+                        </p>
+                      </details>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
           </div>
         ))}
+        
+        {isTyping && (
+          <div className="flex gap-3 justify-start">
+            <div className="w-9 h-9 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-md">
+              <Bot className="w-5 h-5" />
+            </div>
+            <div className={`p-5 rounded-2xl max-w-xl text-sm leading-relaxed flex items-center gap-1 ${
+              darkMode ? 'bg-slate-800 border border-slate-700 text-slate-200' : 'bg-slate-50 border border-slate-200 text-slate-800'
+            }`}>
+              <div className="w-2 h-2 rounded-full bg-slate-400 animate-bounce"></div>
+              <div className="w-2 h-2 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+              <div className="w-2 h-2 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Auto-Generated Comparison Table Widget */}
+      {/* Workspace source registry — no synthetic findings are shown here. */}
       <div className={`p-4 rounded-2xl border space-y-3 ${
         darkMode ? 'bg-slate-800/80 border-slate-700' : 'bg-slate-50 border-slate-200'
       }`}>
-        <div className="flex items-center justify-between">
-          <h4 className="font-bold text-xs md:text-sm flex items-center gap-2">
-            <Layers className="w-4 h-4 text-blue-600 dark:text-sky-400" />
-            <span>Bảng So Sánh Tự Động (Multi-Agent Synthesis)</span>
-          </h4>
-          <span className="text-xs bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-sky-300 px-2 py-0.5 rounded-md font-bold">Auto-Generated</span>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className={`w-full text-left text-xs border-collapse rounded-xl overflow-hidden border ${
-            darkMode ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'
-          }`}>
-            <thead>
-              <tr className={`font-bold border-b ${
-                darkMode ? 'bg-slate-800 text-slate-300 border-slate-700' : 'bg-slate-100 text-slate-700 border-slate-200'
-              }`}>
-                <th className="p-3">Bài báo</th>
-                <th className="p-3">Trọng tâm Nghiên cứu</th>
-                <th className="p-3">Hạn chế / Research Gap</th>
-              </tr>
-            </thead>
-            <tbody className={`divide-y ${darkMode ? 'divide-slate-700' : 'divide-slate-100'}`}>
-              {workspacePapers.map((paper, idx) => (
-                <tr key={idx} className="hover:bg-blue-50/20">
-                  <td className="p-3 font-bold text-blue-600 dark:text-sky-400">[{idx+1}] {paper.id}</td>
-                  <td className="p-3">{paper.tldr.slice(7, 60)}...</td>
-                  <td className="p-3 text-slate-400">Cần mở rộng thử nghiệm lâm sàng</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <h4 className="font-bold text-xs md:text-sm flex items-center gap-2">
+          <Layers className="w-4 h-4 text-blue-600 dark:text-sky-400" />
+          <span>Nguồn đã ingest ({workspacePapers.length})</span>
+        </h4>
+        {workspacePapers.length === 0 ? (
+          <p className="text-xs text-slate-400">Chưa có PDF có provenance.</p>
+        ) : (
+          <div className="space-y-2">
+            {workspacePapers.map((paper, idx) => (
+              <div key={paper.id} className="text-xs flex gap-2">
+                <span className="font-bold text-blue-600 dark:text-sky-400">[{idx + 1}]</span>
+                <span className="truncate">{paper.title}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Chat Input Bar */}

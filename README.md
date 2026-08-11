@@ -199,3 +199,27 @@ bất kỳ markdown viewer/editor nào (VS Code, Obsidian, GitHub UI, …).
 ## 📄 License
 
 MIT — Sử dụng tự do cho mục đích giáo dục.
+
+---
+
+## Evidence-first Literature Synthesis
+
+The project now includes an evidence-first synthesis workflow under
+`src/synthesis/` and `src/services/synthesis_service.py`:
+
+`paper → grounded evidence → verified cross-paper claim → evidence-driven outline → section draft → code-resolved citations`.
+
+For the schema, grounding rules, async Redis/Celery runtime, API examples and
+re-ingestion notes, see [`docs/SYNTHESIS_IMPLEMENTATION.md`](docs/SYNTHESIS_IMPLEMENTATION.md).
+
+### Full-stack development
+
+```bash
+cp .env.example .env
+# fill OPENAI_API_KEY / MODEL_NAME
+docker compose up --build
+```
+
+After this migration, previously indexed PDFs need to be uploaded again before
+using synthesis because old Chroma records do not carry the new provenance
+metadata.

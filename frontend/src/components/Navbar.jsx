@@ -1,13 +1,16 @@
 import React from 'react';
-import { Search, Upload, Sparkles, PieChart, Sun, Moon, Home } from 'lucide-react';
+import { Search, Upload, Sparkles, PieChart, Sun, Moon, Home, Settings, Filter, ShieldCheck, Library, Download } from 'lucide-react';
 
 export default function Navbar({ activeTab, setActiveTab, darkMode, setDarkMode, uploadedCount }) {
   const navItems = [
-    { id: 'home', label: 'Trang chủ', icon: Home },
-    { id: 'search', label: 'Tra cứu', icon: Search },
-    { id: 'upload', label: 'Upload PDF', icon: Upload, count: uploadedCount },
-    { id: 'workspace', label: 'AI Workspace', icon: Sparkles },
-    { id: 'insights', label: 'Phân tích', icon: PieChart },
+    { id: 'overview', label: 'Overview', icon: Home },
+    { id: 'setup', label: 'Research Setup', icon: Settings },
+    { id: 'search', label: 'Search Papers', icon: Search },
+    { id: 'screening', label: 'Screening', icon: Filter },
+    { id: 'quality', label: 'Quality Check', icon: ShieldCheck },
+    { id: 'library', label: 'Library', icon: Library, count: uploadedCount },
+    { id: 'synthesis', label: 'Synthesis', icon: Sparkles },
+    { id: 'export', label: 'Export', icon: Download },
   ];
 
   return (
@@ -16,7 +19,7 @@ export default function Navbar({ activeTab, setActiveTab, darkMode, setDarkMode,
         ? 'bg-slate-900/95 border-slate-800 text-white backdrop-blur-md' 
         : 'bg-white/95 border-slate-200 text-slate-900 backdrop-blur-md'
     }`}>
-      <div className="max-w-7xl mx-auto px-4 md:px-8 h-18 flex items-center justify-between py-3">
+      <div className="w-full px-4 md:px-8 lg:px-12 h-18 flex items-center justify-between py-3">
         
         {/* Left Logo */}
         <div 

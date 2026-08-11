@@ -16,17 +16,30 @@ const DEFAULT_PROJECT_ID = '00000000-0000-0000-0000-000000000001';
  */
 function dbPaperToPaperSchema(dbPaper) {
   return {
-    id: dbPaper.external_id || dbPaper.id,
+    // Always use our canonical DB UUID for Keep/Quality/Upload/Synthesis.
+    id: dbPaper.id,
+    externalId: dbPaper.external_id || null,
     title: dbPaper.title,
-    authors: dbPaper.authors,
+    authors: Array.isArray(dbPaper.authors) ? dbPaper.authors.join(', ') : (dbPaper.authors || ''),
     year: dbPaper.year,
     abstract: dbPaper.abstract || '',
     journal: dbPaper.journal || '',
     doi: dbPaper.doi || 'N/A',
     url: dbPaper.url || '#',
-    citations: dbPaper.citations,
-    litScore: dbPaper.lit_score,
+    citations: dbPaper.citations || 0,
+    litScore: dbPaper.lit_score || 0,
     tldr: dbPaper.tldr || null,
+    scopus_status: dbPaper.scopus_status || 'undetermined',
+    scopus_quartile: dbPaper.scopus_quartile || null,
+    coverage_year_status: dbPaper.coverage_year_status || null,
+  };
+}
+
+function apiPaperToCanonicalSchema(apiPaper) {
+  return {
+    ...apiPaper,
+    externalId: apiPaper.id,
+    id: apiPaper.db_id || apiPaper.id,
   };
 }
 
@@ -139,7 +152,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
 
       const data = await response.json();
       if (data.papers && data.papers.length > 0) {
-        setPapers(data.papers);
+        setPapers(data.papers.map(apiPaperToCanonicalSchema));
         if (data.search_query_id) {
           setActiveQueryId(data.search_query_id);
         }
