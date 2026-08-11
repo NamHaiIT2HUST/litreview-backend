@@ -151,6 +151,9 @@ class Paper(Base):
     doi = Column(String, nullable=True)
     issn = Column(String, nullable=True)
     journal = Column(String, nullable=True)
+    url = Column(String, nullable=True)
+    citations = Column(Integer, default=0)
+    lit_score = Column(Integer, default=0)
     source = Column(String, default="scholar")
     dedup_key = Column(String, nullable=False, unique=True)
 
@@ -222,11 +225,13 @@ class ScreeningHistory(Base):
 
 class ScopusSource(Base):
     __tablename__ = "scopus_sources"
-    issn = Column(String, primary_key=True)
+    sourcerecord_id = Column(String, primary_key=True)
+    issn = Column(String, nullable=True)
+    eissn = Column(String, nullable=True)
     title = Column(String, nullable=False)
+    active_status = Column(String, nullable=True)
+    coverage_ranges = Column(String, nullable=True) # JSON array of ranges
     quartile = Column(String, nullable=True)
-    coverage_year_start = Column(Integer, nullable=True)
-    coverage_year_end = Column(Integer, nullable=True)
 
 
 class Extraction(Base):

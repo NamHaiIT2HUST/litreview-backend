@@ -92,7 +92,7 @@ export default function SearchEngineTab({
             className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 hover:opacity-95 text-white rounded-xl text-xs font-bold transition-all shadow-md disabled:opacity-50"
           >
             <Sparkles className="w-4 h-4" />
-            <span>Đẩy {selectedPaperIds.length} Bài sang AI Workspace →</span>
+            <span>Đẩy {selectedPaperIds.length} bài sang Screening →</span>
           </button>
         </div>
       </div>

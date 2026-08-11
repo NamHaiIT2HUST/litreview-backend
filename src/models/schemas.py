@@ -23,7 +23,7 @@ class Paper(BaseModel):
     # provider ID remains in ``id`` so no search metadata is lost.
     db_id: str | None = None
     title: str
-    authors: str
+    authors: list[str]
     year: int
     abstract: str
     journal: str
@@ -40,6 +40,12 @@ class Paper(BaseModel):
 class SearchResponse(BaseModel):
     papers: list[Paper]
     search_query_id: UUID | None = None  # canonical DB UUID; JSON serializes as string
+    provider: str = "google_scholar"
+    limit: int = 20
+    total_found: int = 0
+    total_confirmed: int = 0
+    total_undetermined: int = 0
+    duplicates: int = 0
 
 
 # ──────────────────────────────────────────────────

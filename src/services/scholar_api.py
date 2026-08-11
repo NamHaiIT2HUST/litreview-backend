@@ -141,9 +141,6 @@ async def search_papers_openalex(query: str, limit: int = 10) -> list[Paper]:
                 name = author_obj.get("display_name")
                 if name:
                     author_names.append(name)
-        authors_str = ", ".join(author_names[:4]) if author_names else "Unknown Authors"
-        if len(author_names) > 4:
-            authors_str += " et al."
 
         year = res.get("publication_year") or datetime.datetime.now().year
         inv_abstract = res.get("abstract_inverted_index")
@@ -162,7 +159,7 @@ async def search_papers_openalex(query: str, limit: int = 10) -> list[Paper]:
         paper = Paper(
             id=f"OA_{paper_id}",
             title=title,
-            authors=authors_str,
+            authors=author_names,
             year=int(year),
             abstract=abstract,
             journal="OpenAlex Scholar",
@@ -214,9 +211,6 @@ async def search_papers_semanticscholar(query: str, api_key: str = None, limit: 
 
         raw_authors = res.get("authors", [])
         author_names = [a.get("name", "") for a in raw_authors if isinstance(a, dict) and a.get("name")]
-        authors_str = ", ".join(author_names[:4]) if author_names else "Unknown Authors"
-        if len(author_names) > 4:
-            authors_str += " et al."
 
         year = res.get("year") or datetime.datetime.now().year
         abstract = res.get("abstract") or "No abstract provided."
@@ -241,7 +235,7 @@ async def search_papers_semanticscholar(query: str, api_key: str = None, limit: 
         paper = Paper(
             id=f"S2_{paper_id[:10]}",
             title=title,
-            authors=authors_str,
+            authors=author_names,
             year=int(year),
             abstract=abstract,
             journal=journal_name,
@@ -301,6 +295,7 @@ async def search_papers_serpapi(query: str, api_key: str, limit: int = 10) -> li
         summary = pub_info.get("summary", "") if isinstance(pub_info, dict) else ""
 
         authors = summary.split("-")[0].strip() if "-" in summary else "Unknown Authors"
+        author_names = [a.strip() for a in authors.split(",")] if authors and authors != "Unknown Authors" else []
         year_match = re.search(r'\b(19|20)\d{2}\b', summary)
         year = int(year_match.group()) if year_match else datetime.datetime.now().year
 
@@ -335,7 +330,7 @@ async def search_papers_serpapi(query: str, api_key: str, limit: int = 10) -> li
         paper = Paper(
             id=f"GS_{paper_id}",
             title=title,
-            authors=authors,
+            authors=author_names,
             year=year,
             abstract=final_abstract,
             journal=journal,

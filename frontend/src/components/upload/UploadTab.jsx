@@ -193,7 +193,7 @@ export default function UploadTab({ selectedPapers, workspacePapers, setWorkspac
         <div className="text-center">
           <button
             onClick={() => setActiveTab('synthesis')}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-4 rounded-2xl text-sm inline-flex items-center gap-2 shadow-xl"
+            className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-4 rounded-2xl text-sm inline-flex items-center gap-2 shadow-xl transition-all"
           >
             <Sparkles className="w-5 h-5 text-amber-300" />
             <span>Sang Evidence-first Synthesis →</span>

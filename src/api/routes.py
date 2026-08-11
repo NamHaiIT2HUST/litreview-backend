@@ -13,14 +13,14 @@ Search History (Module 2 — P0):
 
 Quality Verification (Module 4):
 - POST /papers/{paper_id}/quality-check          — chạy Scopus/Coverage-year check
-                                                      cho 1 paper CỤ THỂ (đã Keep),
-                                                      KHÔNG chạy hàng loạt trên /search
-                                                      (xem Flow Module 4 trong spec:
-                                                      "Keep Paper → Quality Check").
+                                                      cho 1 paper CỤ THỂ khi user muốn
+                                                      re-check/detail. Pipeline /search
+                                                      đã chạy Scopus cross-check cho Top 20.
 """
 import os
 import re
 import uuid
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, UploadFile, File, Form
 from sqlalchemy import desc, select
@@ -43,12 +43,14 @@ from src.models.schemas import (
     SearchResponse,
 )
 from src.models.workspace_schemas import UploadResponse, WorkspaceChatRequest, WorkspaceChatResponse
+from src.models.search_schemas import SearchExecuteRequest, SearchStrategiesResponse
 from src.models.synthesis_schemas import (
     SynthesisCitationResponse,
     SynthesisSessionCreateRequest,
     SynthesisSessionCreatedResponse,
     SynthesisSessionResponse,
 )
+from src.services.search_service import generate_search_strategies
 from src.services.scholar_api import search_papers_auto
 from src.services.scopus_matcher import quality_check as run_scopus_quality_check
 from src.services.document_processor import DocumentProcessor
@@ -61,13 +63,14 @@ from src.services.rag_service import rag_service
 processor = DocumentProcessor()
 
 router = APIRouter()
+GOOGLE_SCHOLAR_TOP_N = 20
 
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Helpers
 # ──────────────────────────────────────────────────────────────────────────────
 
-def _compute_dedup_key(doi: str, title: str, authors: str, year: int) -> str:
+def _compute_dedup_key(doi: str, title: str, authors: list[str] | str, year: int) -> str:
     """
     Thuật toán dedup theo spec:
       - Có DOI → normalize(doi)
@@ -76,7 +79,13 @@ def _compute_dedup_key(doi: str, title: str, authors: str, year: int) -> str:
     if doi and doi.strip() and doi.strip().upper() not in ("N/A", ""):
         return doi.strip().lower()
     title_norm = re.sub(r"\s+", " ", title.lower()).strip()
-    first_author = authors.split(",")[0].strip() if authors else ""
+    
+    first_author = ""
+    if isinstance(authors, list) and len(authors) > 0:
+        first_author = authors[0].strip()
+    elif isinstance(authors, str) and authors:
+        first_author = authors.split(",")[0].strip()
+        
     return f"{title_norm}|{first_author}|{year}"
 
 
@@ -109,17 +118,17 @@ async def _persist_search(
     project_id: str = DEFAULT_PROJECT_ID,
     strategy_label: str | None = None,
     is_duplicated_from: str | None = None,
-) -> uuid.UUID:
+) -> tuple[UUID, int]:
     """
     Lưu 1 lần search vào DB:
     1. Insert SearchQuery record.
     2. Dedup: kiểm tra dedup_key đã tồn tại trong project chưa.
     3. Insert CachedPaper cho mỗi paper chưa trùng.
-    Trả về search_query_id vừa tạo.
+    Trả về search_query_id vừa tạo và số paper bị skip do dedup trong project.
 
-    Lưu ý: scopus_status/oa_status của paper mới GIỮ NGUYÊN default "undetermined"
-    của DB tại bước này — Quality Check (Module 4) chỉ chạy sau khi user Keep,
-    qua POST /papers/{id}/quality-check, KHÔNG chạy ở đây.
+    Search & Verify P0: paper mới được đối chiếu Scopus ngay trong pipeline này
+    để UI render kết quả Top 20 đã xác minh. Endpoint quality-check chỉ còn là
+    re-check/detail cho từng paper.
     """
     project_uuid = uuid.UUID(str(project_id))
     duplicated_from_uuid = (
@@ -140,12 +149,14 @@ async def _persist_search(
     )
     existing_by_key = {row[1]: row[0] for row in existing_rows_result.fetchall()}
 
+    duplicate_count = 0
     for p in papers_pydantic:
         key = _compute_dedup_key(p.doi, p.title, p.authors, p.year)
         existing_id = existing_by_key.get(key)
         if existing_id is not None:
             # Return the canonical DB UUID to the frontend even for deduplicated hits.
             p.db_id = str(existing_id)
+            duplicate_count += 1
             continue
 
         paper_id = uuid.uuid4()
@@ -160,62 +171,135 @@ async def _persist_search(
             journal=p.journal,
             doi=p.doi,
             issn=p.issn,
+            url=p.url,
+            citations=p.citations,
+            lit_score=p.litScore,
             scopus_status=getattr(p, 'scopus_status', 'undetermined'),
             scopus_quartile=getattr(p, 'scopus_quartile', None),
             coverage_year_status=getattr(p, 'coverage_year_status', None),
             dedup_key=key,
         )
+        await run_scopus_quality_check(db, paper_row)
         db.add(paper_row)
         existing_by_key[key] = paper_id
         p.db_id = str(paper_id)
 
     await db.flush()
-    return sq.id
+    return sq.id, duplicate_count
 
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Existing endpoints
 # ──────────────────────────────────────────────────────────────────────────────
 
-@router.get("/search", response_model=SearchResponse)
+from src.models.db_models import Project
+
+@router.post("/projects/{project_id}/search-strategies", response_model=SearchStrategiesResponse)
+async def get_search_strategies(
+    project_id: str,
+    x_api_key: str | None = Header(None, description="SerpApi Key"),
+    db: AsyncSession = Depends(get_db),
+) -> SearchStrategiesResponse:
+    """Module 2: Paper Discovery - AI gợi ý 3 chiến lược tìm kiếm."""
+    result = await db.execute(select(Project).where(Project.id == project_id))
+    project = result.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    if not x_api_key:
+        # Lấy từ env 
+        import os
+        x_api_key = os.getenv("SERPAPI_KEY", "")
+
+    strategies = await generate_search_strategies(
+        research_question=project.research_question,
+        research_field=project.research_field,
+        criteria_include=project.criteria_include,
+        criteria_exclude=project.criteria_exclude,
+        api_key=x_api_key
+    )
+    return SearchStrategiesResponse(strategies=strategies)
+
+@router.post("/projects/{project_id}/search", response_model=SearchResponse)
 async def search_papers(
-    query: str = Query(..., description="Từ khóa tìm kiếm"),
+    project_id: str,
+    request: SearchExecuteRequest,
     x_api_key: str | None = Header(None, description="SerpApi hoặc Semantic Scholar Key"),
     provider: str | None = Query("auto", description="Nguồn dữ liệu: auto, serpapi, semanticscholar"),
     db: AsyncSession = Depends(get_db),
 ) -> SearchResponse:
-    """Tra cứu bài báo học thuật và lưu vào Search History."""
-    if not x_api_key and provider != "auto":
+    """Search & Verify: lấy Top 20 Google Scholar, lưu history và đối chiếu Scopus."""
+    effective_provider = "serpapi" if provider in (None, "auto") else provider
+    if effective_provider == "serpapi" and not x_api_key:
+        raise HTTPException(status_code=401, detail="SerpApi key is required for Google Scholar Top 20 search")
+    if effective_provider != "serpapi" and not x_api_key:
         raise HTTPException(status_code=401, detail="X-API-Key header is missing")
 
-    papers = await search_papers_auto(query=query, api_key=x_api_key or "", provider=provider, limit=10)
+    papers = await search_papers_auto(
+        query=request.query_string,
+        api_key=x_api_key or "",
+        provider=effective_provider,
+        limit=GOOGLE_SCHOLAR_TOP_N,
+    )
 
     if not papers:
-        return SearchResponse(papers=[], search_query_id=None)
-
-    # TỰ ĐỘNG ĐỐI CHIẾU SCOPUS TẤT CẢ BÀI BÁO NGAY KHI TRA CỨU
-    for p in papers:
-        cp = Paper(
-            title=p.title,
-            authors=p.authors,
-            year=p.year,
-            journal=p.journal,
-            doi=p.doi,
-            issn=p.issn
+        return SearchResponse(
+            papers=[],
+            search_query_id=None,
+            provider="google_scholar" if effective_provider == "serpapi" else effective_provider,
+            limit=GOOGLE_SCHOLAR_TOP_N,
+            total_found=0,
+            total_confirmed=0,
+            total_undetermined=0,
+            duplicates=0,
         )
-        checked = await run_scopus_quality_check(db, cp)
-        p.scopus_status = checked.scopus_status
-        p.scopus_quartile = checked.scopus_quartile
-        p.coverage_year_status = checked.coverage_year_status
 
     try:
-        sq_id = await _persist_search(db, query_string=query, papers_pydantic=papers)
+        sq_id, duplicate_count = await _persist_search(
+            db, 
+            query_string=request.query_string, 
+            papers_pydantic=papers, 
+            project_id=project_id,
+            strategy_label=request.strategy_label
+        )
+        
+        if sq_id:
+            project_uuid = uuid.UUID(str(project_id))
+            keys = [_compute_dedup_key(p.doi, p.title, p.authors, p.year) for p in papers]
+            result = await db.execute(
+                select(Paper).where(Paper.project_id == project_uuid, Paper.dedup_key.in_(keys))
+            )
+            db_papers = result.scalars().all()
+            dedup_to_paper = {p.dedup_key: p for p in db_papers}
+            
+            for p in papers:
+                key = _compute_dedup_key(p.doi, p.title, p.authors, p.year)
+                db_paper = dedup_to_paper.get(key)
+                if db_paper:
+                    p.db_id = str(db_paper.id)
+                    p.issn = db_paper.issn
+                    p.scopus_status = db_paper.scopus_status.value if hasattr(db_paper.scopus_status, "value") else db_paper.scopus_status
+                    p.scopus_quartile = db_paper.scopus_quartile
+                    p.coverage_year_status = db_paper.coverage_year_status.value if hasattr(db_paper.coverage_year_status, "value") else db_paper.coverage_year_status
+            
     except Exception as exc:
         import logging
         logging.getLogger(__name__).error("Failed to persist search: %s", exc)
         sq_id = None
+        duplicate_count = 0
 
-    return SearchResponse(papers=papers, search_query_id=sq_id)
+    total_confirmed = sum(1 for p in papers if p.scopus_status == "indexed")
+    total_undetermined = sum(1 for p in papers if p.scopus_status == "undetermined")
+    return SearchResponse(
+        papers=papers,
+        search_query_id=sq_id,
+        provider="google_scholar" if effective_provider == "serpapi" else effective_provider,
+        limit=GOOGLE_SCHOLAR_TOP_N,
+        total_found=len(papers),
+        total_confirmed=total_confirmed,
+        total_undetermined=total_undetermined,
+        duplicates=duplicate_count,
+    )
 
 
 @router.post("/chat", response_model=ChatResponse)
@@ -326,14 +410,14 @@ async def duplicate_search_query(
 
 @router.post("/papers/{paper_id}/quality-check", response_model=PaperRecord)
 async def quality_check_paper(
-    paper_id: str,
+    paper_id: UUID,
     db: AsyncSession = Depends(get_db),
 ) -> PaperRecord:
     """
     Trigger Quality Check (Scopus + Coverage Year) cho 1 paper cụ thể.
 
-    Theo Flow Module 4: chỉ chạy cho paper user đã Keep, KHÔNG chạy hàng loạt
-    trên toàn bộ kết quả /search.
+    Search & Verify đã chạy Scopus check cho Top 20 lúc search. Endpoint này
+    dùng cho trường hợp user muốn re-check/detail một paper cụ thể.
 
     404 nếu paper không tồn tại. OA status KHÔNG được xử lý ở đây — xem
     docstring trong src/services/scopus_matcher.py.
