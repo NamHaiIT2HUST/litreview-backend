@@ -36,7 +36,6 @@ async def process_vector_cleanup_job(job_id: str) -> bool:
     except Exception as exc:
         async with session_scope() as db:
             await mark_cleanup_failed(db, parsed_job_id, exc)
-        logger.warning("Vector cleanup job %s failed: %s", parsed_job_id, exc)
         return False
 
     async with session_scope() as db:
@@ -44,15 +43,13 @@ async def process_vector_cleanup_job(job_id: str) -> bool:
     return True
 
 
-async def drain_pending_vector_cleanup_jobs(limit: int = 100) -> int:
+async def load_pending_vector_cleanup_job_ids(
+    limit: int = 100,
+) -> list[str]:
     async with session_scope() as db:
         job_ids = await list_pending_cleanup_job_ids(db, limit=limit)
 
-    completed = 0
-    for job_id in job_ids:
-        if await process_vector_cleanup_job(str(job_id)):
-            completed += 1
-    return completed
+    return [str(job_id) for job_id in job_ids]
 
 
 @celery_app.task(name="litreview.cleanup_vectors")
@@ -62,4 +59,9 @@ def run_vector_cleanup_job(job_id: str) -> bool:
 
 @celery_app.task(name="litreview.drain_vector_cleanup_jobs")
 def drain_vector_cleanup_jobs() -> int:
-    return asyncio.run(drain_pending_vector_cleanup_jobs())
+    job_ids = asyncio.run(load_pending_vector_cleanup_job_ids())
+
+    for job_id in job_ids:
+        run_vector_cleanup_job.delay(job_id)
+
+    return len(job_ids)
