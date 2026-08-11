@@ -1,6 +1,7 @@
 """Durable garbage collection for stale vector-store records."""
 from __future__ import annotations
 
+import logging
 import uuid
 from datetime import UTC, datetime
 
@@ -8,6 +9,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.db_models import VectorCleanupJob
+
+logger = logging.getLogger(__name__)
 
 
 def _now_utc() -> datetime:
@@ -74,11 +77,23 @@ async def mark_cleanup_completed(db: AsyncSession, job_id: uuid.UUID) -> None:
     await db.flush()
 
 
-async def mark_cleanup_failed(db: AsyncSession, job_id: uuid.UUID, exc: BaseException) -> None:
+async def mark_cleanup_failed(
+    db: AsyncSession,
+    job_id: uuid.UUID,
+    exc: BaseException,
+) -> None:
     job = await db.get(VectorCleanupJob, job_id)
     if job is None or job.status == "completed":
         return
-    # Keep the job pending so periodic draining can retry it later.
+
+    # Full traceback goes to application logs.
+    logger.error(
+        "Vector cleanup job %s failed",
+        job_id,
+        exc_info=(type(exc), exc, exc.__traceback__),
+    )
+
+    # DB only keeps a bounded summary for audit/UI.
     job.status = "pending"
     job.last_error = f"{type(exc).__name__}: {exc}"[:4000]
     await db.flush()
