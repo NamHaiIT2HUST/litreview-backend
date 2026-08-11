@@ -87,3 +87,25 @@ async def test_build_anchor_contexts_uses_raw_grounding_windows_not_retrieved_ch
         (anchor_id, "sentence begins before anchor and ends after anchor")
     ]
     assert allowed_ids == {anchor_id}
+
+
+def test_normalize_for_matching_trims_text_and_mapping_together():
+    from src.services.grounding_service import normalize_for_matching
+
+    raw = "\u00a0  Alpha beta  \n"
+    normalized, mapping = normalize_for_matching(raw)
+
+    assert normalized == "Alpha beta"
+    assert raw[mapping[0]] == "A"
+    assert raw[mapping[-1]] == "a"
+
+
+def test_locate_quote_with_surrounding_whitespace_returns_content_offsets():
+    raw = "PREFIX  Alpha\n beta  SUFFIX"
+    quote = "  Alpha beta \n"
+
+    located = locate_quote_in_raw_text(raw, quote)
+
+    assert located is not None
+    start, end = located
+    assert raw[start:end] == "Alpha\n beta"

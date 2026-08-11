@@ -69,6 +69,25 @@ def normalize_with_mapping(raw_text: str) -> tuple[str, list[int]]:
     return "".join(normalized_chars), raw_indexes
 
 
+def normalize_for_matching(raw_text: str) -> tuple[str, list[int]]:
+    """Normalize text for matching and trim mapping in lockstep.
+
+    ``normalize_with_mapping`` intentionally preserves a trailing collapsed
+    whitespace character. Matching does not need leading/trailing whitespace,
+    so this helper removes it from both the normalized text and its raw-index
+    mapping. Keeping the two arrays aligned prevents offset drift.
+    """
+    normalized, mapping = normalize_with_mapping(raw_text)
+    if not normalized or not mapping:
+        return "", []
+
+    left = 0
+    right = len(normalized)
+    while left < right and normalized[left].isspace():
+        left += 1
+    while right > left and normalized[right - 1].isspace():
+        right -= 1
+    return normalized[left:right], mapping[left:right]
 
 
 def raw_window_from_ranges(
@@ -110,9 +129,8 @@ def locate_quote_in_raw_text(
         return None
 
     raw_window = raw_text[start:end]
-    normalized_window, mapping = normalize_with_mapping(raw_window)
-    normalized_quote, _ = normalize_with_mapping(quote)
-    normalized_quote = normalized_quote.strip()
+    normalized_window, mapping = normalize_for_matching(raw_window)
+    normalized_quote, _ = normalize_for_matching(quote)
     if not normalized_quote or not mapping:
         return None
 

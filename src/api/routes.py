@@ -54,6 +54,7 @@ from src.services.scopus_matcher import quality_check as run_scopus_quality_chec
 from src.services.document_processor import DocumentProcessor
 from src.services.ingestion_service import persist_pdf_provenance
 from src.services.paper_persistence_utils import normalize_authors_for_db
+from src.services.vector_cleanup_service import create_vector_cleanup_job
 from src.services.vector_store import vector_store_service
 from src.services.rag_service import rag_service
 
@@ -408,12 +409,20 @@ async def upload_paper_pdf(
                 chunk.metadata["doi"] = effective_doi
 
         old_vector_ids: list[str] = []
+        cleanup_job = None
         try:
-            # Stage vectors first but keep the previously committed vector version.
-            # Only after PostgreSQL commits the new active_ingestion_id do we delete
-            # old vectors. This makes DB failure recoverable.
+            # Stage the new vectors while retaining the previously committed set.
+            # Persist a cleanup-outbox row in the SAME DB transaction that switches
+            # active_ingestion_id. A crash after commit therefore cannot lose the
+            # knowledge of which stale vector IDs still need deletion.
             old_vector_ids = await vector_store_service.stage_documents_for_paper(
                 str(paper.id), chunks
+            )
+            cleanup_job = await create_vector_cleanup_job(
+                db,
+                paper_id=paper.id,
+                ingestion_id=ingestion_id,
+                vector_ids=old_vector_ids,
             )
             await db.commit()
         except Exception:
@@ -422,17 +431,23 @@ async def upload_paper_pdf(
             await db.rollback()
             raise
 
-        try:
-            await vector_store_service.delete_document_ids(old_vector_ids)
-        except Exception as cleanup_exc:
-            # Correctness is preserved: synthesis always filters by the committed
-            # active_ingestion_id. Stale vectors can be cleaned later.
-            import logging
-            logging.getLogger(__name__).warning(
-                "Committed PDF ingestion %s but could not cleanup old Chroma IDs: %s",
-                ingestion_id,
-                cleanup_exc,
-            )
+        if cleanup_job is not None:
+            try:
+                from src.tasks.vector_cleanup_tasks import run_vector_cleanup_job
+
+                run_vector_cleanup_job.delay(str(cleanup_job.id))
+            except Exception as cleanup_enqueue_exc:
+                # The durable DB outbox remains pending; Celery beat will pick it up.
+                import logging
+
+                logging.getLogger(__name__).warning(
+                    "Committed PDF ingestion %s; vector cleanup job %s will be "
+                    "retried by the periodic outbox drain because immediate enqueue "
+                    "failed: %s",
+                    ingestion_id,
+                    cleanup_job.id,
+                    cleanup_enqueue_exc,
+                )
 
         num_added = len(chunks)
         return UploadResponse(
