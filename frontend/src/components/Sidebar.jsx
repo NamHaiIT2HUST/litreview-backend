@@ -4,7 +4,7 @@ import { Search, Sparkles, History, Bot, Layers, CheckCircle2, Cpu } from 'lucid
 export default function Sidebar({ activeTab, setActiveTab, workspaceCount, darkMode }) {
   const menuItems = [
     { id: 'search', label: 'Truy cập & Tìm kiếm', icon: Search, badge: 'Multi-Agent' },
-    { id: 'workspace', label: 'AI Workspace (RAG)', icon: Sparkles, count: workspaceCount },
+    { id: 'synthesis', label: 'Synthesis (RAG)', icon: Sparkles, count: workspaceCount },
     { id: 'history', label: 'Lịch sử & Dataset Logs', icon: History },
   ];
 

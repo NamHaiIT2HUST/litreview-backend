@@ -46,7 +46,7 @@ import httpx
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.models.db_models import CachedPaper, ScopusSource
+from src.models.db_models import Paper, ScopusSource
 
 
 def normalize_issn(issn: Optional[str]) -> str:
@@ -161,7 +161,7 @@ async def fetch_issn_by_doi(doi: str) -> Optional[str]:
     return None
 
 
-async def quality_check(db: AsyncSession, paper: CachedPaper) -> CachedPaper:
+async def quality_check(db: AsyncSession, paper: Paper) -> Paper:
     """
     Chạy Quality Check Scopus cho 1 paper. Mutates `paper` in-place;
     caller chịu trách nhiệm flush/commit.

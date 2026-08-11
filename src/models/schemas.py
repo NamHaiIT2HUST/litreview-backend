@@ -1,3 +1,4 @@
+from uuid import UUID
 from datetime import datetime
 from pydantic import BaseModel, Field
 
@@ -12,7 +13,7 @@ class ChatResponse(BaseModel):
 class Paper(BaseModel):
     id: str
     title: str
-    authors: str
+    authors: list[str]
     year: int
     abstract: str
     journal: str
@@ -28,7 +29,13 @@ class Paper(BaseModel):
 
 class SearchResponse(BaseModel):
     papers: list[Paper]
-    search_query_id: str | None = None  # ID của record vừa lưu, dùng cho frontend
+    search_query_id: UUID | None = None  # ID của record vừa lưu, dùng cho frontend
+    provider: str = "google_scholar"
+    limit: int = 20
+    total_found: int = 0
+    total_confirmed: int = 0
+    total_undetermined: int = 0
+    duplicates: int = 0
 
 
 # ──────────────────────────────────────────────────
@@ -38,16 +45,16 @@ class SearchResponse(BaseModel):
 class PaperRecord(BaseModel):
     """Paper đã được lưu vào DB (trả về từ GET /search-queries/{id}/papers
     và POST /papers/{id}/quality-check)."""
-    id: str               # UUID trong DB
-    external_id: str      # id gốc từ API, dùng để render trên FE
+    id: UUID               # UUID trong DB
+    external_id: str | None = None      # id gốc từ API, dùng để render trên FE
     title: str
-    authors: str
+    authors: list[str]
     year: int
-    abstract: str
-    journal: str
-    doi: str
+    abstract: str | None = None
+    journal: str | None = None
+    doi: str | None = None
     issn: str | None = None
-    url: str
+    url: str | None = None
     citations: int
     lit_score: int
     tldr: str | None = None
@@ -64,13 +71,13 @@ class PaperRecord(BaseModel):
 
 class SearchQueryRecord(BaseModel):
     """1 record trong lịch sử search."""
-    id: str
-    project_id: str
+    id: UUID
+    project_id: UUID
     query_string: str
     strategy_label: str | None = None
     result_count: int
     executed_at: datetime
-    is_duplicated_from: str | None = None
+    is_duplicated_from: UUID | None = None
 
     model_config = {"from_attributes": True}
 
