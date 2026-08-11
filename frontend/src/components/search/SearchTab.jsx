@@ -229,7 +229,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
   const filteredAndSortedPapers = useMemo(() => {
     let result = [...papers];
 
-    if (activePreset === 'scopus_confirmed') {
+    if (activePreset === 'scopus_confirmed' || activePreset === 'scopus_only') {
       result = result.filter(p => p.scopus_status === 'indexed');
     } else if (activePreset === 'undetermined') {
       result = result.filter(p => p.scopus_status === 'undetermined' || !p.scopus_status);
@@ -264,9 +264,9 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
       switch (sortBy) {
         case 'litscore_desc': return b.litScore - a.litScore;
         case 'litscore_asc': return a.litScore - b.litScore;
+        case 'citations_desc': return b.citations - a.citations;
         case 'year_desc': return b.year - a.year;
         case 'year_asc': return a.year - b.year;
-        case 'citations_desc': return b.citations - a.citations;
         case 'title_asc': return a.title.localeCompare(b.title);
         case 'source_order':
         default: return 0;
@@ -542,13 +542,6 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
                   <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
                     Tác giả: {paper.authors}
                   </p>
-                </div>
-
-                <div className="shrink-0">
-                  <span className="px-3 py-1.5 bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 text-xs font-bold rounded-xl flex items-center gap-1.5">
-                    <Award className="w-4 h-4 text-amber-500" />
-                    <span>LitScore: {paper.litScore}/100</span>
-                  </span>
                 </div>
               </div>
 
