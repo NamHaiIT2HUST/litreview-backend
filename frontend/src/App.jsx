@@ -5,10 +5,15 @@ import UploadTab from './components/upload/UploadTab';
 import WorkspaceTab from './components/workspace/WorkspaceTab';
 import InsightsTab from './components/insights/InsightsTab';
 import HomeTab from './components/home/HomeTab';
+import ResearchSetupTab from './components/setup/ResearchSetupTab';
+
+import ScreeningTab from './components/screening/ScreeningTab';
+
 export default function App() {
   const [activeTab, setActiveTab] = useState(() => {
-    return localStorage.getItem('litreview_active_tab') || 'home';
-  }); // 'home' | 'search' | 'upload' | 'workspace' | 'insights'
+    const savedTab = localStorage.getItem('litreview_active_tab') || 'overview';
+    return savedTab === 'home' || savedTab === 'quality' ? 'overview' : savedTab;
+  }); // 'overview' | 'setup' | 'search' | 'screening' | 'library' | 'synthesis' | 'export'
 
   useEffect(() => {
     localStorage.setItem('litreview_active_tab', activeTab);
@@ -22,44 +27,15 @@ export default function App() {
   const [chatMessages, setChatMessages] = useState([
     {
       sender: 'ai',
-      text: `Chào mừng bạn đến với **LitReview Agent**! Hãy tra cứu bài báo ở bước 1 và đưa vào AI Workspace để bắt đầu phân tích.`
+      text: `Chào mừng bạn đến với **LitReview Agent**! Hãy tìm Top 20 bằng Google Scholar, đối chiếu Scopus, rồi đưa bài đã chọn sang Screening và Synthesis.`
     }
   ]);
 
-  const toggleSelectPaper = async (id) => {
-    const isSelecting = !selectedPaperIds.includes(id);
-
+  const toggleSelectPaper = (id) => {
     if (selectedPaperIds.includes(id)) {
       setSelectedPaperIds(selectedPaperIds.filter(item => item !== id));
     } else {
       setSelectedPaperIds([...selectedPaperIds, id]);
-    }
-
-    // Khi người dùng chọn Keep paper (Thêm vào AI Workspace), tự động trigger Quality Check API
-    if (isSelecting) {
-      try {
-        const res = await fetch(`http://localhost:8000/api/v1/papers/${id}/quality-check`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
-        });
-        if (res.ok) {
-          const updated = await res.json();
-          setPapers(prevPapers => prevPapers.map(p => {
-            if (p.id === id || p.id === updated.external_id) {
-              return {
-                ...p,
-                issn: updated.issn,
-                scopus_status: updated.scopus_status,
-                scopus_quartile: updated.scopus_quartile,
-                coverage_year_status: updated.coverage_year_status
-              };
-            }
-            return p;
-          }));
-        }
-      } catch (err) {
-        console.warn('Quality check trigger failed:', err);
-      }
     }
   };
 
@@ -84,11 +60,7 @@ export default function App() {
         )}
 
         {activeTab === 'setup' && (
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow p-6 border dark:border-slate-800">
-            <h2 className="text-2xl font-bold mb-4">Module 1: Research Project Setup</h2>
-            <p className="text-slate-600 dark:text-slate-400 mb-4">Define your research question and criteria here.</p>
-            {/* TODO: Implement Setup Component */}
-          </div>
+          <ResearchSetupTab setActiveTab={setActiveTab} darkMode={darkMode} />
         )}
 
         {activeTab === 'search' && (
@@ -103,17 +75,11 @@ export default function App() {
         )}
 
         {activeTab === 'screening' && (
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow p-6 border dark:border-slate-800">
-            <h2 className="text-2xl font-bold mb-4">Module 3: AI Screening</h2>
-            <p className="text-slate-600 dark:text-slate-400 mb-4">Let AI evaluate papers against your criteria.</p>
-          </div>
-        )}
-
-        {activeTab === 'quality' && (
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow p-6 border dark:border-slate-800">
-            <h2 className="text-2xl font-bold mb-4">Module 4: Quality Verification</h2>
-            <p className="text-slate-600 dark:text-slate-400 mb-4">Check Scopus and coverage year.</p>
-          </div>
+          <ScreeningTab
+            papers={papers}
+            setPapers={setPapers}
+            darkMode={darkMode}
+          />
         )}
 
         {activeTab === 'library' && (

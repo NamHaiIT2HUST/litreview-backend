@@ -25,7 +25,7 @@ export default function SearchBar({
         <div>
           <h3 className="font-bold text-sm flex items-center gap-2">
             <span>Xây dựng truy vấn tìm kiếm Multi-Agent</span>
-            <span className="text-[10px] font-extrabold bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full">Scopus & WoS</span>
+            <span className="text-[10px] font-extrabold bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full">Google Scholar Top 20</span>
           </h3>
           <p className="text-xs text-slate-500 dark:text-slate-400">Gõ từ khóa khoa học để biệt đội Agents tự động thu thập và sàng lọc bài báo.</p>
         </div>

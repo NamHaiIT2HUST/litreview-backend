@@ -1,14 +1,13 @@
 import React from 'react';
-import { Search, Upload, Sparkles, PieChart, Sun, Moon, Home, Settings, Filter, ShieldCheck, Library, Download } from 'lucide-react';
+import { Search, Sparkles, Sun, Moon, Home, Settings, Filter, Library, Download } from 'lucide-react';
 
 export default function Navbar({ activeTab, setActiveTab, darkMode, setDarkMode, uploadedCount }) {
   const navItems = [
     { id: 'overview', label: 'Overview', icon: Home },
     { id: 'setup', label: 'Research Setup', icon: Settings },
-    { id: 'search', label: 'Search Papers', icon: Search },
+    { id: 'search', label: 'Search & Verify', icon: Search },
     { id: 'screening', label: 'Screening', icon: Filter },
-    { id: 'quality', label: 'Quality Check', icon: ShieldCheck },
-    { id: 'library', label: 'Library', icon: Library, count: uploadedCount },
+    { id: 'library', label: 'Library & Reader', icon: Library, count: uploadedCount },
     { id: 'synthesis', label: 'Synthesis', icon: Sparkles },
     { id: 'export', label: 'Export', icon: Download },
   ];
@@ -23,7 +22,7 @@ export default function Navbar({ activeTab, setActiveTab, darkMode, setDarkMode,
         
         {/* Left Logo */}
         <div 
-          onClick={() => setActiveTab('home')}
+          onClick={() => setActiveTab('overview')}
           className="flex items-center gap-3 cursor-pointer group"
         >
           <div className="w-10 h-10 rounded-xl bg-blue-600 text-white font-black text-xl flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">

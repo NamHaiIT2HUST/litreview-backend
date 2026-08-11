@@ -229,7 +229,7 @@ export default function PaperTable({ papers, selectedPaperIds, toggleSelectPaper
                               ? 'bg-emerald-600 border-emerald-600 text-white'
                               : 'bg-blue-600 border-blue-600 text-white hover:bg-blue-700'
                           }`}
-                          title={isSelected ? "Bỏ chọn khỏi AI Workspace" : "Thêm vào AI Workspace"}
+                          title={isSelected ? "Bỏ chọn khỏi Screening" : "Thêm vào Screening"}
                         >
                           {isSelected ? <CheckCircle2 className="w-3.5 h-3.5" /> : <PlusCircle className="w-3.5 h-3.5" />}
                         </button>
