@@ -182,6 +182,30 @@ class Paper(Base):
     page_texts = relationship("PageText", back_populates="paper", cascade="all, delete-orphan")
     evidence_attempts = relationship("EvidenceExtractionAttempt", back_populates="paper")
     evidence_records = relationship("EvidenceRecord", back_populates="paper")
+    vector_cleanup_jobs = relationship("VectorCleanupJob", back_populates="paper")
+
+
+class VectorCleanupJob(Base):
+    """Durable outbox record for stale Chroma vector cleanup.
+
+    The row is committed atomically with ``Paper.active_ingestion_id``. Chroma
+    deletion happens after that transaction, so a process crash cannot lose the
+    knowledge of which stale vector IDs still need garbage collection.
+    """
+
+    __tablename__ = "vector_cleanup_jobs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    paper_id = Column(UUID(as_uuid=True), ForeignKey("papers.id"), nullable=False, index=True)
+    ingestion_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    vector_ids = Column(ARRAY(Text), nullable=False)
+    status = Column(String(32), nullable=False, default="pending", index=True)
+    attempt_count = Column(Integer, nullable=False, default=0)
+    last_error = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=_now_utc, nullable=False)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+
+    paper = relationship("Paper", back_populates="vector_cleanup_jobs")
 
 
 class ScreeningHistory(Base):

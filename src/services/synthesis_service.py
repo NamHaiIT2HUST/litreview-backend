@@ -33,6 +33,7 @@ from src.models.db_models import (
     SynthesisStatus,
 )
 from src.models.synthesis_schemas import EvidenceExtractionCandidate
+from src.services.claim_verification_policy import sanitize_claim_verification
 from src.services.evidence_extraction_policy import should_retry_evidence_batch
 from src.services.grounding_service import build_anchor_contexts, grounding_service
 from src.services.synthesis_llm_service import synthesis_llm_service
@@ -321,21 +322,22 @@ class SynthesisService:
                 claim_statement=claim.statement,
                 evidence_items=evidence_items,
             )
-            decision_status = DBEntailmentStatus(decision.status.value)
-            allowed_ids = set(valid_link_by_evidence)
-            verdict_evidence_ids = set(decision.evidence_ids) & allowed_ids
-
-            # A decisive verdict referencing only hallucinated/unknown IDs is not
-            # trusted; downgrade it rather than silently accepting it.
-            if (
-                decision_status
-                in {DBEntailmentStatus.supported, DBEntailmentStatus.contradicted}
-                and not verdict_evidence_ids
-            ):
-                decision_status = DBEntailmentStatus.insufficient
+            sanitized = sanitize_claim_verification(
+                decision,
+                set(valid_link_by_evidence),
+            )
+            decision_status = DBEntailmentStatus(sanitized.status.value)
+            verdict_evidence_ids = set(sanitized.evidence_ids)
 
             claim.verification_status = decision_status
-            claim.verification_reason = decision.reason
+            if sanitized.had_unknown_ids:
+                claim.verification_reason = (
+                    "Decisive verification verdict rejected because the LLM "
+                    "referenced evidence IDs outside the grounded evidence set. "
+                    f"LLM reason: {decision.reason}"
+                )
+            else:
+                claim.verification_reason = decision.reason
 
             for evidence_id, proposed_link in valid_link_by_evidence.items():
                 link_status = (

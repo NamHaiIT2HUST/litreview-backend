@@ -23,24 +23,14 @@ export default function UploadTab({ selectedPapers, workspacePapers, setWorkspac
 
   const handleFileUpload = async (event) => {
     const file = event.target.files?.[0];
-    if (!file) return;
-
-    // Nếu chưa chọn paper từ Search, tự tạo metadata cho PDF upload trực tiếp
-    const paperToUpload = targetPaper || {
-      id: `paper_${Date.now()}`,
-      title: file.name.replace(/\.pdf$/i, ''),
-      authors: 'Uploaded Document',
-      year: new Date().getFullYear(),
-      journal: 'PDF Document',
-      doi: '',
-    };
+    if (!file || !targetPaper) return;
 
     setIsUploading(true);
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('paper_id', paperToUpload.id);
-    if (paperToUpload.doi && paperToUpload.doi !== 'N/A') {
-      formData.append('doi', paperToUpload.doi);
+    formData.append('paper_id', targetPaper.id);
+    if (targetPaper.doi && targetPaper.doi !== 'N/A') {
+      formData.append('doi', targetPaper.doi);
     }
 
     try {
@@ -55,7 +45,7 @@ export default function UploadTab({ selectedPapers, workspacePapers, setWorkspac
       }
 
       const uploadedPaper = {
-        ...paperToUpload,
+        ...targetPaper,
         uploadFilename: data.filename,
         totalPages: data.total_pages,
         totalChunks: data.total_chunks,
@@ -64,7 +54,7 @@ export default function UploadTab({ selectedPapers, workspacePapers, setWorkspac
 
       setWorkspacePapers((prev) => [
         uploadedPaper,
-        ...prev.filter((paper) => paper.id !== paperToUpload.id),
+        ...prev.filter((paper) => paper.id !== targetPaper.id),
       ]);
     } catch (error) {
       console.error('Lỗi khi upload:', error);
@@ -97,25 +87,22 @@ export default function UploadTab({ selectedPapers, workspacePapers, setWorkspac
       <div className={`p-6 md:p-8 border rounded-3xl space-y-5 ${darkMode ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}>
         <div>
           <label className="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">
-            Paper nhận PDF (Tùy chọn)
+            Paper nhận PDF
           </label>
           <select
             value={targetPaperId}
             onChange={(event) => setTargetPaperId(event.target.value)}
-            disabled={isUploading}
+            disabled={selectedPapers.length === 0 || isUploading}
             className={`w-full px-4 py-3 rounded-xl border text-sm ${
               darkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
             }`}
           >
-            {selectedPapers.length === 0 ? (
-              <option value="">Upload PDF trực tiếp (Chưa có paper nào được Keep ở bước 1)</option>
-            ) : (
-              selectedPapers.map((paper) => (
-                <option key={paper.id} value={paper.id}>
-                  {paper.title}
-                </option>
-              ))
-            )}
+            {selectedPapers.length === 0 && <option value="">Chưa có paper nào được Keep</option>}
+            {selectedPapers.map((paper) => (
+              <option key={paper.id} value={paper.id}>
+                {paper.title}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -129,14 +116,17 @@ export default function UploadTab({ selectedPapers, workspacePapers, setWorkspac
             <>
               <UploadCloud className="w-10 h-10 mx-auto text-blue-600" />
               <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">
-                {targetPaper ? `Upload PDF cho: ${targetPaper.title}` : 'Upload PDF trực tiếp vào Workspace'}
+                {targetPaper ? `Upload PDF cho: ${targetPaper.title}` : 'Hãy Keep paper ở bước Search trước.'}
               </p>
-              <label className="font-bold px-6 py-3 rounded-xl text-xs inline-block bg-blue-600 hover:bg-blue-700 text-white cursor-pointer transition-colors shadow-sm">
+              <label className={`font-bold px-6 py-3 rounded-xl text-xs inline-block ${
+                targetPaper ? 'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer' : 'bg-slate-300 text-slate-500 cursor-not-allowed'
+              }`}>
                 Chọn file PDF
                 <input
                   type="file"
                   accept=".pdf"
                   className="hidden"
+                  disabled={!targetPaper}
                   onChange={handleFileUpload}
                 />
               </label>

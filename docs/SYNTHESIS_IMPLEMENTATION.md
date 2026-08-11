@@ -176,3 +176,23 @@ The stored offsets refer to **extracted page text**, not PDF pixel coordinates.
 They are sufficient for grounding and source-text display. A future UI feature
 that highlights the exact region on the rendered PDF needs a layout-aware parser
 that stores bounding boxes.
+
+## PR-review hardening (2026-08-11)
+
+Three review risks are handled explicitly:
+
+1. **Stale-vector cleanup is durable.** Upload now writes a `vector_cleanup_jobs`
+   outbox row in the same PostgreSQL transaction that commits the new
+   `active_ingestion_id`. Cleanup runs asynchronously after commit, and the
+   Celery beat drain retries any still-pending jobs. A crash between DB commit
+   and Chroma deletion can therefore delay cleanup but cannot lose the cleanup
+   intent.
+2. **Mixed valid + hallucinated verification IDs fail closed.** A decisive
+   `supported`/`contradicted` verdict is accepted only when every evidence ID
+   returned by the verifier belongs to the grounded evidence set supplied to
+   that call. If any unknown ID is mixed in, the claim is downgraded to
+   `insufficient` and no partial evidence subset is trusted.
+3. **Normalization text and raw-index mapping are trimmed together.** Matching
+   uses `normalize_for_matching()`, which removes leading/trailing normalized
+   whitespace from both the normalized string and its mapping. Stored evidence
+   offsets remain raw `PageText` offsets.

@@ -8,7 +8,7 @@ celery_app = Celery(
     "litreview",
     broker=settings.redis_url,
     backend=settings.redis_url,
-    include=["src.tasks.synthesis_tasks"],
+    include=["src.tasks.synthesis_tasks", "src.tasks.vector_cleanup_tasks"],
 )
 celery_app.conf.update(
     task_track_started=True,
@@ -18,4 +18,10 @@ celery_app.conf.update(
     broker_connection_retry_on_startup=True,
     task_acks_late=True,
     worker_prefetch_multiplier=1,
+    beat_schedule={
+        "drain-stale-vector-cleanup-jobs": {
+            "task": "litreview.drain_vector_cleanup_jobs",
+            "schedule": 60.0,
+        }
+    },
 )

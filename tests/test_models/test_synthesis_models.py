@@ -62,3 +62,19 @@ def test_synthesis_claim_tracks_joint_verification_status(monkeypatch):
     models = _load_models(monkeypatch)
     names = set(models.SynthesisClaim.__table__.columns.keys())
     assert {"verification_status", "verification_reason"}.issubset(names)
+
+
+def test_vector_cleanup_job_is_durable_outbox_record(monkeypatch):
+    models = _load_models(monkeypatch)
+    assert models.VectorCleanupJob.__tablename__ == "vector_cleanup_jobs"
+    names = set(models.VectorCleanupJob.__table__.columns.keys())
+    assert {
+        "paper_id",
+        "ingestion_id",
+        "vector_ids",
+        "status",
+        "attempt_count",
+        "last_error",
+        "created_at",
+        "completed_at",
+    }.issubset(names)
