@@ -54,6 +54,34 @@ async def list_pending_cleanup_job_ids(
     return list(result.scalars().all())
 
 
+async def claim_pending_cleanup_job_ids(
+    db: AsyncSession,
+    *,
+    limit: int = 10,
+) -> list[uuid.UUID]:
+    stmt = (
+        select(VectorCleanupJob)
+        .where(VectorCleanupJob.status == "pending")
+        .order_by(VectorCleanupJob.created_at)
+        .limit(limit)
+        .with_for_update(skip_locked=True)
+    )
+    result = await db.execute(stmt)
+    jobs = list(result.scalars().all())
+    for job in jobs:
+        job.status = "queued"
+    await db.flush()
+    return [job.id for job in jobs]
+
+
+async def reset_cleanup_job_to_pending(db: AsyncSession, job_id: uuid.UUID) -> None:
+    job = await db.get(VectorCleanupJob, job_id)
+    if job is None or job.status == "completed":
+        return
+    job.status = "pending"
+    await db.flush()
+
+
 async def load_cleanup_job(db: AsyncSession, job_id: uuid.UUID) -> VectorCleanupJob | None:
     return await db.get(VectorCleanupJob, job_id)
 
@@ -62,6 +90,7 @@ async def mark_cleanup_attempt(db: AsyncSession, job_id: uuid.UUID) -> None:
     job = await db.get(VectorCleanupJob, job_id)
     if job is None or job.status == "completed":
         return
+    job.status = "processing"
     job.attempt_count += 1
     job.last_error = None
     await db.flush()
