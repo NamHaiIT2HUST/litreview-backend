@@ -450,7 +450,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
           </div>
           <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
             <p className={`text-xs font-semibold ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-              {loading ? "⏳ Đang tìm kiếm trên Google Scholar & đối chiếu Scopus... Tối đa 20 bài Scopus." : "🔍 Đang sử dụng danh mục Scopus (ext_list_Jun_2026) để lọc tự động."}
+              {loading ? "⏳ Đang tìm kiếm trên Google Scholar & đối chiếu Scopus... Tối đa 20 bài Scopus." : "Tự động xác minh danh mục Scopus trong Database."}
             </p>
             <button
               type="button"

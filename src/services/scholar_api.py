@@ -56,11 +56,11 @@ def extract_issn_from_openalex_location(location: Optional[dict]) -> Optional[st
     return None
 
 
-async def fetch_full_abstract_openalex(client: httpx.AsyncClient, title: str) -> tuple[Optional[str], str, Optional[str]]:
+async def fetch_full_abstract_openalex(client: httpx.AsyncClient, title: str) -> tuple[Optional[str], str, Optional[str], Optional[str]]:
     """
     Tự động tra cứu OpenAlex (miễn phí, 250M+ bài báo) để lấy Full Abstract nguyên bản,
-    DOI, và ISSN (cần cho Module 4 Quality Check).
-    Trả về (abstract, doi, issn).
+    DOI, ISSN và Tên Tạp chí (cần cho Module 4 Quality Check).
+    Trả về (abstract, doi, issn, journal).
     """
     try:
         url = "https://api.openalex.org/works"
@@ -74,19 +74,20 @@ async def fetch_full_abstract_openalex(client: httpx.AsyncClient, title: str) ->
                 full_abstract = reconstruct_abstract_from_openalex(inv)
                 raw_doi = item.get("doi")
                 doi = raw_doi.replace("https://doi.org/", "") if (raw_doi and isinstance(raw_doi, str)) else "N/A"
-                issn = extract_issn_from_openalex_location(item.get("primary_location"))
-                return (full_abstract if len(full_abstract) > 50 else None), doi, issn
+                primary_loc = item.get("primary_location") or {}
+                issn = extract_issn_from_openalex_location(primary_loc)
+                source_obj = primary_loc.get("source") or {} if isinstance(primary_loc, dict) else {}
+                journal = source_obj.get("display_name") if isinstance(source_obj, dict) else None
+                return (full_abstract if len(full_abstract) > 50 else None), doi, issn, journal
     except Exception:
         pass
-    return None, "N/A", None
+    return None, "N/A", None, None
 
 
-async def fetch_full_abstract_s2(client: httpx.AsyncClient, title: str) -> tuple[Optional[str], Optional[str], str, Optional[str]]:
+async def fetch_full_abstract_s2(client: httpx.AsyncClient, title: str) -> tuple[Optional[str], Optional[str], str, Optional[str], Optional[str]]:
     """
-    Tra cứu phụ từ Semantic Scholar để bổ sung TL;DR và ISSN nếu có.
-    publicationVenue.issn chỉ tồn tại khi S2 xác định được venue chính thức —
-    nhiều bài (đặc biệt conference paper) sẽ hợp lệ trả về None, KHÔNG phải lỗi.
-    Trả về (abstract, tldr, doi, issn).
+    Tra cứu phụ từ Semantic Scholar để bổ sung TL;DR, ISSN và Tên Tạp chí nếu có.
+    Trả về (abstract, tldr, doi, issn, journal).
     """
     try:
         url = "https://api.semanticscholar.org/graph/v1/paper/search"
@@ -108,10 +109,11 @@ async def fetch_full_abstract_s2(client: httpx.AsyncClient, title: str) -> tuple
                 doi = raw_doi if (raw_doi and isinstance(raw_doi, str)) else "N/A"
                 venue = item.get("publicationVenue") or {}
                 issn = venue.get("issn") if isinstance(venue, dict) else None
-                return abstract, tldr_text, doi, issn
+                journal = venue.get("name") if isinstance(venue, dict) else None
+                return abstract, tldr_text, doi, issn, journal
     except Exception:
         pass
-    return None, None, "N/A", None
+    return None, None, "N/A", None, None
 
 
 async def search_papers_openalex(query: str, limit: int = 10) -> list[Paper]:
@@ -309,13 +311,13 @@ async def search_papers_serpapi(query: str, api_key: str, limit: int = 10) -> li
 
         paper_id = hashlib.md5(title.encode()).hexdigest()[:10]
 
-        oa_abstract, oa_doi, oa_issn = None, "N/A", None
+        oa_abstract, oa_doi, oa_issn, oa_journal = None, "N/A", None, None
         if idx < len(oa_results) and not isinstance(oa_results[idx], Exception):
-            oa_abstract, oa_doi, oa_issn = oa_results[idx]
+            oa_abstract, oa_doi, oa_issn, oa_journal = oa_results[idx]
 
-        s2_abstract, tldr_text, s2_doi, s2_issn = None, None, "N/A", None
+        s2_abstract, tldr_text, s2_doi, s2_issn, s2_journal = None, None, "N/A", None, None
         if idx < len(s2_results) and not isinstance(s2_results[idx], Exception):
-            s2_abstract, tldr_text, s2_doi, s2_issn = s2_results[idx]
+            s2_abstract, tldr_text, s2_doi, s2_issn, s2_journal = s2_results[idx]
 
         final_abstract = snippet_abstract
         if oa_abstract and len(oa_abstract) > len(final_abstract):
@@ -324,8 +326,20 @@ async def search_papers_serpapi(query: str, api_key: str, limit: int = 10) -> li
             final_abstract = s2_abstract
 
         final_doi = s2_doi if s2_doi != "N/A" else oa_doi
-        # Ưu tiên ISSN từ S2 (publicationVenue thường sạch hơn) -> fallback OpenAlex
         final_issn = s2_issn or oa_issn
+
+        # Trích xuất Tên Tạp chí từ Google Scholar summary (Ví dụ: "A Author, B Author - Journal Name, 2021 - Publisher")
+        extracted_journal = None
+        if "-" in summary:
+            parts = summary.split("-")
+            if len(parts) >= 2:
+                candidate = parts[1].strip()
+                # Loại bỏ phần năm (ví dụ ", 2021")
+                candidate = re.sub(r',\s*\b(19|20)\d{2}\b.*$', '', candidate).strip()
+                if candidate and candidate.lower() not in ("google scholar", "unknown"):
+                    extracted_journal = candidate
+
+        final_journal = extracted_journal or s2_journal or oa_journal or "Google Scholar"
 
         paper = Paper(
             id=f"GS_{paper_id}",
@@ -333,7 +347,7 @@ async def search_papers_serpapi(query: str, api_key: str, limit: int = 10) -> li
             authors=author_names,
             year=year,
             abstract=final_abstract,
-            journal=journal,
+            journal=final_journal,
             doi=final_doi if (final_doi and isinstance(final_doi, str)) else "N/A",
             issn=final_issn,
             url=str(url_link),
