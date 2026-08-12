@@ -33,7 +33,7 @@ function dbPaperToPaperSchema(dbPaper) {
   };
 }
 
-export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleSelectPaper, setActiveTab, darkMode }) {
+export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleSelectPaper, clearSelectedPapers, setActiveTab, darkMode }) {
   const [searchQuery, setSearchQuery] = useState(() => localStorage.getItem('last_search_query') || '');
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('serp_api_key') || '');
   const [loading, setLoading] = useState(false);
@@ -654,9 +654,17 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
               )}
             </div>
             {selectedPaperIds.length > 0 && (
-              <span className="text-sm font-bold text-blue-600 dark:text-sky-400">
-                Đã chọn {selectedPaperIds.length} bài
-              </span>
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-bold text-blue-600 dark:text-sky-400">
+                  Đã chọn {selectedPaperIds.length} bài
+                </span>
+                <button
+                  onClick={clearSelectedPapers}
+                  className="text-xs text-slate-500 hover:text-red-500 underline font-medium transition-colors"
+                >
+                  Làm mới
+                </button>
+              </div>
             )}
           </div>
 
@@ -851,12 +859,20 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
                 </div>
               </div>
 
-              <button
-                onClick={() => setActiveTab('synthesis')}
-                className="w-full sm:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl text-sm transition-all shadow-lg flex items-center justify-center gap-2"
-              >
-                <span>Chuyển sang Workspace →</span>
-              </button>
+              <div className="flex gap-3 w-full sm:w-auto">
+                <button
+                  onClick={clearSelectedPapers}
+                  className="flex-1 sm:flex-none px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-2xl text-sm transition-all shadow flex items-center justify-center"
+                >
+                  Làm mới
+                </button>
+                <button
+                  onClick={() => setActiveTab('synthesis')}
+                  className="flex-1 sm:flex-none px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl text-sm transition-all shadow-lg flex items-center justify-center gap-2"
+                >
+                  <span>Chuyển sang Workspace →</span>
+                </button>
+              </div>
             </div>
           )}
         </div>
