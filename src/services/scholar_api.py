@@ -253,8 +253,35 @@ async def search_papers_semanticscholar(query: str, api_key: str = None, limit: 
     return papers
 
 
+async def fetch_crossref_info(client: httpx.AsyncClient, title: str) -> tuple[str, Optional[str], Optional[str]]:
+    """
+    Tra cứu CrossRef API (miễn phí, không giới hạn rate limit) để lấy DOI, ISSN, và Tên Tạp chí chính xác.
+    Trả về (doi, issn, journal).
+    """
+    try:
+        clean_title = re.sub(r':\s*[\w\s\.,]+et\s+al\.?$', '', title, flags=re.IGNORECASE).strip()
+        clean_title = re.sub(r'\.\.\.$', '', clean_title).strip()
+        url = "https://api.crossref.org/works"
+        params = {"query.title": clean_title, "rows": 1}
+        headers = {"User-Agent": "LitReviewAgent/1.0 (mailto:admin@litreview.org)"}
+        res = await client.get(url, params=params, headers=headers, timeout=4.0)
+        if res.status_code == 200:
+            items = res.json().get("message", {}).get("items", [])
+            if items:
+                item = items[0]
+                doi = item.get("DOI") or "N/A"
+                container = item.get("container-title") or []
+                journal = container[0] if (isinstance(container, list) and container) else None
+                issn_list = item.get("ISSN") or []
+                issn = issn_list[0] if (isinstance(issn_list, list) and issn_list) else None
+                return doi, issn, journal
+    except Exception:
+        pass
+    return "N/A", None, None
+
+
 async def search_papers_serpapi(query: str, api_key: str, limit: int = 10) -> list[Paper]:
-    """Search for papers using SerpApi (Google Scholar) and enrich with Full Abstract/ISSN from OpenAlex & Semantic Scholar."""
+    """Search for papers using SerpApi (Google Scholar) and enrich with Full Abstract/ISSN from CrossRef, OpenAlex & Semantic Scholar."""
     if not api_key:
         raise HTTPException(status_code=401, detail="API Key is required for SerpApi")
 
@@ -281,10 +308,12 @@ async def search_papers_serpapi(query: str, api_key: str, limit: int = 10) -> li
 
         results = data.get("organic_results", [])
 
+        cr_tasks = [fetch_crossref_info(client, res.get("title", "")) for res in results]
         oa_tasks = [fetch_full_abstract_openalex(client, res.get("title", "")) for res in results]
         s2_tasks = [fetch_full_abstract_s2(client, res.get("title", "")) for res in results]
 
-        oa_results, s2_results = await asyncio.gather(
+        cr_results, oa_results, s2_results = await asyncio.gather(
+            asyncio.gather(*cr_tasks, return_exceptions=True),
             asyncio.gather(*oa_tasks, return_exceptions=True),
             asyncio.gather(*s2_tasks, return_exceptions=True)
         )
@@ -302,7 +331,6 @@ async def search_papers_serpapi(query: str, api_key: str, limit: int = 10) -> li
         year = int(year_match.group()) if year_match else datetime.datetime.now().year
 
         snippet_abstract = res.get("snippet") or "No abstract available."
-        journal = "Google Scholar"
         url_link = res.get("link") or "#"
 
         inline_links = res.get("inline_links", {}) if isinstance(res.get("inline_links"), dict) else {}
@@ -310,6 +338,10 @@ async def search_papers_serpapi(query: str, api_key: str, limit: int = 10) -> li
         citations = cited_by.get("total", 0) if isinstance(cited_by, dict) else 0
 
         paper_id = hashlib.md5(title.encode()).hexdigest()[:10]
+
+        cr_doi, cr_issn, cr_journal = "N/A", None, None
+        if idx < len(cr_results) and not isinstance(cr_results[idx], Exception):
+            cr_doi, cr_issn, cr_journal = cr_results[idx]
 
         oa_abstract, oa_doi, oa_issn, oa_journal = None, "N/A", None, None
         if idx < len(oa_results) and not isinstance(oa_results[idx], Exception):
@@ -325,8 +357,8 @@ async def search_papers_serpapi(query: str, api_key: str, limit: int = 10) -> li
         if s2_abstract and len(s2_abstract) > len(final_abstract):
             final_abstract = s2_abstract
 
-        final_doi = s2_doi if s2_doi != "N/A" else oa_doi
-        final_issn = s2_issn or oa_issn
+        final_doi = cr_doi if cr_doi != "N/A" else (s2_doi if s2_doi != "N/A" else oa_doi)
+        final_issn = cr_issn or s2_issn or oa_issn
 
         # Trích xuất Tên Tạp chí từ Google Scholar summary (Ví dụ: "A Author, B Author - Journal Name, 2021 - Publisher")
         extracted_journal = None
@@ -334,12 +366,11 @@ async def search_papers_serpapi(query: str, api_key: str, limit: int = 10) -> li
             parts = summary.split("-")
             if len(parts) >= 2:
                 candidate = parts[1].strip()
-                # Loại bỏ phần năm (ví dụ ", 2021")
                 candidate = re.sub(r',\s*\b(19|20)\d{2}\b.*$', '', candidate).strip()
                 if candidate and candidate.lower() not in ("google scholar", "unknown"):
                     extracted_journal = candidate
 
-        final_journal = extracted_journal or s2_journal or oa_journal or "Google Scholar"
+        final_journal = cr_journal or extracted_journal or s2_journal or oa_journal or "Google Scholar"
 
         paper = Paper(
             id=f"GS_{paper_id}",

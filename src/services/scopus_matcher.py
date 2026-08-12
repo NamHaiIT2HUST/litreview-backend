@@ -114,12 +114,13 @@ def year_in_coverage(year: int, coverage_ranges_json: Optional[str]) -> Optional
     return any(start <= year <= end for start, end in ranges)
 
 
-async def find_scopus_source(db: AsyncSession, issn: str, journal_title: str = None) -> Optional[ScopusSource]:
+async def find_scopus_source(db: AsyncSession, issn: str = "", journal_title: str = None) -> Optional[ScopusSource]:
     """Tra cứu ISSN hoặc Tên Tạp chí — khớp với CẢ cột issn, eissn và title của scopus_sources."""
-    if issn:
+    norm_issn = normalize_issn(issn)
+    if norm_issn:
         result = await db.execute(
             select(ScopusSource).where(
-                or_(ScopusSource.issn == issn, ScopusSource.eissn == issn)
+                or_(ScopusSource.issn == norm_issn, ScopusSource.eissn == norm_issn)
             )
         )
         source = result.scalars().first()
