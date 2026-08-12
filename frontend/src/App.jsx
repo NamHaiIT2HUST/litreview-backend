@@ -74,7 +74,7 @@ export default function App() {
       />
 
       {/* Main Multi-Step Navigation Content Area */}
-      <main className="p-4 md:p-8 max-w-7xl mx-auto">
+      <main className={`p-4 md:p-8 mx-auto transition-all ${activeTab === 'synthesis' || activeTab === 'search' ? 'max-w-[1920px] w-full' : 'max-w-7xl'}`}>
         {activeTab === 'overview' && (
           <HomeTab setActiveTab={setActiveTab} darkMode={darkMode} />
         )}
