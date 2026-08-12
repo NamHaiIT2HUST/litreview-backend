@@ -39,6 +39,12 @@ export default function App() {
       return saved ? JSON.parse(saved) : [];
     } catch { return []; }
   });
+  const [selectedPapers, setSelectedPapers] = useState(() => {
+    try {
+      const saved = localStorage.getItem('litreview_selected_papers');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
   const [workspacePapers, setWorkspacePapers] = useState(() => {
     try {
       const saved = localStorage.getItem('litreview_workspace_papers');
@@ -52,6 +58,9 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('litreview_selected_ids', JSON.stringify(selectedPaperIds));
   }, [selectedPaperIds]);
+  useEffect(() => {
+    localStorage.setItem('litreview_selected_papers', JSON.stringify(selectedPapers));
+  }, [selectedPapers]);
   useEffect(() => {
     localStorage.setItem('litreview_workspace_papers', JSON.stringify(workspacePapers));
   }, [workspacePapers]);
@@ -72,9 +81,7 @@ export default function App() {
     localStorage.setItem('litreview_dark_mode', darkMode);
   }, [darkMode]);
 
-  useEffect(() => {
-    sessionStorage.setItem('litreview_workspace_papers', JSON.stringify(workspacePapers));
-  }, [workspacePapers]);
+
   const [chatMessages, setChatMessages] = useState([
     {
       sender: 'ai',
@@ -85,12 +92,16 @@ export default function App() {
   const toggleSelectPaper = (id) => {
     if (selectedPaperIds.includes(id)) {
       setSelectedPaperIds(selectedPaperIds.filter(item => item !== id));
+      setSelectedPapers(selectedPapers.filter(p => p.id !== id));
     } else {
       setSelectedPaperIds([...selectedPaperIds, id]);
+      const paperToAdd = papers.find(p => p.id === id);
+      if (paperToAdd && !selectedPapers.find(p => p.id === id)) {
+        setSelectedPapers([...selectedPapers, paperToAdd]);
+      }
     }
   };
 
-  const selectedPapers = papers.filter(p => selectedPaperIds.includes(p.id));
 
   return (
     <div className={`min-h-screen font-sans transition-colors ${darkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
