@@ -123,17 +123,7 @@ export default function App() {
             setSearchMeta={setSearchMeta}
             selectedPaperIds={selectedPaperIds}
             toggleSelectPaper={toggleSelectPaper}
-<<<<<<< HEAD
-            setActiveTab={setActiveTab}
-            darkMode={darkMode}
-          />
-        )}
 
-        {activeTab === 'library' && (
-          <UploadTab
-            selectedPapers={selectedPapers}
-=======
->>>>>>> origin/feature/nga-test-setup
             workspacePapers={workspacePapers}
             setWorkspacePapers={setWorkspacePapers}
             setActiveTab={setActiveTab}
