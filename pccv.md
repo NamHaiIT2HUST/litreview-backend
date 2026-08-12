@@ -91,11 +91,11 @@ Nguyên tắc quan trọng: lấy Top 20 từ Google Scholar, giữ thứ tự G
 
 ### P0.6 — Export MVP
 
-- [ ] Export CSV metadata.
-- [ ] Export BibTeX.
-- [ ] Export Markdown summary/citation list.
-- [ ] Không ghi đè export cũ.
-- [ ] UI hiển thị trạng thái export thành công/thất bại.
+- [x] Export CSV metadata.
+- [x] Export BibTeX.
+- [x] Export Markdown summary/citation list.
+- [x] Không ghi đè export cũ.
+- [x] UI hiển thị trạng thái export thành công/thất bại.
 
 ## Phân công 2 nhóm làm tiếp
 
@@ -170,8 +170,8 @@ Việc cần làm tiếp:
 - [ ] Synthesis: chỉ dùng bài đã Keep/extracted.
 - [ ] Synthesis: chat trả lời closed-domain từ tài liệu đã ingest.
 - [ ] Synthesis: draft/summary có citation gắn chunk; claim không evidence phải bị loại hoặc đánh dấu cần kiểm tra.
-- [ ] Export: implement CSV, BibTeX, Markdown summary/citation list.
-- [ ] Export: không ghi đè bản export cũ; UI có trạng thái export thành công/thất bại.
+- [x] Export: implement CSV, BibTeX, Markdown summary/citation list.
+- [x] Export: không ghi đè bản export cũ; UI có trạng thái export thành công/thất bại.
 
 Deliverable cuối của Nhóm 2:
 

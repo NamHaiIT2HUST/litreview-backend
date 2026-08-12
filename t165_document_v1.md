@@ -210,8 +210,9 @@ cho toàn bộ review.
 
 ### M6 — Export
 
-MVP xuất CSV/BibTeX metadata đã xác minh và Markdown có citation. P1 bổ sung CSL APA/IEEE/MLA,
-Word/PDF, version history và Zotero API. Không ghi đè bản export cũ.
+**UI:** Giao diện 2 cột gọn gàng, hiện đại. Cột trái chọn phạm vi dữ liệu (`Keep Papers Only`, `All Search Results`, `Synthesis Set`), thẻ chọn định dạng (BibTeX `.bib`, CSV `.csv` UTF-8 BOM, Markdown Report `.md`, JSON Backup `.json`), các tùy chọn định dạng và nút Export / Copy nhanh. Cột phải cung cấp **Live Format Preview** theo thời gian thực (xem trước nội dung xuất và copy 1-click) cùng danh sách **Export History** lưu vết các phiên xuất trong ứng dụng mà không làm đè bản export cũ.
+
+**Xử lý:** Backend service `src/services/export_service.py` và API router `src/api/export_routes.py` xử lý format BibTeX (sinh citation key tự động dạng `AuthorYearTitle` và escape ký tự đặc biệt), CSV chuẩn hóa tương thích Excel, Markdown tổng hợp kèm In-text citation `[1]` & References list, cùng JSON backup package. Hỗ trợ cả Client-side fallback download mượt mà trực tiếp trên trình duyệt web app.
 
 ## 5. Data model chuẩn
 

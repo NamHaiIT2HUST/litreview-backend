@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.api.routes import router as root_router
 from src.api.project_routes import router as project_router
 from src.api.screening_routes import router as screening_router
+from src.api.export_routes import router as export_router
 from src.config import get_settings
 from src.database import create_all_tables
 
@@ -41,6 +42,7 @@ app.add_middleware(
 app.include_router(project_router, prefix="/api/v1")
 app.include_router(root_router, prefix="/api/v1")
 app.include_router(screening_router, prefix="/api/v1")
+app.include_router(export_router, prefix="/api/v1")
 
 
 @app.get("/health")

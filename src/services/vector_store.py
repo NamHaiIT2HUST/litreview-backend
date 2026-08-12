@@ -3,7 +3,10 @@ from typing import List
 
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
-from langchain_huggingface import HuggingFaceEmbeddings
+try:
+    from langchain_huggingface import HuggingFaceEmbeddings
+except ImportError:
+    HuggingFaceEmbeddings = None
 from langchain_openai import OpenAIEmbeddings
 
 from src.config import get_settings
@@ -17,8 +20,8 @@ class VectorStoreService:
         settings = get_settings()
 
         # Nếu dùng OpenRouter hoặc không có OpenAI key xịn, tự động dùng
-        # HuggingFace Embeddings local.
-        if not settings.openai_api_key or settings.openai_api_key.startswith("sk-or-v1-"):
+        # HuggingFace Embeddings local nếu có.
+        if (not settings.openai_api_key or settings.openai_api_key.startswith("sk-or-v1-")) and HuggingFaceEmbeddings is not None:
             self.embeddings = HuggingFaceEmbeddings(
                 model_name="sentence-transformers/all-MiniLM-L6-v2"
             )
@@ -26,7 +29,7 @@ class VectorStoreService:
             api_base = settings.get_api_base
             emb_kwargs = {
                 "model": settings.embedding_model,
-                "api_key": settings.openai_api_key,
+                "api_key": settings.openai_api_key or "fake-key",
             }
             if api_base:
                 emb_kwargs["openai_api_base"] = api_base

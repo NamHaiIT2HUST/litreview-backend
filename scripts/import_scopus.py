@@ -17,7 +17,10 @@ from src.database import create_all_tables, AsyncSessionLocal
 from src.services.scopus_matcher import import_scopus_excel
 
 async def main():
-    excel_path = r"C:\Users\Hp\Downloads\ext_list_Jun_2026.xlsx"
+    project_root = Path(__file__).parent.parent
+    excel_path = project_root / "data" / "ext_list_Jul_2026.xlsx"
+    if not excel_path.exists():
+        excel_path = Path(r"C:\Users\Dell\Downloads\APPLY\VinUni_AI\TEAM165\P-165\data\ext_list_Jul_2026.xlsx")
     print(f"[import] Bat dau tao DB schema va nap file Scopus Source List:\n  {excel_path}")
 
     start_time = time.time()
