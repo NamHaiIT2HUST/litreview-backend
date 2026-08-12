@@ -127,13 +127,28 @@ async def find_scopus_source(db: AsyncSession, issn: str, journal_title: str = N
             return source
 
     if journal_title and journal_title.strip() and journal_title.lower() not in ("google scholar", "n/a", "unknown"):
-        clean_title = re.sub(r'[^\w\s]', '', journal_title.lower().strip())
+        clean_title = journal_title.strip().lower()
+        
+        # 1. Exact match (case insensitive)
         result = await db.execute(
             select(ScopusSource).where(
-                func.lower(ScopusSource.title) == journal_title.strip().lower()
+                func.lower(ScopusSource.title) == clean_title
             )
         )
-        return result.scalars().first()
+        source = result.scalars().first()
+        if source:
+            return source
+
+        # 2. Fallback substring match if title is long enough (>= 4 chars)
+        if len(clean_title) >= 4:
+            result = await db.execute(
+                select(ScopusSource).where(
+                    func.lower(ScopusSource.title).contains(clean_title)
+                )
+            )
+            source = result.scalars().first()
+            if source:
+                return source
 
     return None
 

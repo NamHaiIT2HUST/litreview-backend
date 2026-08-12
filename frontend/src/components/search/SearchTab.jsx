@@ -448,11 +448,19 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
               )}
             </button>
           </div>
-          {loading && (
-            <p className={`mt-3 text-xs font-semibold ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-              ⏳ Đang tìm kiếm trên Google Scholar và đối chiếu Scopus... Chỉ những bài thuộc Scopus mới được hiển thị.
+          <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+            <p className={`text-xs font-semibold ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+              {loading ? "⏳ Đang tìm kiếm trên Google Scholar & đối chiếu Scopus... Tối đa 20 bài Scopus." : "🔍 Đang sử dụng danh mục Scopus (ext_list_Jun_2026) để lọc tự động."}
             </p>
-          )}
+            <button
+              type="button"
+              onClick={() => setShowScreeningModal(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-200 transition-all"
+            >
+              <ShieldAlert className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+              <span>Xem Tiêu chí Screening</span>
+            </button>
+          </div>
         </form>
 
         {/* Mobile History (shown below search on small screens) */}
