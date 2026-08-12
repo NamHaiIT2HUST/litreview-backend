@@ -7,7 +7,7 @@ import {
   downloadFile
 } from '../../utils/exportUtils';
 
-export default function ExportTab({ papers = [], workspacePapers = [], darkMode = false }) {
+export default function ExportTab({ papers = [], selectedPapers = [], workspacePapers = [], darkMode = false }) {
   // Scope selection: 'keep' | 'all' | 'workspace'
   const [scope, setScope] = useState('keep');
   
@@ -33,18 +33,17 @@ export default function ExportTab({ papers = [], workspacePapers = [], darkMode 
   // Compute paper subset based on selected scope
   const targetPapers = useMemo(() => {
     if (scope === 'keep') {
-      const keepOnly = papers.filter(p => (p.screening_decision || p.decision) === 'keep');
-      return keepOnly.length > 0 ? keepOnly : papers;
+      return selectedPapers.length > 0 ? selectedPapers : papers;
     }
     if (scope === 'workspace') {
       return workspacePapers.length > 0 ? workspacePapers : papers;
     }
     return papers;
-  }, [papers, workspacePapers, scope]);
+  }, [papers, selectedPapers, workspacePapers, scope]);
 
   // Statistics
   const stats = useMemo(() => {
-    const keepCount = papers.filter(p => (p.screening_decision || p.decision) === 'keep').length;
+    const keepCount = selectedPapers.length;
     const scopusCount = papers.filter(p => (p.scopus_status || p.scopusStatus) === 'indexed').length;
     return {
       total: papers.length,
@@ -52,15 +51,23 @@ export default function ExportTab({ papers = [], workspacePapers = [], darkMode 
       scopus: scopusCount,
       activeScopeCount: targetPapers.length
     };
-  }, [papers, targetPapers]);
+  }, [papers, selectedPapers, targetPapers]);
 
-  // Mock project info
+  // Setup history (REAL DATA from Setup tab)
+  const [researchSetup, setResearchSetup] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('litreview_setup')) || null;
+    } catch {
+      return null;
+    }
+  });
+
   const projectInfo = {
-    name: 'Literature Review Project',
-    research_question: 'What are the current AI and machine learning techniques for literature review automation?',
-    research_field: 'Computer Science / Artificial Intelligence',
-    criteria_include: 'Peer-reviewed studies, Published 2018-2026, Empirical validation',
-    criteria_exclude: 'Non-English papers, Extended abstracts without full text'
+    name: researchSetup?.name || 'Literature Review Project',
+    research_question: researchSetup?.research_question || 'Not specified',
+    research_field: researchSetup?.research_field || 'Not specified',
+    criteria_include: researchSetup?.criteria_include?.join(', ') || 'Not specified',
+    criteria_exclude: researchSetup?.criteria_exclude?.join(', ') || 'Not specified'
   };
 
   // Generate content dynamically for Live Preview

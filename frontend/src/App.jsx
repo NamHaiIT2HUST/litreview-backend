@@ -169,6 +169,7 @@ export default function App() {
         {activeTab === 'export' && (
           <ExportTab
             papers={papers}
+            selectedPapers={selectedPapers}
             workspacePapers={workspacePapers}
             darkMode={darkMode}
           />
