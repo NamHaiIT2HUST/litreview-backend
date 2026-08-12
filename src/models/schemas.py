@@ -8,14 +8,7 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     response: str = Field(..., description="Phản hồi từ agent")
-    citations: list[dict] = Field(
-        default_factory=list,
-        description="Mỗi câu trong response kèm chunk_id/source làm bằng chứng",
-    )
-    blocked_sources: list[dict] = Field(
-        default_factory=list,
-        description="Nguồn bị Integrity Guard chặn do retracted (Crossref)",
-    )
+    analysis: str = Field(default="", description="Phân tích nội bộ")
 
 class Paper(BaseModel):
     id: str

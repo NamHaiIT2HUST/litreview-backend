@@ -13,7 +13,7 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
     research_question: '',
     research_field: '',
     year_from: 2018,
-    year_to: 2024,
+    year_to: 2026,
     criteria_include: [],
     criteria_exclude: []
   });
@@ -118,7 +118,8 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
               type="text" 
               value={projectData.name}
               onChange={e => setProjectData({...projectData, name: e.target.value})}
-              className={`w-full p-3 rounded-xl border focus:ring-2 focus:ring-blue-500 ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-300'}`}
+              placeholder="VD: Nghiên cứu tín hiệu điện tim đồ (ECG)..."
+              className={`w-full p-3 rounded-xl border focus:ring-2 focus:ring-blue-500 ${darkMode ? 'bg-slate-800 border-slate-700 dark:text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
             />
           </div>
 
@@ -129,7 +130,8 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
                 rows="3"
                 value={projectData.research_question}
                 onChange={e => setProjectData({...projectData, research_question: e.target.value})}
-                className={`w-full p-3 rounded-xl border focus:ring-2 focus:ring-blue-500 ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-300'}`}
+                placeholder="VD: Những model AI nào (như 1D CNN) hiệu quả nhất trong việc phân loại tín hiệu ECG?"
+                className={`w-full p-3 rounded-xl border focus:ring-2 focus:ring-blue-500 ${darkMode ? 'bg-slate-800 border-slate-700 dark:text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
               />
             </div>
             <div>
@@ -138,16 +140,17 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
                 type="text" 
                 value={projectData.research_field}
                 onChange={e => setProjectData({...projectData, research_field: e.target.value})}
-                className={`w-full p-3 rounded-xl border focus:ring-2 focus:ring-blue-500 ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-300'}`}
+                placeholder="VD: Y tế, AI trong Y tế, Deep Learning..."
+                className={`w-full p-3 rounded-xl border focus:ring-2 focus:ring-blue-500 ${darkMode ? 'bg-slate-800 border-slate-700 dark:text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
               />
               <div className="flex gap-4 mt-4">
                 <div className="flex-1">
                   <label className="block text-xs font-bold text-slate-500 mb-1">Từ năm</label>
-                  <input type="number" value={projectData.year_from} onChange={e => setProjectData({...projectData, year_from: parseInt(e.target.value)})} className={`w-full p-2 rounded-lg border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-50'}`} />
+                  <input type="number" value={projectData.year_from} onChange={e => setProjectData({...projectData, year_from: parseInt(e.target.value)})} className={`w-full p-2 rounded-lg border ${darkMode ? 'bg-slate-800 border-slate-700 dark:text-white' : 'bg-slate-50 text-slate-900'}`} />
                 </div>
                 <div className="flex-1">
                   <label className="block text-xs font-bold text-slate-500 mb-1">Đến năm</label>
-                  <input type="number" value={projectData.year_to} onChange={e => setProjectData({...projectData, year_to: parseInt(e.target.value)})} className={`w-full p-2 rounded-lg border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-50'}`} />
+                  <input type="number" value={projectData.year_to} onChange={e => setProjectData({...projectData, year_to: parseInt(e.target.value)})} className={`w-full p-2 rounded-lg border ${darkMode ? 'bg-slate-800 border-slate-700 dark:text-white' : 'bg-slate-50 text-slate-900'}`} />
                 </div>
               </div>
             </div>
@@ -173,7 +176,8 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
                 onChange={e => setNewInclude(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && addInclude()}
                 placeholder="VD: Viết bằng tiếng Anh..."
-                className={`flex-1 p-2 rounded-lg border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-50'}`}
+                autoComplete="off"
+                className={`flex-1 p-2 rounded-lg border ${darkMode ? 'bg-slate-800 border-slate-700 dark:text-white' : 'bg-slate-50 text-slate-900'}`}
               />
               <button onClick={addInclude} className="p-2 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200"><Plus className="w-5 h-5"/></button>
             </div>
@@ -197,7 +201,8 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
                 onChange={e => setNewExclude(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && addExclude()}
                 placeholder="VD: Review papers..."
-                className={`flex-1 p-2 rounded-lg border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-50'}`}
+                autoComplete="off"
+                className={`flex-1 p-2 rounded-lg border ${darkMode ? 'bg-slate-800 border-slate-700 dark:text-white' : 'bg-slate-50 text-slate-900'}`}
               />
               <button onClick={addExclude} className="p-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200"><Plus className="w-5 h-5"/></button>
             </div>

@@ -3,8 +3,8 @@ from typing import List
 
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_openai import OpenAIEmbeddings
+from langchain_core.embeddings import Embeddings
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
 from src.config import get_settings
 from src.services.vector_store_config import build_chroma_connection_kwargs
@@ -12,25 +12,45 @@ from src.services.vector_store_config import build_chroma_connection_kwargs
 CHROMA_PERSIST_DIR = ".chroma_db"
 
 
+class LightweightHashEmbeddings(Embeddings):
+    """Small offline fallback embeddings for local/Docker runs without OpenAI.
+
+    This keeps the app bootable without downloading sentence-transformers/torch.
+    It is sufficient for smoke tests and local demos; production-quality semantic
+    search should use OpenAI embeddings or another real embedding provider.
+    """
+
+    dimension = 128
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        return [self.embed_query(text) for text in texts]
+
+    def embed_query(self, text: str) -> list[float]:
+        vector = [0.0] * self.dimension
+        words = (text or "").lower().split()
+        if not words:
+            return vector
+        for word in words:
+            bucket = sum(ord(char) for char in word) % self.dimension
+            vector[bucket] += 1.0
+        norm = sum(value * value for value in vector) ** 0.5 or 1.0
+        return [value / norm for value in vector]
+
+
 class VectorStoreService:
     def __init__(self):
         settings = get_settings()
+        gemini_key = settings.gemini_api_key or settings.google_api_key
 
-        # Nếu dùng OpenRouter hoặc không có OpenAI key xịn, tự động dùng
-        # HuggingFace Embeddings local.
-        if not settings.openai_api_key or settings.openai_api_key.startswith("sk-or-v1-"):
-            self.embeddings = HuggingFaceEmbeddings(
-                model_name="sentence-transformers/all-MiniLM-L6-v2"
+        # Gemini embeddings first. If the key is missing, keep the app bootable
+        # with a lightweight offline fallback so local smoke tests still work.
+        if gemini_key:
+            self.embeddings = GoogleGenerativeAIEmbeddings(
+                model=settings.embedding_model,
+                google_api_key=gemini_key,
             )
         else:
-            api_base = settings.get_api_base
-            emb_kwargs = {
-                "model": settings.embedding_model,
-                "api_key": settings.openai_api_key,
-            }
-            if api_base:
-                emb_kwargs["openai_api_base"] = api_base
-            self.embeddings = OpenAIEmbeddings(**emb_kwargs)
+            self.embeddings = LightweightHashEmbeddings()
 
         chroma_kwargs = build_chroma_connection_kwargs(settings)
         if "persist_directory" in chroma_kwargs and not chroma_kwargs["persist_directory"]:

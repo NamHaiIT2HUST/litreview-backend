@@ -29,18 +29,20 @@ class SynthesisLLMService:
             return self._llm
 
         # Lazy import keeps schema/grounding tests independent from LangChain runtime.
-        from langchain_openai import ChatOpenAI
+        from langchain_google_genai import ChatGoogleGenerativeAI
 
         settings = get_settings()
-        kwargs = {
-            "model": settings.model_name,
-            "api_key": settings.openai_api_key,
-            "temperature": getattr(settings, "synthesis_temperature", 0.0),
-        }
-        api_base = settings.get_api_base
-        if api_base:
-            kwargs["base_url"] = api_base
-        self._llm = ChatOpenAI(**kwargs)
+        gemini_key = settings.gemini_api_key or settings.google_api_key
+        if not gemini_key:
+            raise RuntimeError(
+                "Gemini API key is required. Set GEMINI_API_KEY or GOOGLE_API_KEY in .env."
+            )
+
+        self._llm = ChatGoogleGenerativeAI(
+            model=(settings.model_name if settings.model_name.startswith("gemini-") else "gemini-1.5-flash"),
+            google_api_key=gemini_key,
+            temperature=getattr(settings, "synthesis_temperature", 0.0),
+        )
         return self._llm
 
     async def _invoke_structured(self, schema, *, system: str, human: str):

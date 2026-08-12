@@ -3,7 +3,7 @@ import os
 from typing import List
 from langchain_core.documents import Document
 from langchain_core.prompts import PromptTemplate
-from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.output_parsers import StrOutputParser
 
 from src.config import get_settings
@@ -11,18 +11,9 @@ from src.config import get_settings
 class RAGService:
     def __init__(self):
         settings = get_settings()
+        self._settings = settings
+        self._llm = None
 
-        api_base = settings.get_api_base
-        llm_kwargs = {
-            "model": settings.model_name,
-            "api_key": settings.openai_api_key,
-            "temperature": settings.llm_temperature,
-        }
-        if api_base:
-            llm_kwargs["base_url"] = api_base
-
-        self.llm = ChatOpenAI(**llm_kwargs)
-        
         # Prompt template for RAG
         prompt_template = """
 Bạn là một trợ lý nghiên cứu học thuật. Hãy trả lời câu hỏi sau một cách chi tiết và chính xác, CHỈ dựa trên ngữ cảnh được cung cấp.
@@ -39,9 +30,28 @@ Câu trả lời:
             template=prompt_template,
             input_variables=["context", "question"]
         )
-        
-        # Simple LCEL Chain: format dict -> prompt -> llm -> string
-        self.chain = self.prompt | self.llm | StrOutputParser()
+
+    @property
+    def llm(self):
+        if self._llm is None:
+            gemini_key = self._settings.gemini_api_key or self._settings.google_api_key
+            if not gemini_key:
+                raise RuntimeError(
+                    "Gemini API key is required. Set GEMINI_API_KEY or GOOGLE_API_KEY in .env."
+                )
+            self._llm = ChatGoogleGenerativeAI(
+                model=(
+                    self._settings.model_name
+                    if self._settings.model_name.startswith("gemini-")
+                    else "gemini-1.5-flash"
+                ),
+                google_api_key=gemini_key,
+                temperature=self._settings.llm_temperature,
+            )
+        return self._llm
+
+    def _build_chain(self):
+        return self.prompt | self.llm | StrOutputParser()
 
     def _format_docs(self, docs: List[Document]) -> str:
         return "\n\n".join(doc.page_content for doc in docs)
@@ -129,7 +139,7 @@ JSON:""",
             
         context_str = self._format_docs(chunks)
         
-        response = await self.chain.ainvoke({
+        response = await self._build_chain().ainvoke({
             "context": context_str,
             "question": query
         })

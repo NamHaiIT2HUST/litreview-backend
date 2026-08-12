@@ -7,11 +7,9 @@ import {
   Search, 
   RotateCcw, 
   X, 
-  Award, 
   Calendar, 
   Quote, 
   FileText, 
-  Sparkles,
   Download
 } from 'lucide-react';
 
@@ -28,8 +26,6 @@ export default function FilterSortBar({
   setActivePreset,
   showAdvanced,
   setShowAdvanced,
-  minLitScore,
-  setMinLitScore,
   minCitations,
   setMinCitations,
   startYear,
@@ -46,10 +42,7 @@ export default function FilterSortBar({
 }) {
 
   const presets = [
-    { id: 'scopus_confirmed', label: 'Scopus confirmed', icon: Sparkles },
-    { id: 'undetermined', label: 'Undetermined', icon: FileText },
     { id: 'all', label: 'Tất cả bài báo', icon: FileText },
-    { id: 'high_score', label: 'LitScore ≥ 70 (Uy tín cao)', icon: Award },
     { id: 'recent', label: 'Bài mới (3 năm gần đây)', icon: Calendar },
     { id: 'top_cited', label: 'Trích dẫn nhiều (≥ 50)', icon: Quote },
     { id: 'has_tldr', label: 'Có AI TL;DR', icon: FileText }
@@ -59,7 +52,7 @@ export default function FilterSortBar({
     <div className={`rounded-3xl border shadow-sm transition-all p-5 space-y-4 ${
       darkMode ? 'bg-slate-900 border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-800'
     }`}>
-      {/* Top Toolbar: Search in results, Sort selector, View mode toggle, Advanced Toggle */}
+      {/* Top Toolbar */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
         
         {/* Real-time In-Result Search */}
@@ -101,8 +94,6 @@ export default function FilterSortBar({
               }`}
             >
               <option value="source_order">Google Scholar Rank</option>
-              <option value="litscore_desc">🎖️ LitScore (Cao → Thấp)</option>
-              <option value="litscore_asc">LitScore (Thấp → Cao)</option>
               <option value="year_desc">📅 Năm (Mới nhất)</option>
               <option value="year_asc">Năm (Cũ nhất)</option>
               <option value="citations_desc">💬 Trích dẫn (Nhiều nhất)</option>
@@ -137,7 +128,7 @@ export default function FilterSortBar({
                   ? 'bg-blue-600 text-white shadow-sm'
                   : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
               }`}
-              title="Xem dạng thẻ (Card View)"
+              title="Xem dạng thẻ"
             >
               <LayoutGrid className="w-4 h-4" />
             </button>
@@ -148,7 +139,7 @@ export default function FilterSortBar({
                   ? 'bg-blue-600 text-white shadow-sm'
                   : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
               }`}
-              title="Xem dạng bảng (Table View)"
+              title="Xem dạng bảng"
             >
               <TableIcon className="w-4 h-4" />
             </button>
@@ -192,42 +183,20 @@ export default function FilterSortBar({
           <div className="flex items-center justify-between border-b pb-2 border-slate-200 dark:border-slate-700">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
               <SlidersHorizontal className="w-3.5 h-3.5 text-blue-500" />
-              <span>Cấu hình bộ lọc chuyên sâu</span>
+              <span>Bộ lọc chuyên sâu</span>
             </h4>
             {hasActiveFilters && (
               <button
                 onClick={resetFilters}
                 className="text-xs font-bold text-red-500 hover:underline flex items-center gap-1"
               >
-                <RotateCcw className="w-3 h-3" />
-                <span>Đặt lại tất cả</span>
+              <RotateCcw className="w-3 h-3" />
+              <span>Đặt lại</span>
               </button>
             )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
-            {/* LitScore Range Filter */}
-            <div className="space-y-1.5">
-              <label className="font-bold flex items-center justify-between text-slate-700 dark:text-slate-300">
-                <span>Điểm LitScore tối thiểu:</span>
-                <span className="text-blue-600 dark:text-sky-400 font-extrabold">{minLitScore}/100</span>
-              </label>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                step="5"
-                value={minLitScore}
-                onChange={(e) => setMinLitScore(Number(e.target.value))}
-                className="w-full accent-blue-600 cursor-pointer"
-              />
-              <div className="flex justify-between text-[10px] text-slate-400 font-mono">
-                <span>0 (Tất cả)</span>
-                <span>50</span>
-                <span>100 (Uy tín cao)</span>
-              </div>
-            </div>
-
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
             {/* Citations Min Filter */}
             <div className="space-y-1.5">
               <label className="font-bold text-slate-700 dark:text-slate-300">
@@ -240,7 +209,7 @@ export default function FilterSortBar({
                   darkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-800'
                 }`}
               >
-                <option value={0}>Tất cả lượt trích dẫn</option>
+                <option value={0}>Tất cả</option>
                 <option value={10}>≥ 10 trích dẫn</option>
                 <option value={50}>≥ 50 trích dẫn</option>
                 <option value={100}>≥ 100 trích dẫn</option>
@@ -279,7 +248,7 @@ export default function FilterSortBar({
             {/* Journal Source Filter */}
             <div className="space-y-1.5">
               <label className="font-bold text-slate-700 dark:text-slate-300">
-                Tạp chí / Nguồn xuất bản:
+                Tạp chí / Nguồn:
               </label>
               <select
                 value={selectedJournal}
@@ -298,10 +267,9 @@ export default function FilterSortBar({
         </div>
       )}
 
-      {/* Stats Bar & Active Filter Badges */}
+      {/* Stats Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
         
-        {/* Count & Status */}
         <div className="flex items-center gap-2 flex-wrap">
           <span className="font-bold text-slate-500 dark:text-slate-400">
             Hiển thị <strong className="text-blue-600 dark:text-sky-400 font-extrabold">{filteredCount}</strong> / {totalCount} bài báo
@@ -314,7 +282,6 @@ export default function FilterSortBar({
           )}
         </div>
 
-        {/* Bulk Actions (Excel Export & Select Controls) */}
         <div className="flex items-center gap-2">
           {onExportExcel && (
             <button
@@ -324,7 +291,7 @@ export default function FilterSortBar({
                   ? 'bg-slate-800 border-slate-700 hover:bg-slate-700 text-emerald-400'
                   : 'bg-emerald-50 border-emerald-200 hover:bg-emerald-100 text-emerald-700'
               }`}
-              title="Xuất kết quả đã lọc ra Excel"
+              title="Xuất kết quả ra Excel"
             >
               <Download className="w-3.5 h-3.5" />
               <span>Xuất Excel</span>

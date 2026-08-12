@@ -7,27 +7,61 @@ import InsightsTab from './components/insights/InsightsTab';
 import HomeTab from './components/home/HomeTab';
 import ResearchSetupTab from './components/setup/ResearchSetupTab';
 
-import ScreeningTab from './components/screening/ScreeningTab';
-
 export default function App() {
   const [activeTab, setActiveTab] = useState(() => {
     const savedTab = localStorage.getItem('litreview_active_tab') || 'overview';
-    return savedTab === 'home' || savedTab === 'quality' ? 'overview' : savedTab;
-  }); // 'overview' | 'setup' | 'search' | 'screening' | 'library' | 'synthesis' | 'export'
+    // Remove old screening tab redirect
+    if (savedTab === 'home' || savedTab === 'quality' || savedTab === 'screening') return 'overview';
+    return savedTab;
+  });
 
   useEffect(() => {
     localStorage.setItem('litreview_active_tab', activeTab);
   }, [activeTab]);
 
-  const [darkMode, setDarkMode] = useState(false);
-  const [papers, setPapers] = useState([]);
-  const [selectedPaperIds, setSelectedPaperIds] = useState([]);
-  const [workspacePapers, setWorkspacePapers] = useState([]);
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem('litreview_dark_mode');
+    return saved === 'true';
+  });
+  useEffect(() => {
+    localStorage.setItem('litreview_dark_mode', String(darkMode));
+  }, [darkMode]);
+
+  // --- Persist papers & selectedPaperIds to localStorage ---
+  const [papers, setPapers] = useState(() => {
+    try {
+      const saved = localStorage.getItem('litreview_papers');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+  const [selectedPaperIds, setSelectedPaperIds] = useState(() => {
+    try {
+      const saved = localStorage.getItem('litreview_selected_ids');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+  const [workspacePapers, setWorkspacePapers] = useState(() => {
+    try {
+      const saved = localStorage.getItem('litreview_workspace_papers');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('litreview_papers', JSON.stringify(papers));
+  }, [papers]);
+  useEffect(() => {
+    localStorage.setItem('litreview_selected_ids', JSON.stringify(selectedPaperIds));
+  }, [selectedPaperIds]);
+  useEffect(() => {
+    localStorage.setItem('litreview_workspace_papers', JSON.stringify(workspacePapers));
+  }, [workspacePapers]);
+
   const [activeCitation, setActiveCitation] = useState(null);
   const [chatMessages, setChatMessages] = useState([
     {
       sender: 'ai',
-      text: `Chào mừng bạn đến với **LitReview Agent**! Hãy tìm Top 20 bằng Google Scholar, đối chiếu Scopus, rồi đưa bài đã chọn sang Screening và Synthesis.`
+      text: `Chào mừng bạn đến với **LitReview Agent**! Hãy tìm kiếm trên Google Scholar, hệ thống sẽ tự động đối chiếu Scopus và chỉ giữ các bài đã xác minh.`
     }
   ]);
 
@@ -44,7 +78,6 @@ export default function App() {
   return (
     <div className={`min-h-screen font-sans transition-colors ${darkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
       
-      {/* VinMotion Header Bar */}
       <Navbar 
         activeTab={activeTab} 
         setActiveTab={setActiveTab}
@@ -53,7 +86,6 @@ export default function App() {
         uploadedCount={selectedPaperIds.length}
       />
 
-      {/* Main Multi-Step Navigation Content Area */}
       <main className="p-4 md:p-8 max-w-7xl mx-auto">
         {activeTab === 'overview' && (
           <HomeTab setActiveTab={setActiveTab} darkMode={darkMode} />
@@ -70,14 +102,6 @@ export default function App() {
             selectedPaperIds={selectedPaperIds}
             toggleSelectPaper={toggleSelectPaper}
             setActiveTab={setActiveTab}
-            darkMode={darkMode}
-          />
-        )}
-
-        {activeTab === 'screening' && (
-          <ScreeningTab
-            papers={papers}
-            setPapers={setPapers}
             darkMode={darkMode}
           />
         )}

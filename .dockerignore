@@ -6,6 +6,12 @@ __pycache__
 *.pyc
 .pytest_cache
 .ruff_cache
+.tmp
+.tmp/
+.tmp-pytest*
+.chroma_db
+data/
+uploads/
 docs/
 presentation/
 eval/

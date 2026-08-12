@@ -4,7 +4,8 @@ FROM python:3.11-slim AS builder
 WORKDIR /app
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
+RUN grep -Ev '^(ruff|pytest|pytest-asyncio|langchain-huggingface|sentence-transformers)($|[<>=])' requirements.txt > requirements-runtime.txt \
+    && pip install --no-cache-dir --retries 10 --timeout 120 --prefix=/install -r requirements-runtime.txt
 
 # ---- Stage 2: Production ----
 FROM python:3.11-slim
@@ -12,8 +13,7 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Copy installed packages from builder
-COPY --from=builder /root/.local /root/.local
-ENV PATH=/root/.local/bin:$PATH
+COPY --from=builder /install /usr/local
 
 # Security: run as non-root user
 RUN useradd -m appuser

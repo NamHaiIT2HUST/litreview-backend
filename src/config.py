@@ -24,10 +24,12 @@ class Settings(BaseSettings):
     # LLM
     openai_api_key: str = ""
     openai_api_base: str = ""
-    model_name: str = "gpt-4o-mini"
+    gemini_api_key: str = ""
+    google_api_key: str = ""
+    model_name: str = "gemini-1.5-flash"
     llm_temperature: float = Field(default=0.7, ge=0.0, le=2.0)
     synthesis_temperature: float = Field(default=0.0, ge=0.0, le=1.0)
-    embedding_model: str = "text-embedding-3-small"
+    embedding_model: str = "text-embedding-004"
 
     @property
     def get_api_base(self) -> str:

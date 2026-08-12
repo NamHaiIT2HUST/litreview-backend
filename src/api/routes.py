@@ -63,7 +63,8 @@ from src.services.rag_service import rag_service
 processor = DocumentProcessor()
 
 router = APIRouter()
-GOOGLE_SCHOLAR_TOP_N = 20
+GOOGLE_SCHOLAR_FETCH_N = 60   # Fetch more to filter; we only keep Scopus-indexed
+SCOPUS_TARGET = 20             # Target: 20 Scopus-confirmed papers
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -88,29 +89,6 @@ def _compute_dedup_key(doi: str, title: str, authors: list[str] | str, year: int
         
     return f"{title_norm}|{first_author}|{year}"
 
-
-
-
-def _paper_record_from_db(paper: Paper) -> PaperRecord:
-    """Serialize the legacy DB Paper shape without inventing provider metadata."""
-    return PaperRecord(
-        id=paper.id,
-        title=paper.title,
-        authors=list(paper.authors or []),
-        year=paper.year,
-        abstract=paper.abstract,
-        journal=paper.journal,
-        doi=paper.doi,
-        issn=paper.issn,
-        dedup_key=paper.dedup_key,
-        scopus_status=getattr(paper.scopus_status, "value", paper.scopus_status or "undetermined"),
-        scopus_quartile=paper.scopus_quartile,
-        coverage_year_status=getattr(
-            paper.coverage_year_status, "value", paper.coverage_year_status
-        ),
-        oa_status=getattr(paper.oa_status, "value", paper.oa_status or "undetermined"),
-    )
-
 async def _persist_search(
     db: AsyncSession,
     query_string: str,
@@ -130,42 +108,34 @@ async def _persist_search(
     để UI render kết quả Top 20 đã xác minh. Endpoint quality-check chỉ còn là
     re-check/detail cho từng paper.
     """
-    project_uuid = uuid.UUID(str(project_id))
-    duplicated_from_uuid = (
-        uuid.UUID(str(is_duplicated_from)) if is_duplicated_from else None
-    )
     sq = SearchQuery(
         id=uuid.uuid4(),
-        project_id=project_uuid,
+        project_id=project_id,
         query_string=query_string,
         strategy_label=strategy_label,
         result_count=len(papers_pydantic),
-        is_duplicated_from=duplicated_from_uuid,
+        is_duplicated_from=is_duplicated_from,
     )
     db.add(sq)
 
-    existing_rows_result = await db.execute(
-        select(Paper.id, Paper.dedup_key).where(Paper.project_id == project_uuid)
+    existing_keys_result = await db.execute(
+        select(Paper.dedup_key).where(Paper.project_id == project_id)
     )
-    existing_by_key = {row[1]: row[0] for row in existing_rows_result.fetchall()}
+    existing_keys = {row[0] for row in existing_keys_result.fetchall()}
 
     duplicate_count = 0
     for p in papers_pydantic:
         key = _compute_dedup_key(p.doi, p.title, p.authors, p.year)
-        existing_id = existing_by_key.get(key)
-        if existing_id is not None:
-            # Return the canonical DB UUID to the frontend even for deduplicated hits.
-            p.db_id = str(existing_id)
+        if key in existing_keys:
             duplicate_count += 1
-            continue
+            continue  # bỏ qua bản trùng, không insert (đúng thuật toán dedup spec)
 
-        paper_id = uuid.uuid4()
         paper_row = Paper(
-            id=paper_id,
-            project_id=project_uuid,
+            id=uuid.uuid4(),
+            project_id=project_id,
             search_query_id=sq.id,
             title=p.title,
-            authors=normalize_authors_for_db(p.authors),
+            authors=p.authors,
             year=p.year,
             abstract=p.abstract,
             journal=p.journal,
@@ -181,8 +151,16 @@ async def _persist_search(
         )
         await run_scopus_quality_check(db, paper_row)
         db.add(paper_row)
-        existing_by_key[key] = paper_id
-        p.db_id = str(paper_id)
+        existing_keys.add(key)
+        p.id = str(paper_row.id)
+        p.issn = paper_row.issn
+        p.scopus_status = getattr(paper_row.scopus_status, "value", paper_row.scopus_status)
+        p.scopus_quartile = paper_row.scopus_quartile
+        p.coverage_year_status = (
+            getattr(paper_row.coverage_year_status, "value", paper_row.coverage_year_status)
+            if paper_row.coverage_year_status is not None
+            else None
+        )
 
     await db.flush()
     return sq.id, duplicate_count
@@ -228,7 +206,7 @@ async def search_papers(
     provider: str | None = Query("auto", description="Nguồn dữ liệu: auto, serpapi, semanticscholar"),
     db: AsyncSession = Depends(get_db),
 ) -> SearchResponse:
-    """Search & Verify: lấy Top 20 Google Scholar, lưu history và đối chiếu Scopus."""
+    """Search & Verify: lấy papers từ Google Scholar, đối chiếu Scopus, chỉ trả về bài đã xác minh."""
     effective_provider = "serpapi" if provider in (None, "auto") else provider
     if effective_provider == "serpapi" and not x_api_key:
         raise HTTPException(status_code=401, detail="SerpApi key is required for Google Scholar Top 20 search")
@@ -239,7 +217,7 @@ async def search_papers(
         query=request.query_string,
         api_key=x_api_key or "",
         provider=effective_provider,
-        limit=GOOGLE_SCHOLAR_TOP_N,
+        limit=GOOGLE_SCHOLAR_FETCH_N,
     )
 
     if not papers:
@@ -247,7 +225,7 @@ async def search_papers(
             papers=[],
             search_query_id=None,
             provider="google_scholar" if effective_provider == "serpapi" else effective_provider,
-            limit=GOOGLE_SCHOLAR_TOP_N,
+            limit=SCOPUS_TARGET,
             total_found=0,
             total_confirmed=0,
             total_undetermined=0,
@@ -276,7 +254,7 @@ async def search_papers(
                 key = _compute_dedup_key(p.doi, p.title, p.authors, p.year)
                 db_paper = dedup_to_paper.get(key)
                 if db_paper:
-                    p.db_id = str(db_paper.id)
+                    p.id = str(db_paper.id)
                     p.issn = db_paper.issn
                     p.scopus_status = db_paper.scopus_status.value if hasattr(db_paper.scopus_status, "value") else db_paper.scopus_status
                     p.scopus_quartile = db_paper.scopus_quartile
@@ -288,16 +266,19 @@ async def search_papers(
         sq_id = None
         duplicate_count = 0
 
-    total_confirmed = sum(1 for p in papers if p.scopus_status == "indexed")
-    total_undetermined = sum(1 for p in papers if p.scopus_status == "undetermined")
+    # --- Filter: chỉ giữ bài đã xác minh Scopus, tối đa SCOPUS_TARGET ---
+    all_found = len(papers)
+    scopus_papers = [p for p in papers if p.scopus_status == "indexed"]
+    scopus_papers = scopus_papers[:SCOPUS_TARGET]
+
     return SearchResponse(
-        papers=papers,
+        papers=scopus_papers,
         search_query_id=sq_id,
         provider="google_scholar" if effective_provider == "serpapi" else effective_provider,
-        limit=GOOGLE_SCHOLAR_TOP_N,
-        total_found=len(papers),
-        total_confirmed=total_confirmed,
-        total_undetermined=total_undetermined,
+        limit=SCOPUS_TARGET,
+        total_found=all_found,
+        total_confirmed=len(scopus_papers),
+        total_undetermined=sum(1 for p in papers if p.scopus_status == "undetermined"),
         duplicates=duplicate_count,
     )
 
@@ -309,8 +290,7 @@ async def chat(request: ChatRequest) -> ChatResponse:
         result = await agent.ainvoke({"query": request.message})
         return ChatResponse(
             response=result.get("response", ""),
-            citations=result.get("citations", []),
-            blocked_sources=result.get("blocked_sources", []),
+            analysis=result.get("analysis", ""),
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -365,7 +345,7 @@ async def get_papers_for_query(
         .where(Paper.search_query_id == query_id)
     )
     papers = result.scalars().all()
-    return [_paper_record_from_db(p) for p in papers]
+    return [PaperRecord.model_validate(p) for p in papers]
 
 
 @router.post("/search-queries/{query_id}/duplicate", response_model=DuplicateQueryResponse)
@@ -392,7 +372,7 @@ async def duplicate_search_query(
         query_string=original.query_string,
         strategy_label=None,
         result_count=0,
-        is_duplicated_from=uuid.UUID(str(query_id)),
+        is_duplicated_from=query_id,
     )
     db.add(new_sq)
     await db.flush()
@@ -400,7 +380,7 @@ async def duplicate_search_query(
     return DuplicateQueryResponse(
         new_query_id=new_sq.id,
         query_string=new_sq.query_string,
-        duplicated_from=uuid.UUID(str(query_id)),
+        duplicated_from=query_id,
     )
 
 
@@ -435,7 +415,7 @@ async def quality_check_paper(
     # TODO (Module 3): gọi recompute_priority(paper.id) ở đây khi priority_score
     # được implement.
 
-    return _paper_record_from_db(paper)
+    return PaperRecord.model_validate(paper)
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Workspace endpoints (Phase 1 RAG)

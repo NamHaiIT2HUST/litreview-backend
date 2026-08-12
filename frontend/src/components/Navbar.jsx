@@ -1,12 +1,11 @@
 import React from 'react';
-import { Search, Sparkles, Sun, Moon, Home, Settings, Filter, Library, Download } from 'lucide-react';
+import { Search, Sparkles, Sun, Moon, Home, Settings, Library, Download } from 'lucide-react';
 
 export default function Navbar({ activeTab, setActiveTab, darkMode, setDarkMode, uploadedCount }) {
   const navItems = [
     { id: 'overview', label: 'Overview', icon: Home },
     { id: 'setup', label: 'Research Setup', icon: Settings },
     { id: 'search', label: 'Search & Verify', icon: Search },
-    { id: 'screening', label: 'Screening', icon: Filter },
     { id: 'library', label: 'Library & Reader', icon: Library, count: uploadedCount },
     { id: 'synthesis', label: 'Synthesis', icon: Sparkles },
     { id: 'export', label: 'Export', icon: Download },
@@ -38,7 +37,7 @@ export default function Navbar({ activeTab, setActiveTab, darkMode, setDarkMode,
           </div>
         </div>
 
-        {/* Center Navigation Tabs (Spacious, Large Text) */}
+        {/* Center Navigation Tabs */}
         <nav className={`hidden md:flex items-center gap-1.5 p-1.5 rounded-2xl border ${
           darkMode ? 'bg-slate-800/80 border-slate-700' : 'bg-slate-100 border-slate-200'
         }`}>
@@ -71,7 +70,6 @@ export default function Navbar({ activeTab, setActiveTab, darkMode, setDarkMode,
 
         {/* Right Controls */}
         <div className="flex items-center gap-3">
-          {/* Light / Dark Mode Toggle */}
           <button
             onClick={() => setDarkMode(!darkMode)}
             className={`p-2.5 rounded-xl border text-sm font-bold transition-all flex items-center gap-2 ${
@@ -85,7 +83,6 @@ export default function Navbar({ activeTab, setActiveTab, darkMode, setDarkMode,
             <span className="hidden lg:inline text-xs">{darkMode ? 'Sáng' : 'Tối'}</span>
           </button>
 
-          {/* User Avatar */}
           <div className="w-9 h-9 rounded-xl bg-slate-900 dark:bg-slate-700 text-white font-bold text-xs flex items-center justify-center shadow-sm">
             NH
           </div>

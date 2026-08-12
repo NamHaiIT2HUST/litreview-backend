@@ -1,8 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from uuid import UUID
 import json
+import re
+import os
 
 from src.database import get_db
 from src.models.db_models import Project
@@ -13,11 +15,50 @@ from src.models.project_schemas import (
     KeywordSuggestionResponse
 )
 from src.models.schemas import PaperRecord
-
-# For LLM Keyword generation
 from src.services.rag_service import rag_service
 
 router = APIRouter()
+
+
+def _fallback_keywords(request: ProjectCreateRequest) -> list[str]:
+    """Return a keyword set grounded in the research question and inclusion criteria.
+    
+    Generic implementation — works for any research topic by extracting
+    meaningful phrases from the user's input rather than hardcoding
+    domain-specific terms.
+    """
+    phrases: list[str] = []
+
+    def add_phrase(value: str | None) -> None:
+        if not value:
+            return
+        text = re.sub(r"\s+", " ", str(value)).strip(" ,.-")
+        if text:
+            phrases.append(text)
+
+    # Build from research intent + inclusion criteria
+    add_phrase(request.research_field)
+    add_phrase(request.research_question)
+    for item in request.criteria_include or []:
+        add_phrase(item)
+
+    # Deduplicate while preserving order
+    result: list[str] = []
+    seen: set[str] = set()
+    for phrase in phrases:
+        key = phrase.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(phrase)
+        if len(result) >= 7:
+            break
+
+    if not result:
+        result = ["systematic review", "machine learning", "deep learning"]
+
+    return result[:7]
+
 
 @router.get("/projects/{project_id}", response_model=ProjectResponse)
 async def get_project(project_id: UUID, db: AsyncSession = Depends(get_db)):
@@ -32,12 +73,19 @@ async def get_project(project_id: UUID, db: AsyncSession = Depends(get_db)):
 async def get_project_papers(
     project_id: UUID,
     decision: str = None,
+    include_unverified: bool = False,
     db: AsyncSession = Depends(get_db)
 ):
-    """Module 4: Get papers for a project, optionally filtered by screening decision."""
+    """Get papers for a project.
+
+    By default this returns only Scopus-verified papers so the Search view and
+    history stay aligned with the Google Scholar -> Scopus acceptance flow.
+    """
     from src.models.db_models import Paper
     
     stmt = select(Paper).where(Paper.project_id == project_id)
+    if not include_unverified:
+        stmt = stmt.where(Paper.scopus_status == "indexed")
     if decision:
         stmt = stmt.where(Paper.screening_decision == decision)
         
@@ -83,38 +131,89 @@ async def update_criteria(project_id: UUID, request: CriteriaUpdateRequest, db: 
     return project
 
 @router.post("/projects/{project_id}/suggest-keywords", response_model=KeywordSuggestionResponse)
-async def suggest_keywords(project_id: UUID, request: ProjectCreateRequest, db: AsyncSession = Depends(get_db)):
-    """Module 1: Use AI to suggest search keywords based on the provided project data."""
-    
-    prompt = f"""
-    You are an expert academic librarian. Based on the following research project:
-    Topic: {request.name}
-    Field: {request.research_field}
-    Question: {request.research_question}
+async def suggest_keywords(
+    project_id: UUID,
+    request: ProjectCreateRequest,
+    x_gemini_key: str | None = Header(None, description="Gemini API Key (user-provided)"),
+    db: AsyncSession = Depends(get_db),
+):
+    """Module 1: Use Gemini AI to suggest search keywords based on research config + screening criteria."""
 
-    Suggest 5-7 highly effective search keywords or phrases for querying databases like Google Scholar or Scopus.
-    Return ONLY a JSON array of strings. Do not include markdown formatting or explanations.
-    Example: ["machine learning", "deep learning", "healthcare AI"]
-    """
-    
-    try:
-        response = await rag_service.llm.ainvoke(prompt)
-        content = response.content
-        if isinstance(content, list):
-            content = content[0].get("text", "")
-        content = content.strip()
-        
-        if content.startswith("```json"):
-            content = content.replace("```json", "").replace("```", "").strip()
-        elif content.startswith("```"):
-            content = content.replace("```", "").strip()
-        
-        keywords = json.loads(content)
-        if not isinstance(keywords, list):
-            keywords = []
-    except Exception as e:
+    prompt = f"""You are an expert academic librarian and systematic review search strategist.
+Your task: generate the BEST English-language search keywords for finding relevant Scopus-indexed papers on Google Scholar.
+
+=== RESEARCH CONTEXT ===
+Project name: {request.name}
+Research question: {request.research_question}
+Field/Domain: {request.research_field}
+Year range: {request.year_from or 'any'} – {request.year_to or 'any'}
+
+=== SCREENING CRITERIA ===
+Inclusion (papers MUST have): {', '.join(request.criteria_include or ['not specified'])}
+Exclusion (papers MUST NOT have): {', '.join(request.criteria_exclude or ['not specified'])}
+
+=== INSTRUCTIONS ===
+1. Analyze the research question deeply. Identify the core CONCEPTS, METHODS, and DOMAIN.
+2. ALL keywords must be in ENGLISH — academic English used in paper titles and abstracts.
+3. Generate keywords that researchers would actually use as paper titles, abstract terms, or index keywords.
+4. Include both specific technical terms AND broader field terms.
+5. Create at least 2 Boolean-style search strings (using AND/OR/quotes) that can be pasted directly into Google Scholar.
+6. The inclusion criteria tell you WHAT to include — extract searchable terms from them.
+7. The exclusion criteria tell you what to AVOID — do NOT generate keywords matching exclusions.
+8. Prioritize terms that will find papers IN Scopus-indexed journals.
+
+=== OUTPUT FORMAT ===
+Return ONLY a JSON array of exactly 7 strings. All in English. Mix individual keywords with Boolean search strings.
+Example: ["ECG classification 1D CNN", "one-dimensional convolutional neural network electrocardiogram", "1D CNN arrhythmia detection", "deep learning ECG signal", "time-series classification neural network", "ECG AND \\"1D CNN\\" AND classification", "cardiac signal deep learning model"]
+"""
+
+    # Determine Gemini API key: header > .env GEMINI_API_KEY > .env GOOGLE_API_KEY
+    from src.config import get_settings
+    settings = get_settings()
+    gemini_key = (x_gemini_key or "").strip()
+    if not gemini_key:
+        gemini_key = settings.gemini_api_key.strip() if settings.gemini_api_key else ""
+    if not gemini_key:
+        gemini_key = settings.google_api_key.strip() if settings.google_api_key else ""
+
+    keywords: list[str] = []
+
+    if gemini_key:
+        try:
+            from google import genai
+
+            client = genai.Client(api_key=gemini_key)
+            response = client.models.generate_content(
+                model="gemini-3.5-flash",
+                contents=prompt,
+            )
+            content = response.text.strip()
+
+            # Clean markdown fences and extract JSON
+            try:
+                # Attempt to find JSON array anywhere in the text
+                json_match = re.search(r'\[.*\]', content, re.DOTALL)
+                if json_match:
+                    content = json_match.group(0)
+                parsed = json.loads(content)
+                if isinstance(parsed, list):
+                    keywords = [str(x) for x in parsed][:7]
+                else:
+                    keywords = []
+            except json.JSONDecodeError as je:
+                import logging
+                logging.getLogger(__name__).warning(f"Failed to parse JSON: {content} - Error: {je}")
+                keywords = []
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Gemini keyword generation failed: {e}")
+    else:
         import logging
-        logging.getLogger(__name__).error(f"Keyword generation failed: {e}")
-        keywords = []
+        logging.getLogger(__name__).warning(
+            "No Gemini API key available. Set GEMINI_API_KEY in .env or pass X-Gemini-Key header. Using fallback keywords."
+        )
 
-    return KeywordSuggestionResponse(suggested_keywords=keywords)
+    if not keywords:
+        keywords = _fallback_keywords(request)
+
+    return KeywordSuggestionResponse(suggested_keywords=keywords[:7])

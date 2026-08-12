@@ -46,3 +46,7 @@ app.include_router(screening_router, prefix="/api/v1")
 @app.get("/health")
 async def health():
     return {"status": "ok", "env": settings.app_env}
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("src.main:app", host=settings.app_host, port=settings.app_port, reload=True)

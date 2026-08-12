@@ -3,7 +3,6 @@ import uuid
 from datetime import UTC, datetime
 
 from sqlalchemy import (
-    ARRAY,
     JSON,
     Boolean,
     CheckConstraint,
@@ -16,11 +15,20 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    Uuid,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import ARRAY as PG_ARRAY
+from sqlalchemy.dialects.postgresql import JSONB as PG_JSONB
 from sqlalchemy.orm import relationship
 
 from src.database import Base
+
+UUID = Uuid
+JSONB = JSON().with_variant(PG_JSONB(), "postgresql")
+
+
+def ARRAY(item_type):
+    return JSON().with_variant(PG_ARRAY(item_type), "postgresql")
 
 
 def _now_utc():
