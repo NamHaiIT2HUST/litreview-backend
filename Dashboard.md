@@ -180,5 +180,5 @@ Tính năng P1:
 | `Screening` | giữ lại |
 | `Library` | đổi thành `Library & Reader`, gộp upload/reader |
 | `Synthesis` | giữ lại, có thể kéo bớt phần verification/citation từ workspace |
-| `Export` | giữ lại, hiện cần implement thật |
+| `Export` | giữ lại, đã hoàn thiện đầy đủ (BibTeX, CSV, Markdown, JSON, Live Preview, Export History) |
 

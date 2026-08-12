@@ -6,6 +6,7 @@ import InsightsTab from './components/insights/InsightsTab';
 import HomeTab from './components/home/HomeTab';
 import ResearchSetupTab from './components/setup/ResearchSetupTab';
 
+import ExportTab from './components/export/ExportTab';
 export default function App() {
   const [activeTab, setActiveTab] = useState(() => {
     const savedTab = localStorage.getItem('litreview_active_tab') || 'overview';
@@ -166,10 +167,11 @@ export default function App() {
         )}
 
         {activeTab === 'export' && (
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow p-6 border dark:border-slate-800">
-            <h2 className="text-2xl font-bold mb-4">Module 7: Export</h2>
-            <p className="text-slate-600 dark:text-slate-400 mb-4">Export your findings and citations to BibTeX/CSV.</p>
-          </div>
+          <ExportTab
+            papers={papers}
+            workspacePapers={workspacePapers}
+            darkMode={darkMode}
+          />
         )}
       </main>
     </div>
