@@ -61,20 +61,16 @@ export default function SearchHistoryPanel({
   };
 
   const handleDelete = async (queryId, e) => {
-    e.stopPropagation();
-    if (deletingId) return;
-    setDeletingId(queryId);
+    if (e) e.stopPropagation();
+    if (onDeleteQuery) {
+      onDeleteQuery(queryId);
+    }
     try {
-      const res = await fetch(`${API_BASE}/search-queries/${queryId}`, {
+      await fetch(`${API_BASE}/search-queries/${queryId}`, {
         method: 'DELETE',
       });
-      if (res.ok && onDeleteQuery) {
-        onDeleteQuery(queryId);
-      }
     } catch (err) {
       console.error('Delete search query failed:', err);
-    } finally {
-      setDeletingId(null);
     }
   };
 

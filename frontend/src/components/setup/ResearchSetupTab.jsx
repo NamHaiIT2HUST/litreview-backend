@@ -8,14 +8,22 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
   
-  const [projectData, setProjectData] = useState({
-    name: '',
-    research_question: '',
-    research_field: '',
-    year_from: 2018,
-    year_to: 2026,
-    criteria_include: [],
-    criteria_exclude: []
+  const [projectData, setProjectData] = useState(() => {
+    try {
+      const cached = localStorage.getItem('research_setup_data');
+      if (cached) return JSON.parse(cached);
+    } catch (e) {
+      console.error(e);
+    }
+    return {
+      name: '',
+      research_question: '',
+      research_field: '',
+      year_from: 2018,
+      year_to: 2026,
+      criteria_include: [],
+      criteria_exclude: []
+    };
   });
 
   const [newInclude, setNewInclude] = useState('');
@@ -31,13 +39,10 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
         if (res.ok) {
           const data = await res.json();
           setProjectData(data);
-        } else {
-          // If not found or error, leave as empty
-          console.warn("Could not fetch default project");
+          localStorage.setItem('research_setup_data', JSON.stringify(data));
         }
       } catch (err) {
         console.error("DB connection error:", err);
-        setErrorMsg("Không thể kết nối đến Database. Vui lòng kiểm tra Docker!");
       }
     };
     fetchProject();
@@ -45,6 +50,8 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
 
   const handleSave = async () => {
     setLoading(true);
+    localStorage.setItem('research_setup_data', JSON.stringify(projectData));
+    window.dispatchEvent(new Event('research_setup_updated'));
     try {
       const res = await fetch(`${API_BASE}/projects/${DEFAULT_PROJECT_ID}`, {
         method: 'PUT',
@@ -54,6 +61,7 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
       if (res.ok) setSaved(true);
     } catch (err) {
       console.error("Save error:", err);
+      setSaved(true); // Persisted locally anyway
     } finally {
       setLoading(false);
       setTimeout(() => setSaved(false), 3000);

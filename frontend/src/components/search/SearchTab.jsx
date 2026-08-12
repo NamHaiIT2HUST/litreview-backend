@@ -34,7 +34,7 @@ function dbPaperToPaperSchema(dbPaper) {
 }
 
 export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleSelectPaper, setActiveTab, darkMode }) {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(() => localStorage.getItem('last_search_query') || '');
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('serp_api_key') || '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -53,7 +53,15 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
   const [activeQueryId, setActiveQueryId] = useState(null);
 
   // Project data for screening modal & topic display
-  const [projectData, setProjectData] = useState(null);
+  const [projectData, setProjectData] = useState(() => {
+    try {
+      const cached = localStorage.getItem('research_setup_data');
+      if (cached) return JSON.parse(cached);
+    } catch (e) {
+      console.error(e);
+    }
+    return null;
+  });
   const [showScreeningModal, setShowScreeningModal] = useState(false);
 
   // Single paper AI Screening modal state
@@ -93,6 +101,12 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
     localStorage.setItem('serp_api_key', val);
   };
 
+  const handleSearchQueryChange = (e) => {
+    const val = e.target.value;
+    setSearchQuery(val);
+    localStorage.setItem('last_search_query', val);
+  };
+
   // AI Screening handler
   const handleOpenAiScreening = async (paper) => {
     setAiScreeningPaper(paper);
@@ -129,7 +143,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
       setAiScreeningResult({
         relevance_bucket: 'high',
         reason: {
-          matches: [`Bài báo nghiên cứu về: "${paper.title}"`, `Khớp với định hướng: "${projectData?.research_question || 'ECG signal processing'}"`],
+          matches: [`Bài báo nghiên cứu về: "${paper.title}"`, `Khớp với định hướng: "${projectData?.research_question || 'Nghiên cứu khoa học'}"`],
           mismatches: ['Không vi phạm tiêu chí loại trừ.']
         }
       });
@@ -142,16 +156,24 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
   useEffect(() => {
     const fetchProject = async () => {
       try {
+        const cached = localStorage.getItem('research_setup_data');
+        if (cached) {
+          setProjectData(JSON.parse(cached));
+        }
         const res = await fetch(`${API_BASE}/projects/${DEFAULT_PROJECT_ID}`);
         if (res.ok) {
           const data = await res.json();
           setProjectData(data);
+          localStorage.setItem('research_setup_data', JSON.stringify(data));
         }
       } catch (err) {
         console.error("Error fetching project:", err);
       }
     };
     fetchProject();
+
+    window.addEventListener('research_setup_updated', fetchProject);
+    return () => window.removeEventListener('research_setup_updated', fetchProject);
   }, []);
 
   // Tải lịch sử search từ backend
@@ -380,21 +402,11 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
   return (
     <div className="flex gap-6 max-w-[1400px] mx-auto py-4">
       
-      {/* ====== LEFT SIDEBAR: Search History + Research Setup Overview ====== */}
+      {/* ====== LEFT SIDEBAR: Research Setup Overview (Top) + Search History (Bottom) ====== */}
       <aside className={`hidden lg:block w-72 shrink-0 space-y-4 sticky top-24 self-start max-h-[calc(100vh-7rem)] overflow-y-auto rounded-3xl border p-4 ${
         darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
       }`}>
-        <SearchHistoryPanel
-          history={history}
-          onLoadPapers={loadPapersForQuery}
-          onDuplicate={handleDuplicate}
-          onDeleteQuery={(deletedId) => setHistory(prev => prev.filter(item => item.id !== deletedId))}
-          darkMode={darkMode}
-          loading={historyLoading}
-          isSidebar={true}
-        />
-
-        {/* --- Cấu hình & Tiêu chí Nghiên cứu Panel --- */}
+        {/* --- 1. Cấu hình & Tiêu chí Nghiên cứu Panel (Top) --- */}
         <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-slate-800/50 border-slate-700/60' : 'bg-slate-50 border-slate-200'}`}>
           <div className="flex items-center gap-2 mb-3 border-b pb-2 border-slate-200 dark:border-slate-700">
             <BookOpen className="w-4 h-4 text-indigo-500" />
@@ -453,6 +465,17 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
             )}
           </div>
         </div>
+
+        {/* --- 2. Lịch sử tìm kiếm Panel (Bottom) --- */}
+        <SearchHistoryPanel
+          history={history}
+          onLoadPapers={loadPapersForQuery}
+          onDuplicate={handleDuplicate}
+          onDeleteQuery={(deletedId) => setHistory(prev => prev.filter(item => item.id !== deletedId))}
+          darkMode={darkMode}
+          loading={historyLoading}
+          isSidebar={true}
+        />
       </aside>
 
       {/* ====== MAIN CONTENT: Right side ====== */}
@@ -535,7 +558,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
               <input
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={handleSearchQueryChange}
                 placeholder="Nhập từ khóa nghiên cứu..."
                 className={`w-full pl-14 pr-4 py-4 border rounded-2xl text-base font-semibold focus:outline-none focus:ring-2 focus:ring-blue-600 ${
                   darkMode 

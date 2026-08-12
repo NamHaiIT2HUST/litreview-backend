@@ -418,6 +418,10 @@ async def delete_search_query(
     if not sq:
         raise HTTPException(status_code=404, detail="Search query not found")
 
+    from sqlalchemy import delete as sql_delete
+    await db.execute(
+        sql_delete(Paper).where(Paper.search_query_id == query_uuid)
+    )
     await db.delete(sq)
     await db.commit()
     return {"message": "Search query deleted successfully", "id": query_id}
