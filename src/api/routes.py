@@ -93,7 +93,7 @@ async def _persist_search(
     db: AsyncSession,
     query_string: str,
     papers_pydantic,
-    project_id: str = DEFAULT_PROJECT_ID,
+    project_id: str | UUID = DEFAULT_PROJECT_ID,
     strategy_label: str | None = None,
     is_duplicated_from: str | None = None,
 ) -> tuple[UUID, int]:
@@ -108,9 +108,10 @@ async def _persist_search(
     để UI render kết quả Top 20 đã xác minh. Endpoint quality-check chỉ còn là
     re-check/detail cho từng paper.
     """
+    project_uuid = uuid.UUID(str(project_id)) if isinstance(project_id, (str, UUID)) else project_id
     sq = SearchQuery(
         id=uuid.uuid4(),
-        project_id=project_id,
+        project_id=project_uuid,
         query_string=query_string,
         strategy_label=strategy_label,
         result_count=len(papers_pydantic),
@@ -119,7 +120,7 @@ async def _persist_search(
     db.add(sq)
 
     existing_keys_result = await db.execute(
-        select(Paper.dedup_key).where(Paper.project_id == project_id)
+        select(Paper.dedup_key).where(Paper.project_id == project_uuid)
     )
     existing_keys = {row[0] for row in existing_keys_result.fetchall()}
 
@@ -132,7 +133,7 @@ async def _persist_search(
 
         paper_row = Paper(
             id=uuid.uuid4(),
-            project_id=project_id,
+            project_id=project_uuid,
             search_query_id=sq.id,
             title=p.title,
             authors=p.authors,
@@ -164,6 +165,14 @@ async def _persist_search(
 
     await db.flush()
     return sq.id, duplicate_count
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Existing endpoints
+# ──────────────────────────────────────────────────────────────────────────────
+
+from src.models.db_models import Project
+
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -208,6 +217,11 @@ async def search_papers(
 ) -> SearchResponse:
     """Search & Verify: lấy papers từ Google Scholar, đối chiếu Scopus, chỉ trả về bài đã xác minh."""
     effective_provider = "serpapi" if provider in (None, "auto") else provider
+    if not x_api_key or not x_api_key.strip():
+        from src.config import get_settings
+        settings = get_settings()
+        x_api_key = (settings.serpapi_api_key or os.getenv("SERPAPI_API_KEY") or os.getenv("SERP_API_KEY") or "").strip()
+
     if effective_provider == "serpapi" and not x_api_key:
         raise HTTPException(status_code=401, detail="SerpApi key is required for Google Scholar Top 20 search")
     if effective_provider != "serpapi" and not x_api_key:
@@ -295,17 +309,6 @@ async def chat(request: ChatRequest) -> ChatResponse:
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
-@router.get("/status")
-async def agent_status():
-    """Kiểm tra trạng thái agent."""
-    return {"status": "ready", "agent": "LangGraph Agent v1.0"}
-
-
-# ──────────────────────────────────────────────────────────────────────────────
-# Search History endpoints (Module 2 — P0)
-# ──────────────────────────────────────────────────────────────────────────────
-
 @router.get("/projects/{project_id}/search-history", response_model=SearchHistoryResponse)
 async def get_search_history(
     project_id: str,
@@ -315,14 +318,15 @@ async def get_search_history(
     Lấy toàn bộ lịch sử search của một project,
     sắp xếp theo executed_at giảm dần (mới nhất trước).
     """
+    project_uuid = uuid.UUID(str(project_id))
     result = await db.execute(
         select(SearchQuery)
-        .where(SearchQuery.project_id == project_id)
+        .where(SearchQuery.project_id == project_uuid)
         .order_by(desc(SearchQuery.executed_at))
     )
     rows = result.scalars().all()
     history = [SearchQueryRecord.model_validate(row) for row in rows]
-    return SearchHistoryResponse(project_id=project_id, history=history)
+    return SearchHistoryResponse(project_id=str(project_id), history=history)
 
 
 @router.get("/search-queries/{query_id}/papers", response_model=list[PaperRecord])
@@ -333,8 +337,9 @@ async def get_papers_for_query(
     """
     Lấy danh sách paper (đã dedup) của 1 lần search cụ thể.
     """
+    query_uuid = uuid.UUID(str(query_id))
     sq_result = await db.execute(
-        select(SearchQuery).where(SearchQuery.id == query_id)
+        select(SearchQuery).where(SearchQuery.id == query_uuid)
     )
     sq = sq_result.scalar_one_or_none()
     if not sq:
@@ -342,7 +347,7 @@ async def get_papers_for_query(
 
     result = await db.execute(
         select(Paper)
-        .where(Paper.search_query_id == query_id)
+        .where(Paper.search_query_id == query_uuid)
     )
     papers = result.scalars().all()
     return [PaperRecord.model_validate(p) for p in papers]
@@ -359,8 +364,9 @@ async def duplicate_search_query(
     Tạo 1 record SearchQuery mới với is_duplicated_from = query_id,
     result_count = 0 (chưa chạy).
     """
+    query_uuid = uuid.UUID(str(query_id))
     sq_result = await db.execute(
-        select(SearchQuery).where(SearchQuery.id == query_id)
+        select(SearchQuery).where(SearchQuery.id == query_uuid)
     )
     original = sq_result.scalar_one_or_none()
     if not original:
@@ -382,9 +388,6 @@ async def duplicate_search_query(
         query_string=new_sq.query_string,
         duplicated_from=query_id,
     )
-
-
-# ──────────────────────────────────────────────────────────────────────────────
 # Quality Verification endpoint (Module 4)
 # ──────────────────────────────────────────────────────────────────────────────
 

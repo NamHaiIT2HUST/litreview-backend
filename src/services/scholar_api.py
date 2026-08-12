@@ -152,6 +152,8 @@ async def search_papers_openalex(query: str, limit: int = 10) -> list[Paper]:
         primary_loc = res.get("primary_location") or {}
         landing_url = primary_loc.get("landing_page_url") or primary_loc.get("pdf_url") or "#"
         issn = extract_issn_from_openalex_location(primary_loc)
+        source_obj = primary_loc.get("source") or {} if isinstance(primary_loc, dict) else {}
+        journal_name = source_obj.get("display_name") if isinstance(source_obj, dict) else None
 
         raw_doi = res.get("doi")
         doi = raw_doi.replace("https://doi.org/", "") if (raw_doi and isinstance(raw_doi, str)) else "N/A"
@@ -164,7 +166,7 @@ async def search_papers_openalex(query: str, limit: int = 10) -> list[Paper]:
             authors=author_names,
             year=int(year),
             abstract=abstract,
-            journal="OpenAlex Scholar",
+            journal=journal_name or "Academic Journal",
             doi=doi,
             issn=issn,
             url=str(landing_url),
@@ -392,10 +394,17 @@ async def search_papers_serpapi(query: str, api_key: str, limit: int = 10) -> li
 
 
 async def search_papers_auto(query: str, api_key: str = None, provider: str = "auto", limit: int = 10) -> list[Paper]:
-    """Auto-detect provider or use specified provider."""
+    """Auto-detect provider or use specified provider. Automatically fallback to OpenAlex if SerpApi fails."""
     key = api_key.strip() if api_key else ""
 
-    if provider == "semanticscholar" or key.startswith("s2k-") or (provider == "auto" and (key.startswith("s2k-") or not key)):
-        return await search_papers_semanticscholar(query, key, limit)
-    else:
-        return await search_papers_serpapi(query, key, limit)
+    if key and not key.startswith("AQ."):
+        try:
+            papers = await search_papers_serpapi(query, key, limit)
+            if papers:
+                return papers
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"SerpApi failed: {e}. Falling back to OpenAlex.")
+
+    # Fallback: OpenAlex (100% free, no key required)
+    return await search_papers_openalex(query, limit)
