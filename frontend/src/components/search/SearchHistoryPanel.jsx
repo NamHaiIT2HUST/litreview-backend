@@ -6,7 +6,7 @@
  *  - Supports sidebar mode (isSidebar=true) with compact layout
  */
 import React, { useState } from 'react';
-import { History, Copy, RotateCcw, ChevronDown, ChevronUp, Clock, Search } from 'lucide-react';
+import { History, Copy, RotateCcw, ChevronDown, ChevronUp, Clock, Search, Trash2 } from 'lucide-react';
 
 const API_BASE = 'http://localhost:8000/api/v1';
 const DEFAULT_PROJECT_ID = '00000000-0000-0000-0000-000000000001';
@@ -24,6 +24,7 @@ export default function SearchHistoryPanel({
   history,
   onLoadPapers,
   onDuplicate,
+  onDeleteQuery,
   darkMode,
   loading,
   isSidebar = false,
@@ -31,6 +32,7 @@ export default function SearchHistoryPanel({
   const [collapsed, setCollapsed] = useState(false);
   const [duplicating, setDuplicating] = useState(null);
   const [loadingQueryId, setLoadingQueryId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
   const handleDuplicate = async (queryId, queryString) => {
     setDuplicating(queryId);
@@ -58,6 +60,24 @@ export default function SearchHistoryPanel({
     }
   };
 
+  const handleDelete = async (queryId, e) => {
+    e.stopPropagation();
+    if (deletingId) return;
+    setDeletingId(queryId);
+    try {
+      const res = await fetch(`${API_BASE}/search-queries/${queryId}`, {
+        method: 'DELETE',
+      });
+      if (res.ok && onDeleteQuery) {
+        onDeleteQuery(queryId);
+      }
+    } catch (err) {
+      console.error('Delete search query failed:', err);
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   if (!history || history.length === 0) {
     if (isSidebar) {
       return (
@@ -72,11 +92,11 @@ export default function SearchHistoryPanel({
     return null;
   }
 
-  // Sidebar mode: always expanded, no collapse toggle
+  // Sidebar mode: always expanded, fixed max-height scrollable (~3 items visible)
   if (isSidebar) {
     return (
       <div className="space-y-3">
-        <div className="flex items-center gap-2 mb-3">
+        <div className="flex items-center gap-2 mb-2">
           <History className="w-4 h-4 text-blue-500" />
           <span className={`text-sm font-bold ${darkMode ? 'text-white' : 'text-slate-800'}`}>
             Lịch sử tìm kiếm
@@ -87,14 +107,14 @@ export default function SearchHistoryPanel({
         </div>
 
         {loading && (
-          <p className="text-xs text-slate-400 text-center py-2">Đang tải...</p>
+          <p className="text-xs text-slate-400 text-center py-1">Đang tải...</p>
         )}
 
-        <div className="space-y-2">
+        <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
           {history.map((item) => (
             <div
               key={item.id}
-              className={`p-3 rounded-xl border transition-colors cursor-pointer ${
+              className={`p-3 rounded-xl border transition-colors ${
                 darkMode
                   ? 'bg-slate-800/60 border-slate-700 hover:bg-slate-700/60'
                   : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
@@ -133,6 +153,18 @@ export default function SearchHistoryPanel({
                 >
                   <Copy className="w-2.5 h-2.5" />
                   {duplicating === item.id ? '...' : 'Copy'}
+                </button>
+                <button
+                  onClick={(e) => handleDelete(item.id, e)}
+                  disabled={deletingId === item.id}
+                  className={`p-1.5 rounded-lg text-[10px] font-bold transition-all border ${
+                    darkMode
+                      ? 'bg-rose-900/30 hover:bg-rose-900/50 border-rose-800 text-rose-300 disabled:opacity-50'
+                      : 'bg-rose-50 hover:bg-rose-100 border-rose-200 text-rose-600 disabled:opacity-50'
+                  }`}
+                  title="Xóa lịch sử này"
+                >
+                  <Trash2 className="w-3 h-3" />
                 </button>
               </div>
             </div>

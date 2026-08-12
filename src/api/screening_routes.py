@@ -12,10 +12,21 @@ from src.services.screening_service import screen_paper_ai, recompute_priority
 router = APIRouter()
 
 @router.post("/papers/{paper_id}/screen", response_model=ScreenResponse)
-async def screen_paper(paper_id: UUID, db: AsyncSession = Depends(get_db)):
+async def screen_paper(paper_id: str, db: AsyncSession = Depends(get_db)):
     """Module 3: AI Screening - Gọi LLM để đánh giá relevance của bài báo."""
-    result = await db.execute(select(Paper).where(Paper.id == paper_id))
-    paper = result.scalar_one_or_none()
+    paper = None
+    try:
+        p_uuid = uuid.UUID(str(paper_id))
+        result = await db.execute(select(Paper).where(Paper.id == p_uuid))
+        paper = result.scalar_one_or_none()
+    except Exception:
+        pass
+
+    if not paper:
+        # Search by external id string or title
+        result = await db.execute(select(Paper).where(Paper.title.ilike(f"%{paper_id}%")))
+        paper = result.scalars().first()
+
     if not paper:
         raise HTTPException(status_code=404, detail="Paper not found")
         
@@ -31,7 +42,7 @@ async def screen_paper(paper_id: UUID, db: AsyncSession = Depends(get_db)):
     await db.commit()
     
     # Tính lại điểm
-    await recompute_priority(str(paper_id), db)
+    await recompute_priority(str(paper.id), db)
     
     return screen_result
 

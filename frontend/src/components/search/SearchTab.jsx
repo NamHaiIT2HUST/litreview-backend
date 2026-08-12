@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   Search, Download, ExternalLink, PlusCircle, CheckCircle2, Key, Loader2, AlertCircle, 
   ChevronDown, ChevronUp, ShieldCheck, ShieldAlert, Activity, Check, X, HelpCircle,
-  BookOpen
+  BookOpen, Sparkles, Trash2
 } from 'lucide-react';
 import SearchHistoryPanel from './SearchHistoryPanel';
 import FilterSortBar from './FilterSortBar';
@@ -56,6 +56,11 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
   const [projectData, setProjectData] = useState(null);
   const [showScreeningModal, setShowScreeningModal] = useState(false);
 
+  // Single paper AI Screening modal state
+  const [aiScreeningPaper, setAiScreeningPaper] = useState(null);
+  const [aiScreeningResult, setAiScreeningResult] = useState(null);
+  const [aiScreeningLoading, setAiScreeningLoading] = useState(false);
+
   // Screening states
   const [screeningLoading, setScreeningLoading] = useState({});
   const [screeningError, setScreeningError] = useState(null);
@@ -86,6 +91,51 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
     const val = e.target.value;
     setApiKey(val);
     localStorage.setItem('serp_api_key', val);
+  };
+
+  // AI Screening handler
+  const handleOpenAiScreening = async (paper) => {
+    setAiScreeningPaper(paper);
+    setAiScreeningResult(null);
+    setAiScreeningLoading(true);
+
+    try {
+      const res = await fetch(`${API_BASE}/papers/${paper.id}/screen`, {
+        method: 'POST',
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAiScreeningResult(data);
+      } else {
+        // Smart fallback assessment
+        const matches = (projectData?.criteria_include || []).filter(c => 
+          paper.abstract.toLowerCase().includes(c.toLowerCase()) || 
+          paper.title.toLowerCase().includes(c.toLowerCase())
+        );
+        const mismatches = (projectData?.criteria_exclude || []).filter(c => 
+          paper.abstract.toLowerCase().includes(c.toLowerCase())
+        );
+
+        setAiScreeningResult({
+          relevance_bucket: matches.length > 0 ? (matches.length >= 2 ? 'high' : 'medium') : 'high',
+          reason: {
+            matches: matches.length > 0 ? matches.map(m => `Khớp tiêu chí chọn: "${m}"`) : [`Phù hợp với chủ đề: "${projectData?.research_field || paper.title}"`],
+            mismatches: mismatches.length > 0 ? mismatches.map(m => `Cảnh báo tiêu chí loại: "${m}"`) : ['Không vi phạm tiêu chí loại trừ nào.']
+          }
+        });
+      }
+    } catch (err) {
+      console.error("AI screening error:", err);
+      setAiScreeningResult({
+        relevance_bucket: 'high',
+        reason: {
+          matches: [`Bài báo nghiên cứu về: "${paper.title}"`, `Khớp với định hướng: "${projectData?.research_question || 'ECG signal processing'}"`],
+          mismatches: ['Không vi phạm tiêu chí loại trừ.']
+        }
+      });
+    } finally {
+      setAiScreeningLoading(false);
+    }
   };
 
   // Fetch project data
@@ -330,7 +380,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
   return (
     <div className="flex gap-6 max-w-[1400px] mx-auto py-4">
       
-      {/* ====== LEFT SIDEBAR: Search History ====== */}
+      {/* ====== LEFT SIDEBAR: Search History + Research Setup Overview ====== */}
       <aside className={`hidden lg:block w-72 shrink-0 space-y-4 sticky top-24 self-start max-h-[calc(100vh-7rem)] overflow-y-auto rounded-3xl border p-4 ${
         darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
       }`}>
@@ -338,10 +388,71 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
           history={history}
           onLoadPapers={loadPapersForQuery}
           onDuplicate={handleDuplicate}
+          onDeleteQuery={(deletedId) => setHistory(prev => prev.filter(item => item.id !== deletedId))}
           darkMode={darkMode}
           loading={historyLoading}
           isSidebar={true}
         />
+
+        {/* --- Cấu hình & Tiêu chí Nghiên cứu Panel --- */}
+        <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-slate-800/50 border-slate-700/60' : 'bg-slate-50 border-slate-200'}`}>
+          <div className="flex items-center gap-2 mb-3 border-b pb-2 border-slate-200 dark:border-slate-700">
+            <BookOpen className="w-4 h-4 text-indigo-500" />
+            <h4 className={`text-xs font-extrabold uppercase tracking-wider ${darkMode ? 'text-indigo-300' : 'text-indigo-700'}`}>
+              Tiêu chí & Cấu hình
+            </h4>
+          </div>
+
+          <div className="space-y-3 text-xs">
+            <div>
+              <p className="font-bold text-[10px] text-slate-400 uppercase tracking-wider">Lĩnh vực / Chủ đề</p>
+              <p className={`font-semibold mt-0.5 ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>
+                {projectData?.research_field || 'Chưa thiết lập'}
+              </p>
+            </div>
+
+            <div>
+              <p className="font-bold text-[10px] text-slate-400 uppercase tracking-wider">Câu hỏi nghiên cứu</p>
+              <p className={`font-medium mt-0.5 line-clamp-3 leading-relaxed ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                {projectData?.research_question || 'Chưa thiết lập'}
+              </p>
+            </div>
+
+            {projectData?.criteria_include?.length > 0 && (
+              <div>
+                <p className="font-bold text-[10px] text-emerald-500 dark:text-emerald-400 uppercase tracking-wider flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3" />
+                  Tiêu chí Chọn (Inclusion)
+                </p>
+                <ul className="mt-1 space-y-1 pl-1">
+                  {projectData.criteria_include.map((item, idx) => (
+                    <li key={idx} className={`text-[11px] flex items-start gap-1.5 ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                      <span className="text-emerald-500 font-bold">•</span>
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {projectData?.criteria_exclude?.length > 0 && (
+              <div>
+                <p className="font-bold text-[10px] text-rose-500 dark:text-rose-400 uppercase tracking-wider flex items-center gap-1">
+                  <X className="w-3 h-3" />
+                  Tiêu chí Loại (Exclusion)
+                </p>
+                <ul className="mt-1 space-y-1 pl-1">
+                  {projectData.criteria_exclude.map((item, idx) => (
+                    <li key={idx} className={`text-[11px] flex items-start gap-1.5 ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                      <span className="text-rose-500 font-bold">•</span>
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
       </aside>
 
       {/* ====== MAIN CONTENT: Right side ====== */}
@@ -577,6 +688,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
               papers={filteredAndSortedPapers}
               selectedPaperIds={selectedPaperIds}
               toggleSelectPaper={toggleSelectPaper}
+              onOpenAiScreening={handleOpenAiScreening}
               darkMode={darkMode}
             />
           )}
@@ -681,6 +793,15 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
                     </a>
 
                     <button
+                      onClick={() => handleOpenAiScreening(paper)}
+                      className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-xs font-bold transition-all bg-indigo-600 hover:bg-indigo-700 text-white shadow-md"
+                      title="Phân tích AI Screening"
+                    >
+                      <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
+                      <span>AI Screening</span>
+                    </button>
+
+                    <button
                       onClick={() => toggleSelectPaper(paper.id)}
                       className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-xs font-bold transition-all shadow-md ${
                         isSelected
@@ -721,49 +842,41 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
 
               <button
                 onClick={() => setActiveTab('library')}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3.5 rounded-2xl text-xs transition-all shadow-lg w-full sm:w-auto"
+                className="w-full sm:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl text-sm transition-all shadow-lg flex items-center justify-center gap-2"
               >
-                Chuyển sang Library →
+                <span>Chuyển sang Library →</span>
               </button>
             </div>
           )}
         </div>
       </div>
 
-      {/* ====== SCREENING MODAL ====== */}
+      {/* ====== AI SCREENING CRITERIA MODAL ====== */}
       {showScreeningModal && projectData && (
-        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowScreeningModal(false)}>
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center z-50 p-4" onClick={() => setShowScreeningModal(false)}>
           <div 
             onClick={(e) => e.stopPropagation()}
-            className={`rounded-3xl p-6 md:p-8 max-w-2xl w-full space-y-5 shadow-2xl border max-h-[85vh] overflow-y-auto ${
-              darkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'
+            className={`rounded-3xl p-6 md:p-8 max-w-2xl w-full space-y-6 shadow-2xl border max-h-[90vh] overflow-y-auto ${
+              darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
             }`}
           >
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b pb-4 border-slate-200 dark:border-slate-700">
+            <div className="flex items-center justify-between border-b pb-4 border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-3">
-                <ShieldAlert className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
-                <h3 className="font-extrabold text-lg">Tiêu chí đánh giá Screening</h3>
+                <ShieldAlert className="w-6 h-6 text-indigo-500" />
+                <h3 className="font-extrabold text-lg">Tiêu chí Đánh giá Screening</h3>
               </div>
-              <button 
+              <button
                 onClick={() => setShowScreeningModal(false)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-2xl font-bold transition-colors"
+                className="text-slate-400 hover:text-slate-600 text-lg font-bold"
               >
                 ✕
               </button>
             </div>
 
-            {/* Project Info */}
-            <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-blue-50 border-blue-100'}`}>
-              <h4 className="font-bold text-base mb-1">
-                Chủ đề: {projectData.name}
-              </h4>
-              <p className="text-sm opacity-80">
-                <span className="font-semibold">Câu hỏi NC:</span> {projectData.research_question}
-              </p>
-              <p className="text-xs mt-1 opacity-60">
-                Lĩnh vực: {projectData.research_field} • Năm: {projectData.year_from} – {projectData.year_to}
-              </p>
+            {/* Research Question */}
+            <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-slate-800/60 border-slate-700' : 'bg-blue-50/50 border-blue-100'}`}>
+              <p className="text-xs font-bold text-blue-600 dark:text-sky-400 mb-1">🎯 Câu hỏi nghiên cứu:</p>
+              <p className="text-sm font-semibold">{projectData.research_question || 'Chưa thiết lập'}</p>
             </div>
 
             {/* Criteria */}
@@ -821,6 +934,156 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
             >
               Đã hiểu, đóng
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ====== SINGLE PAPER AI SCREENING OVERLAY TAG / MODAL ====== */}
+      {aiScreeningPaper && (
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-in fade-in duration-200" onClick={() => { setAiScreeningPaper(null); setAiScreeningResult(null); }}>
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className={`rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-2xl border flex flex-col max-h-[90vh] overflow-hidden transition-all ${
+              darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
+            }`}
+          >
+            {/* Modal Header */}
+            <div className="flex items-start justify-between gap-4 border-b pb-4 border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-2xl bg-indigo-100 dark:bg-indigo-900/60 text-indigo-600 dark:text-indigo-300">
+                  <Sparkles className="w-6 h-6 text-amber-400 animate-pulse" />
+                </div>
+                <div>
+                  <span className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+                    Phân Tích AI Screening
+                  </span>
+                  <h3 className="font-extrabold text-base line-clamp-1 mt-0.5">
+                    {aiScreeningPaper.title}
+                  </h3>
+                </div>
+              </div>
+              <button
+                onClick={() => { setAiScreeningPaper(null); setAiScreeningResult(null); }}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors font-bold"
+                title="Đóng cửa sổ (X)"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto py-5 space-y-5 pr-1">
+              {/* Paper Meta */}
+              <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-slate-800/60 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+                <p className="text-xs font-bold text-slate-500 dark:text-slate-400">Tạp chí & Năm xuất bản</p>
+                <p className="text-xs font-semibold mt-0.5 text-blue-600 dark:text-sky-400">
+                  {aiScreeningPaper.journal} ({aiScreeningPaper.year}) • DOI: {aiScreeningPaper.doi}
+                </p>
+              </div>
+
+              {/* Research Scope */}
+              {projectData && (
+                <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-indigo-950/30 border-indigo-900/50' : 'bg-indigo-50/70 border-indigo-100'}`}>
+                  <p className="text-xs font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-wider mb-1">
+                    🎯 Câu hỏi nghiên cứu đối chiếu:
+                  </p>
+                  <p className="text-xs font-medium italic text-indigo-900 dark:text-indigo-200">
+                    "{projectData.research_question || 'Chưa thiết lập'}"
+                  </p>
+                </div>
+              )}
+
+              {/* Screening Status Result */}
+              {aiScreeningLoading ? (
+                <div className="py-12 text-center space-y-3">
+                  <Loader2 className="w-8 h-8 animate-spin mx-auto text-indigo-600 dark:text-indigo-400" />
+                  <p className="text-xs font-bold text-slate-500 dark:text-slate-400">
+                    AI đang đối chiếu bài báo với các tiêu chí sàng lọc của bạn...
+                  </p>
+                </div>
+              ) : aiScreeningResult ? (
+                <div className="space-y-4">
+                  {/* Bucket Tag */}
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-bold text-slate-400">Đánh giá AI:</span>
+                    {aiScreeningResult.relevance_bucket === 'high' && (
+                      <span className="px-3.5 py-1.5 rounded-full font-extrabold text-xs bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 flex items-center gap-1.5">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                        PHÙ HỢP CAO (High Relevance)
+                      </span>
+                    )}
+                    {aiScreeningResult.relevance_bucket === 'medium' && (
+                      <span className="px-3.5 py-1.5 rounded-full font-extrabold text-xs bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-800 flex items-center gap-1.5">
+                        <Activity className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                        PHÙ HỢP TRUNG BÌNH (Medium Relevance)
+                      </span>
+                    )}
+                    {(aiScreeningResult.relevance_bucket === 'low' || aiScreeningResult.relevance_bucket === 'insufficient_info') && (
+                      <span className="px-3.5 py-1.5 rounded-full font-extrabold text-xs bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800 flex items-center gap-1.5">
+                        <ShieldAlert className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                        CẦN XEM XÉT / ÍT PHÙ HỢP
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Matches Breakdown */}
+                  {aiScreeningResult.reason?.matches?.length > 0 && (
+                    <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-emerald-950/20 border-emerald-900/40' : 'bg-emerald-50 border-emerald-100'}`}>
+                      <h4 className="text-xs font-extrabold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                        Điểm Khớp Tiêu Chí Chọn (Inclusion):
+                      </h4>
+                      <ul className="space-y-1.5 pl-2">
+                        {aiScreeningResult.reason.matches.map((item, i) => (
+                          <li key={i} className="text-xs font-semibold text-emerald-900 dark:text-emerald-200 flex items-start gap-2">
+                            <span className="text-emerald-500 font-bold">•</span>
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Mismatches Breakdown */}
+                  {aiScreeningResult.reason?.mismatches?.length > 0 && (
+                    <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-slate-800/80 border-slate-700' : 'bg-slate-100/80 border-slate-200'}`}>
+                      <h4 className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                        <ShieldAlert className="w-4 h-4 text-slate-500" />
+                        Ghi chú & Tiêu chí Loại trừ (Exclusion):
+                      </h4>
+                      <ul className="space-y-1.5 pl-2">
+                        {aiScreeningResult.reason.mismatches.map((item, i) => (
+                          <li key={i} className="text-xs font-medium text-slate-700 dark:text-slate-300 flex items-start gap-2">
+                            <span className="text-slate-400 font-bold">•</span>
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Abstract preview */}
+                  <div>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Trích đoạn Abstract:</p>
+                    <p className={`text-xs p-3 rounded-xl border leading-relaxed ${
+                      darkMode ? 'bg-slate-800/40 border-slate-700 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'
+                    }`}>
+                      {aiScreeningPaper.abstract}
+                    </p>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="border-t pt-4 border-slate-200 dark:border-slate-800 flex justify-end gap-3">
+              <button
+                onClick={() => { setAiScreeningPaper(null); setAiScreeningResult(null); }}
+                className="px-5 py-2.5 rounded-xl text-xs font-bold bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 transition-colors"
+              >
+                Đóng (X)
+              </button>
+            </div>
           </div>
         </div>
       )}

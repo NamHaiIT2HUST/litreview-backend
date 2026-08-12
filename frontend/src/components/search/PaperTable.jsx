@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Award, ExternalLink, FileText, Copy, Check, Quote, PlusCircle, CheckCircle2 } from 'lucide-react';
+import { Award, ExternalLink, FileText, Copy, Check, Quote, PlusCircle, CheckCircle2, Sparkles } from 'lucide-react';
 
-export default function PaperTable({ papers, selectedPaperIds, toggleSelectPaper, darkMode }) {
+export default function PaperTable({ papers, selectedPaperIds, toggleSelectPaper, onOpenAiScreening, darkMode }) {
   const [copiedDoi, setCopiedDoi] = useState(null);
   const [citationModalPaper, setCitationModalPaper] = useState(null);
   const [expandedRowIds, setExpandedRowIds] = useState([]);
@@ -200,6 +200,15 @@ export default function PaperTable({ papers, selectedPaperIds, toggleSelectPaper
                     {/* Action Buttons */}
                     <td className="p-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => onOpenAiScreening && onOpenAiScreening(paper)}
+                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-all"
+                          title="Phân tích AI Screening đối chiếu tiêu chí"
+                        >
+                          <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
+                          <span>AI Screening</span>
+                        </button>
+
                         <button
                           onClick={() => setCitationModalPaper(paper)}
                           className={`p-2 rounded-xl transition-all border ${

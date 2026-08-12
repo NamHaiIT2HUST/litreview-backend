@@ -285,6 +285,16 @@ async def search_papers(
     scopus_papers = [p for p in papers if p.scopus_status == "indexed"]
     scopus_papers = scopus_papers[:SCOPUS_TARGET]
 
+    # Cập nhật số lượng bài Scopus thực tế vào SearchQuery record trong DB
+    if sq_id:
+        try:
+            sq_obj = await db.get(SearchQuery, sq_id)
+            if sq_obj:
+                sq_obj.result_count = len(scopus_papers)
+                await db.commit()
+        except Exception:
+            pass
+
     return SearchResponse(
         papers=scopus_papers,
         search_query_id=sq_id,
@@ -388,6 +398,29 @@ async def duplicate_search_query(
         query_string=new_sq.query_string,
         duplicated_from=query_id,
     )
+
+
+@router.delete("/search-queries/{query_id}")
+async def delete_search_query(
+    query_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Xóa một lịch sử tìm kiếm theo query_id."""
+    try:
+        query_uuid = uuid.UUID(str(query_id))
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid query_id UUID format")
+
+    sq_result = await db.execute(
+        select(SearchQuery).where(SearchQuery.id == query_uuid)
+    )
+    sq = sq_result.scalar_one_or_none()
+    if not sq:
+        raise HTTPException(status_code=404, detail="Search query not found")
+
+    await db.delete(sq)
+    await db.commit()
+    return {"message": "Search query deleted successfully", "id": query_id}
 # Quality Verification endpoint (Module 4)
 # ──────────────────────────────────────────────────────────────────────────────
 
