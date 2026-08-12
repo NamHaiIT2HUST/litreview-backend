@@ -198,14 +198,14 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
       const res = await fetch(`${API_BASE}/search-queries/${queryId}/papers`);
       if (!res.ok) return;
       const dbPapers = await res.json();
-      const converted = dbPapers.map(dbPaperToPaperSchema);
+      const converted = dbPapers.map(dbPaperToPaperSchema).filter(p => p.scopus_status === 'indexed');
       setPapers(converted);
       setSearchMeta({
         provider: 'saved_search',
         limit: 20,
         total_found: converted.length,
-        total_confirmed: converted.filter(p => p.scopus_status === 'indexed').length,
-        total_undetermined: converted.filter(p => p.scopus_status === 'undetermined').length,
+        total_confirmed: converted.length,
+        total_undetermined: 0,
         duplicates: 0,
       });
       setActiveQueryId(queryId);
@@ -258,14 +258,15 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
       }
 
       const data = await response.json();
-      if (data.papers && data.papers.length > 0) {
-        setPapers(data.papers);
+      const scopusOnly = (data.papers || []).filter(p => p.scopus_status === 'indexed');
+      if (scopusOnly.length > 0) {
+        setPapers(scopusOnly);
         setSearchMeta({
           provider: data.provider || 'google_scholar',
           limit: data.limit || 20,
-          total_found: data.total_found ?? data.papers.length,
-          total_confirmed: data.total_confirmed ?? data.papers.filter(p => p.scopus_status === 'indexed').length,
-          total_undetermined: data.total_undetermined ?? 0,
+          total_found: scopusOnly.length,
+          total_confirmed: scopusOnly.length,
+          total_undetermined: 0,
           duplicates: data.duplicates ?? 0,
         });
         if (data.search_query_id) {
@@ -274,7 +275,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
         await fetchHistory();
       } else {
         setPapers([]);
-        setError('Không tìm thấy bài báo nào thuộc Scopus phù hợp với từ khóa này. Hãy thử từ khóa khác.');
+        setError('Không tìm thấy bài báo nào thuộc danh mục Scopus phù hợp với từ khóa này. Hãy thử từ khóa khác.');
       }
     } catch (err) {
       console.error(err);

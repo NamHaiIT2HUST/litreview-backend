@@ -345,7 +345,7 @@ async def get_papers_for_query(
     db: AsyncSession = Depends(get_db),
 ) -> list[PaperRecord]:
     """
-    Lấy danh sách paper (đã dedup) của 1 lần search cụ thể.
+    Lấy danh sách paper (đã xác minh thuộc Scopus) của 1 lần search cụ thể.
     """
     query_uuid = uuid.UUID(str(query_id))
     sq_result = await db.execute(
@@ -355,9 +355,13 @@ async def get_papers_for_query(
     if not sq:
         raise HTTPException(status_code=404, detail=f"Search query '{query_id}' not found")
 
+    from src.models.db_models import ScopusStatusEnum
     result = await db.execute(
         select(Paper)
-        .where(Paper.search_query_id == query_uuid)
+        .where(
+            Paper.search_query_id == query_uuid,
+            (Paper.scopus_status == ScopusStatusEnum.INDEXED) | (Paper.scopus_status == "indexed")
+        )
     )
     papers = result.scalars().all()
     return [PaperRecord.model_validate(p) for p in papers]
@@ -406,27 +410,21 @@ async def delete_search_query(
     db: AsyncSession = Depends(get_db),
 ):
     """Xóa một lịch sử tìm kiếm theo query_id."""
-    query_uuid = None
     try:
         query_uuid = uuid.UUID(str(query_id))
     except Exception:
-        pass
+        raise HTTPException(status_code=400, detail="Invalid query_id UUID format")
 
-    stmt = select(SearchQuery)
-    if query_uuid:
-        stmt = stmt.where((SearchQuery.id == query_uuid) | (SearchQuery.id == str(query_id)))
-    else:
-        stmt = stmt.where(SearchQuery.id == str(query_id))
-
-    sq_result = await db.execute(stmt)
+    sq_result = await db.execute(
+        select(SearchQuery).where(SearchQuery.id == query_uuid)
+    )
     sq = sq_result.scalar_one_or_none()
     if not sq:
         raise HTTPException(status_code=404, detail="Search query not found")
 
     from sqlalchemy import delete as sql_delete
-    target_id = sq.id
     await db.execute(
-        sql_delete(Paper).where((Paper.search_query_id == target_id) | (Paper.search_query_id == str(target_id)))
+        sql_delete(Paper).where(Paper.search_query_id == query_uuid)
     )
     await db.delete(sq)
     await db.commit()
