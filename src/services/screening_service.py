@@ -79,22 +79,24 @@ Tóm tắt (Abstract): {abstract}
 
 === YÊU CẦU PHÂN TÍCH CHUYÊN SÂU ===
 1. Đánh giá Relevance Bucket: Chọn đúng 1 trong các giá trị ["high", "medium", "low"].
-2. Phân tích chi tiết thành 2 danh sách "matches" (các điểm phù hợp sâu sắc) và "mismatches" (các điểm vi phạm/lưu ý):
-   - Trích dẫn cụ thể các phương pháp, mô hình, dữ liệu hoặc đóng góp trong Abstract.
-   - Đối chiếu từng tiêu chí chọn (Inclusion) xem bài báo đáp ứng như thế nào.
-   - Kiểm tra kỹ các tiêu chí loại trừ (Exclusion) xem có bị vi phạm không.
-   - Đưa ra 3-5 câu nhận xét chi tiết về đóng góp của bài báo cho câu hỏi nghiên cứu.
+2. Phân tích chi tiết thành 3 phần rõ ràng:
+   - "matches": Danh sách các điểm khớp tiêu chí chọn (Inclusion) và câu hỏi nghiên cứu.
+   - "mismatches": Danh sách các điểm chưa khớp, các góc cạnh nghiên cứu chưa được giải quyết hoặc điểm hạn chế của bài báo so với yêu cầu.
+   - "exclusion_notes": Xác minh xem bài báo có vi phạm bất kỳ tiêu chí loại trừ (Exclusion) nào không.
 
 === ĐỊNH DẠNG ĐẦU RA (CHỈ TRẢ VỀ JSON KHÔNG KÈM MARKDOWN) ===
 {{
     "relevance_bucket": "high",
     "reason": {{
         "matches": [
-            "Khớp phương pháp & mô hình: Bài báo đề xuất mô hình/phương pháp cụ thể đáp ứng câu hỏi nghiên cứu.",
-            "Đáp ứng tiêu chí chọn (Inclusion): Phù hợp hoàn toàn với phạm vi và dữ liệu thử nghiệm.",
-            "Đóng góp trực tiếp: Cung cấp giải pháp cho vấn đề nghiên cứu được nêu."
+            "Khớp phương pháp & mô hình: Bài báo sử dụng mô hình 1D CNN phân loại tín hiệu ECG.",
+            "Đáp ứng tiêu chí chọn (Inclusion): Viết bằng tiếng Anh và thử nghiệm trên tập dữ liệu chuẩn."
         ],
         "mismatches": [
+            "Chưa đề cập đến khả năng triển khai thời gian thực trên thiết bị Edge/IoT.",
+            "Phạm vi thử nghiệm mới dừng lại ở tập dữ liệu MIT-BIH, chưa mở rộng ra các dạng sóng bất thường khác."
+        ],
+        "exclusion_notes": [
             "Không vi phạm tiêu chí loại trừ (Exclusion)."
         ]
     }}

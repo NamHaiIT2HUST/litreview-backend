@@ -582,19 +582,6 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
               )}
             </button>
           </div>
-          <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-            <p className={`text-xs font-semibold ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-              {loading ? "⏳ Đang tìm kiếm trên Google Scholar & đối chiếu Scopus... Tối đa 20 bài Scopus." : "Tự động xác minh danh mục Scopus trong Database."}
-            </p>
-            <button
-              type="button"
-              onClick={() => setShowScreeningModal(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-200 transition-all"
-            >
-              <ShieldAlert className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-              <span>Xem Tiêu chí Screening</span>
-            </button>
-          </div>
         </form>
 
         {/* Mobile History (shown below search on small screens) */}
@@ -1054,7 +1041,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
                     <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-emerald-950/20 border-emerald-900/40' : 'bg-emerald-50 border-emerald-100'}`}>
                       <h4 className="text-xs font-extrabold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                         <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                        Điểm Khớp Tiêu Chí Chọn (Inclusion):
+                        ĐIỂM KHỚP TIÊU CHÍ CHỌN (INCLUSION):
                       </h4>
                       <ul className="space-y-1.5 pl-2">
                         {aiScreeningResult.reason.matches.map((item, i) => (
@@ -1067,15 +1054,33 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
                     </div>
                   )}
 
-                  {/* Mismatches Breakdown */}
+                  {/* Unmatched Points / Potential Gaps Breakdown */}
                   {aiScreeningResult.reason?.mismatches?.length > 0 && (
-                    <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-slate-800/80 border-slate-700' : 'bg-slate-100/80 border-slate-200'}`}>
-                      <h4 className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                        <ShieldAlert className="w-4 h-4 text-slate-500" />
-                        Ghi chú & Tiêu chí Loại trừ (Exclusion):
+                    <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-amber-950/20 border-amber-900/40' : 'bg-amber-50 border-amber-100'}`}>
+                      <h4 className="text-xs font-extrabold text-amber-700 dark:text-amber-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                        <AlertCircle className="w-4 h-4 text-amber-600" />
+                        ĐIỂM CHƯA KHỚP HOẶC CẦN LƯU Ý (GAPS & UNMATCHED):
                       </h4>
                       <ul className="space-y-1.5 pl-2">
                         {aiScreeningResult.reason.mismatches.map((item, i) => (
+                          <li key={i} className="text-xs font-semibold text-amber-900 dark:text-amber-200 flex items-start gap-2">
+                            <span className="text-amber-500 font-bold">•</span>
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Exclusion Check Breakdown */}
+                  {aiScreeningResult.reason?.exclusion_notes?.length > 0 && (
+                    <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-slate-800/80 border-slate-700' : 'bg-slate-100/80 border-slate-200'}`}>
+                      <h4 className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                        <ShieldAlert className="w-4 h-4 text-slate-500" />
+                        KIỂM TRA TIÊU CHÍ LOẠI TRỪ (EXCLUSION CHECK):
+                      </h4>
+                      <ul className="space-y-1.5 pl-2">
+                        {aiScreeningResult.reason.exclusion_notes.map((item, i) => (
                           <li key={i} className="text-xs font-medium text-slate-700 dark:text-slate-300 flex items-start gap-2">
                             <span className="text-slate-400 font-bold">•</span>
                             <span>{item}</span>

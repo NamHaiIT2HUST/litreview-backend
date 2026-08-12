@@ -406,25 +406,31 @@ async def delete_search_query(
     db: AsyncSession = Depends(get_db),
 ):
     """Xóa một lịch sử tìm kiếm theo query_id."""
+    query_uuid = None
     try:
         query_uuid = uuid.UUID(str(query_id))
     except Exception:
-        raise HTTPException(status_code=400, detail="Invalid query_id UUID format")
+        pass
 
-    sq_result = await db.execute(
-        select(SearchQuery).where(SearchQuery.id == query_uuid)
-    )
+    stmt = select(SearchQuery)
+    if query_uuid:
+        stmt = stmt.where((SearchQuery.id == query_uuid) | (SearchQuery.id == str(query_id)))
+    else:
+        stmt = stmt.where(SearchQuery.id == str(query_id))
+
+    sq_result = await db.execute(stmt)
     sq = sq_result.scalar_one_or_none()
     if not sq:
         raise HTTPException(status_code=404, detail="Search query not found")
 
     from sqlalchemy import delete as sql_delete
+    target_id = sq.id
     await db.execute(
-        sql_delete(Paper).where(Paper.search_query_id == query_uuid)
+        sql_delete(Paper).where((Paper.search_query_id == target_id) | (Paper.search_query_id == str(target_id)))
     )
     await db.delete(sq)
     await db.commit()
-    return {"message": "Search query deleted successfully", "id": query_id}
+    return {"message": "Search query deleted successfully", "id": str(query_id)}
 # Quality Verification endpoint (Module 4)
 # ──────────────────────────────────────────────────────────────────────────────
 
