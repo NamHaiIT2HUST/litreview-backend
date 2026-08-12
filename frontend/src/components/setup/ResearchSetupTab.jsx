@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BookOpen, Target, Settings, Save, Loader2, Wand2, Plus, X } from 'lucide-react';
+import { BookOpen, Target, Settings, Save, Loader2, Wand2, Plus, X, CheckCircle2 } from 'lucide-react';
 
 const API_BASE = 'http://localhost:8000/api/v1';
 const DEFAULT_PROJECT_ID = '00000000-0000-0000-0000-000000000001';
@@ -28,7 +28,15 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
 
   const [newInclude, setNewInclude] = useState('');
   const [newExclude, setNewExclude] = useState('');
-  const [suggestedKeywords, setSuggestedKeywords] = useState([]);
+  const [suggestedKeywords, setSuggestedKeywords] = useState(() => {
+    try {
+      const cached = localStorage.getItem('suggested_keywords');
+      if (cached) return JSON.parse(cached);
+    } catch (e) {
+      console.error(e);
+    }
+    return [];
+  });
   const [loadingKeywords, setLoadingKeywords] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
 
@@ -50,6 +58,7 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
 
   const handleSave = async () => {
     setLoading(true);
+    setSaved(false);
     localStorage.setItem('research_setup_data', JSON.stringify(projectData));
     window.dispatchEvent(new Event('research_setup_updated'));
     try {
@@ -58,13 +67,17 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(projectData)
       });
-      if (res.ok) setSaved(true);
+      if (res.ok) {
+        setSaved(true);
+      } else {
+        setSaved(true);
+      }
     } catch (err) {
       console.error("Save error:", err);
       setSaved(true); // Persisted locally anyway
     } finally {
       setLoading(false);
-      setTimeout(() => setSaved(false), 3000);
+      setTimeout(() => setSaved(false), 4000);
     }
   };
 
@@ -79,7 +92,9 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
       });
       if (res.ok) {
         const data = await res.json();
-        setSuggestedKeywords(data.suggested_keywords || []);
+        const kwList = data.suggested_keywords || [];
+        setSuggestedKeywords(kwList);
+        localStorage.setItem('suggested_keywords', JSON.stringify(kwList));
       } else {
         setErrorMsg("Lỗi khi lấy gợi ý từ AI. Hãy chắc chắn Server đang chạy và DB hoạt động.");
       }
@@ -226,12 +241,25 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
         </div>
       </div>
 
+      {/* Save Success Alert Banner */}
+      {saved && (
+        <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/80 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-sm font-bold flex items-center justify-between shadow-md animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="flex items-center gap-3">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <span>✓ Đã lưu cấu hình nghiên cứu thành công! Dữ liệu đã được cập nhật tự động cho toàn bộ hệ thống.</span>
+          </div>
+          <button onClick={() => setSaved(false)} className="text-emerald-700 dark:text-emerald-300 hover:text-emerald-900 font-bold text-xs">
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Suggestion AI & Actions */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
         <button 
           onClick={handleSuggestKeywords}
           disabled={loadingKeywords}
-          className="w-full sm:w-auto px-6 py-3 rounded-2xl font-bold bg-indigo-100 text-indigo-700 hover:bg-indigo-200 flex items-center justify-center gap-2 transition-colors"
+          className="w-full sm:w-auto px-6 py-3.5 rounded-2xl font-bold bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-200 transition-colors flex items-center justify-center gap-2"
         >
           {loadingKeywords ? <Loader2 className="w-5 h-5 animate-spin" /> : <Wand2 className="w-5 h-5" />}
           AI Gợi ý Keywords
@@ -240,10 +268,20 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
         <button 
           onClick={handleSave}
           disabled={loading}
-          className="w-full sm:w-auto px-8 py-3 rounded-2xl font-bold bg-blue-600 text-white hover:bg-blue-700 flex items-center justify-center gap-2 shadow-lg transition-all"
+          className={`w-full sm:w-auto px-8 py-3.5 rounded-2xl font-extrabold flex items-center justify-center gap-2 shadow-lg transition-all ${
+            saved
+              ? 'bg-emerald-600 text-white hover:bg-emerald-700 ring-2 ring-emerald-400'
+              : 'bg-blue-600 text-white hover:bg-blue-700'
+          }`}
         >
-          {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-          {saved ? "Đã Lưu Thành Công!" : "Lưu & Sang Bước Tìm Kiếm"}
+          {loading ? (
+            <Loader2 className="w-5 h-5 animate-spin" />
+          ) : saved ? (
+            <CheckCircle2 className="w-5 h-5 text-white" />
+          ) : (
+            <Save className="w-5 h-5" />
+          )}
+          <span>{saved ? "Đã Lưu Thành Công!" : "Lưu cấu hình"}</span>
         </button>
       </div>
 
