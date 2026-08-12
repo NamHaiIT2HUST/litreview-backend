@@ -847,15 +847,15 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
                 </div>
                 <div>
                   <p className="font-bold text-sm">Đã chọn {selectedPaperIds.length} bài báo</p>
-                  <p className="text-xs text-slate-400">Sẵn sàng đưa sang Library & Synthesis</p>
+                  <p className="text-xs text-slate-400">Sẵn sàng đưa sang Workspace để phân tích</p>
                 </div>
               </div>
 
               <button
-                onClick={() => setActiveTab('library')}
+                onClick={() => setActiveTab('synthesis')}
                 className="w-full sm:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl text-sm transition-all shadow-lg flex items-center justify-center gap-2"
               >
-                <span>Chuyển sang Library →</span>
+                <span>Chuyển sang Workspace →</span>
               </button>
             </div>
           )}
@@ -935,7 +935,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
                 <li>Bài báo được tìm trên Google Scholar và tự động đối chiếu Scopus</li>
                 <li>Chỉ những bài thuộc danh mục Scopus mới được hiển thị</li>
                 <li>Chọn bài phù hợp với tiêu chí Inclusion/Exclusion ở trên</li>
-                <li>Đưa bài đã chọn sang Library để phân tích chi tiết</li>
+                <li>Đưa bài đã chọn sang Workspace để phân tích chi tiết</li>
               </ol>
             </div>
 
