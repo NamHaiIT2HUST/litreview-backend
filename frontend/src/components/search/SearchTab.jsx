@@ -33,7 +33,7 @@ function dbPaperToPaperSchema(dbPaper) {
   };
 }
 
-export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleSelectPaper, clearSelectedPapers, setActiveTab, darkMode }) {
+export default function SearchTab({ papers, setPapers, selectedPaperIds, selectedPapers = [], toggleSelectPaper, clearSelectedPapers, setActiveTab, darkMode }) {
   const [searchQuery, setSearchQuery] = useState(() => localStorage.getItem('last_search_query') || '');
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('serp_api_key') || '');
   const [loading, setLoading] = useState(false);
@@ -393,9 +393,9 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
     return result;
   }, [papers, activePreset, inResultQuery, minCitations, startYear, endYear, selectedJournal, sortBy]);
 
-  const handleExportExcel = () => {
-    const dataToExport = selectedPaperIds.length > 0
-      ? papers.filter(p => selectedPaperIds.includes(p.id))
+  const handleExportExcel = (selectedPapers = []) => {
+    const dataToExport = selectedPapers.length > 0
+      ? selectedPapers
       : filteredAndSortedPapers;
     exportPapersToExcel(dataToExport, `LitReview_Export_${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
@@ -855,7 +855,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
                 </div>
                 <div>
                   <p className="font-bold text-sm">Đã chọn {selectedPaperIds.length} bài báo</p>
-                  <p className="text-xs text-slate-400">Sẵn sàng đưa sang Workspace để phân tích</p>
+                  <p className="text-xs text-slate-400">Sẵn sàng xuất file báo cáo tổng hợp</p>
                 </div>
               </div>
 
@@ -867,10 +867,10 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
                   Làm mới
                 </button>
                 <button
-                  onClick={() => setActiveTab('synthesis')}
-                  className="flex-1 sm:flex-none px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl text-sm transition-all shadow-lg flex items-center justify-center gap-2"
+                  onClick={() => handleExportExcel(selectedPapers)}
+                  className="flex-1 sm:flex-none px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl text-sm transition-all shadow-lg flex items-center justify-center gap-2"
                 >
-                  <span>Chuyển sang Workspace →</span>
+                  <span>Tải file Excel ↓</span>
                 </button>
               </div>
             </div>
@@ -951,7 +951,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
                 <li>Bài báo được tìm trên Google Scholar và tự động đối chiếu Scopus</li>
                 <li>Chỉ những bài thuộc danh mục Scopus mới được hiển thị</li>
                 <li>Chọn bài phù hợp với tiêu chí Inclusion/Exclusion ở trên</li>
-                <li>Đưa bài đã chọn sang Workspace để phân tích chi tiết</li>
+                <li>Xuất danh sách bài báo đã chọn ra file Excel để lập ma trận tổng quan</li>
               </ol>
             </div>
 

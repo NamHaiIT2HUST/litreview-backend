@@ -4,16 +4,15 @@ export const exportPapersToExcel = (papers, filename = 'LitReview_Dataset.xlsx')
   if (!papers || papers.length === 0) return;
 
   const worksheetData = papers.map(p => ({
-    ID: p.id,
-    Title: p.title,
-    Authors: p.authors,
-    Journal: p.journal,
-    Year: p.year,
-    Citations: p.citations,
-    LitScore: p.litScore,
-    DOI: p.doi,
-    TLDR: p.tldr,
-    Abstract: p.abstract
+    "Mã Scholar": p.id,
+    "Tiêu đề": p.title,
+    "Tác giả": p.authors,
+    "Tạp chí": p.journal,
+    "Năm xuất bản": p.year,
+    "Lượt trích dẫn": p.citation_count || p.citations,
+    "DOI": p.doi,
+    "Tóm tắt ngắn (TL;DR)": p.tldr,
+    "Tóm tắt (Abstract)": p.abstract
   }));
 
   const worksheet = XLSX.utils.json_to_sheet(worksheetData);

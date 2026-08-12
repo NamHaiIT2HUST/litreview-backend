@@ -102,6 +102,11 @@ export default function App() {
     }
   };
 
+  const clearSelectedPapers = () => {
+    setSelectedPaperIds([]);
+    setSelectedPapers([]);
+  };
+
 
   return (
     <div className={`min-h-screen font-sans transition-colors ${darkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
@@ -134,6 +139,8 @@ export default function App() {
             setSearchMeta={setSearchMeta}
             selectedPaperIds={selectedPaperIds}
             toggleSelectPaper={toggleSelectPaper}
+            clearSelectedPapers={clearSelectedPapers}
+            selectedPapers={selectedPapers}
 
             workspacePapers={workspacePapers}
             setWorkspacePapers={setWorkspacePapers}
