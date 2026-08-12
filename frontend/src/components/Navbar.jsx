@@ -6,8 +6,7 @@ export default function Navbar({ activeTab, setActiveTab, darkMode, setDarkMode,
     { id: 'overview', label: 'Overview', icon: Home },
     { id: 'setup', label: 'Research Setup', icon: Settings },
     { id: 'search', label: 'Search & Verify', icon: Search },
-    { id: 'library', label: 'Library & Reader', icon: Library, count: uploadedCount },
-    { id: 'synthesis', label: 'Synthesis', icon: Sparkles },
+    { id: 'synthesis', label: 'Workspace', icon: Library, count: uploadedCount },
     { id: 'export', label: 'Export', icon: Download },
   ];
 

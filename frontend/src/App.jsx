@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import SearchTab from './components/search/SearchTab';
-import UploadTab from './components/upload/UploadTab';
 import WorkspaceTab from './components/workspace/WorkspaceTab';
 import InsightsTab from './components/insights/InsightsTab';
 import HomeTab from './components/home/HomeTab';
@@ -57,7 +56,25 @@ export default function App() {
     localStorage.setItem('litreview_workspace_papers', JSON.stringify(workspacePapers));
   }, [workspacePapers]);
 
+
   const [activeCitation, setActiveCitation] = useState(null);
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchMeta, setSearchMeta] = useState({
+    provider: 'google_scholar',
+    limit: 20,
+    total_found: 0,
+    total_confirmed: 0,
+    total_undetermined: 0,
+    duplicates: 0,
+  });
+
+  useEffect(() => {
+    localStorage.setItem('litreview_dark_mode', darkMode);
+  }, [darkMode]);
+
+  useEffect(() => {
+    sessionStorage.setItem('litreview_workspace_papers', JSON.stringify(workspacePapers));
+  }, [workspacePapers]);
   const [chatMessages, setChatMessages] = useState([
     {
       sender: 'ai',
@@ -86,7 +103,8 @@ export default function App() {
         uploadedCount={selectedPaperIds.length}
       />
 
-      <main className="p-4 md:p-8 max-w-7xl mx-auto">
+      {/* Main Multi-Step Navigation Content Area */}
+      <main className={`p-4 md:p-8 mx-auto transition-all ${activeTab === 'synthesis' || activeTab === 'search' ? 'max-w-[1920px] w-full' : 'max-w-7xl'}`}>
         {activeTab === 'overview' && (
           <HomeTab setActiveTab={setActiveTab} darkMode={darkMode} />
         )}
@@ -99,8 +117,13 @@ export default function App() {
           <SearchTab
             papers={papers}
             setPapers={setPapers}
+            searchResults={searchResults}
+            setSearchResults={setSearchResults}
+            searchMeta={searchMeta}
+            setSearchMeta={setSearchMeta}
             selectedPaperIds={selectedPaperIds}
             toggleSelectPaper={toggleSelectPaper}
+<<<<<<< HEAD
             setActiveTab={setActiveTab}
             darkMode={darkMode}
           />
@@ -109,6 +132,8 @@ export default function App() {
         {activeTab === 'library' && (
           <UploadTab
             selectedPapers={selectedPapers}
+=======
+>>>>>>> origin/feature/nga-test-setup
             workspacePapers={workspacePapers}
             setWorkspacePapers={setWorkspacePapers}
             setActiveTab={setActiveTab}
@@ -118,7 +143,12 @@ export default function App() {
 
         {activeTab === 'synthesis' && (
           <WorkspaceTab
+            papers={papers}
+            setPapers={setPapers}
+            selectedPapers={selectedPapers}
+            setSelectedPaperIds={setSelectedPaperIds}
             workspacePapers={workspacePapers}
+            setWorkspacePapers={setWorkspacePapers}
             chatMessages={chatMessages}
             setChatMessages={setChatMessages}
             activeCitation={activeCitation}

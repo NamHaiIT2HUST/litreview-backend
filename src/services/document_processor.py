@@ -35,11 +35,21 @@ class DocumentProcessor:
             "ingestion_version": INGESTION_VERSION,
         }
 
-    async def save_upload_file(self, upload_file: UploadFile) -> str:
-        """Lưu file từ request xuống thư mục vật lý."""
+    async def save_upload_file(self, upload_file: UploadFile, project_id: str | None = None) -> str:
+        """Lưu file từ request xuống thư mục vật lý, scoped theo project_id.
+
+        Nếu project_id được cung cấp, file được lưu vào uploads/papers/{project_id}/
+        để đảm bảo không bị lẫn giữa các project và dễ cleanup sau này.
+        """
         file_id = str(uuid.uuid4())
         safe_filename = f"{file_id}_{upload_file.filename}"
-        file_path = os.path.join(UPLOAD_DIR, safe_filename)
+
+        if project_id:
+            project_dir = os.path.join(UPLOAD_DIR, project_id)
+            os.makedirs(project_dir, exist_ok=True)
+            file_path = os.path.join(project_dir, safe_filename)
+        else:
+            file_path = os.path.join(UPLOAD_DIR, safe_filename)
 
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(upload_file.file, buffer)

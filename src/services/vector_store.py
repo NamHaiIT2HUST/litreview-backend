@@ -57,7 +57,7 @@ class VectorStoreService:
             chroma_kwargs["persist_directory"] = CHROMA_PERSIST_DIR
 
         self.vector_store = Chroma(
-            collection_name="litreview_papers",
+            collection_name="litreview_papers_v2",
             embedding_function=self.embeddings,
             **chroma_kwargs,
         )
