@@ -1,13 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import SearchTab from './components/search/SearchTab';
-import UploadTab from './components/upload/UploadTab';
 import WorkspaceTab from './components/workspace/WorkspaceTab';
 import InsightsTab from './components/insights/InsightsTab';
 import HomeTab from './components/home/HomeTab';
 import ResearchSetupTab from './components/setup/ResearchSetupTab';
-
-import ScreeningTab from './components/screening/ScreeningTab';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState(() => {
@@ -19,11 +16,34 @@ export default function App() {
     localStorage.setItem('litreview_active_tab', activeTab);
   }, [activeTab]);
 
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => {
+    return localStorage.getItem('litreview_dark_mode') === 'true';
+  });
+  
   const [papers, setPapers] = useState([]);
   const [selectedPaperIds, setSelectedPaperIds] = useState([]);
-  const [workspacePapers, setWorkspacePapers] = useState([]);
+  const [workspacePapers, setWorkspacePapers] = useState(() => {
+    const saved = sessionStorage.getItem('litreview_workspace_papers');
+    return saved ? JSON.parse(saved) : [];
+  });
   const [activeCitation, setActiveCitation] = useState(null);
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchMeta, setSearchMeta] = useState({
+    provider: 'google_scholar',
+    limit: 20,
+    total_found: 0,
+    total_confirmed: 0,
+    total_undetermined: 0,
+    duplicates: 0,
+  });
+
+  useEffect(() => {
+    localStorage.setItem('litreview_dark_mode', darkMode);
+  }, [darkMode]);
+
+  useEffect(() => {
+    sessionStorage.setItem('litreview_workspace_papers', JSON.stringify(workspacePapers));
+  }, [workspacePapers]);
   const [chatMessages, setChatMessages] = useState([
     {
       sender: 'ai',
@@ -67,24 +87,12 @@ export default function App() {
           <SearchTab
             papers={papers}
             setPapers={setPapers}
+            searchResults={searchResults}
+            setSearchResults={setSearchResults}
+            searchMeta={searchMeta}
+            setSearchMeta={setSearchMeta}
             selectedPaperIds={selectedPaperIds}
             toggleSelectPaper={toggleSelectPaper}
-            setActiveTab={setActiveTab}
-            darkMode={darkMode}
-          />
-        )}
-
-        {activeTab === 'screening' && (
-          <ScreeningTab
-            papers={papers}
-            setPapers={setPapers}
-            darkMode={darkMode}
-          />
-        )}
-
-        {activeTab === 'library' && (
-          <UploadTab
-            selectedPapers={selectedPapers}
             workspacePapers={workspacePapers}
             setWorkspacePapers={setWorkspacePapers}
             setActiveTab={setActiveTab}
@@ -94,7 +102,12 @@ export default function App() {
 
         {activeTab === 'synthesis' && (
           <WorkspaceTab
+            papers={papers}
+            setPapers={setPapers}
+            selectedPapers={selectedPapers}
+            setSelectedPaperIds={setSelectedPaperIds}
             workspacePapers={workspacePapers}
+            setWorkspacePapers={setWorkspacePapers}
             chatMessages={chatMessages}
             setChatMessages={setChatMessages}
             activeCitation={activeCitation}

@@ -22,7 +22,7 @@ import re
 import uuid
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, UploadFile, File, Form
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, UploadFile, File, Form, Path
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -42,7 +42,7 @@ from src.models.schemas import (
     SearchQueryRecord,
     SearchResponse,
 )
-from src.models.workspace_schemas import UploadResponse, WorkspaceChatRequest, WorkspaceChatResponse
+from src.models.workspace_schemas import UploadResponse, DirectUploadResponse, WorkspaceChatRequest, WorkspaceChatResponse
 from src.models.search_schemas import SearchExecuteRequest, SearchStrategiesResponse
 from src.models.synthesis_schemas import (
     SynthesisCitationResponse,
@@ -115,9 +115,9 @@ async def _persist_search(
     db: AsyncSession,
     query_string: str,
     papers_pydantic,
-    project_id: str = DEFAULT_PROJECT_ID,
+    project_id: UUID = UUID(DEFAULT_PROJECT_ID),
     strategy_label: str | None = None,
-    is_duplicated_from: str | None = None,
+    is_duplicated_from: UUID | None = None,
 ) -> tuple[UUID, int]:
     """
     Lưu 1 lần search vào DB:
@@ -130,10 +130,8 @@ async def _persist_search(
     để UI render kết quả Top 20 đã xác minh. Endpoint quality-check chỉ còn là
     re-check/detail cho từng paper.
     """
-    project_uuid = uuid.UUID(str(project_id))
-    duplicated_from_uuid = (
-        uuid.UUID(str(is_duplicated_from)) if is_duplicated_from else None
-    )
+    project_uuid = project_id
+    duplicated_from_uuid = is_duplicated_from
     sq = SearchQuery(
         id=uuid.uuid4(),
         project_id=project_uuid,
@@ -196,7 +194,7 @@ from src.models.db_models import Project
 
 @router.post("/projects/{project_id}/search-strategies", response_model=SearchStrategiesResponse)
 async def get_search_strategies(
-    project_id: str,
+    project_id: UUID,
     x_api_key: str | None = Header(None, description="SerpApi Key"),
     db: AsyncSession = Depends(get_db),
 ) -> SearchStrategiesResponse:
@@ -222,7 +220,7 @@ async def get_search_strategies(
 
 @router.post("/projects/{project_id}/search", response_model=SearchResponse)
 async def search_papers(
-    project_id: str,
+    project_id: UUID,
     request: SearchExecuteRequest,
     x_api_key: str | None = Header(None, description="SerpApi hoặc Semantic Scholar Key"),
     provider: str | None = Query("auto", description="Nguồn dữ liệu: auto, serpapi, semanticscholar"),
@@ -264,7 +262,7 @@ async def search_papers(
         )
         
         if sq_id:
-            project_uuid = uuid.UUID(str(project_id))
+            project_uuid = project_id
             keys = [_compute_dedup_key(p.doi, p.title, p.authors, p.year) for p in papers]
             result = await db.execute(
                 select(Paper).where(Paper.project_id == project_uuid, Paper.dedup_key.in_(keys))
@@ -328,7 +326,7 @@ async def agent_status():
 
 @router.get("/projects/{project_id}/search-history", response_model=SearchHistoryResponse)
 async def get_search_history(
-    project_id: str,
+    project_id: UUID,
     db: AsyncSession = Depends(get_db),
 ) -> SearchHistoryResponse:
     """
@@ -347,7 +345,7 @@ async def get_search_history(
 
 @router.get("/search-queries/{query_id}/papers", response_model=list[PaperRecord])
 async def get_papers_for_query(
-    query_id: str,
+    query_id: UUID,
     db: AsyncSession = Depends(get_db),
 ) -> list[PaperRecord]:
     """
@@ -370,7 +368,7 @@ async def get_papers_for_query(
 
 @router.post("/search-queries/{query_id}/duplicate", response_model=DuplicateQueryResponse)
 async def duplicate_search_query(
-    query_id: str,
+    query_id: UUID,
     db: AsyncSession = Depends(get_db),
 ) -> DuplicateQueryResponse:
     """
@@ -392,7 +390,7 @@ async def duplicate_search_query(
         query_string=original.query_string,
         strategy_label=None,
         result_count=0,
-        is_duplicated_from=uuid.UUID(str(query_id)),
+        is_duplicated_from=query_id,
     )
     db.add(new_sq)
     await db.flush()
@@ -400,7 +398,7 @@ async def duplicate_search_query(
     return DuplicateQueryResponse(
         new_query_id=new_sq.id,
         query_string=new_sq.query_string,
-        duplicated_from=uuid.UUID(str(query_id)),
+        duplicated_from=query_id,
     )
 
 
@@ -441,11 +439,16 @@ async def quality_check_paper(
 # Workspace endpoints (Phase 1 RAG)
 # ──────────────────────────────────────────────────────────────────────────────
 
+MAX_UPLOAD_SIZE_MB = 20
+MAX_UPLOAD_SIZE_BYTES = MAX_UPLOAD_SIZE_MB * 1024 * 1024
+
+
 @router.post("/workspace/upload", response_model=UploadResponse)
 async def upload_paper_pdf(
     file: UploadFile = File(...),
-    paper_id: str = Form(...),
+    paper_id: UUID = Form(...),
     doi: str = Form(None),
+    project_id: UUID = Form(None),
     db: AsyncSession = Depends(get_db),
 ) -> UploadResponse:
     """Upload PDF and persist page/chunk provenance before vector indexing.
@@ -453,9 +456,28 @@ async def upload_paper_pdf(
     PageText stores the exact PyPDFLoader text. Chroma receives only chunks plus
     canonical DB identifiers/offsets, so later synthesis can ground evidence
     without trusting an LLM-generated chunk ID.
+
+    Giới hạn kích thước file: 20 MB. Trả HTTP 413 nếu vượt quá.
+    File được lưu scoped theo project_id nếu có.
     """
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are allowed.")
+
+    # Kiểm tra kích thước file — đọc toàn bộ content để tính size.
+    # UploadFile.size chưa được FastAPI populate trước khi đọc, nên dùng seek/tell.
+    contents = await file.read()
+    file_size = len(contents)
+    if file_size > MAX_UPLOAD_SIZE_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=(
+                f"File quá lớn: {file_size / (1024 * 1024):.1f} MB. "
+                f"Giới hạn tối đa là {MAX_UPLOAD_SIZE_MB} MB."
+            ),
+        )
+    # Reset lại để processor có thể đọc lại.
+    import io
+    file.file = io.BytesIO(contents)
 
     try:
         try:
@@ -468,7 +490,7 @@ async def upload_paper_pdf(
         if paper is None:
             raise HTTPException(status_code=404, detail=f"Paper '{paper_id}' not found")
 
-        file_path = await processor.save_upload_file(file)
+        file_path = await processor.save_upload_file(file, project_id=project_id)
         pages, chunks = processor.extract_and_chunk(file_path)
         if not chunks or all(not chunk.page_content.strip() for chunk in chunks):
             raise HTTPException(
@@ -549,6 +571,148 @@ async def upload_paper_pdf(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Direct Upload — tạo Paper record tự động, không cần Search/Screening trước
+# Giống NotebookLM: thả PDF vào là xong.
+# ──────────────────────────────────────────────────────────────────────────────
+
+@router.post("/workspace/direct-upload", response_model=DirectUploadResponse)
+async def direct_upload_pdf(
+    file: UploadFile = File(...),
+    title: str = Form(None),
+    authors: str = Form(None),
+    doi: str = Form(None),
+    year: int = Form(None),
+    project_id: str = Form(None),
+    db: AsyncSession = Depends(get_db),
+) -> DirectUploadResponse:
+    """Direct PDF upload — tự tạo Paper record và ingest luôn.
+
+    Không yêu cầu paper_id có sẵn. Phù hợp với luồng NotebookLM:
+    user thả PDF, hệ thống tạo Paper mới với screening_decision=keep
+    và chạy toàn bộ ingestion pipeline.
+
+    Giới hạn kích thước: 20 MB.
+    """
+    import io as _io
+    import re as _re
+
+    if not file.filename or not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF files are allowed.")
+
+    contents = await file.read()
+    if len(contents) > MAX_UPLOAD_SIZE_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=(
+                f"File quá lớn: {len(contents) / (1024*1024):.1f} MB. "
+                f"Giới hạn tối đa là {MAX_UPLOAD_SIZE_MB} MB."
+            ),
+        )
+    file.file = _io.BytesIO(contents)
+
+    # Xác định project sẽ gắn paper vào
+    effective_project_id = project_id or DEFAULT_PROJECT_ID
+    try:
+        project_uuid = uuid.UUID(str(effective_project_id))
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="project_id không hợp lệ.") from exc
+
+    project_result = await db.execute(select(Project).where(Project.id == project_uuid))
+    project = project_result.scalar_one_or_none()
+    if project is None:
+        raise HTTPException(status_code=404, detail=f"Project '{effective_project_id}' not found")
+
+    try:
+        # Tạo Paper record tự động từ metadata người dùng nhập (hoặc từ tên file)
+        safe_title = title.strip() if title and title.strip() else _re.sub(r"\.pdf$", "", file.filename, flags=_re.IGNORECASE)
+        authors_list = [a.strip() for a in authors.split(",") if a.strip()] if authors else []
+        paper_id = uuid.uuid4()
+        dedup_key = f"direct_{paper_id}"
+
+        from src.models.db_models import ScreeningDecision, PDFStatus, ExtractionStatus
+        new_paper = Paper(
+            id=paper_id,
+            project_id=project_uuid,
+            search_query_id=None,
+            title=safe_title,
+            authors=authors_list,
+            year=year,
+            doi=doi,
+            source="direct_upload",
+            dedup_key=dedup_key,
+            screening_decision=ScreeningDecision.keep,
+            pdf_status=PDFStatus.user_uploaded,
+        )
+        db.add(new_paper)
+        await db.flush()  # Lấy paper.id mà chưa commit
+
+        # Lưu file + ingest
+        file_path = await processor.save_upload_file(file, project_id=str(project_uuid))
+        pages, chunks = processor.extract_and_chunk(file_path)
+        if not chunks or all(not c.page_content.strip() for c in chunks):
+            raise HTTPException(
+                status_code=422,
+                detail="PDF không trích được văn bản — có thể là file scan/ảnh; OCR chưa được hỗ trợ.",
+            )
+
+        if doi:
+            for chunk in chunks:
+                chunk.metadata["doi"] = doi
+
+        ingestion_id = await persist_pdf_provenance(
+            db=db,
+            paper=new_paper,
+            pages=pages,
+            chunks=chunks,
+            parser_metadata=processor.parser_metadata(),
+        )
+
+        old_vector_ids: list[str] = []
+        cleanup_job = None
+        try:
+            old_vector_ids = await vector_store_service.stage_documents_for_paper(
+                str(new_paper.id), chunks
+            )
+            cleanup_job = await create_vector_cleanup_job(
+                db,
+                paper_id=new_paper.id,
+                ingestion_id=ingestion_id,
+                vector_ids=old_vector_ids,
+            )
+            await db.commit()
+        except Exception:
+            await vector_store_service.delete_documents_by_ingestion(str(ingestion_id))
+            await db.rollback()
+            raise
+
+        if cleanup_job is not None:
+            try:
+                from src.tasks.vector_cleanup_tasks import run_vector_cleanup_job
+                run_vector_cleanup_job.delay(str(cleanup_job.id))
+            except Exception as enqueue_exc:
+                import logging
+                logging.getLogger(__name__).warning(
+                    "Direct upload ingestion %s; cleanup job %s will be retried: %s",
+                    ingestion_id, cleanup_job.id, enqueue_exc,
+                )
+
+        return DirectUploadResponse(
+            paper_id=str(new_paper.id),
+            title=safe_title,
+            filename=file.filename,
+            total_pages=len(pages),
+            total_chunks=len(chunks),
+            source="direct_upload",
+            message=f"Đã ingest {len(pages)} trang, {len(chunks)} chunks vào Vector DB.",
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/workspace/test-search")
 async def test_vector_search(query: str = Query(...)):
     """
@@ -574,7 +738,7 @@ async def workspace_chat(request: WorkspaceChatRequest) -> WorkspaceChatResponse
     """
     try:
         # Bước 1: Tìm kiếm tài liệu liên quan trong ChromaDB
-        chunks = await vector_store_service.search_similar_documents(request.message, top_k=4)
+        chunks = await vector_store_service.search_similar_documents(request.message, top_k=20)
         
         # Bước 2: Sinh câu trả lời dựa trên context
         answer = await rag_service.generate_answer(request.message, chunks)

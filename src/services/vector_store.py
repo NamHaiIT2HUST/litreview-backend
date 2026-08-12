@@ -20,7 +20,7 @@ class VectorStoreService:
         # HuggingFace Embeddings local.
         if not settings.openai_api_key or settings.openai_api_key.startswith("sk-or-v1-"):
             self.embeddings = HuggingFaceEmbeddings(
-                model_name="sentence-transformers/all-MiniLM-L6-v2"
+                model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
             )
         else:
             api_base = settings.get_api_base
@@ -37,7 +37,7 @@ class VectorStoreService:
             chroma_kwargs["persist_directory"] = CHROMA_PERSIST_DIR
 
         self.vector_store = Chroma(
-            collection_name="litreview_papers",
+            collection_name="litreview_papers_v2",
             embedding_function=self.embeddings,
             **chroma_kwargs,
         )

@@ -51,12 +51,17 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(projectData)
       });
-      if (res.ok) setSaved(true);
+      if (res.ok) {
+        setSaved(true);
+        setTimeout(() => {
+          setSaved(false);
+          setActiveTab('search');
+        }, 800);
+      }
     } catch (err) {
       console.error("Save error:", err);
     } finally {
       setLoading(false);
-      setTimeout(() => setSaved(false), 3000);
     }
   };
 

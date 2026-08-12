@@ -1,14 +1,12 @@
 import React from 'react';
-import { Search, Sparkles, Sun, Moon, Home, Settings, Filter, Library, Download } from 'lucide-react';
+import { Search, Sparkles, Sun, Moon, Home, Settings, Library, Download } from 'lucide-react';
 
 export default function Navbar({ activeTab, setActiveTab, darkMode, setDarkMode, uploadedCount }) {
   const navItems = [
     { id: 'overview', label: 'Overview', icon: Home },
     { id: 'setup', label: 'Research Setup', icon: Settings },
     { id: 'search', label: 'Search & Verify', icon: Search },
-    { id: 'screening', label: 'Screening', icon: Filter },
-    { id: 'library', label: 'Library & Reader', icon: Library, count: uploadedCount },
-    { id: 'synthesis', label: 'Synthesis', icon: Sparkles },
+    { id: 'synthesis', label: 'Workspace', icon: Library, count: uploadedCount },
     { id: 'export', label: 'Export', icon: Download },
   ];
 

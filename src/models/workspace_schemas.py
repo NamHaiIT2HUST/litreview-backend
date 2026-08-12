@@ -7,6 +7,15 @@ class UploadResponse(BaseModel):
     total_chunks: int
     message: str
 
+class DirectUploadResponse(BaseModel):
+    paper_id: str
+    title: str
+    filename: str
+    total_pages: int
+    total_chunks: int
+    source: str = "direct_upload"
+    message: str
+
 class WorkspaceChatRequest(BaseModel):
     message: str
     # paper_id is optional if we want to filter by paper, but for now we search all chunks in the Chroma collection

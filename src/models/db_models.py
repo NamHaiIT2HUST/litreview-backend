@@ -17,7 +17,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy import Uuid as UUID
 from sqlalchemy.orm import relationship
 
 from src.database import Base
@@ -114,8 +114,8 @@ class Project(Base):
     research_field = Column(String, nullable=False)
     year_from = Column(Integer, nullable=True)
     year_to = Column(Integer, nullable=True)
-    criteria_include = Column(ARRAY(Text), nullable=True)
-    criteria_exclude = Column(ARRAY(Text), nullable=True)
+    criteria_include = Column(JSON, nullable=True)
+    criteria_exclude = Column(JSON, nullable=True)
     created_at = Column(DateTime(timezone=True), default=_now_utc)
     updated_at = Column(DateTime(timezone=True), default=_now_utc, onupdate=_now_utc)
 
@@ -146,7 +146,7 @@ class Paper(Base):
 
     title = Column(Text, nullable=False)
     abstract = Column(Text, nullable=True)
-    authors = Column(ARRAY(Text), nullable=True)
+    authors = Column(JSON, nullable=True)
     year = Column(Integer, nullable=True)
     doi = Column(String, nullable=True)
     issn = Column(String, nullable=True)
@@ -159,7 +159,7 @@ class Paper(Base):
 
     # Module 3: AI Screening
     relevance_bucket = Column(SQLEnum(RelevanceBucket), nullable=True)
-    relevance_reason = Column(JSONB, nullable=True)
+    relevance_reason = Column(JSON, nullable=True)
     priority_score = Column(Float, nullable=True)
     screening_decision = Column(SQLEnum(ScreeningDecision), default=ScreeningDecision.pending)
 
@@ -201,7 +201,7 @@ class VectorCleanupJob(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     paper_id = Column(UUID(as_uuid=True), ForeignKey("papers.id"), nullable=False, index=True)
     ingestion_id = Column(UUID(as_uuid=True), nullable=False, index=True)
-    vector_ids = Column(ARRAY(Text), nullable=False)
+    vector_ids = Column(JSON, nullable=False)
     status = Column(String(32), nullable=False, default="pending", index=True)
     attempt_count = Column(Integer, nullable=False, default=0)
     last_error = Column(Text, nullable=True)
@@ -216,7 +216,7 @@ class ScreeningHistory(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     paper_id = Column(UUID(as_uuid=True), ForeignKey("papers.id"))
     decision = Column(SQLEnum(ScreeningDecision), nullable=False)
-    ai_reason = Column(JSONB, nullable=True)
+    ai_reason = Column(JSON, nullable=True)
     user_note = Column(Text, nullable=True)
     decided_at = Column(DateTime(timezone=True), default=_now_utc)
 
@@ -253,7 +253,7 @@ class SynthesisSession(Base):
     __tablename__ = "synthesis_sessions"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     project_id = Column(UUID(as_uuid=True), ForeignKey("projects.id"))
-    paper_ids = Column(ARRAY(UUID(as_uuid=True)), nullable=False)
+    paper_ids = Column(JSON, nullable=False)
     status = Column(SQLEnum(SynthesisStatus), default=SynthesisStatus.processing)
     review_markdown = Column(Text, nullable=True)
     error_message = Column(Text, nullable=True)

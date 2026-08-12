@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
-  Search, Download, ExternalLink, PlusCircle, CheckCircle2, Award, Key, Loader2, AlertCircle, ChevronDown, ChevronUp, ShieldCheck, CircleHelp
+  Search, Download, ExternalLink, PlusCircle, CheckCircle2, Award, Key, Loader2, AlertCircle, ChevronDown, ChevronUp, ShieldCheck, CircleHelp,
+  Activity, Check, X, HelpCircle
 } from 'lucide-react';
 import SearchHistoryPanel from './SearchHistoryPanel';
 import FilterSortBar from './FilterSortBar';
@@ -45,19 +46,29 @@ function apiPaperToCanonicalSchema(apiPaper) {
   };
 }
 
-export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleSelectPaper, setActiveTab, darkMode }) {
+export default function SearchTab({ 
+  papers, 
+  setPapers, 
+  searchResults, 
+  setSearchResults, 
+  searchMeta, 
+  setSearchMeta, 
+  selectedPaperIds, 
+  toggleSelectPaper, 
+  workspacePapers,
+  setWorkspacePapers,
+  setActiveTab, 
+  darkMode 
+}) {
   const [searchQuery, setSearchQuery] = useState('large language models in healthcare');
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('serp_api_key') || '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [searchMeta, setSearchMeta] = useState({
-    provider: 'google_scholar',
-    limit: 20,
-    total_found: 0,
-    total_confirmed: 0,
-    total_undetermined: 0,
-    duplicates: 0,
-  });
+
+  // Screening States
+  const [screeningLoading, setScreeningLoading] = useState({});
+  const [projectData, setProjectData] = useState(null);
+  const [screenErrorMsg, setScreenErrorMsg] = useState(null);
 
   // Search History state
   const [history, setHistory] = useState([]);
@@ -109,6 +120,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
     }
   }, []);
 
+  
   // Tải papers của 1 lần search cụ thể từ backend
   const loadPapersForQuery = useCallback(async (queryId) => {
     try {
@@ -116,7 +128,19 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
       if (!res.ok) return;
       const dbPapers = await res.json();
       const converted = dbPapers.map(dbPaperToPaperSchema);
-      setPapers(converted);
+      setSearchResults(converted);
+      
+      // Update global papers to ensure data exists for selection
+      setPapers(prev => {
+        const newPapers = [...prev];
+        converted.forEach(p => {
+          if (!newPapers.find(existing => existing.id === p.id)) {
+            newPapers.push(p);
+          }
+        });
+        return newPapers;
+      });
+
       setSearchMeta({
         provider: 'saved_search',
         limit: 20,
@@ -129,19 +153,79 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
     } catch (err) {
       console.error('Failed to load papers for query:', err);
     }
-  }, [setPapers]);
+  }, [setPapers, setSearchResults, setSearchMeta]);
 
-  // Khôi phục lịch sử search gần nhất khi mount
+  // Load project details for Screening criteria
   useEffect(() => {
-    const restore = async () => {
-      const historyList = await fetchHistory();
-      if (historyList && historyList.length > 0 && papers.length === 0) {
-        const latestQuery = historyList[0];
-        await loadPapersForQuery(latestQuery.id);
+    const fetchProject = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/projects/00000000-0000-0000-0000-000000000001`);
+        if (res.ok) {
+          const data = await res.json();
+          setProjectData(data);
+        }
+      } catch (err) {
+        console.error("Lỗi khi fetch project:", err);
       }
     };
-    restore();
+    fetchProject();
   }, []);
+
+  // API Screening Logic
+  const handleScreenPaper = async (paperId) => {
+    setScreeningLoading(prev => ({ ...prev, [paperId]: true }));
+    setScreenErrorMsg(null);
+    try {
+      const res = await fetch(`${API_BASE}/papers/${paperId}/screen`, { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        setSearchResults(prev => prev.map(p => p.id === paperId ? { ...p, screening_data: data } : p));
+        setPapers(prev => prev.map(p => p.id === paperId ? { ...p, screening_data: data } : p));
+      } else {
+        setScreenErrorMsg("Lỗi khi Screening. DB có thể đang đóng hoặc API lỗi.");
+      }
+    } catch (err) {
+      console.error(err);
+      setScreenErrorMsg("Mất kết nối với Server. Vui lòng kiểm tra Docker!");
+    } finally {
+      setScreeningLoading(prev => ({ ...prev, [paperId]: false }));
+    }
+  };
+
+  const handleDecision = async (paperId, decision) => {
+    // Optimistic update
+    setSearchResults(prev => prev.map(p => p.id === paperId ? { ...p, screeningDecision: decision } : p));
+    setPapers(prev => prev.map(p => p.id === paperId ? { ...p, screeningDecision: decision, screening_decision: decision } : p));
+    
+    // Save to workspace if kept
+    if (decision === 'keep' || decision === 'maybe') {
+      const paperToSave = searchResults.find(p => p.id === paperId) || papers.find(p => p.id === paperId);
+      if (paperToSave && setWorkspacePapers) {
+        setWorkspacePapers(prev => {
+          if (!prev.find(p => p.id === paperId)) {
+            return [...prev, { ...paperToSave, screeningDecision: decision, screening_decision: decision }];
+          }
+          return prev;
+        });
+      }
+    }
+
+    // Server update
+    try {
+      await fetch(`${API_BASE}/papers/${paperId}/screening-decision`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ decision, note: '' })
+      });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Chỉ tải danh sách lịch sử khi mount (không tự động load papers cũ ra màn hình)
+  useEffect(() => {
+    fetchHistory();
+  }, [fetchHistory]);
 
   // Thực hiện search mới
   const handleSearch = async (e) => {
@@ -177,7 +261,19 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
       const data = await response.json();
       if (data.papers && data.papers.length > 0) {
         const canonicalPapers = data.papers.map(apiPaperToCanonicalSchema);
-        setPapers(canonicalPapers);
+        setSearchResults(canonicalPapers);
+        
+        // Update global papers
+        setPapers(prev => {
+          const newPapers = [...prev];
+          canonicalPapers.forEach(p => {
+            if (!newPapers.find(existing => existing.id === p.id)) {
+              newPapers.push(p);
+            }
+          });
+          return newPapers;
+        });
+
         setSearchMeta({
           provider: data.provider || 'google_scholar',
           limit: data.limit || 20,
@@ -191,6 +287,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
         }
         await fetchHistory();
       } else {
+        setSearchResults([]);
         setError('Không tìm thấy bài báo nào phù hợp với từ khóa này.');
       }
     } catch (err) {
@@ -211,9 +308,9 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
   };
 
   const availableJournals = useMemo(() => {
-    const journals = papers.map(p => p.journal).filter(Boolean);
+    const journals = searchResults.map(p => p.journal).filter(Boolean);
     return Array.from(new Set(journals));
-  }, [papers]);
+  }, [searchResults]);
 
   const hasActiveFilters = useMemo(() => {
     return (
@@ -238,7 +335,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
   };
 
   const filteredAndSortedPapers = useMemo(() => {
-    let result = [...papers];
+    let result = [...searchResults];
 
     if (activePreset === 'scopus_confirmed' || activePreset === 'scopus_only') {
       result = result.filter(p => p.scopus_status === 'indexed');
@@ -285,7 +382,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
     });
 
     return result;
-  }, [papers, activePreset, inResultQuery, minLitScore, minCitations, startYear, endYear, selectedJournal, sortBy]);
+  }, [searchResults, activePreset, inResultQuery, minLitScore, minCitations, startYear, endYear, selectedJournal, sortBy]);
 
   const handleExportExcel = () => {
     const dataToExport = selectedPaperIds.length > 0
@@ -371,7 +468,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
         </div>
       </form>
 
-      {papers.length > 0 && (
+      {searchResults.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
             <p className="text-xs font-bold text-slate-500 uppercase">Provider</p>
@@ -416,9 +513,9 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
       )}
 
       {/* Filter & Sort Controls Bar */}
-      {papers.length > 0 && (
+      {searchResults.length > 0 && (
         <FilterSortBar
-          totalCount={papers.length}
+          totalCount={searchResults.length}
           filteredCount={filteredAndSortedPapers.length}
           inResultQuery={inResultQuery}
           setInResultQuery={setInResultQuery}
@@ -453,7 +550,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
         <div className="flex items-center justify-between px-2">
           <div className="flex items-center gap-2">
             <span className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-              Kết quả tìm thấy ({papers.length} bài báo)
+              Kết quả tìm thấy ({searchResults.length} bài báo)
             </span>
             {activeQueryId && (
               <span className="text-xs font-mono text-slate-400 dark:text-slate-500">
@@ -468,21 +565,43 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
           )}
         </div>
 
+        {/* Project Criteria Banner */}
+        {projectData && searchResults.length > 0 && (
+          <div className={`p-5 rounded-3xl border shadow-sm ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-blue-50 border-blue-100'} mb-6`}>
+            <h3 className="font-bold text-lg mb-2">Chủ đề: {projectData.name}</h3>
+            <p className="text-sm mb-3"><span className="font-semibold">Câu hỏi NC:</span> {projectData.research_question}</p>
+            <div className="flex gap-6 text-sm">
+              <div>
+                <span className="font-semibold text-emerald-600">Nên có (Inclusion):</span>
+                <ul className="list-disc ml-5 opacity-80">
+                  {projectData.criteria_include?.map((c, i) => <li key={i}>{c}</li>)}
+                </ul>
+              </div>
+              <div>
+                <span className="font-semibold text-red-600">Loại trừ (Exclusion):</span>
+                <ul className="list-disc ml-5 opacity-80">
+                  {projectData.criteria_exclude?.map((c, i) => <li key={i}>{c}</li>)}
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Empty State */}
-        {papers.length === 0 && !loading && (
+        {searchResults.length === 0 && !loading && (
           <div className={`p-12 text-center rounded-3xl border ${
             darkMode ? 'bg-slate-900/60 border-slate-800 text-slate-400' : 'bg-white border-slate-200 text-slate-500'
           }`}>
             <Search className="w-12 h-12 mx-auto mb-4 opacity-30 text-blue-500" />
             <h3 className="text-lg font-bold mb-1">Chưa có kết quả tìm kiếm nào</h3>
             <p className="text-sm max-w-md mx-auto">
-              Hãy nhập SerpApi Key ở trên, sau đó gõ từ khóa nghiên cứu và nhấn nút <strong>"Tìm Top 20"</strong> để lấy kết quả Google Scholar đã đối chiếu Scopus.
+              Hãy nhập SerpApi Key ở trên, sau đó gõ từ khóa nghiên cứu và nhấn nút <strong>"Tìm Top 20"</strong>. 
             </p>
           </div>
         )}
 
         {/* Filter Empty State */}
-        {papers.length > 0 && filteredAndSortedPapers.length === 0 && (
+        {searchResults.length > 0 && filteredAndSortedPapers.length === 0 && (
           <div className={`p-10 text-center rounded-3xl border ${
             darkMode ? 'bg-slate-900/60 border-slate-800 text-slate-400' : 'bg-white border-slate-200 text-slate-500'
           }`}>
@@ -501,7 +620,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
         )}
 
         {/* View Mode: Table View */}
-        {papers.length > 0 && viewMode === 'table' && filteredAndSortedPapers.length > 0 && (
+        {searchResults.length > 0 && viewMode === 'table' && filteredAndSortedPapers.length > 0 && (
           <PaperTable
             papers={filteredAndSortedPapers}
             selectedPaperIds={selectedPaperIds}
@@ -511,9 +630,14 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
         )}
 
         {/* View Mode: Cards View */}
-        {papers.length > 0 && viewMode === 'cards' && filteredAndSortedPapers.map((paper) => {
+        {searchResults.length > 0 && viewMode === 'cards' && filteredAndSortedPapers.map((paper) => {
           const isSelected = selectedPaperIds.includes(paper.id);
           const isExpanded = expandedPaperIds.includes(paper.id);
+          const isScreening = screeningLoading[paper.id];
+          const screenData = paper.screening_data;
+          const decision = paper.screeningDecision;
+
+          if (decision) return null; // Hide paper if decision is made
 
           return (
             <div
@@ -593,75 +717,78 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, toggleS
                 </button>
               </div>
 
-              {/* Action Buttons Footer */}
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-3 border-t border-slate-100 dark:border-slate-800">
-                <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 font-mono">
-                  DOI: {paper.doi} • {paper.citations ? paper.citations.toLocaleString() : 0} lượt trích dẫn
-                </div>
-
-                <div className="flex items-center gap-3 w-full sm:w-auto">
+              {/* Action Buttons Footer (Screening Integrated) */}
+              <div className="flex flex-col gap-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                <div className="flex items-center justify-between">
+                  <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 font-mono">
+                    DOI: {paper.doi} • {paper.citations ? paper.citations.toLocaleString() : 0} lượt trích dẫn
+                  </div>
                   <a
                     href={paper.url}
                     target="_blank"
                     rel="noreferrer"
-                    className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-xs font-bold transition-all border ${
-                      darkMode 
-                        ? 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-white' 
-                        : 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-800'
-                    }`}
+                    className="flex items-center gap-1 text-xs font-bold text-blue-600 dark:text-sky-400 hover:underline"
                   >
-                    <Download className="w-4 h-4 text-blue-600 dark:text-sky-400" />
-                    <span>Tải PDF Bài Gốc</span>
-                    <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+                    Tải PDF Gốc <ExternalLink className="w-3 h-3" />
                   </a>
-
-                  <button
-                    onClick={() => toggleSelectPaper(paper.id)}
-                    className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-xs font-bold transition-all shadow-md ${
-                      isSelected
-                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                        : 'bg-blue-600 hover:bg-blue-700 text-white'
-                    }`}
-                  >
-                    {isSelected ? (
-                      <>
-                        <CheckCircle2 className="w-4 h-4" />
-                        <span>Đã thêm vào Screening</span>
-                      </>
-                    ) : (
-                      <>
-                        <PlusCircle className="w-4 h-4" />
-                        <span>Thêm vào Screening</span>
-                      </>
-                    )}
-                  </button>
                 </div>
+
+                {!screenData && !isScreening && (
+                  <button 
+                    onClick={() => handleScreenPaper(paper.id)}
+                    className="w-full sm:w-auto px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-md transition-colors"
+                  >
+                    <Activity className="w-5 h-5"/> Bắt đầu AI Screening
+                  </button>
+                )}
+
+                {isScreening && (
+                  <div className="flex items-center gap-2 text-indigo-600 text-sm font-bold animate-pulse p-2">
+                    <Loader2 className="w-5 h-5 animate-spin"/> Đang phân tích mức độ liên quan...
+                  </div>
+                )}
+
+                {screenData && (
+                  <div className={`p-5 rounded-2xl border shadow-inner ${screenData.relevance_bucket === 'high' ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800' : screenData.relevance_bucket === 'medium' ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800' : 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800'}`}>
+                    <div className="font-extrabold text-sm uppercase mb-3 flex items-center gap-2">
+                      Độ phù hợp (Relevance): 
+                      <span className={`${screenData.relevance_bucket === 'high' ? 'text-emerald-700 dark:text-emerald-400' : screenData.relevance_bucket === 'medium' ? 'text-amber-700 dark:text-amber-400' : 'text-red-700 dark:text-red-400'}`}>
+                        {screenData.relevance_bucket}
+                      </span>
+                    </div>
+                    
+                    <div className="text-sm text-slate-700 dark:text-slate-300 space-y-3 mb-5">
+                      {screenData.reason?.matches?.length > 0 && (
+                        <div>
+                          <span className="font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-1"><CheckCircle2 className="w-4 h-4"/> Khớp:</span>
+                          <ul className="list-disc ml-6 mt-1 opacity-90">{screenData.reason.matches.map((m, i) => <li key={i}>{m}</li>)}</ul>
+                        </div>
+                      )}
+                      {screenData.reason?.mismatches?.length > 0 && (
+                        <div>
+                          <span className="font-bold text-red-700 dark:text-red-400 flex items-center gap-1"><X className="w-4 h-4"/> Không khớp:</span>
+                          <ul className="list-disc ml-6 mt-1 opacity-90">{screenData.reason.mismatches.map((m, i) => <li key={i}>{m}</li>)}</ul>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <button onClick={() => handleDecision(paper.id, 'keep')} className="flex-1 px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl flex items-center justify-center gap-2 text-sm shadow transition-colors">
+                        <Check className="w-4 h-4"/> Keep (Đưa vào Workspace)
+                      </button>
+                      <button onClick={() => handleDecision(paper.id, 'maybe')} className="flex-1 px-5 py-3 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 text-sm shadow transition-colors">
+                        <HelpCircle className="w-4 h-4"/> Maybe
+                      </button>
+                      <button onClick={() => handleDecision(paper.id, 'remove')} className="flex-1 px-5 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl flex items-center justify-center gap-2 text-sm shadow transition-colors">
+                        <X className="w-4 h-4"/> Remove
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           );
         })}
-
-        {/* Floating Bottom Step Bar */}
-        {selectedPaperIds.length > 0 && (
-          <div className="sticky bottom-6 bg-slate-900 text-white p-5 rounded-3xl border border-slate-800 shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4 z-40">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white font-extrabold flex items-center justify-center text-lg">
-                {selectedPaperIds.length}
-              </div>
-              <div>
-                <p className="font-bold text-sm">Đã chọn {selectedPaperIds.length} bài báo</p>
-              <p className="text-xs text-slate-400">Sẵn sàng để AI screening theo criteria của project</p>
-              </div>
-            </div>
-
-            <button
-              onClick={() => setActiveTab('screening')}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3.5 rounded-2xl text-xs transition-all shadow-lg w-full sm:w-auto"
-            >
-              Chuyển sang Screening →
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );

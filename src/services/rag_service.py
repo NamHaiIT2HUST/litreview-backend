@@ -25,9 +25,9 @@ class RAGService:
         
         # Prompt template for RAG
         prompt_template = """
-Bạn là một trợ lý nghiên cứu học thuật. Hãy trả lời câu hỏi sau một cách chi tiết và chính xác, CHỈ dựa trên ngữ cảnh được cung cấp.
-Nếu thông tin trong ngữ cảnh không đủ để trả lời câu hỏi, hãy thành thật trả lời là "Tôi không tìm thấy thông tin này trong bài báo".
-
+Bạn là một trợ lý nghiên cứu học thuật. Hãy trả lời câu hỏi sau một cách chi tiết và chính xác dựa trên ngữ cảnh được cung cấp.
+Nếu câu hỏi mang tính tổng hợp (ví dụ: có bao nhiêu thuật toán, liệt kê các phương pháp) mà ngữ cảnh không chứa con số tổng quát, hãy liệt kê TẤT CẢ những gì bạn tìm thấy trong ngữ cảnh và ghi chú thêm rằng đây là những thông tin được trích xuất từ tài liệu.
+Chỉ trả lời "Tôi không tìm thấy thông tin này" nếu ngữ cảnh hoàn toàn không có bất kỳ thông tin nào liên quan đến câu hỏi.
 Ngữ cảnh:
 {context}
 

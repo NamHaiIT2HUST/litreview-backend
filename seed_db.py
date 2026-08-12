@@ -1,22 +1,24 @@
 import asyncio
 import uuid
-from src.database import AsyncSessionLocal
+from src.database import AsyncSessionLocal, create_all_tables
 from src.models.db_models import Project
 
 async def seed_project():
+    await create_all_tables()
     async with AsyncSessionLocal() as db:
-        project_id = "00000000-0000-0000-0000-000000000001"
+        project_id_str = "00000000-0000-0000-0000-000000000001"
+        project_uuid = uuid.UUID(project_id_str)
         
         # Check if exists
         result = await db.execute(
-            __import__('sqlalchemy').select(Project).where(Project.id == project_id)
+            __import__('sqlalchemy').select(Project).where(Project.id == project_uuid)
         )
         if result.scalar_one_or_none():
             print("Default project already exists.")
             return
 
         new_project = Project(
-            id=project_id,
+            id=project_uuid,
             name='Tác động của sinh viên kiệt sức',
             research_question='Sinh viên kiệt sức ảnh hưởng thế nào đến kết quả học tập?',
             research_field='Giáo dục học',
