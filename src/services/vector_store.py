@@ -12,6 +12,16 @@ from src.services.vector_store_config import build_chroma_connection_kwargs
 CHROMA_PERSIST_DIR = ".chroma_db"
 
 
+def should_use_gemini_embeddings(settings) -> bool:
+    return (
+        getattr(settings, "embedding_provider", "local") == "gemini"
+        and bool(
+            getattr(settings, "gemini_api_key", "")
+            or getattr(settings, "google_api_key", "")
+        )
+    )
+
+
 class LightweightHashEmbeddings(Embeddings):
     """Small offline fallback embeddings for local/Docker runs without OpenAI.
 
@@ -40,11 +50,13 @@ class LightweightHashEmbeddings(Embeddings):
 class VectorStoreService:
     def __init__(self):
         settings = get_settings()
-        gemini_key = settings.gemini_api_key or settings.google_api_key
+        gemini_key = getattr(settings, "gemini_api_key", "") or getattr(
+            settings, "google_api_key", ""
+        )
 
         # Gemini embeddings first. If the key is missing, keep the app bootable
         # with a lightweight offline fallback so local smoke tests still work.
-        if gemini_key:
+        if should_use_gemini_embeddings(settings):
             self.embeddings = GoogleGenerativeAIEmbeddings(
                 model=settings.embedding_model,
                 google_api_key=gemini_key,

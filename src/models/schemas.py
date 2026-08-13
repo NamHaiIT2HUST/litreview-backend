@@ -57,11 +57,14 @@ class PaperRecord(BaseModel):
     doi: str | None = None
     issn: str | None = None
     # These provider-only fields are not yet persisted by the legacy schema.
-    url: str = "#"
+    url: str | None = None
     citations: int = 0
     lit_score: int = 0
     tldr: str | None = None
     dedup_key: str
+    source: str = "scholar"
+    active_ingestion_id: UUID | None = None
+    pdf_status: str = "not_uploaded"
 
     # Module 4 — Quality Verification
     scopus_status: str = "undetermined"

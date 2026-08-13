@@ -5,7 +5,8 @@ specific provider directly.  Every synthesis step uses a Pydantic schema.
 """
 from __future__ import annotations
 
-from typing import Iterable
+import asyncio
+from collections.abc import Iterable
 from uuid import UUID
 
 from src.config import get_settings
@@ -20,34 +21,94 @@ from src.models.synthesis_schemas import (
 )
 
 
+def create_synthesis_llm(settings, *, gemini_cls=None, groq_cls=None):
+    """Create the configured synthesis chat model without making a network call."""
+    provider = settings.synthesis_llm_provider.lower().strip()
+    if provider == "groq":
+        if not settings.groq_api_key:
+            raise RuntimeError("Groq synthesis requires GROQ_API_KEY in .env.")
+        if groq_cls is None:
+            from langchain_groq import ChatGroq
+
+            groq_cls = ChatGroq
+        return groq_cls(
+            model=settings.synthesis_model,
+            api_key=settings.groq_api_key,
+            temperature=settings.synthesis_temperature,
+        )
+
+    if provider == "gemini":
+        gemini_key = settings.gemini_api_key or settings.google_api_key
+        if not gemini_key:
+            raise RuntimeError(
+                "Gemini synthesis requires GEMINI_API_KEY or GOOGLE_API_KEY in .env."
+            )
+        if gemini_cls is None:
+            from langchain_google_genai import ChatGoogleGenerativeAI
+
+            gemini_cls = ChatGoogleGenerativeAI
+        return gemini_cls(
+            model=settings.synthesis_model,
+            google_api_key=gemini_key,
+            temperature=settings.synthesis_temperature,
+        )
+
+    raise RuntimeError("SYNTHESIS_LLM_PROVIDER must be 'gemini' or 'groq'.")
+
+
+def _is_transient_provider_error(exc: BaseException) -> bool:
+    status_code = getattr(exc, "status_code", None)
+    if status_code == 429 or (isinstance(status_code, int) and status_code >= 500):
+        return True
+    name = type(exc).__name__.lower()
+    message = str(exc).lower()
+    return (
+        any(token in name for token in ("timeout", "connection", "ratelimit"))
+        or "503 unavailable" in message
+        or "high demand" in message
+        or "resource_exhausted" in message
+        or "429" in message
+    )
+
+
 class SynthesisLLMService:
-    def __init__(self, llm=None):
+    def __init__(self, llm=None, *, max_concurrency=None, retry_delays=(2.0, 5.0, 10.0, 20.0)):
         self._llm = llm
+        settings = get_settings()
+        self._max_concurrency = max_concurrency or settings.synthesis_llm_max_concurrency
+        self._semaphore = None
+        self._semaphore_loop = None
+        self._retry_delays = tuple(retry_delays)
+
+    def _get_semaphore(self):
+        current_loop = asyncio.get_running_loop()
+        if self._semaphore is None or self._semaphore_loop is not current_loop:
+            self._semaphore = asyncio.Semaphore(self._max_concurrency)
+            self._semaphore_loop = current_loop
+        return self._semaphore
 
     def _get_llm(self):
         if self._llm is not None:
             return self._llm
 
-        # Lazy import keeps schema/grounding tests independent from LangChain runtime.
-        from langchain_google_genai import ChatGoogleGenerativeAI
-
-        settings = get_settings()
-        gemini_key = settings.gemini_api_key or settings.google_api_key
-        if not gemini_key:
-            raise RuntimeError(
-                "Gemini API key is required. Set GEMINI_API_KEY or GOOGLE_API_KEY in .env."
-            )
-
-        self._llm = ChatGoogleGenerativeAI(
-            model=(settings.model_name if settings.model_name.startswith("gemini-") else "gemini-1.5-flash"),
-            google_api_key=gemini_key,
-            temperature=getattr(settings, "synthesis_temperature", 0.0),
-        )
+        self._llm = create_synthesis_llm(get_settings())
         return self._llm
+
+    def validate_configuration(self) -> None:
+        self._get_llm()
 
     async def _invoke_structured(self, schema, *, system: str, human: str):
         runner = self._get_llm().with_structured_output(schema)
-        return await runner.ainvoke([("system", system), ("human", human)])
+        messages = [("system", system), ("human", human)]
+        for attempt in range(len(self._retry_delays) + 1):
+            try:
+                async with self._get_semaphore():
+                    return await runner.ainvoke(messages)
+            except Exception as exc:
+                if attempt >= len(self._retry_delays) or not _is_transient_provider_error(exc):
+                    raise
+                await asyncio.sleep(self._retry_delays[attempt])
+        raise RuntimeError("unreachable")
 
     async def plan_dimensions(self, research_question: str) -> SynthesisPlanOutput:
         return await self._invoke_structured(
@@ -86,7 +147,11 @@ class SynthesisLLMService:
                 "one provided anchor_chunk_id as source_chunk_id. A quote may cross the anchor "
                 "chunk boundary because each supplied context is a continuous raw page window. "
                 "If the context does not contain evidence, return "
-                "an empty items list. Never infer missing information. " + quote_rule
+                "an empty items list. For a general literature review, treat paper-specific "
+                "objectives, methods, findings, and limitations as useful evidence even when "
+                "other papers use different terminology. When relevant text exists, return at "
+                "least one item and copy the shortest complete supporting quote exactly. "
+                "Never infer missing information. " + quote_rule
             ),
             human=(
                 f"Research question:\n{research_question}\n\n"
@@ -102,7 +167,10 @@ class SynthesisLLMService:
                 "You perform cross-paper literature synthesis from grounded evidence only. "
                 "Create concise claims representing agreement, disagreement, comparison, "
                 "trend, gap, or descriptive patterns. Every claim must reference one or "
-                "more supplied evidence IDs. Do not introduce facts absent from evidence."
+                "more supplied evidence IDs. Ensure every paper represented in the evidence "
+                "contributes at least one descriptive or comparative claim. Different topics "
+                "do not justify dropping a paper: describe its contribution independently. "
+                "Do not introduce facts absent from evidence."
             ),
             human=f"Research question:\n{research_question}\n\nGrounded evidence:\n{evidence_context}",
         )
@@ -153,10 +221,12 @@ class SynthesisLLMService:
         return await self._invoke_structured(
             SynthesisOutlineOutput,
             system=(
-                "Build a literature-review outline from verified synthesis claims. Group "
-                "claims by meaningful research themes. Use only supplied claim IDs and "
-                "assign each selected claim to one section. Do not invent themes that have "
-                "no supporting claims."
+                "Build a coherent academic literature-review outline from verified synthesis claims. "
+                "Select ONLY claims directly relevant to the research question; omit unrelated claims "
+                "even when they are supported by their source. Use only supplied claim IDs and assign "
+                "each selected claim to at most one section. Organize the review as an introduction, "
+                "thematic synthesis, limitations or research gaps, and a conclusion when the supplied "
+                "claims support those roles. Do not invent themes or background facts."
             ),
             human=f"Research question:\n{research_question}\n\nVerified claims:\n{claims_context}",
         )
@@ -172,10 +242,14 @@ class SynthesisLLMService:
             SectionDraftOutput,
             system=(
                 "Write an academic literature-review section using only the verified claims "
-                "and evidence supplied. Return sentence-level structured output. Every "
-                "sentence must reference at least one supplied claim_id so citations can be "
-                "resolved by code. Do not write uncited factual sentences and do not create "
-                "citation markers yourself."
+                "and evidence supplied. Return sentence-level structured output. Classify "
+                "each sentence as claim or discourse. Claim sentences state scientific facts "
+                "and must be directly entailed by their claim_ids. Discourse sentences may "
+                "connect, introduce, or summarize supplied claims, but must not add new facts; "
+                "they still list the claim_ids they derive from. Do not create citation markers."
+                " When the supplied claims permit it, write 3-5 coherent sentences for the "
+                "section: introduce the theme, synthesize or contrast the claims, and close "
+                "with a traceable transition. Never add factual background beyond the claims."
             ),
             human=(
                 f"Research question:\n{research_question}\n\n"

@@ -7,6 +7,7 @@ evidence grounding, entailment, outline persistence and citation resolution.
 from __future__ import annotations
 
 import uuid
+import json
 from collections import defaultdict
 from datetime import UTC, datetime
 
@@ -37,6 +38,17 @@ from src.services.claim_verification_policy import sanitize_claim_verification
 from src.services.evidence_extraction_policy import should_retry_evidence_batch
 from src.services.grounding_service import build_anchor_contexts, grounding_service
 from src.services.synthesis_llm_service import synthesis_llm_service
+from src.services.synthesis_coverage_policy import (
+    dimensions_needing_expansion,
+    ensure_review_dimensions,
+    evaluate_section_coverage,
+    missing_evidence_paper_ids,
+)
+from src.services.synthesis_session_utils import uuid_paper_ids
+from src.services.research_question_policy import (
+    GENERAL_LITERATURE_REVIEW_OBJECTIVE,
+    resolve_research_objective,
+)
 from src.services.vector_store import vector_store_service
 
 
@@ -55,8 +67,9 @@ class SynthesisService:
         if row is None:
             raise ValueError(f"Synthesis session {session_id} not found")
         session, project = row
+        research_question = resolve_research_objective(project.research_question)
 
-        paper_ids = list(session.paper_ids or [])
+        paper_ids = uuid_paper_ids(session.paper_ids or [])
         if not paper_ids:
             raise ValueError("Synthesis session contains no papers")
 
@@ -80,13 +93,13 @@ class SynthesisService:
         session.error_message = None
         await db.flush()
         return {
-            "research_question": project.research_question,
+            "research_question": research_question,
             "paper_ids": [str(paper_id) for paper_id in paper_ids],
         }
 
     async def plan_dimensions(self, research_question: str) -> list[str]:
         result = await synthesis_llm_service.plan_dimensions(research_question)
-        return result.dimensions
+        return ensure_review_dimensions(result.dimensions)
 
     async def extract_paper_evidence(
         self,
@@ -96,6 +109,7 @@ class SynthesisService:
         paper_id: uuid.UUID,
         research_question: str,
         dimensions: list[str],
+        expanded: bool = False,
     ) -> list[str]:
         paper_result = await db.execute(select(Paper).where(Paper.id == paper_id))
         paper = paper_result.scalar_one_or_none()
@@ -114,10 +128,15 @@ class SynthesisService:
         }
 
         for dimension in dimensions:
-            query = f"{research_question}\nEvidence dimension: {dimension}"
+            query_parts = [paper.title, f"Evidence dimension: {dimension}"]
+            if research_question != GENERAL_LITERATURE_REVIEW_OBJECTIVE:
+                query_parts.append(f"Research question: {research_question}")
+            query = "\n".join(query_parts)
+            if expanded:
+                query += "\nBroaden retrieval: include related terminology, methods, outcomes, limitations, and contrary findings."
             docs = await vector_store_service.search_similar_documents(
                 query,
-                top_k=6,
+                top_k=12 if expanded else 6,
                 filters=filters,
             )
             # Chroma chooses anchor chunks only.  The LLM must read canonical raw
@@ -231,6 +250,99 @@ class SynthesisService:
                 # potentially valid evidence from a mixed-success LLM batch.
 
         return list(dict.fromkeys(grounded_ids))
+
+    async def recover_and_validate_paper_coverage(
+        self,
+        db: AsyncSession,
+        *,
+        session_id: uuid.UUID,
+        paper_ids: list[uuid.UUID],
+        research_question: str,
+    ) -> list[str]:
+        evidence_rows = await db.execute(
+            select(EvidenceRecord.paper_id).where(
+                EvidenceRecord.synthesis_session_id == session_id
+            )
+        )
+        covered = [str(paper_id) for paper_id in evidence_rows.scalars().all()]
+        missing = missing_evidence_paper_ids(
+            selected_paper_ids=[str(paper_id) for paper_id in paper_ids],
+            evidence_paper_ids=covered,
+        )
+
+        recovery_dimensions = [
+            "Core contribution and research objective",
+            "Methodology and approach",
+            "Main findings and outcomes",
+        ]
+        for raw_paper_id in missing:
+            await self.extract_paper_evidence(
+                db,
+                session_id=session_id,
+                paper_id=uuid.UUID(raw_paper_id),
+                research_question=research_question,
+                dimensions=recovery_dimensions,
+                expanded=True,
+            )
+
+        evidence_rows = await db.execute(
+            select(EvidenceRecord.paper_id).where(
+                EvidenceRecord.synthesis_session_id == session_id
+            )
+        )
+        covered = [str(paper_id) for paper_id in evidence_rows.scalars().all()]
+        still_missing = missing_evidence_paper_ids(
+            selected_paper_ids=[str(paper_id) for paper_id in paper_ids],
+            evidence_paper_ids=covered,
+        )
+        if still_missing:
+            paper_rows = await db.execute(
+                select(Paper.id, Paper.title).where(
+                    Paper.id.in_([uuid.UUID(value) for value in still_missing])
+                )
+            )
+            missing_titles = [title for _paper_id, title in paper_rows.all()]
+            raise ValueError(
+                "Không đủ bằng chứng để tạo tổng quan cho: "
+                + "; ".join(missing_titles or still_missing)
+                + ". Hãy kiểm tra PDF hoặc thử tài liệu khác."
+            )
+        return missing
+
+    async def expand_thin_dimensions_once(
+        self,
+        db: AsyncSession,
+        *,
+        session_id: uuid.UUID,
+        paper_ids: list[uuid.UUID],
+        research_question: str,
+        dimensions: list[str],
+    ) -> list[str]:
+        rows = await db.execute(
+            select(EvidenceRecord.dimension, EvidenceRecord.paper_id).where(
+                EvidenceRecord.synthesis_session_id == session_id
+            )
+        )
+        paper_ids_by_dimension: defaultdict[str, list[str]] = defaultdict(list)
+        for dimension, paper_id in rows.all():
+            paper_ids_by_dimension[dimension].append(str(paper_id))
+        thin_dimensions = dimensions_needing_expansion(
+            dimensions=dimensions,
+            paper_ids_by_dimension=paper_ids_by_dimension,
+        )
+        if not thin_dimensions:
+            return []
+
+        for paper_id in paper_ids:
+            await self.extract_paper_evidence(
+                db,
+                session_id=session_id,
+                paper_id=paper_id,
+                research_question=research_question,
+                dimensions=thin_dimensions,
+                expanded=True,
+            )
+        return thin_dimensions
 
     async def _clear_downstream_outputs(self, db: AsyncSession, session_id: uuid.UUID) -> None:
         claim_ids_subquery = select(SynthesisClaim.id).where(
@@ -439,19 +551,6 @@ class SynthesisService:
                 assigned.add(claim_id)
             section_ids.append(str(section.id))
 
-        unassigned = [claim_id for claim_id in claim_map if claim_id not in assigned]
-        if unassigned:
-            section = SynthesisSection(
-                id=uuid.uuid4(),
-                synthesis_session_id=session_id,
-                title="Additional findings",
-                position=len(section_ids),
-            )
-            db.add(section)
-            for claim_id in unassigned:
-                claim_map[claim_id].section_id = section.id
-            section_ids.append(str(section.id))
-
         await db.flush()
         if not section_ids:
             raise ValueError("Outline generation produced no usable sections")
@@ -488,32 +587,44 @@ class SynthesisService:
             raise ValueError(f"Section {section_id} has no supported claims")
 
         claim_ids: set[uuid.UUID] = set()
+        evidence_paper_ids: list[str] = []
+        claim_types = []
         context_parts: list[str] = []
         for claim, _link, evidence, paper in claim_rows:
             claim_ids.add(claim.id)
+            evidence_paper_ids.append(str(evidence.paper_id))
+            claim_types.append(claim.claim_type)
             context_parts.append(
                 f"[claim_id={claim.id}] {claim.statement}\n"
                 f"Evidence from {paper.title}: {evidence.value}\n"
                 f"Quote: {evidence.quote}"
             )
 
-        output = await synthesis_llm_service.draft_section(
-            research_question=research_question,
-            section_title=section.title,
-            claims_context="\n\n".join(context_parts),
+        coverage = evaluate_section_coverage(
+            evidence_paper_ids=evidence_paper_ids,
+            claim_types=claim_types,
         )
-
         sentences: list[dict] = []
-        for item in output.sentences:
-            valid_claim_ids = [claim_id for claim_id in item.claim_ids if claim_id in claim_ids]
-            if not valid_claim_ids:
-                continue
-            sentences.append(
-                {
-                    "sentence": item.sentence.strip(),
-                    "claim_ids": [str(claim_id) for claim_id in valid_claim_ids],
-                }
+        for _draft_attempt in range(2):
+            output = await synthesis_llm_service.draft_section(
+                research_question=research_question,
+                section_title=section.title,
+                claims_context="\n\n".join(context_parts),
             )
+            sentences = []
+            for item in output.sentences:
+                valid_claim_ids = [claim_id for claim_id in item.claim_ids if claim_id in claim_ids]
+                if not valid_claim_ids:
+                    continue
+                sentences.append(
+                    {
+                        "sentence": item.sentence.strip(),
+                        "sentence_type": item.sentence_type.value,
+                        "claim_ids": [str(claim_id) for claim_id in valid_claim_ids],
+                    }
+                )
+            if sentences:
+                break
         if not sentences:
             raise ValueError(f"Section {section_id} draft contained no traceable sentences")
 
@@ -521,6 +632,7 @@ class SynthesisService:
             "section_id": str(section.id),
             "title": section.title,
             "position": section.position,
+            "coverage": coverage.model_dump(),
             "sentences": sentences,
         }
 
@@ -553,8 +665,27 @@ class SynthesisService:
         for claim, _link, evidence, page_text in rows.all():
             claim_to_evidence[claim.id].append((evidence, page_text))
 
+        selected_paper_ids = uuid_paper_ids(session.paper_ids or [])
+        supported_paper_ids = {
+            evidence.paper_id
+            for evidence_items in claim_to_evidence.values()
+            for evidence, _page_text in evidence_items
+        }
+        missing_supported_papers = [
+            paper_id for paper_id in selected_paper_ids if paper_id not in supported_paper_ids
+        ]
+        if missing_supported_papers:
+            paper_rows = await db.execute(
+                select(Paper.title).where(Paper.id.in_(missing_supported_papers))
+            )
+            raise ValueError(
+                "Tổng quan chưa có claim được kiểm chứng cho: "
+                + "; ".join(paper_rows.scalars().all())
+            )
+
         paper_order = {
-            paper_id: index + 1 for index, paper_id in enumerate(list(session.paper_ids or []))
+            paper_id: index + 1
+            for index, paper_id in enumerate(selected_paper_ids)
         }
         await db.execute(delete(Citation).where(Citation.synthesis_session_id == session_id))
 
@@ -579,6 +710,7 @@ class SynthesisService:
             heading = f"## {section.title}\n\n"
             append(heading)
             section_parts: list[str] = []
+            stored_sentences: list[dict] = []
 
             for sentence_payload in section_payload.get("sentences", []):
                 sentence = str(sentence_payload.get("sentence", "")).strip()
@@ -601,10 +733,15 @@ class SynthesisService:
                 if not evidence_by_paper:
                     continue  # deterministic final guard: no unsupported prose
 
+                sentence_type = sentence_payload.get("sentence_type", "claim")
                 append(sentence)
                 section_sentence = sentence
+                citation_ids: list[str] = []
+                # Discourse prose remains traceable through claim_ids but does not
+                # repeat inline citation markers unless it carries a factual claim.
+                cited_papers = evidence_by_paper if sentence_type == "claim" else {}
                 for paper_id in sorted(
-                    evidence_by_paper,
+                    cited_papers,
                     key=lambda pid: paper_order.get(pid, 10**9),
                 ):
                     evidence, page_text = evidence_by_paper[paper_id]
@@ -616,9 +753,11 @@ class SynthesisService:
                     append(marker)
                     marker_end = cursor
                     section_sentence += marker
+                    citation_id = uuid.uuid4()
+                    citation_ids.append(str(citation_id))
                     db.add(
                         Citation(
-                            id=uuid.uuid4(),
+                            id=citation_id,
                             synthesis_session_id=session_id,
                             paper_id=paper_id,
                             evidence_id=evidence.id,
@@ -634,9 +773,19 @@ class SynthesisService:
 
                 append(" ")
                 section_parts.append(section_sentence)
+                stored_sentences.append({
+                    "text": sentence,
+                    "sentence_type": sentence_type,
+                    "claim_ids": sentence_payload.get("claim_ids", []),
+                    "citation_ids": citation_ids,
+                })
 
             append("\n\n")
-            section.draft = " ".join(section_parts)
+            section.draft = json.dumps({
+                "tldr": " ".join(item["text"] for item in stored_sentences[:2]),
+                "coverage": section_payload.get("coverage", {}),
+                "sentences": stored_sentences,
+            })
 
         review_markdown = "".join(review_parts).strip()
         if not review_markdown:

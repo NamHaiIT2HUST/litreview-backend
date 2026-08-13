@@ -41,6 +41,19 @@ class SynthesisClaimType(str, Enum):
     descriptive = "descriptive"
 
 
+class SentenceType(str, Enum):
+    claim = "claim"
+    discourse = "discourse"
+
+
+class SectionCoverage(BaseModel):
+    status: str
+    evidence_count: int = Field(ge=0)
+    paper_count: int = Field(ge=0)
+    retrieval_attempts: int = Field(default=1, ge=1, le=2)
+    reasons: list[str] = Field(default_factory=list)
+
+
 class EvidenceExtractionCandidate(BaseModel):
     """Untrusted structured output from the extraction LLM."""
 
@@ -178,6 +191,7 @@ class SynthesisOutlineOutput(BaseModel):
 class DraftSentence(BaseModel):
     sentence: str = Field(min_length=1)
     claim_ids: list[uuid.UUID] = Field(min_length=1)
+    sentence_type: SentenceType = SentenceType.claim
 
     @field_validator("sentence")
     @classmethod
@@ -217,9 +231,35 @@ class SynthesisCitationResponse(BaseModel):
     quoted_snippet: str | None
 
 
+class SynthesisSentenceResponse(BaseModel):
+    text: str
+    sentence_type: SentenceType
+    claim_ids: list[uuid.UUID] = Field(default_factory=list)
+    citation_ids: list[uuid.UUID] = Field(default_factory=list)
+
+
+class SynthesisSectionResponse(BaseModel):
+    id: uuid.UUID
+    title: str
+    position: int
+    tldr: str | None = None
+    coverage: SectionCoverage
+    sentences: list[SynthesisSentenceResponse] = Field(default_factory=list)
+
+
+class SynthesisEvidenceProfileItem(BaseModel):
+    id: uuid.UUID
+    paper_id: uuid.UUID
+    dimension: str
+    value: str
+    quote: str
+
+
 class SynthesisSessionResponse(BaseModel):
     id: uuid.UUID
     status: str
     review_markdown: str | None
     error_message: str | None = None
     citations: list[SynthesisCitationResponse] = Field(default_factory=list)
+    sections: list[SynthesisSectionResponse] = Field(default_factory=list)
+    evidence_profile: list[SynthesisEvidenceProfileItem] = Field(default_factory=list)

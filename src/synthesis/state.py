@@ -10,6 +10,7 @@ class SynthesisState(TypedDict, total=False):
     paper_ids: list[str]
     dimensions: list[str]
     completed_papers: Annotated[list[str], operator.add]
+    expanded_dimensions: list[str]
     claim_ids: list[str]
     section_ids: list[str]
     drafted_sections: Annotated[list[dict], operator.add]

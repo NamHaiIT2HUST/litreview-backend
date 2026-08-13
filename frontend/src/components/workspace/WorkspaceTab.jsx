@@ -1,6 +1,7 @@
 import React, { useCallback, useRef, useState } from 'react';
 import ChatPanel from './ChatPanel';
 import VerificationPanel from './VerificationPanel';
+import { persistedDirectUploadSources } from '../../utils/workspaceSources';
 import SynthesisPanel from './SynthesisPanel';
 import {
   Bot,
@@ -169,6 +170,26 @@ export default function WorkspaceTab({
   const [isUploading, setIsUploading] = useState(false);
   const [selectedSourceId, setSelectedSourceId] = useState(null);
   const [showSynthesis, setShowSynthesis] = useState(false);
+  React.useEffect(() => {
+    let cancelled = false;
+    const restoreUploads = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/projects/00000000-0000-0000-0000-000000000001/papers?include_unverified=true`);
+        if (!response.ok) return;
+        const persisted = persistedDirectUploadSources(await response.json());
+        if (cancelled) return;
+        setWorkspacePapers((current) => {
+          const merged = new Map(current.map((paper) => [paper.id, paper]));
+          persisted.forEach((paper) => merged.set(paper.id, { ...paper, ...(merged.get(paper.id) || {}) }));
+          return Array.from(merged.values());
+        });
+      } catch (error) {
+        console.error('Unable to restore uploaded workspace papers:', error);
+      }
+    };
+    restoreUploads();
+    return () => { cancelled = true; };
+  }, [setWorkspacePapers]);
 
   // Lọc và gộp danh sách nguồn tài liệu
   const allSources = React.useMemo(() => {
@@ -309,7 +330,7 @@ export default function WorkspaceTab({
           </button>
           
           {showSynthesis && (
-            <div className="p-4 pt-0 border-t dark:border-slate-800">
+            <div className="p-4 pt-0 border-t dark:border-slate-800 max-h-[52vh] overflow-hidden">
               <SynthesisPanel
                 workspacePapers={workspacePapers}
                 setActiveCitation={setActiveCitation}
@@ -319,9 +340,9 @@ export default function WorkspaceTab({
           )}
         </div>
 
-        {/* Chat / Verification Split */}
+        {/* Chat */}
         <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-5 min-h-0">
-          <div className={`${activeCitation ? 'lg:col-span-7' : 'lg:col-span-12'} h-full rounded-3xl border flex flex-col overflow-hidden ${
+          <div className={`lg:col-span-12 h-full rounded-3xl border flex flex-col overflow-hidden ${
             darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
           }`}>
             <ChatPanel
@@ -333,14 +354,13 @@ export default function WorkspaceTab({
               darkMode={darkMode}
             />
           </div>
-
-          {activeCitation && (
-            <div className="lg:col-span-5 h-full overflow-y-auto">
-              <VerificationPanel activeCitation={activeCitation} darkMode={darkMode} />
-            </div>
-          )}
         </div>
       </div>
+      <VerificationPanel
+        activeCitation={activeCitation}
+        darkMode={darkMode}
+        onClose={() => setActiveCitation(null)}
+      />
     </div>
   );
 }

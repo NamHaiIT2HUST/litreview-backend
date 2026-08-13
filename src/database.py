@@ -33,7 +33,7 @@ DATABASE_URL = _normalize_async_database_url(
 engine = create_async_engine(
     DATABASE_URL,
     echo=False,
-    connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {},
+    connect_args={"check_same_thread": False, "timeout": 30} if "sqlite" in DATABASE_URL else {},
 )
 
 AsyncSessionLocal = async_sessionmaker(

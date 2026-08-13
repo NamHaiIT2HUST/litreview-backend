@@ -2,10 +2,32 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  buildReviewSections,
   buildSynthesisRequest,
   enrichCitation,
   tokenizeReviewCitations,
 } from './synthesis.js';
+
+test('buildReviewSections joins each sentence to its grounded citations', () => {
+  const result = {
+    citations: [{ id: 'citation-1', paper_id: 'paper-1', marker_display: '[1]' }],
+    sections: [{
+      id: 'section-1',
+      title: 'Kết quả chính',
+      coverage: { status: 'sufficient', evidence_count: 2, paper_count: 2, retrieval_attempts: 1, reasons: [] },
+      sentences: [
+        { text: 'RAG cải thiện độ chính xác.', sentence_type: 'claim', claim_ids: ['claim-1'], citation_ids: ['citation-1'] },
+        { text: 'Nhìn chung, các kết quả nhất quán.', sentence_type: 'discourse', claim_ids: ['claim-1'], citation_ids: [] },
+      ],
+    }],
+  };
+
+  const [section] = buildReviewSections(result, [{ id: 'paper-1', title: 'Paper A' }]);
+
+  assert.equal(section.sentences[0].citations[0].title, 'Paper A');
+  assert.equal(section.sentences[1].citations.length, 0);
+  assert.equal(section.sentences[1].sentence_type, 'discourse');
+});
 
 test('buildSynthesisRequest uses canonical workspace paper ids in order', () => {
   const request = buildSynthesisRequest([
