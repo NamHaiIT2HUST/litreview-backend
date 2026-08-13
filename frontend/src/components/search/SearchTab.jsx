@@ -34,8 +34,14 @@ function dbPaperToPaperSchema(dbPaper) {
 }
 
 export default function SearchTab({ papers, setPapers, selectedPaperIds, selectedPapers = [], toggleSelectPaper, clearSelectedPapers, setActiveTab, darkMode }) {
-  const [searchQuery, setSearchQuery] = useState(() => localStorage.getItem('last_search_query') || '');
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem('serp_api_key') || '');
+  const [apiKey, setApiKey] = useState(
+    localStorage.getItem('litreview_serpapi_key') || ''
+  );
+  const [queryChips, setQueryChips] = useState(() => {
+    const saved = localStorage.getItem('last_search_query');
+    return saved ? [saved] : [];
+  });
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [searchMeta, setSearchMeta] = useState({
@@ -102,9 +108,25 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
   };
 
   const handleSearchQueryChange = (e) => {
-    const val = e.target.value;
-    setSearchQuery(val);
-    localStorage.setItem('last_search_query', val);
+    setSearchQuery(e.target.value);
+  };
+
+  const handleInputKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (searchQuery.trim()) {
+        const newChips = [...queryChips, searchQuery.trim()];
+        setQueryChips(newChips);
+        setSearchQuery('');
+        localStorage.setItem('last_search_query', newChips.join(' '));
+      }
+    }
+  };
+
+  const removeChip = (indexToRemove) => {
+    const newChips = queryChips.filter((_, idx) => idx !== indexToRemove);
+    setQueryChips(newChips);
+    localStorage.setItem('last_search_query', newChips.join(' '));
   };
 
   // AI Screening handler
@@ -229,12 +251,26 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
   // Thực hiện search mới
   const handleSearch = async (e) => {
     if (e) e.preventDefault();
-    if (!searchQuery.trim()) return;
+    
+    let finalChips = [...queryChips];
+    if (searchQuery.trim()) {
+      finalChips.push(searchQuery.trim());
+      setQueryChips(finalChips);
+      setSearchQuery('');
+    }
+
+    if (finalChips.length === 0) {
+      setError('Vui lòng nhập ít nhất một từ khóa (nhấn Enter để thêm).');
+      return;
+    }
 
     if (!apiKey.trim()) {
       setError('Vui lòng nhập SerpApi Key để tìm kiếm trên Google Scholar.');
       return;
     }
+
+    const finalQueryString = finalChips.join(' ');
+    localStorage.setItem('last_search_query', finalQueryString);
 
     setLoading(true);
     setError('');
@@ -247,7 +283,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
           'X-API-Key': apiKey.trim()
         },
         body: JSON.stringify({
-          query_string: searchQuery,
+          query_string: finalQueryString,
           strategy_label: null
         })
       });
@@ -553,35 +589,60 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
         <form onSubmit={handleSearch} className={`p-4 md:p-6 rounded-3xl border shadow-lg transition-colors ${
           darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
         }`}>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search className="w-6 h-6 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={handleSearchQueryChange}
-                placeholder="Nhập từ khóa nghiên cứu..."
-                className={`w-full pl-14 pr-4 py-4 border rounded-2xl text-base font-semibold focus:outline-none focus:ring-2 focus:ring-blue-600 ${
-                  darkMode 
-                    ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500' 
-                    : 'bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400'
-                }`}
-              />
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <Search className="w-6 h-6 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={handleSearchQueryChange}
+                  onKeyDown={handleInputKeyDown}
+                  placeholder="Nhập từ khóa và nhấn Enter..."
+                  className={`w-full pl-14 pr-4 py-4 border rounded-2xl text-base font-semibold focus:outline-none focus:ring-2 focus:ring-blue-600 ${
+                    darkMode 
+                      ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500' 
+                      : 'bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400'
+                  }`}
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold px-8 py-4 rounded-2xl text-base transition-all shadow-md flex items-center justify-center gap-2 shrink-0"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>Đang tìm kiếm...</span>
+                  </>
+                ) : (
+                    <span>Tìm kiếm</span>
+                )}
+              </button>
             </div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold px-8 py-4 rounded-2xl text-base transition-all shadow-md flex items-center justify-center gap-2 shrink-0"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>Đang tìm kiếm...</span>
-                </>
-              ) : (
-                  <span>Tìm kiếm</span>
-              )}
-            </button>
+            
+            {/* Display Chips */}
+            {queryChips.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {queryChips.map((chip, idx) => (
+                  <span
+                    key={idx}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-bold bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 border border-blue-200 dark:border-blue-800"
+                  >
+                    {chip}
+                    <button
+                      type="button"
+                      onClick={() => removeChip(idx)}
+                      className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5 transition-colors"
+                      title="Xóa từ khóa"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         </form>
 
@@ -766,27 +827,29 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                   <p className="font-bold text-blue-600 dark:text-sky-400 mb-1">📝 Abstract:</p>
 
                   <p className={`text-slate-700 dark:text-slate-300 leading-relaxed font-normal ${
-                    isExpanded ? 'whitespace-pre-line' : 'line-clamp-3'
+                    paper.abstract?.length > 500 && !isExpanded ? 'line-clamp-3' : 'whitespace-pre-line'
                   }`}>
                     {paper.abstract}
                   </p>
 
-                  <button
-                    onClick={() => toggleExpandAbstract(paper.id)}
-                    className="mt-3 text-xs font-extrabold text-blue-600 dark:text-sky-400 hover:underline flex items-center gap-1 transition-colors"
-                  >
-                    {isExpanded ? (
-                      <>
-                        <ChevronUp className="w-4 h-4 text-blue-600 dark:text-sky-400" />
-                        <span>Thu gọn</span>
-                      </>
-                    ) : (
-                      <>
-                        <ChevronDown className="w-4 h-4 text-blue-600 dark:text-sky-400" />
-                        <span>Xem thêm...</span>
-                      </>
-                    )}
-                  </button>
+                  {paper.abstract?.length > 500 && (
+                    <button
+                      onClick={() => toggleExpandAbstract(paper.id)}
+                      className="mt-3 text-xs font-extrabold text-blue-600 dark:text-sky-400 hover:underline flex items-center gap-1 transition-colors"
+                    >
+                      {isExpanded ? (
+                        <>
+                          <ChevronUp className="w-4 h-4 text-blue-600 dark:text-sky-400" />
+                          <span>Thu gọn</span>
+                        </>
+                      ) : (
+                        <>
+                          <ChevronDown className="w-4 h-4 text-blue-600 dark:text-sky-400" />
+                          <span>Xem thêm...</span>
+                        </>
+                      )}
+                    </button>
+                  )}
                 </div>
 
                 {/* Action Buttons Footer */}
