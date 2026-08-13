@@ -39,6 +39,7 @@ services:
       - chroma_data:/data
 
   backend:
+    build: .
     image: p-165-backend:latest
     container_name: litreview-backend
     user: root
@@ -76,6 +77,7 @@ services:
   worker:
     profiles:
       - worker
+    build: .
     image: p-165-backend:latest
     container_name: litreview-worker
     user: root

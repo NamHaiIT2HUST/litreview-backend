@@ -1,4 +1,18 @@
 import os
+import sys
+
+# Force UTF-8 on Windows (avoids cp1252 UnicodeEncodeError in logs)
+if sys.stdout and hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if sys.stderr and hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 os.environ["LANGCHAIN_TRACING_V2"] = "false"
 os.environ["LANGSMITH_TRACING"] = "false"
 
@@ -6,6 +20,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from src.api.routes import router as root_router
 from src.api.project_routes import router as project_router
@@ -43,6 +58,11 @@ app.include_router(project_router, prefix="/api/v1")
 app.include_router(root_router, prefix="/api/v1")
 app.include_router(screening_router, prefix="/api/v1")
 app.include_router(export_router, prefix="/api/v1")
+
+# Mount uploads directory for PDF serving
+import os
+os.makedirs("uploads/papers", exist_ok=True)
+app.mount("/api/v1/workspace/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 
 @app.get("/health")

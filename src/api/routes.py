@@ -42,7 +42,7 @@ from src.models.schemas import (
     SearchQueryRecord,
     SearchResponse,
 )
-from src.models.workspace_schemas import UploadResponse, WorkspaceChatRequest, WorkspaceChatResponse
+from src.models.workspace_schemas import UploadResponse, DirectUploadResponse, WorkspaceChatRequest, WorkspaceChatResponse
 from src.models.search_schemas import SearchExecuteRequest, SearchStrategiesResponse
 from src.models.synthesis_schemas import (
     SynthesisCitationResponse,
@@ -493,7 +493,7 @@ async def upload_paper_pdf(
             raise HTTPException(status_code=404, detail=f"Paper '{paper_id}' not found")
 
         file_path = await processor.save_upload_file(file)
-        pages, chunks = processor.extract_and_chunk(file_path)
+        pages, chunks = processor.extract_and_chunk(file_path, paper_title=paper.title)
         if not chunks or all(not chunk.page_content.strip() for chunk in chunks):
             raise HTTPException(
                 status_code=422,
@@ -573,6 +573,90 @@ async def upload_paper_pdf(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.post("/workspace/direct-upload", response_model=DirectUploadResponse)
+async def direct_upload_pdf(
+    file: UploadFile = File(...),
+    title: str = Form(...),
+    db: AsyncSession = Depends(get_db),
+) -> DirectUploadResponse:
+    """Upload a PDF directly from Workspace without a prior paper search result."""
+    if not file.filename or not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF files are allowed.")
+
+    try:
+        project_uuid = uuid.UUID(DEFAULT_PROJECT_ID)
+        paper_uuid = uuid.uuid4()
+        
+        # Create a new Paper record for this direct upload
+        paper = Paper(
+            id=paper_uuid,
+            project_id=project_uuid,
+            title=title,
+            authors="Direct Upload",
+            year=2024,
+            abstract="",
+            dedup_key=f"direct_upload_{paper_uuid}"
+        )
+        db.add(paper)
+        await db.flush()
+
+        file_path = await processor.save_upload_file(file)
+        pages, chunks = processor.extract_and_chunk(file_path, paper_title=paper.title)
+        
+        if not chunks or all(not chunk.page_content.strip() for chunk in chunks):
+            raise HTTPException(
+                status_code=422,
+                detail="PDF không trích được văn bản — có thể là file scan/ảnh."
+            )
+
+        ingestion_id = await persist_pdf_provenance(
+            db=db,
+            paper=paper,
+            pages=pages,
+            chunks=chunks,
+            parser_metadata=processor.parser_metadata(),
+        )
+
+        old_vector_ids = []
+        cleanup_job = None
+        try:
+            old_vector_ids = await vector_store_service.stage_documents_for_paper(
+                str(paper.id), chunks
+            )
+            cleanup_job = await create_vector_cleanup_job(
+                db,
+                paper_id=paper.id,
+                ingestion_id=ingestion_id,
+                vector_ids=old_vector_ids,
+            )
+            await db.commit()
+        except Exception:
+            await vector_store_service.delete_documents_by_ingestion(str(ingestion_id))
+            await db.rollback()
+            raise
+
+        if cleanup_job is not None:
+            try:
+                from src.tasks.vector_cleanup_tasks import run_vector_cleanup_job
+                run_vector_cleanup_job.delay(str(cleanup_job.id))
+            except Exception as cleanup_enqueue_exc:
+                import logging
+                logging.getLogger(__name__).warning("Vector cleanup enqueue failed: %s", cleanup_enqueue_exc)
+
+        return DirectUploadResponse(
+            paper_id=str(paper.id),
+            title=title,
+            filename=file.filename,
+            total_pages=len(pages),
+            total_chunks=len(chunks),
+            message="Direct upload successful"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.get("/workspace/test-search")
 async def test_vector_search(query: str = Query(...)):
     """
@@ -598,15 +682,34 @@ async def workspace_chat(request: WorkspaceChatRequest) -> WorkspaceChatResponse
     """
     try:
         # Bước 1: Tìm kiếm tài liệu liên quan trong ChromaDB
-        chunks = await vector_store_service.search_similar_documents(request.message, top_k=4)
+        # PaperQA2-inspired: increase top_k to 10 for better evidence recall.
+        filters = {}
+        if getattr(request, "paper_ids", None) and len(request.paper_ids) > 0:
+            if len(request.paper_ids) == 1:
+                filters["paper_id"] = request.paper_ids[0]
+            else:
+                filters["paper_id"] = {"$in": request.paper_ids}
+        elif getattr(request, "paper_id", None):
+            filters["paper_id"] = request.paper_id
+        # Retrieve top-8 candidates; MAP step then filters by relevance score ≥ 4.
+        chunks = await vector_store_service.search_similar_documents(
+            request.message, 
+            top_k=8,
+            filters=filters if filters else None
+        )
         
-        # Bước 2: Sinh câu trả lời dựa trên context
-        answer = await rag_service.generate_answer(request.message, chunks)
+        # Bước 2: Sinh câu trả lời dựa trên context (có structured citation metadata)
+        result = await rag_service.generate_answer_with_citations(request.message, chunks)
         
         # Bước 3: Đóng gói phản hồi
-        context_used = [doc.page_content for doc in chunks]
-        return WorkspaceChatResponse(answer=answer, context_used=context_used)
+        return WorkspaceChatResponse(
+            answer=result["answer"],
+            context_used=result["context_used"],
+            citations=result.get("citations", [])
+        )
     except Exception as e:
+        import logging
+        logging.getLogger(__name__).exception("Error in workspace_chat")
         raise HTTPException(status_code=500, detail=str(e))
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -657,40 +760,28 @@ async def create_synthesis_session(
             + ", ".join(str(item) for item in foreign_project),
         )
 
-    not_ingested = [paper.id for paper in papers if paper.active_ingestion_id is None]
-    if not_ingested:
-        raise HTTPException(
-            status_code=409,
-            detail=(
-                "PDF provenance ingestion is required before synthesis for papers: "
-                + ", ".join(str(item) for item in not_ingested)
-            ),
-        )
-
+    # Enqueue synthesis job
     session = SynthesisSession(
         id=uuid.uuid4(),
         project_id=request.project_id,
         paper_ids=paper_ids,
-        status=SynthesisStatus.processing,
+        status=SynthesisStatus.PENDING,
     )
     db.add(session)
-    # Commit before queueing so a fast worker can already read the session.
     await db.commit()
+    await db.refresh(session)
 
     try:
-        from src.tasks.synthesis_tasks import run_synthesis_task
+        from src.tasks.synthesis_tasks import run_synthesis_session
+        run_synthesis_session.delay(str(session.id))
+    except Exception as enqueue_exc:
+        import logging
+        logging.getLogger(__name__).warning(
+            "Synthesis session %s created but could not be enqueued: %s",
+            session.id, enqueue_exc,
+        )
 
-        run_synthesis_task.delay(str(session.id))
-    except Exception as exc:
-        session.status = SynthesisStatus.failed
-        session.error_message = f"Failed to enqueue synthesis task: {exc}"
-        await db.commit()
-        raise HTTPException(status_code=503, detail=session.error_message) from exc
-
-    return SynthesisSessionCreatedResponse(
-        session_id=session.id,
-        status=session.status.value,
-    )
+    return SynthesisSessionCreatedResponse(session_id=session.id, status=session.status.value)
 
 
 @router.get(

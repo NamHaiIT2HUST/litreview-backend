@@ -27,10 +27,11 @@ export default function ChatPanel({
     setIsTyping(true);
 
     try {
+      const paperIds = workspacePapers ? workspacePapers.map(p => p.id) : [];
       const response = await fetch("http://localhost:8000/api/v1/workspace/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: question }),
+        body: JSON.stringify({ message: question, paper_ids: paperIds }),
       });
 
       if (!response.ok) {
@@ -42,7 +43,8 @@ export default function ChatPanel({
       const aiReply = {
         sender: 'ai',
         text: data.answer,
-        context_used: data.context_used
+        context_used: data.context_used,
+        citations: data.citations
       };
       setChatMessages(prev => [...prev, aiReply]);
     } catch (error) {
@@ -89,29 +91,75 @@ export default function ChatPanel({
                   <ReactMarkdown
                     remarkPlugins={[remarkMath, remarkGfm]}
                     rehypePlugins={[rehypeKatex]}
+                    components={{
+                      a: ({node, href, children, ...props}) => {
+                        if (href?.startsWith('#cite-')) {
+                          const citeId = href.replace('#cite-', '');
+                          return (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                const citeObj = msg.citations?.find(c => c.key === citeId) || msg.context_used?.find(c => c.key === citeId);
+                                if (citeObj) {
+                                  setActiveCitation({
+                                    marker_display: `[${citeId}]`,
+                                    title: citeObj.paper_title,
+                                    filename: citeObj.filename,
+                                    source_page_display: citeObj.page || citeObj.page_display,
+                                    source_char_start: citeObj.page_char_start,
+                                    source_char_end: citeObj.page_char_end,
+                                    quoted_snippet: citeObj.snippet
+                                  });
+                                }
+                              }}
+                              className="inline-flex items-center justify-center px-1.5 mx-0.5 rounded text-[11px] font-bold bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/60 dark:text-blue-300 dark:hover:bg-blue-800 transition-colors shadow-sm"
+                            >
+                              {children}
+                            </button>
+                          );
+                        }
+                        return <a href={href} {...props}>{children}</a>;
+                      }
+                    }}
                   >
-                    {msg.text}
+                    {msg.text.replace(/\[(\d+)\]/g, '[[$1]](#cite-$1)')}
                   </ReactMarkdown>
                 )}
               </div>
-              {/* Render Context Used if available */}
+              {/* Render Unified Context Used if available */}
               {msg.sender === 'ai' && msg.context_used && msg.context_used.length > 0 && (
                 <details className="mt-6 group border dark:border-slate-700/60 rounded-2xl overflow-hidden bg-slate-50/50 dark:bg-slate-800/30">
                   <summary className="cursor-pointer p-3.5 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center gap-2 select-none outline-none">
                     <Layers className="w-4 h-4 text-blue-500" />
-                    <span>Đã tham khảo {msg.context_used.length} đoạn ngữ cảnh từ tài liệu</span>
+                    <span>Ngữ cảnh đã sử dụng ({msg.context_used.length} nguồn)</span>
                   </summary>
                   <div className="p-4 bg-white dark:bg-slate-900 border-t dark:border-slate-700/60 max-h-64 overflow-y-auto space-y-4 custom-scrollbar">
-                    {msg.context_used.map((ctx, pIdx) => (
-                      <div key={pIdx} className="text-xs">
-                        <div className="font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
-                           <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span> Nguồn #{pIdx + 1}
+                    {msg.context_used.map((ctx, pIdx) => {
+                      return (
+                        <div key={pIdx} className="text-xs">
+                          <button
+                            type="button"
+                            onClick={() => setActiveCitation({
+                                marker_display: `[${ctx.key}]`,
+                                title: ctx.paper_title,
+                                filename: ctx.filename,
+                                source_page_display: ctx.page_display,
+                                source_char_start: ctx.page_char_start,
+                                source_char_end: ctx.page_char_end,
+                                quoted_snippet: ctx.snippet
+                            })}
+                            className="font-bold text-blue-600 dark:text-blue-400 hover:underline mb-1.5 flex items-center gap-1.5 text-left"
+                          >
+                             <span className="px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900 text-[10px]">[{ctx.key}]</span>
+                             {ctx.paper_title} (Trang {ctx.page_display})
+                          </button>
+                          <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl text-slate-600 dark:text-slate-400 leading-relaxed border dark:border-slate-700/50 shadow-sm whitespace-pre-wrap">
+                            {ctx.snippet}
+                          </div>
                         </div>
-                        <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl text-slate-600 dark:text-slate-400 leading-relaxed border dark:border-slate-700/50 shadow-sm">
-                          {ctx}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </details>
               )}

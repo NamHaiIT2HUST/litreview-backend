@@ -16,8 +16,8 @@ class DocumentProcessor:
     def __init__(self):
         os.makedirs(UPLOAD_DIR, exist_ok=True)
         self.text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000,
-            chunk_overlap=200,
+            chunk_size=2000,
+            chunk_overlap=400,
             length_function=len,
             add_start_index=True,
         )
@@ -97,7 +97,7 @@ class DocumentProcessor:
             # Preserve LangChain's start_index for backwards/debug compatibility.
             chunk_counter[page_number] += 1
 
-    def extract_and_chunk(self, file_path: str):
+    def extract_and_chunk(self, file_path: str, paper_title: str | None = None):
         """Đọc PDF theo trang và cắt chunk với provenance offset theo từng trang."""
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"File not found: {file_path}")
@@ -106,5 +106,9 @@ class DocumentProcessor:
         pages = loader.load()
         chunks = self.text_splitter.split_documents(pages)
         self._attach_chunk_metadata(pages, chunks)
+
+        if paper_title:
+            for chunk in chunks:
+                chunk.metadata["paper_title"] = paper_title
 
         return pages, chunks
