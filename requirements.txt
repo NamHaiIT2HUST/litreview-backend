@@ -18,6 +18,7 @@ sentence-transformers>=3.0.0
 
 # Document Ingestion
 pypdf>=5.1.0
+pymupdf>=1.24.0
 python-multipart>=0.0.18
 
 # Database / migrations

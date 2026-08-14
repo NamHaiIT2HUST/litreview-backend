@@ -10,6 +10,23 @@ from typing import Any
 from pydantic import BaseModel
 
 
+class EvidenceCoordsRequest(BaseModel):
+    filename: str
+    page: int
+    snippet: str
+
+
+class RectCoord(BaseModel):
+    x: float
+    y: float
+    width: float
+    height: float
+
+
+class EvidenceCoordsResponse(BaseModel):
+    rects: list[RectCoord]
+
+
 class UploadResponse(BaseModel):
     file_id: str
     filename: str

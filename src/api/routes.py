@@ -42,7 +42,7 @@ from src.models.schemas import (
     SearchQueryRecord,
     SearchResponse,
 )
-from src.models.workspace_schemas import UploadResponse, DirectUploadResponse, WorkspaceChatRequest, WorkspaceChatResponse
+from src.models.workspace_schemas import UploadResponse, DirectUploadResponse, WorkspaceChatRequest, WorkspaceChatResponse, EvidenceCoordsRequest, EvidenceCoordsResponse, RectCoord
 from src.models.search_schemas import SearchExecuteRequest, SearchStrategiesResponse
 from src.models.synthesis_schemas import (
     SynthesisCitationResponse,
@@ -756,6 +756,70 @@ async def workspace_chat(request: WorkspaceChatRequest) -> WorkspaceChatResponse
         import logging
         logging.getLogger(__name__).exception("Error in workspace_chat")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/workspace/evidence-coords", response_model=EvidenceCoordsResponse)
+async def get_evidence_coords(
+    request: EvidenceCoordsRequest,
+) -> EvidenceCoordsResponse:
+    """Find text coordinates in PDF for highlighting."""
+    import os
+    import fitz  # PyMuPDF
+    import logging
+    
+    file_path = os.path.join("uploads", "papers", request.filename)
+    if not os.path.exists(file_path):
+        return EvidenceCoordsResponse(rects=[])
+    
+    try:
+        doc = fitz.open(file_path)
+        # fitz is 0-indexed, UI is 1-indexed (usually, though the UI sends the actual page number from the source)
+        page_index = max(0, request.page - 1)
+        if page_index >= len(doc):
+            return EvidenceCoordsResponse(rects=[])
+            
+        page = doc[page_index]
+        page_rect = page.rect
+        page_width = page_rect.width
+        page_height = page_rect.height
+        
+        # Searching the snippet
+        # If snippet has newlines or variations, search_for can be tricky. We might just search for the first 30-50 chars to locate the bounding box, or use the whole snippet.
+        search_text = request.snippet.strip()
+        
+        # We might need to split by newline if the text is multi-line
+        instances = page.search_for(search_text)
+        
+        if not instances:
+            # For long chunks, search_for with the whole text might fail due to hyphens/newlines.
+            # Fallback: search for the first 50 chars and last 50 chars, or split into words.
+            # A simple approach is to just search for the first few words to at least highlight the start.
+            first_part = search_text[:60].strip()
+            if first_part:
+                instances = page.search_for(first_part)
+                
+            # Try to get the end of the chunk too
+            last_part = search_text[-60:].strip()
+            if last_part:
+                instances.extend(page.search_for(last_part))
+                
+        # If still empty, try even shorter
+        if not instances and len(search_text) > 20:
+            instances = page.search_for(search_text[:20])
+
+        rects = []
+        for inst in instances:
+            rects.append(RectCoord(
+                x=inst.x0 / page_width,
+                y=inst.y0 / page_height,
+                width=(inst.x1 - inst.x0) / page_width,
+                height=(inst.y1 - inst.y0) / page_height
+            ))
+
+            
+        return EvidenceCoordsResponse(rects=rects)
+    except Exception as e:
+        logging.getLogger(__name__).error("Error finding coords: %s", e)
+        return EvidenceCoordsResponse(rects=[])
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Synthesis endpoints (evidence-first, async job)

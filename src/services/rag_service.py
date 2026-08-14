@@ -138,10 +138,9 @@ _MAP_SYSTEM = (
     '{{"summary": "...", "relevance_score": 0}}\n\n'
     "Rules:\n"
     "- `summary`: Relevant information from the excerpt that could help answer the question."
-    " About 100 words."
-    " Do NOT directly answer the question — only extract evidence."
-    " If the question is broad or theoretical (e.g., 'discuss', 'overview'), extract high-level concepts, but DO NOT skip core mathematical definitions, theorems, or proofs. These are CRITICAL evidence, not minor details."
-    " Always extract specific numbers, exact equations, and mathematical logic if present and relevant."
+    " Write a DETAILED summary (about 150-250 words). Do NOT directly answer the question — only extract evidence."
+    " If the question is broad or theoretical (e.g., 'discuss', 'overview', 'là gì'), extract high-level concepts, but DO NOT skip core mathematical definitions, theorems, or proofs. These are CRITICAL evidence, not minor details."
+    " Always extract specific numbers, exact equations, and mathematical logic if present and relevant. Preserve the intuitive or geometric meaning if mentioned in the text."
     ' If the excerpt is not relevant, leave `summary` empty.\n'
     "- `relevance_score`: Integer 0-10 for relevance of `summary` to the question."
     " 0 = not relevant at all. 10 = directly and specifically answers the question.\n"
@@ -182,23 +181,24 @@ _CITATION_KEY_RULES = (
 
 # PaperQA2's default_system_prompt: short, expert-focused
 _REDUCE_SYSTEM = (
-    "You are a helpful, analytical AI research assistant."
-    " Your goal is to synthesize the provided excerpts into a highly structured, comprehensive, and easy-to-read answer."
+    "You are a highly advanced academic AI research assistant (similar to NotebookLM)."
+    " Your goal is to synthesize the provided excerpts into an extremely detailed, highly structured, comprehensive, and textbook-quality academic answer."
     " If there are ambiguous terms or acronyms, first define them clearly.\n\n"
     "FORMATTING RULE — MANDATORY:\n"
     "- Use Markdown extensively to structure your answer hierarchically.\n"
-    "- Provide a high-level summary/overview first, then dive into details.\n"
-    "- Use Headings (###), Bullet points (-), and Bold text (**) to organize concepts (e.g., Core Problem vs Applications).\n\n"
+    "- ALWAYS break your answer down into clear numbered sections (e.g., 1. Định nghĩa Toán học / Mathematical Definition, 2. Ý nghĩa & Tính chất / Properties & Intuition, 3. Các dạng phổ biến / Common Forms, 4. Ứng dụng / Applications).\n"
+    "- Provide a high-level summary/overview at the very beginning before diving into the sections.\n"
+    "- Use Bullet points (-), Bold text (**), and Italic text (*) generously to organize concepts and make them scannable.\n\n"
     "CONTENT RULE — MANDATORY:\n"
-    "- If the question asks to 'discuss' or requests an overview of a topic, focus on theoretical concepts, core challenges, and breakthrough methodologies.\n"
-    "- CRITICAL: Do NOT skip or flatten mathematical definitions, lemmas, properties, or proofs. These must be preserved in full detail with exact LaTeX equations. Only skip minor experimental hyperparameters (like iteration counts).\n\n"
+    "- When asked 'what is' (là gì) or to explain a concept, provide a deep, academic explanation. Include the mathematical formulation, geometric or intuitive meaning, and core properties.\n"
+    "- CRITICAL: Do NOT skip, flatten, or over-summarize mathematical definitions, lemmas, properties, or proofs. These must be preserved in full detail with exact LaTeX equations.\n\n"
     "SYNTHESIS RULE — MANDATORY:\n"
     "- You MUST synthesize information across ALL provided sources.\n"
     "- If multiple papers discuss the same or related topics, combine their perspectives or compare them.\n"
     "- Do NOT just summarize one source and ignore the others. Aim to use as many provided citation keys as relevant to provide a complete picture.\n\n"
     "LANGUAGE RULE — MANDATORY:\n"
     "- Detect the primary language of the Question.\n"
-    "- If the question contains ANY Vietnamese terms or concepts (e.g. 'Discuss Tập loại bỏ tự do'), answer ENTIRELY in Vietnamese.\n"
+    "- If the question contains ANY Vietnamese terms or concepts (e.g. 'Discuss Tập loại bỏ tự do', 'là gì'), answer ENTIRELY in Vietnamese.\n"
     "- Only answer in English if the question is 100% English.\n"
     "- NEVER mix languages.\n\n"
     "MATH RULE — MANDATORY:\n"
@@ -212,7 +212,8 @@ _REDUCE_SYSTEM = (
 _REDUCE_HUMAN = (
     "Context:\n\n{context}\n\nValid Keys: {valid_keys}\n\n---\n\n"
     "Question: {question}\n\n"
-    "Write a comprehensive and structured answer that synthesizes information from across ALL the provided contexts."
+    "Write a comprehensive, deep, and textbook-style structured answer that synthesizes information from across ALL the provided contexts."
+    " Your answer should be highly detailed (acting like a comprehensive study guide). Break it down into clear logical sections (e.g. Definition, Intuition, Properties, Forms/Applications).\n"
     " If the context provides insufficient information,"
     " reply \"Tôi không thể trả lời câu hỏi này dựa trên tài liệu. / I cannot answer this based on the provided documents.\""
     " For each part of your answer, indicate which sources most support it"
@@ -507,6 +508,7 @@ class RAGService:
                 "filename": os.path.basename(str(source)),
                 "page_char_start": doc.metadata.get("page_char_start"),
                 "page_char_end": doc.metadata.get("page_char_end"),
+                "raw_text": doc.page_content,
             }
             tasks.append(self._map_chunk(
                 ckey,
@@ -599,6 +601,7 @@ class RAGService:
                 "page_char_start": meta.get("page_char_start"),
                 "page_char_end": meta.get("page_char_end"),
                 "snippet": cs.summary[:300].strip(),
+                "raw_text": meta["raw_text"],
             })
             # context_used entry (for "sources used" panel in ChatPanel)
             context_used.append({
@@ -608,6 +611,7 @@ class RAGService:
                 "paper_id": meta["paper_id"],
                 "filename": meta["filename"],
                 "snippet": cs.summary[:300].strip(),
+                "raw_text": meta["raw_text"],
                 "score": cs.relevance_score,
                 "page_char_start": meta.get("page_char_start"),
                 "page_char_end": meta.get("page_char_end"),
