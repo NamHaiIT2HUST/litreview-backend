@@ -32,6 +32,10 @@ Thumbs.db
 # Data (never commit large data)
 data/
 uploads/
+
+# External references
+ai2-scholarqa-lib-main/
+paper-qa-2026.08.12/
 .chroma_db/
 *.db
 *.sqlite3

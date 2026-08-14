@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import remarkGfm from 'remark-gfm';
 import rehypeKatex from 'rehype-katex';
+import CitationChip from './CitationChip';
 
 export default function ChatPanel({ 
   workspacePapers,
@@ -99,12 +100,15 @@ export default function ChatPanel({
                       a: ({node, href, children, ...props}) => {
                         if (href?.startsWith('#cite-')) {
                           const citeId = href.replace('#cite-', '');
+                          const citeObj = msg.citations?.find(c => c.key === citeId) || msg.context_used?.find(c => c.key === citeId);
                           return (
-                            <button
-                              type="button"
+                            <CitationChip
+                              key={citeId}
+                              citeId={citeId}
+                              citeObj={citeObj}
+                              darkMode={darkMode}
                               onClick={(e) => {
                                 e.preventDefault();
-                                const citeObj = msg.citations?.find(c => c.key === citeId) || msg.context_used?.find(c => c.key === citeId);
                                 if (citeObj) {
                                   setActiveCitation({
                                     marker_display: `[${citeId}]`,
@@ -113,14 +117,13 @@ export default function ChatPanel({
                                     source_page_display: citeObj.page || citeObj.page_display,
                                     source_char_start: citeObj.page_char_start,
                                     source_char_end: citeObj.page_char_end,
-                                    quoted_snippet: citeObj.snippet
+                                    quoted_snippet: citeObj.raw_text || citeObj.snippet
                                   });
                                 }
                               }}
-                              className="inline-flex items-center justify-center px-1.5 mx-0.5 rounded text-[11px] font-bold bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/60 dark:text-blue-300 dark:hover:bg-blue-800 transition-colors shadow-sm"
                             >
                               {children}
-                            </button>
+                            </CitationChip>
                           );
                         }
                         return <a href={href} {...props}>{children}</a>;
@@ -151,7 +154,7 @@ export default function ChatPanel({
                                 source_page_display: ctx.page_display,
                                 source_char_start: ctx.page_char_start,
                                 source_char_end: ctx.page_char_end,
-                                quoted_snippet: ctx.snippet
+                                quoted_snippet: ctx.raw_text || ctx.snippet
                             })}
                             className="font-bold text-blue-600 dark:text-blue-400 hover:underline mb-1.5 flex items-center gap-1.5 text-left"
                           >

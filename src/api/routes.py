@@ -22,14 +22,14 @@ import re
 import uuid
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query, UploadFile, File, Form
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, UploadFile, File, Form
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.agents.graph import agent
 from src.config import get_settings
 from src.database import get_db
-from src.models.db_models import Citation, EvidenceRecord, Paper, Project, SearchQuery, SynthesisSection, SynthesisSession, SynthesisStatus
+from src.models.db_models import Citation, Paper, Project, SearchQuery, SynthesisSession, SynthesisStatus
 
 DEFAULT_PROJECT_ID = "00000000-0000-0000-0000-000000000001"
 
@@ -42,11 +42,10 @@ from src.models.schemas import (
     SearchQueryRecord,
     SearchResponse,
 )
-from src.models.workspace_schemas import DirectUploadResponse, UploadResponse, WorkspaceChatRequest, WorkspaceChatResponse
+from src.models.workspace_schemas import UploadResponse, DirectUploadResponse, WorkspaceChatRequest, WorkspaceChatResponse, EvidenceCoordsRequest, EvidenceCoordsResponse, RectCoord
 from src.models.search_schemas import SearchExecuteRequest, SearchStrategiesResponse
 from src.models.synthesis_schemas import (
     SynthesisCitationResponse,
-    SynthesisEvidenceProfileItem,
     SynthesisSessionCreateRequest,
     SynthesisSessionCreatedResponse,
     SynthesisSessionResponse,
@@ -60,9 +59,6 @@ from src.services.paper_persistence_utils import normalize_authors_for_db
 from src.services.vector_cleanup_service import create_vector_cleanup_job
 from src.services.vector_store import vector_store_service
 from src.services.rag_service import rag_service
-from src.services.synthesis_response_builder import build_section_responses
-from src.services.synthesis_llm_service import synthesis_llm_service
-from src.services.synthesis_session_utils import json_paper_ids
 
 processor = DocumentProcessor()
 
@@ -359,12 +355,12 @@ async def get_papers_for_query(
     if not sq:
         raise HTTPException(status_code=404, detail=f"Search query '{query_id}' not found")
 
-    from src.models.db_models import ScopusStatus
+    from src.models.db_models import ScopusStatusEnum
     result = await db.execute(
         select(Paper)
         .where(
             Paper.search_query_id == query_uuid,
-            (Paper.scopus_status == ScopusStatus.indexed) | (Paper.scopus_status == "indexed")
+            (Paper.scopus_status == ScopusStatusEnum.INDEXED) | (Paper.scopus_status == "indexed")
         )
     )
     papers = result.scalars().all()
@@ -469,76 +465,6 @@ async def quality_check_paper(
 # Workspace endpoints (Phase 1 RAG)
 # ──────────────────────────────────────────────────────────────────────────────
 
-@router.post("/workspace/direct-upload", response_model=DirectUploadResponse)
-async def direct_upload_paper_pdf(
-    file: UploadFile = File(...),
-    title: str = Form(None),
-    project_id: str = Form(DEFAULT_PROJECT_ID),
-    db: AsyncSession = Depends(get_db),
-) -> DirectUploadResponse:
-    """Create a persistent paper row and provenance-aware ingestion from a PDF."""
-    if not file.filename or not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Only PDF files are allowed.")
-    try:
-        project_uuid = uuid.UUID(project_id)
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail="project_id must be a valid UUID.") from exc
-
-    project_result = await db.execute(select(Project).where(Project.id == project_uuid))
-    if project_result.scalar_one_or_none() is None:
-        raise HTTPException(status_code=404, detail=f"Project '{project_id}' not found")
-
-    paper_id = uuid.uuid4()
-    clean_title = (title or file.filename.rsplit(".", 1)[0]).strip()
-    paper = Paper(
-        id=paper_id,
-        project_id=project_uuid,
-        title=clean_title or file.filename,
-        authors=[],
-        source="direct_upload",
-        dedup_key=f"direct-upload:{paper_id}",
-        screening_decision="keep",
-    )
-    db.add(paper)
-
-    try:
-        file_path = await processor.save_upload_file(file, project_id=str(project_uuid))
-        pages, chunks = processor.extract_and_chunk(file_path)
-        if not chunks or all(not chunk.page_content.strip() for chunk in chunks):
-            raise HTTPException(
-                status_code=422,
-                detail="PDF không trích được văn bản; file scan cần OCR.",
-            )
-        ingestion_id = await persist_pdf_provenance(
-            db=db,
-            paper=paper,
-            pages=pages,
-            chunks=chunks,
-            parser_metadata=processor.parser_metadata(),
-        )
-        try:
-            await vector_store_service.stage_documents_for_paper(str(paper.id), chunks)
-            await db.commit()
-        except Exception:
-            await vector_store_service.delete_documents_by_ingestion(str(ingestion_id))
-            raise
-    except HTTPException:
-        await db.rollback()
-        raise
-    except Exception as exc:
-        await db.rollback()
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
-
-    return DirectUploadResponse(
-        paper_id=str(paper.id),
-        title=paper.title,
-        filename=file.filename,
-        total_pages=len(pages),
-        total_chunks=len(chunks),
-        message="PDF saved, ingested, and persisted in the workspace.",
-    )
-
-
 @router.post("/workspace/upload", response_model=UploadResponse)
 async def upload_paper_pdf(
     file: UploadFile = File(...),
@@ -567,7 +493,7 @@ async def upload_paper_pdf(
             raise HTTPException(status_code=404, detail=f"Paper '{paper_id}' not found")
 
         file_path = await processor.save_upload_file(file)
-        pages, chunks = processor.extract_and_chunk(file_path)
+        pages, chunks = processor.extract_and_chunk(file_path, paper_title=paper.title)
         if not chunks or all(not chunk.page_content.strip() for chunk in chunks):
             raise HTTPException(
                 status_code=422,
@@ -647,6 +573,96 @@ async def upload_paper_pdf(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.post("/workspace/direct-upload", response_model=DirectUploadResponse)
+async def direct_upload_pdf(
+    file: UploadFile = File(...),
+    title: str = Form(...),
+    db: AsyncSession = Depends(get_db),
+) -> DirectUploadResponse:
+    """Upload a PDF directly from Workspace without a prior paper search result."""
+    if not file.filename or not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF files are allowed.")
+
+    try:
+        project_uuid = uuid.UUID(DEFAULT_PROJECT_ID)
+        paper_uuid = uuid.uuid4()
+        
+        # Create a new Paper record for this direct upload
+        paper = Paper(
+            id=paper_uuid,
+            project_id=project_uuid,
+            title=title,
+            authors="Direct Upload",
+            year=2024,
+            abstract="",
+            dedup_key=f"direct_upload_{paper_uuid}"
+        )
+        db.add(paper)
+        await db.flush()
+
+        file_path = await processor.save_upload_file(file)
+        pages, chunks = processor.extract_and_chunk(file_path, paper_title=paper.title)
+        
+        if not chunks or all(not chunk.page_content.strip() for chunk in chunks):
+            raise HTTPException(
+                status_code=422,
+                detail="PDF không trích được văn bản — có thể là file scan/ảnh."
+            )
+
+        ingestion_id = await persist_pdf_provenance(
+            db=db,
+            paper=paper,
+            pages=pages,
+            chunks=chunks,
+            parser_metadata=processor.parser_metadata(),
+        )
+
+        old_vector_ids = []
+        cleanup_job = None
+        try:
+            old_vector_ids = await vector_store_service.stage_documents_for_paper(
+                str(paper.id), chunks
+            )
+            cleanup_job = await create_vector_cleanup_job(
+                db,
+                paper_id=paper.id,
+                ingestion_id=ingestion_id,
+                vector_ids=old_vector_ids,
+            )
+            await db.commit()
+        except Exception as e:
+            await vector_store_service.delete_documents_by_ingestion(str(ingestion_id))
+            await db.rollback()
+            import traceback
+            with open("upload_error.log", "w") as f:
+                traceback.print_exc(file=f)
+            raise
+
+        if cleanup_job is not None:
+            try:
+                from src.tasks.vector_cleanup_tasks import run_vector_cleanup_job
+                run_vector_cleanup_job.delay(str(cleanup_job.id))
+            except Exception as cleanup_enqueue_exc:
+                import logging
+                logging.getLogger(__name__).warning("Vector cleanup enqueue failed: %s", cleanup_enqueue_exc)
+
+        return DirectUploadResponse(
+            paper_id=str(paper.id),
+            title=title,
+            filename=file.filename,
+            total_pages=len(pages),
+            total_chunks=len(chunks),
+            message="Direct upload successful"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        import traceback
+        with open("upload_error_outer.log", "w", encoding="utf-8") as f:
+            traceback.print_exc(file=f)
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.get("/workspace/test-search")
 async def test_vector_search(query: str = Query(...)):
     """
@@ -671,17 +687,139 @@ async def workspace_chat(request: WorkspaceChatRequest) -> WorkspaceChatResponse
     Chat với trợ lý AI về các bài báo đã tải lên (RAG).
     """
     try:
-        # Bước 1: Tìm kiếm tài liệu liên quan trong ChromaDB
-        chunks = await vector_store_service.search_similar_documents(request.message, top_k=4)
+        # Heuristic phát hiện câu hỏi nghiên cứu sâu
+        is_deep = any(kw in request.message.lower() for kw in [
+            "discuss", "overview", "phân tích", "so sánh", "tại sao", "giải thích", "deep", "tổng quan", "định nghĩa"
+        ])
         
-        # Bước 2: Sinh câu trả lời dựa trên context
-        answer = await rag_service.generate_answer(request.message, chunks)
+        if is_deep:
+            paper_ids_list = request.paper_ids if getattr(request, "paper_ids", None) else []
+            if getattr(request, "paper_id", None) and request.paper_id not in paper_ids_list:
+                paper_ids_list.append(request.paper_id)
+                
+            result = await agent.ainvoke({
+                "query": request.message,
+                "task_type": "deep_research",
+                "paper_ids": paper_ids_list
+            })
+            
+            return WorkspaceChatResponse(
+                answer=result.get("response", ""),
+                context_used=[],
+                citations=[]
+            )
+
+        # --- LUỒNG RAG TRUYỀN THỐNG (SUPER FAST) ---
+        # Bước 1: Tìm kiếm tài liệu liên quan trong ChromaDB
+        # Lấy context riêng cho từng paper để đảm bảo phân bổ đều khi query chung chung
+        chunks = []
+        if getattr(request, "paper_ids", None) and len(request.paper_ids) > 0:
+            if len(request.paper_ids) == 1:
+                # Nếu chỉ chat với 1 tài liệu, lấy 8 chunks cho sâu
+                chunks = await vector_store_service.search_similar_documents(
+                    request.message, 
+                    top_k=8,
+                    filters={"paper_id": request.paper_ids[0]}
+                )
+            else:
+                # Nếu chat với nhiều tài liệu, lấy 4 chunks mỗi tài liệu để đảm bảo tài liệu nào cũng có cơ hội (tránh bị nuốt bởi 1 tài liệu)
+                for pid in request.paper_ids:
+                    paper_chunks = await vector_store_service.search_similar_documents(
+                        request.message,
+                        top_k=4,
+                        filters={"paper_id": pid}
+                    )
+                    chunks.extend(paper_chunks)
+        elif getattr(request, "paper_id", None):
+            chunks = await vector_store_service.search_similar_documents(
+                request.message, 
+                top_k=8,
+                filters={"paper_id": request.paper_id}
+            )
+        else:
+            chunks = await vector_store_service.search_similar_documents(
+                request.message, 
+                top_k=8,
+                filters=None
+            )
+
+        # Bước 2: Sinh câu trả lời dựa trên context (có structured citation metadata)
+        result = await rag_service.generate_answer_with_citations(request.message, chunks)
         
         # Bước 3: Đóng gói phản hồi
-        context_used = [doc.page_content for doc in chunks]
-        return WorkspaceChatResponse(answer=answer, context_used=context_used)
+        return WorkspaceChatResponse(
+            answer=result["answer"],
+            context_used=result["context_used"],
+            citations=result.get("citations", [])
+        )
     except Exception as e:
+        import logging
+        logging.getLogger(__name__).exception("Error in workspace_chat")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/workspace/evidence-coords", response_model=EvidenceCoordsResponse)
+async def get_evidence_coords(
+    request: EvidenceCoordsRequest,
+) -> EvidenceCoordsResponse:
+    """Find text coordinates in PDF for highlighting."""
+    import os
+    import fitz  # PyMuPDF
+    import logging
+    
+    file_path = os.path.join("uploads", "papers", request.filename)
+    if not os.path.exists(file_path):
+        return EvidenceCoordsResponse(rects=[])
+    
+    try:
+        doc = fitz.open(file_path)
+        # fitz is 0-indexed, UI is 1-indexed (usually, though the UI sends the actual page number from the source)
+        page_index = max(0, request.page - 1)
+        if page_index >= len(doc):
+            return EvidenceCoordsResponse(rects=[])
+            
+        page = doc[page_index]
+        page_rect = page.rect
+        page_width = page_rect.width
+        page_height = page_rect.height
+        
+        # Searching the snippet
+        # If snippet has newlines or variations, search_for can be tricky. We might just search for the first 30-50 chars to locate the bounding box, or use the whole snippet.
+        search_text = request.snippet.strip()
+        
+        # We might need to split by newline if the text is multi-line
+        instances = page.search_for(search_text)
+        
+        if not instances:
+            # For long chunks, search_for with the whole text might fail due to hyphens/newlines.
+            # Fallback: search for the first 50 chars and last 50 chars, or split into words.
+            # A simple approach is to just search for the first few words to at least highlight the start.
+            first_part = search_text[:60].strip()
+            if first_part:
+                instances = page.search_for(first_part)
+                
+            # Try to get the end of the chunk too
+            last_part = search_text[-60:].strip()
+            if last_part:
+                instances.extend(page.search_for(last_part))
+                
+        # If still empty, try even shorter
+        if not instances and len(search_text) > 20:
+            instances = page.search_for(search_text[:20])
+
+        rects = []
+        for inst in instances:
+            rects.append(RectCoord(
+                x=inst.x0 / page_width,
+                y=inst.y0 / page_height,
+                width=(inst.x1 - inst.x0) / page_width,
+                height=(inst.y1 - inst.y0) / page_height
+            ))
+
+            
+        return EvidenceCoordsResponse(rects=rects)
+    except Exception as e:
+        logging.getLogger(__name__).error("Error finding coords: %s", e)
+        return EvidenceCoordsResponse(rects=[])
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Synthesis endpoints (evidence-first, async job)
@@ -694,19 +832,14 @@ async def workspace_chat(request: WorkspaceChatRequest) -> WorkspaceChatResponse
 )
 async def create_synthesis_session(
     request: SynthesisSessionCreateRequest,
-    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ) -> SynthesisSessionCreatedResponse:
     """Create and enqueue a long-running evidence-first synthesis session."""
-    try:
-        synthesis_llm_service.validate_configuration()
-    except RuntimeError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
-
     project_result = await db.execute(select(Project).where(Project.id == request.project_id))
     project = project_result.scalar_one_or_none()
     if project is None:
         raise HTTPException(status_code=404, detail=f"Project '{request.project_id}' not found")
+
     # Keep first occurrence/order because citation numbering follows user selection.
     paper_ids = list(dict.fromkeys(request.paper_ids))
     max_papers = get_settings().synthesis_max_papers
@@ -736,44 +869,28 @@ async def create_synthesis_session(
             + ", ".join(str(item) for item in foreign_project),
         )
 
-    not_ingested = [paper.id for paper in papers if paper.active_ingestion_id is None]
-    if not_ingested:
-        raise HTTPException(
-            status_code=409,
-            detail=(
-                "PDF provenance ingestion is required before synthesis for papers: "
-                + ", ".join(str(item) for item in not_ingested)
-            ),
-        )
-
+    # Enqueue synthesis job
     session = SynthesisSession(
         id=uuid.uuid4(),
         project_id=request.project_id,
-        paper_ids=json_paper_ids(paper_ids),
-        status=SynthesisStatus.processing,
+        paper_ids=paper_ids,
+        status=SynthesisStatus.PENDING,
     )
     db.add(session)
-    # Commit before queueing so a fast worker can already read the session.
     await db.commit()
+    await db.refresh(session)
 
     try:
-        from src.tasks.synthesis_tasks import run_synthesis_task
-        if get_settings().app_env == "development":
-            # Local mode needs no Redis/Celery process; FastAPI runs the same
-            # task body after returning 202. Production remains queue-backed.
-            background_tasks.add_task(run_synthesis_task.run, str(session.id))
-        else:
-            run_synthesis_task.delay(str(session.id))
-    except Exception as exc:
-        session.status = SynthesisStatus.failed
-        session.error_message = f"Failed to enqueue synthesis task: {exc}"
-        await db.commit()
-        raise HTTPException(status_code=503, detail=session.error_message) from exc
+        from src.tasks.synthesis_tasks import run_synthesis_session
+        run_synthesis_session.delay(str(session.id))
+    except Exception as enqueue_exc:
+        import logging
+        logging.getLogger(__name__).warning(
+            "Synthesis session %s created but could not be enqueued: %s",
+            session.id, enqueue_exc,
+        )
 
-    return SynthesisSessionCreatedResponse(
-        session_id=session.id,
-        status=session.status.value,
-    )
+    return SynthesisSessionCreatedResponse(session_id=session.id, status=session.status.value)
 
 
 @router.get(
@@ -798,18 +915,6 @@ async def get_synthesis_session(
         .order_by(Citation.review_char_start, Citation.id)
     )
     citations = list(citation_result.scalars().all())
-    section_result = await db.execute(
-        select(SynthesisSection)
-        .where(SynthesisSection.synthesis_session_id == session_id)
-        .order_by(SynthesisSection.position, SynthesisSection.id)
-    )
-    sections = list(section_result.scalars().all())
-    evidence_result = await db.execute(
-        select(EvidenceRecord)
-        .where(EvidenceRecord.synthesis_session_id == session_id)
-        .order_by(EvidenceRecord.paper_id, EvidenceRecord.dimension, EvidenceRecord.created_at)
-    )
-    evidence_profile = list(evidence_result.scalars().all())
 
     return SynthesisSessionResponse(
         id=session.id,
@@ -830,16 +935,5 @@ async def get_synthesis_session(
                 quoted_snippet=item.quoted_snippet,
             )
             for item in citations
-        ],
-        sections=build_section_responses(sections, {item.id for item in citations}),
-        evidence_profile=[
-            SynthesisEvidenceProfileItem(
-                id=item.id,
-                paper_id=item.paper_id,
-                dimension=item.dimension,
-                value=item.value,
-                quote=item.quote,
-            )
-            for item in evidence_profile
         ],
     )
