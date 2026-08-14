@@ -18,8 +18,7 @@ class DirectUploadResponse(BaseModel):
 
 class WorkspaceChatRequest(BaseModel):
     message: str
-    # paper_id is optional if we want to filter by paper, but for now we search all chunks in the Chroma collection
-    # If the user wants to chat with a specific paper, we would pass paper_id. We'll leave it out for simplicity in MVP.
+    paper_ids: list[str] = []
 
 class WorkspaceChatResponse(BaseModel):
     answer: str

@@ -672,7 +672,8 @@ async def workspace_chat(request: WorkspaceChatRequest) -> WorkspaceChatResponse
     """
     try:
         # Bước 1: Tìm kiếm tài liệu liên quan trong ChromaDB
-        chunks = await vector_store_service.search_similar_documents(request.message, top_k=4)
+        filters = {"paper_id": {"$in": request.paper_ids}} if request.paper_ids else None
+        chunks = await vector_store_service.search_similar_documents(request.message, top_k=4, filters=filters)
         
         # Bước 2: Sinh câu trả lời dựa trên context
         answer = await rag_service.generate_answer(request.message, chunks)

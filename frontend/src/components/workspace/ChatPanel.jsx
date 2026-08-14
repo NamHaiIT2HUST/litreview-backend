@@ -18,7 +18,7 @@ export default function ChatPanel({
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!inputQuestion.trim()) return;
+    if (!inputQuestion.trim() || workspacePapers.length === 0) return;
 
     const question = inputQuestion;
     const userMsg = { sender: 'user', text: question };
@@ -30,7 +30,7 @@ export default function ChatPanel({
       const response = await fetch("http://localhost:8000/api/v1/workspace/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: question }),
+        body: JSON.stringify({ message: question, paper_ids: workspacePapers.map((paper) => paper.id) }),
       });
 
       if (!response.ok) {
@@ -136,8 +136,8 @@ export default function ChatPanel({
         </div>
       </div>
 
-      {/* Workspace source registry - Floating bottom right */}
-      <div className={`absolute bottom-24 right-6 p-3 rounded-2xl border space-y-2 w-56 shadow-lg z-10 backdrop-blur-md opacity-70 hover:opacity-100 transition-opacity ${
+      {/* Scope is shown by WorkspaceTab; keep the conversation area focused. */}
+      <div className={`hidden ${
         darkMode ? 'bg-slate-800/90 border-slate-700' : 'bg-white/90 border-slate-200'
       }`}>
         <h4 className="font-bold text-xs flex items-center gap-2">
@@ -158,12 +158,15 @@ export default function ChatPanel({
         )}
       </div>
 
+      {workspacePapers.length === 0 && <p className="text-sm text-amber-600 dark:text-amber-300">Chọn ít nhất 1 tài liệu ở cột trái để bắt đầu chat.</p>}
+
       {/* Chat Input Bar */}
       <form onSubmit={handleSendMessage} className="relative mt-2 shrink-0 w-full">
         <input
           type="text"
           value={inputQuestion}
           onChange={e => setInputQuestion(e.target.value)}
+          disabled={workspacePapers.length === 0}
           placeholder="Hỏi AI assistant về phương pháp, hạn chế hoặc hướng nghiên cứu..."
           className={`w-full pl-6 pr-32 py-4 border rounded-full text-sm font-medium focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 shadow-sm transition-all ${
             darkMode 
@@ -173,6 +176,7 @@ export default function ChatPanel({
         />
         <button
           type="submit"
+          disabled={workspacePapers.length === 0}
           className="absolute right-2 top-1/2 -translate-y-1/2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-full text-sm font-bold transition-transform active:scale-95 flex items-center gap-1.5 shadow-md"
         >
           <span>Gửi</span>
