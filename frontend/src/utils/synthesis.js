@@ -20,6 +20,52 @@ export function enrichCitation(citation, workspacePapers) {
   };
 }
 
+export function buildReviewSections(result, workspacePapers) {
+  const citationById = new Map(
+    (result?.citations || []).map((citation) => [
+      citation.id,
+      enrichCitation(citation, workspacePapers),
+    ]),
+  );
+
+  return (result?.sections || []).map((section) => ({
+    ...section,
+    sentences: (section.sentences || []).map((sentence) => ({
+      ...sentence,
+      citations: (sentence.citation_ids || [])
+        .map((id) => citationById.get(id))
+        .filter(Boolean),
+    })),
+  }));
+}
+
+export function buildComparisonRows(evidenceProfile, workspacePapers) {
+  const buckets = new Map(
+    workspacePapers.map((paper) => [paper.id, {
+      paperId: paper.id,
+      title: paper.title || `Paper ${paper.id}`,
+      method: '',
+      dataset: '',
+      findings: '',
+      limitations: '',
+    }]),
+  );
+
+  for (const item of evidenceProfile || []) {
+    const row = buckets.get(item.paper_id);
+    if (!row) continue;
+    const dimension = (item.dimension || '').toLowerCase();
+    let field = null;
+    if (dimension.includes('method') || dimension.includes('approach')) field = 'method';
+    else if (dimension.includes('dataset') || dimension.includes('population')) field = 'dataset';
+    else if (dimension.includes('finding') || dimension.includes('outcome') || dimension.includes('result')) field = 'findings';
+    else if (dimension.includes('limitation') || dimension.includes('gap') || dimension.includes('constraint')) field = 'limitations';
+    if (field && !row[field]) row[field] = item.value;
+  }
+
+  return Array.from(buckets.values());
+}
+
 export function tokenizeReviewCitations(review, citations) {
   const text = review || '';
   const tokens = [];

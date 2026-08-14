@@ -22,14 +22,14 @@ import re
 import uuid
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, UploadFile, File, Form
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query, UploadFile, File, Form
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.agents.graph import agent
 from src.config import get_settings
 from src.database import get_db
-from src.models.db_models import Citation, Paper, Project, SearchQuery, SynthesisSession, SynthesisStatus
+from src.models.db_models import Citation, EvidenceRecord, Paper, Project, SearchQuery, SynthesisSection, SynthesisSession, SynthesisStatus
 
 DEFAULT_PROJECT_ID = "00000000-0000-0000-0000-000000000001"
 
@@ -42,10 +42,11 @@ from src.models.schemas import (
     SearchQueryRecord,
     SearchResponse,
 )
-from src.models.workspace_schemas import UploadResponse, WorkspaceChatRequest, WorkspaceChatResponse
+from src.models.workspace_schemas import DirectUploadResponse, UploadResponse, WorkspaceChatRequest, WorkspaceChatResponse
 from src.models.search_schemas import SearchExecuteRequest, SearchStrategiesResponse
 from src.models.synthesis_schemas import (
     SynthesisCitationResponse,
+    SynthesisEvidenceProfileItem,
     SynthesisSessionCreateRequest,
     SynthesisSessionCreatedResponse,
     SynthesisSessionResponse,
@@ -59,6 +60,9 @@ from src.services.paper_persistence_utils import normalize_authors_for_db
 from src.services.vector_cleanup_service import create_vector_cleanup_job
 from src.services.vector_store import vector_store_service
 from src.services.rag_service import rag_service
+from src.services.synthesis_response_builder import build_section_responses
+from src.services.synthesis_llm_service import synthesis_llm_service
+from src.services.synthesis_session_utils import json_paper_ids
 
 processor = DocumentProcessor()
 
@@ -355,12 +359,12 @@ async def get_papers_for_query(
     if not sq:
         raise HTTPException(status_code=404, detail=f"Search query '{query_id}' not found")
 
-    from src.models.db_models import ScopusStatusEnum
+    from src.models.db_models import ScopusStatus
     result = await db.execute(
         select(Paper)
         .where(
             Paper.search_query_id == query_uuid,
-            (Paper.scopus_status == ScopusStatusEnum.INDEXED) | (Paper.scopus_status == "indexed")
+            (Paper.scopus_status == ScopusStatus.indexed) | (Paper.scopus_status == "indexed")
         )
     )
     papers = result.scalars().all()
@@ -464,6 +468,76 @@ async def quality_check_paper(
 # ──────────────────────────────────────────────────────────────────────────────
 # Workspace endpoints (Phase 1 RAG)
 # ──────────────────────────────────────────────────────────────────────────────
+
+@router.post("/workspace/direct-upload", response_model=DirectUploadResponse)
+async def direct_upload_paper_pdf(
+    file: UploadFile = File(...),
+    title: str = Form(None),
+    project_id: str = Form(DEFAULT_PROJECT_ID),
+    db: AsyncSession = Depends(get_db),
+) -> DirectUploadResponse:
+    """Create a persistent paper row and provenance-aware ingestion from a PDF."""
+    if not file.filename or not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF files are allowed.")
+    try:
+        project_uuid = uuid.UUID(project_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="project_id must be a valid UUID.") from exc
+
+    project_result = await db.execute(select(Project).where(Project.id == project_uuid))
+    if project_result.scalar_one_or_none() is None:
+        raise HTTPException(status_code=404, detail=f"Project '{project_id}' not found")
+
+    paper_id = uuid.uuid4()
+    clean_title = (title or file.filename.rsplit(".", 1)[0]).strip()
+    paper = Paper(
+        id=paper_id,
+        project_id=project_uuid,
+        title=clean_title or file.filename,
+        authors=[],
+        source="direct_upload",
+        dedup_key=f"direct-upload:{paper_id}",
+        screening_decision="keep",
+    )
+    db.add(paper)
+
+    try:
+        file_path = await processor.save_upload_file(file, project_id=str(project_uuid))
+        pages, chunks = processor.extract_and_chunk(file_path)
+        if not chunks or all(not chunk.page_content.strip() for chunk in chunks):
+            raise HTTPException(
+                status_code=422,
+                detail="PDF không trích được văn bản; file scan cần OCR.",
+            )
+        ingestion_id = await persist_pdf_provenance(
+            db=db,
+            paper=paper,
+            pages=pages,
+            chunks=chunks,
+            parser_metadata=processor.parser_metadata(),
+        )
+        try:
+            await vector_store_service.stage_documents_for_paper(str(paper.id), chunks)
+            await db.commit()
+        except Exception:
+            await vector_store_service.delete_documents_by_ingestion(str(ingestion_id))
+            raise
+    except HTTPException:
+        await db.rollback()
+        raise
+    except Exception as exc:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    return DirectUploadResponse(
+        paper_id=str(paper.id),
+        title=paper.title,
+        filename=file.filename,
+        total_pages=len(pages),
+        total_chunks=len(chunks),
+        message="PDF saved, ingested, and persisted in the workspace.",
+    )
+
 
 @router.post("/workspace/upload", response_model=UploadResponse)
 async def upload_paper_pdf(
@@ -620,14 +694,19 @@ async def workspace_chat(request: WorkspaceChatRequest) -> WorkspaceChatResponse
 )
 async def create_synthesis_session(
     request: SynthesisSessionCreateRequest,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ) -> SynthesisSessionCreatedResponse:
     """Create and enqueue a long-running evidence-first synthesis session."""
+    try:
+        synthesis_llm_service.validate_configuration()
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
     project_result = await db.execute(select(Project).where(Project.id == request.project_id))
     project = project_result.scalar_one_or_none()
     if project is None:
         raise HTTPException(status_code=404, detail=f"Project '{request.project_id}' not found")
-
     # Keep first occurrence/order because citation numbering follows user selection.
     paper_ids = list(dict.fromkeys(request.paper_ids))
     max_papers = get_settings().synthesis_max_papers
@@ -670,7 +749,7 @@ async def create_synthesis_session(
     session = SynthesisSession(
         id=uuid.uuid4(),
         project_id=request.project_id,
-        paper_ids=paper_ids,
+        paper_ids=json_paper_ids(paper_ids),
         status=SynthesisStatus.processing,
     )
     db.add(session)
@@ -679,8 +758,12 @@ async def create_synthesis_session(
 
     try:
         from src.tasks.synthesis_tasks import run_synthesis_task
-
-        run_synthesis_task.delay(str(session.id))
+        if get_settings().app_env == "development":
+            # Local mode needs no Redis/Celery process; FastAPI runs the same
+            # task body after returning 202. Production remains queue-backed.
+            background_tasks.add_task(run_synthesis_task.run, str(session.id))
+        else:
+            run_synthesis_task.delay(str(session.id))
     except Exception as exc:
         session.status = SynthesisStatus.failed
         session.error_message = f"Failed to enqueue synthesis task: {exc}"
@@ -715,6 +798,18 @@ async def get_synthesis_session(
         .order_by(Citation.review_char_start, Citation.id)
     )
     citations = list(citation_result.scalars().all())
+    section_result = await db.execute(
+        select(SynthesisSection)
+        .where(SynthesisSection.synthesis_session_id == session_id)
+        .order_by(SynthesisSection.position, SynthesisSection.id)
+    )
+    sections = list(section_result.scalars().all())
+    evidence_result = await db.execute(
+        select(EvidenceRecord)
+        .where(EvidenceRecord.synthesis_session_id == session_id)
+        .order_by(EvidenceRecord.paper_id, EvidenceRecord.dimension, EvidenceRecord.created_at)
+    )
+    evidence_profile = list(evidence_result.scalars().all())
 
     return SynthesisSessionResponse(
         id=session.id,
@@ -735,5 +830,16 @@ async def get_synthesis_session(
                 quoted_snippet=item.quoted_snippet,
             )
             for item in citations
+        ],
+        sections=build_section_responses(sections, {item.id for item in citations}),
+        evidence_profile=[
+            SynthesisEvidenceProfileItem(
+                id=item.id,
+                paper_id=item.paper_id,
+                dimension=item.dimension,
+                value=item.value,
+                quote=item.quote,
+            )
+            for item in evidence_profile
         ],
     )

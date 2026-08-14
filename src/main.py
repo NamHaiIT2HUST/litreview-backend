@@ -12,13 +12,14 @@ from src.api.project_routes import router as project_router
 from src.api.screening_routes import router as screening_router
 from src.api.export_routes import router as export_router
 from src.config import get_settings
-from src.database import create_all_tables
+from src.database import create_all_tables, ensure_local_schema_compatibility
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
     print(f"Starting {settings.app_name} in {settings.app_env} mode")
     # await create_all_tables() # Migration handles tables now
+    await ensure_local_schema_compatibility()
     print("Database tables ready.")
     yield
     print("Shutting down...")

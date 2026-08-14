@@ -38,18 +38,33 @@ def normalize_with_mapping(raw_text: str) -> tuple[str, list[int]]:
     while i < length:
         char = raw_text[i]
 
-        # PDF line-break hyphenation: "trans-\nformer" -> "transformer".
+        # PDF discretionary hyphenation. Parsers/LLMs may preserve the line
+        # break ("sta-\ntistical") or collapse it to a space
+        # ("sta- statistical"). Normalize both forms identically while only
+        # joining alphabetic word fragments.
         if char == "-" and i > 0 and _is_word_char(raw_text[i - 1]):
             j = i + 1
-            if j < length and raw_text[j] == "\r":
+            while j < length and raw_text[j].isspace():
                 j += 1
-            if j < length and raw_text[j] == "\n":
-                j += 1
-                while j < length and raw_text[j] in " \t":
-                    j += 1
-                if j < length and _is_word_char(raw_text[j]):
-                    i = j
-                    continue
+            if (
+                j > i + 1
+                and j < length
+                and raw_text[i - 1].isalpha()
+                and raw_text[j].isalpha()
+                and raw_text[j].islower()
+            ):
+                fragment_start = i - 1
+                while fragment_start > 0 and raw_text[fragment_start - 1].isalpha():
+                    fragment_start -= 1
+                fragment = raw_text[fragment_start:i]
+                # LLMs sometimes turn "sta-\ntistical" into
+                # "sta- statistical", repeating the prefix. Skip only that
+                # exact repeated fragment; all remaining characters must still
+                # match exactly after normalization.
+                if fragment and raw_text[j:j + len(fragment)].casefold() == fragment.casefold():
+                    j += len(fragment)
+                i = j
+                continue
 
         if char.isspace():
             first_ws_index = i

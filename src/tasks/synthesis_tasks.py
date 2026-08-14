@@ -2,10 +2,12 @@
 from __future__ import annotations
 
 import asyncio
+import time
 import uuid
 
 from src.database import DATABASE_URL, session_scope
 from src.services.synthesis_service import synthesis_service
+from src.services.synthesis_metrics_service import get_or_create_metrics
 from src.synthesis.graph import build_synthesis_graph
 from src.tasks.celery_app import celery_app
 from src.tasks.retry_policy import should_retry_synthesis
@@ -29,6 +31,7 @@ async def run_synthesis_session(session_id: str) -> None:
     exception may still be retried by Celery, so terminal status belongs to the
     outer task after the retry budget is exhausted.
     """
+    started = time.perf_counter()
     checkpoint_dsn = _checkpoint_connection_string(DATABASE_URL)
 
     if checkpoint_dsn:
@@ -46,6 +49,11 @@ async def run_synthesis_session(session_id: str) -> None:
         # SQLite/dev fallback: run without production checkpointer.
         graph = build_synthesis_graph()
         await graph.ainvoke({"session_id": session_id})
+
+    async with session_scope() as db:
+        metrics = await get_or_create_metrics(db, uuid.UUID(session_id))
+        metrics.synthesis_duration_ms = int((time.perf_counter() - started) * 1000)
+        await db.flush()
 
 
 async def _mark_terminal_failure(session_id: str, exc: BaseException) -> None:

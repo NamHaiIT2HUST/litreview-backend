@@ -9,6 +9,7 @@ from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy import text
 from sqlalchemy.orm import DeclarativeBase
 
 load_dotenv()
@@ -33,7 +34,7 @@ DATABASE_URL = _normalize_async_database_url(
 engine = create_async_engine(
     DATABASE_URL,
     echo=False,
-    connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {},
+    connect_args={"check_same_thread": False, "timeout": 30} if "sqlite" in DATABASE_URL else {},
 )
 
 AsyncSessionLocal = async_sessionmaker(
@@ -71,3 +72,30 @@ async def create_all_tables():
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+
+async def ensure_local_schema_compatibility():
+    """Apply additive SQLite-only compatibility changes for legacy demo DBs."""
+    if "sqlite" not in DATABASE_URL:
+        return
+    async with engine.begin() as conn:
+        rows = await conn.execute(text("PRAGMA table_info(synthesis_sessions)"))
+        columns = {row[1] for row in rows}
+        if columns and "research_question" not in columns:
+            await conn.execute(
+                text("ALTER TABLE synthesis_sessions ADD COLUMN research_question TEXT")
+            )
+        if columns and "qa_warning" not in columns:
+            await conn.execute(
+                text("ALTER TABLE synthesis_sessions ADD COLUMN qa_warning TEXT")
+            )
+        evidence_rows = await conn.execute(text("PRAGMA table_info(evidence_records)"))
+        evidence_columns = {row[1] for row in evidence_rows}
+        if evidence_columns and "merged_into_id" not in evidence_columns:
+            await conn.execute(
+                text("ALTER TABLE evidence_records ADD COLUMN merged_into_id CHAR(32)")
+            )
+        if evidence_columns and "merge_reason" not in evidence_columns:
+            await conn.execute(
+                text("ALTER TABLE evidence_records ADD COLUMN merge_reason TEXT")
+            )

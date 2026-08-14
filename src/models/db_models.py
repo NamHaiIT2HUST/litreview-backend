@@ -93,6 +93,12 @@ class GroundingStatus(str, enum.Enum):
     rejected = "rejected"
 
 
+class GenericEvidenceCacheStatus(str, enum.Enum):
+    processing = "processing"
+    ready = "ready"
+    failed = "failed"
+
+
 class EntailmentStatus(str, enum.Enum):
     supported = "supported"
     contradicted = "contradicted"
@@ -122,8 +128,8 @@ class Project(Base):
     research_field = Column(String, nullable=False)
     year_from = Column(Integer, nullable=True)
     year_to = Column(Integer, nullable=True)
-    criteria_include = Column(JSON, nullable=True)
-    criteria_exclude = Column(JSON, nullable=True)
+    criteria_include = Column(JSONB, nullable=True)
+    criteria_exclude = Column(JSONB, nullable=True)
     created_at = Column(DateTime(timezone=True), default=_now_utc)
     updated_at = Column(DateTime(timezone=True), default=_now_utc, onupdate=_now_utc)
 
@@ -154,7 +160,7 @@ class Paper(Base):
 
     title = Column(Text, nullable=False)
     abstract = Column(Text, nullable=True)
-    authors = Column(JSON, nullable=True)
+    authors = Column(JSONB, nullable=True)
     year = Column(Integer, nullable=True)
     doi = Column(String, nullable=True)
     issn = Column(String, nullable=True)
@@ -261,7 +267,9 @@ class SynthesisSession(Base):
     __tablename__ = "synthesis_sessions"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     project_id = Column(UUID(as_uuid=True), ForeignKey("projects.id"))
-    paper_ids = Column(JSON, nullable=False)
+    paper_ids = Column(JSONB, nullable=False)
+    research_question = Column(Text, nullable=True)
+    qa_warning = Column(Text, nullable=True)
     status = Column(SQLEnum(SynthesisStatus), default=SynthesisStatus.processing)
     review_markdown = Column(Text, nullable=True)
     error_message = Column(Text, nullable=True)
@@ -395,10 +403,17 @@ class EvidenceRecord(Base):
         UUID(as_uuid=True), ForeignKey("evidence_extraction_attempts.id"), nullable=False, unique=True
     )
     dimension = Column(String(120), nullable=False)
+    applies_to = Column(String(80), nullable=False, default="study")
     value = Column(Text, nullable=False)
     quote = Column(Text, nullable=False)
     page_char_start = Column(Integer, nullable=False)
     page_char_end = Column(Integer, nullable=False)
+    merged_into_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("evidence_records.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    merge_reason = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), default=_now_utc, nullable=False)
 
     synthesis_session = relationship("SynthesisSession", back_populates="evidence_records")
@@ -408,6 +423,73 @@ class EvidenceRecord(Base):
     created_from_attempt = relationship("EvidenceExtractionAttempt", back_populates="grounded_evidence")
     claim_links = relationship("ClaimEvidenceLink", back_populates="evidence", cascade="all, delete-orphan")
     citations = relationship("Citation", back_populates="evidence")
+
+
+class GenericEvidenceCache(Base):
+    """Session-independent cache header for default-RQ grounded evidence."""
+
+    __tablename__ = "generic_evidence_caches"
+    __table_args__ = (
+        UniqueConstraint(
+            "paper_id",
+            "content_hash",
+            "extraction_fingerprint",
+            name="uq_generic_evidence_cache_identity",
+        ),
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    paper_id = Column(UUID(as_uuid=True), ForeignKey("papers.id"), nullable=False, index=True)
+    ingestion_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    content_hash = Column(String(64), nullable=False)
+    extraction_fingerprint = Column(String(64), nullable=False)
+    status = Column(
+        SQLEnum(GenericEvidenceCacheStatus),
+        default=GenericEvidenceCacheStatus.processing,
+        nullable=False,
+    )
+    failure_reason = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=_now_utc, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=_now_utc, onupdate=_now_utc, nullable=False)
+
+    items = relationship(
+        "GenericEvidenceCacheItem",
+        back_populates="cache",
+        cascade="all, delete-orphan",
+    )
+
+
+class GenericEvidenceCacheItem(Base):
+    """One grounded, source-addressable item belonging to a generic cache."""
+
+    __tablename__ = "generic_evidence_cache_items"
+    __table_args__ = (
+        CheckConstraint("page_char_start >= 0", name="ck_generic_cache_item_start_nonnegative"),
+        CheckConstraint(
+            "page_char_end > page_char_start",
+            name="ck_generic_cache_item_offsets_ordered",
+        ),
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    cache_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("generic_evidence_caches.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    paper_id = Column(UUID(as_uuid=True), ForeignKey("papers.id"), nullable=False)
+    dimension = Column(String(120), nullable=False)
+    applies_to = Column(String(80), nullable=False)
+    value = Column(Text, nullable=False)
+    quote = Column(Text, nullable=False)
+    page_text_id = Column(UUID(as_uuid=True), ForeignKey("page_texts.id"), nullable=False)
+    source_chunk_id = Column(UUID(as_uuid=True), ForeignKey("pdf_chunks.id"), nullable=False)
+    page_char_start = Column(Integer, nullable=False)
+    page_char_end = Column(Integer, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=_now_utc, nullable=False)
+
+    cache = relationship("GenericEvidenceCache", back_populates="items")
 
 
 class SynthesisSection(Base):
@@ -465,3 +547,54 @@ class ClaimEvidenceLink(Base):
 
     claim = relationship("SynthesisClaim", back_populates="evidence_links")
     evidence = relationship("EvidenceRecord", back_populates="claim_links")
+
+
+class RetrievalLog(Base):
+    __tablename__ = "retrieval_logs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    session_id = Column(UUID(as_uuid=True), ForeignKey("synthesis_sessions.id"), nullable=False, index=True)
+    paper_id = Column(UUID(as_uuid=True), ForeignKey("papers.id"), nullable=False)
+    dimension = Column(String(120), nullable=False)
+    query = Column(Text, nullable=False)
+    results_json = Column(JSON, nullable=False, default=list)
+    duration_ms = Column(Integer, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=_now_utc, nullable=False)
+
+
+class LLMCallLog(Base):
+    __tablename__ = "llm_call_logs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    session_id = Column(UUID(as_uuid=True), ForeignKey("synthesis_sessions.id"), nullable=False, index=True)
+    step_name = Column(String(120), nullable=False)
+    model_name = Column(String(160), nullable=True)
+    attempt = Column(Integer, nullable=False)
+    duration_ms = Column(Integer, nullable=False)
+    status = Column(String(40), nullable=False)
+    prompt_json = Column(JSON, nullable=False)
+    response_json = Column(JSON, nullable=True)
+    error = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=_now_utc, nullable=False)
+
+
+class SynthesisMetrics(Base):
+    __tablename__ = "synthesis_metrics"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    session_id = Column(
+        UUID(as_uuid=True), ForeignKey("synthesis_sessions.id"), nullable=False, unique=True, index=True
+    )
+    total_llm_calls = Column(Integer, nullable=False, default=0)
+    total_input_tokens = Column(Integer, nullable=True)
+    total_output_tokens = Column(Integer, nullable=True)
+    cache_hits = Column(Integer, nullable=False, default=0)
+    cache_misses = Column(Integer, nullable=False, default=0)
+    grounding_retry_count = Column(Integer, nullable=False, default=0)
+    claim_verification_count = Column(Integer, nullable=False, default=0)
+    synthesis_duration_ms = Column(Integer, nullable=True)
+    final_word_count = Column(Integer, nullable=False, default=0)
+    citation_coverage = Column(Float, nullable=True)
+    section_metrics = Column(JSON, nullable=False, default=list)
+    created_at = Column(DateTime(timezone=True), default=_now_utc, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=_now_utc, onupdate=_now_utc, nullable=False)
