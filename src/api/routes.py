@@ -687,6 +687,29 @@ async def workspace_chat(request: WorkspaceChatRequest) -> WorkspaceChatResponse
     Chat với trợ lý AI về các bài báo đã tải lên (RAG).
     """
     try:
+        # Heuristic phát hiện câu hỏi nghiên cứu sâu
+        is_deep = any(kw in request.message.lower() for kw in [
+            "discuss", "overview", "phân tích", "so sánh", "tại sao", "giải thích", "deep", "tổng quan", "định nghĩa"
+        ])
+        
+        if is_deep:
+            paper_ids_list = request.paper_ids if getattr(request, "paper_ids", None) else []
+            if getattr(request, "paper_id", None) and request.paper_id not in paper_ids_list:
+                paper_ids_list.append(request.paper_id)
+                
+            result = await agent.ainvoke({
+                "query": request.message,
+                "task_type": "deep_research",
+                "paper_ids": paper_ids_list
+            })
+            
+            return WorkspaceChatResponse(
+                answer=result.get("response", ""),
+                context_used=[],
+                citations=[]
+            )
+
+        # --- LUỒNG RAG TRUYỀN THỐNG (SUPER FAST) ---
         # Bước 1: Tìm kiếm tài liệu liên quan trong ChromaDB
         # Lấy context riêng cho từng paper để đảm bảo phân bổ đều khi query chung chung
         chunks = []

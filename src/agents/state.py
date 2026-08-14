@@ -16,3 +16,5 @@ class AgentState(TypedDict, total=False):
     citations: list[dict]  # list of citation metadata dictionaries
     response: str  # câu trả lời dạng text đầy đủ (ghép từ citations)
     error: str
+    task_type: str  # Loại câu hỏi để định tuyến (vd: 'standard', 'deep_research')
+    paper_ids: list[str] | None  # Dùng để filter theo bài báo cụ thể trong Workspace Chat

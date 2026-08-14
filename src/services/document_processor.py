@@ -51,8 +51,9 @@ class DocumentProcessor:
         else:
             file_path = os.path.join(UPLOAD_DIR, safe_filename)
 
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(upload_file.file, buffer)
+        content = await upload_file.read()
+        with open(file_path, "wb") as f:
+            f.write(content)
 
         return file_path
 

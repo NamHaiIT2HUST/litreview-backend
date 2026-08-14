@@ -13,6 +13,9 @@ if sys.stderr and hasattr(sys.stderr, "reconfigure"):
     except Exception:
         pass
 
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["OMP_NUM_THREADS"] = "1"
+
 os.environ["LANGCHAIN_TRACING_V2"] = "false"
 os.environ["LANGSMITH_TRACING"] = "false"
 
@@ -33,7 +36,7 @@ from src.database import create_all_tables
 async def lifespan(app: FastAPI):
     settings = get_settings()
     print(f"Starting {settings.app_name} in {settings.app_env} mode")
-    # await create_all_tables() # Migration handles tables now
+    await create_all_tables() # Migration handles tables now
     print("Database tables ready.")
     yield
     print("Shutting down...")

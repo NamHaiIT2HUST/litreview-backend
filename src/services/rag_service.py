@@ -140,21 +140,24 @@ _MAP_SYSTEM = (
     "- `summary`: Relevant information from the excerpt that could help answer the question."
     " About 100 words."
     " Do NOT directly answer the question — only extract evidence."
-    " Stay detailed: include specific numbers, equations, method names, or direct quotes."
+    " If the question is broad or theoretical (e.g., 'discuss', 'overview'), extract high-level concepts, but DO NOT skip core mathematical definitions, theorems, or proofs. These are CRITICAL evidence, not minor details."
+    " Always extract specific numbers, exact equations, and mathematical logic if present and relevant."
     ' If the excerpt is not relevant, leave `summary` empty.\n'
     "- `relevance_score`: Integer 0-10 for relevance of `summary` to the question."
     " 0 = not relevant at all. 10 = directly and specifically answers the question.\n"
     "- The excerpt may or may not contain relevant information."
     " If not relevant, leave `summary` empty and set `relevance_score` to 0.\n"
-    "- Write `summary` in the SAME language as the Question"
-    " (Vietnamese question → Vietnamese summary; English question → English summary).\n"
-    "- MATH RULE: Use LaTeX for all math notation."
+    "- LANGUAGE RULE: Detect the primary language of the Question."
+    " If the question contains ANY Vietnamese terms (e.g., 'Discuss Tập loại bỏ tự do'), ALWAYS write the `summary` in Vietnamese.\n"
+    "- MATH RULE: Use LaTeX for all math notation. Never skip or over-summarize mathematical formulas, definitions, and lemmas."
     " Inline: $\\theta$, $\\beta_k$, $\\|u_k\\|$. Display: $$...$$."
     " Never use Unicode math (\u03b8 \u03b2 \u2207 etc.)."
 )
 _MAP_HUMAN = (
     "Excerpt from {paper_title} — {source_name} (page {page}):\n\n---\n\n{excerpt}\n\n---\n\n"
-    "Question: {question}\n\nJSON:"
+    "Question: {question}\n\n"
+    "CRITICAL: If the Question contains ANY Vietnamese words (e.g. 'Tập loại bỏ tự do'), you MUST write the `summary` entirely in Vietnamese.\n\n"
+    "JSON:"
 )
 
 MAP_PROMPT = ChatPromptTemplate.from_messages([
@@ -186,14 +189,17 @@ _REDUCE_SYSTEM = (
     "- Use Markdown extensively to structure your answer hierarchically.\n"
     "- Provide a high-level summary/overview first, then dive into details.\n"
     "- Use Headings (###), Bullet points (-), and Bold text (**) to organize concepts (e.g., Core Problem vs Applications).\n\n"
+    "CONTENT RULE — MANDATORY:\n"
+    "- If the question asks to 'discuss' or requests an overview of a topic, focus on theoretical concepts, core challenges, and breakthrough methodologies.\n"
+    "- CRITICAL: Do NOT skip or flatten mathematical definitions, lemmas, properties, or proofs. These must be preserved in full detail with exact LaTeX equations. Only skip minor experimental hyperparameters (like iteration counts).\n\n"
     "SYNTHESIS RULE — MANDATORY:\n"
     "- You MUST synthesize information across ALL provided sources.\n"
     "- If multiple papers discuss the same or related topics, combine their perspectives or compare them.\n"
     "- Do NOT just summarize one source and ignore the others. Aim to use as many provided citation keys as relevant to provide a complete picture.\n\n"
     "LANGUAGE RULE — MANDATORY:\n"
-    "- Detect the language of the Question and answer in that SAME language.\n"
-    "- Vietnamese question → answer entirely in Vietnamese.\n"
-    "- English question → answer entirely in English.\n"
+    "- Detect the primary language of the Question.\n"
+    "- If the question contains ANY Vietnamese terms or concepts (e.g. 'Discuss Tập loại bỏ tự do'), answer ENTIRELY in Vietnamese.\n"
+    "- Only answer in English if the question is 100% English.\n"
     "- NEVER mix languages.\n\n"
     "MATH RULE — MANDATORY:\n"
     "- Use LaTeX for ALL math without exception.\n"
@@ -203,7 +209,6 @@ _REDUCE_SYSTEM = (
     " Subscripts: $u_k$. Norms: $\\|\\cdot\\|$. Fractions: $\\frac{{a}}{{b}}$."
 )
 
-# PaperQA2's qa_prompt structure: context → question → answer instruction
 _REDUCE_HUMAN = (
     "Context:\n\n{context}\n\nValid Keys: {valid_keys}\n\n---\n\n"
     "Question: {question}\n\n"
@@ -215,6 +220,7 @@ _REDUCE_HUMAN = (
     " Only cite from the context above and only use the citation keys from 'Valid Keys'.\n"
     " Remember to use Markdown formatting (headings, lists, bolding) to make the answer highly readable and analytical.\n\n"
     + _CITATION_KEY_RULES + "\n\n"
+    "CRITICAL LANGUAGE RULE: Look at the Question carefully. If it contains ANY Vietnamese words, your ENTIRE Answer below MUST be in Vietnamese. Do NOT use English unless the question is 100% English.\n\n"
     "Answer:"
 )
 
