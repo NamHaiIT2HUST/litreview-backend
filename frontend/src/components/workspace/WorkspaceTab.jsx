@@ -3,6 +3,7 @@ import ChatPanel from './ChatPanel';
 import VerificationPanel from './VerificationPanel';
 import { persistedDirectUploadSources } from '../../utils/workspaceSources';
 import SynthesisPanel from './SynthesisPanel';
+import { reconcileSelectedPaperIds, selectedPapersFromIds } from '../../utils/workspaceScope';
 import {
   Bot,
   UploadCloud,
@@ -12,13 +13,7 @@ import {
   AlertCircle,
   Loader2,
   Trash2,
-  Plus,
-  Info,
   BookOpen,
-  Layers,
-  Hash,
-  ChevronDown,
-  ChevronUp
 } from 'lucide-react';
 
 const API_BASE = 'http://localhost:8000/api/v1';
@@ -26,13 +21,13 @@ const MAX_FILE_SIZE_MB = 20;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 // ─── Source Card ──────────────────────────────────────────────────────────────
-function SourceCard({ paper, isSelected, onSelect, onRemove, darkMode }) {
+function SourceCard({ paper, isChecked, onToggle, onRemove, darkMode }) {
   const isDirectUpload = paper.source === 'direct_upload';
   return (
     <div
-      onClick={() => onSelect(paper.id)}
+      onClick={() => onToggle(paper.id)}
       className={`group relative p-3 rounded-2xl border cursor-pointer transition-all select-none ${
-        isSelected
+        isChecked
           ? 'border-blue-500 ring-2 ring-blue-200 dark:ring-blue-800 bg-blue-50 dark:bg-blue-950/40'
           : darkMode
           ? 'bg-slate-800/70 border-slate-700 hover:border-slate-500'
@@ -47,6 +42,14 @@ function SourceCard({ paper, isSelected, onSelect, onRemove, darkMode }) {
       </button>
 
       <div className="flex items-start gap-3">
+        <input
+          type="checkbox"
+          checked={isChecked}
+          onChange={() => onToggle(paper.id)}
+          onClick={(e) => e.stopPropagation()}
+          aria-label={`Sử dụng ${paper.title}`}
+          className="mt-1 h-4 w-4 accent-blue-600"
+        />
         <div className={`shrink-0 w-8 h-8 rounded-xl flex items-center justify-center ${
           isDirectUpload
             ? 'bg-purple-100 dark:bg-purple-950 text-purple-600 dark:text-purple-400'
@@ -157,7 +160,6 @@ export default function WorkspaceTab({
   papers = [],
   setPapers,
   selectedPapers = [],
-  setSelectedPaperIds,
   workspacePapers,
   setWorkspacePapers,
   chatMessages,
@@ -168,8 +170,8 @@ export default function WorkspaceTab({
 }) {
   const [uploadQueue, setUploadQueue] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
-  const [selectedSourceIds, setSelectedSourceIds] = useState([]);
-  const [showSynthesis, setShowSynthesis] = useState(false);
+  const [selectedPaperIds, setSelectedPaperIds] = useState([]);
+  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState('chat');
   React.useEffect(() => {
     let cancelled = false;
     const restoreUploads = async () => {
@@ -212,6 +214,15 @@ export default function WorkspaceTab({
     return Array.from(merged.values());
   }, [papers, selectedPapers, workspacePapers]);
 
+  React.useEffect(() => {
+    setSelectedPaperIds((current) => reconcileSelectedPaperIds(current, allSources));
+  }, [allSources]);
+
+  const scopedPapers = React.useMemo(
+    () => selectedPapersFromIds(allSources, selectedPaperIds),
+    [allSources, selectedPaperIds],
+  );
+
   // Upload Logic
   const uploadFiles = async (files) => {
     if (isUploading) return;
@@ -248,6 +259,7 @@ export default function WorkspaceTab({
           },
           ...prev.filter((p) => p.id !== data.paper_id),
         ]);
+        setSelectedPaperIds((prev) => prev.includes(data.paper_id) ? prev : [...prev, data.paper_id]);
       } catch (err) {
         items[i] = { ...item, status: 'error', error: err.message };
         setUploadQueue([...items]);
@@ -260,22 +272,31 @@ export default function WorkspaceTab({
   const removeSource = (id) => {
     setWorkspacePapers((prev) => prev.filter((p) => p.id !== id));
     if (setPapers) setPapers((prev) => prev.filter((p) => p.id !== id));
-    if (setSelectedPaperIds) setSelectedPaperIds((prev) => prev.filter((pId) => pId !== id));
-    setSelectedSourceIds((prev) => prev.filter((x) => x !== id));
+    setSelectedPaperIds((prev) => prev.filter((paperId) => paperId !== id));
   };
 
   return (
-    <div className={`grid grid-cols-1 lg:grid-cols-12 gap-5 h-[calc(100vh-140px)] ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>
+    <div className={`flex flex-col gap-4 h-[calc(100vh-140px)] ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>
+      <div className="hidden">
+        <div className={`flex rounded-2xl border p-1 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+          {[['chat', 'Chat với tài liệu', Bot], ['synthesis', 'Synthesis', Sparkles]].map(([id, label, Icon]) => (
+            <button key={id} type="button" onClick={() => setActiveWorkspaceTab(id)} className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 ${activeWorkspaceTab === id ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+              <Icon className="w-4 h-4" />{label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 flex-1 min-h-0">
       
       {/* ── LEFT: Sources Panel ── */}
       <div className={`lg:col-span-3 flex flex-col gap-4 rounded-3xl border p-4 ${
         darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
       }`}>
         <div className="flex items-center justify-between">
-          <h3 className="font-extrabold text-lg">Nguồn tài liệu</h3>
-          <span className="text-xs font-bold px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded-lg">
-            {allSources.length} files
-          </span>
+            <h3 className="font-extrabold text-lg whitespace-nowrap">Nguồn tài liệu</h3>
+            <span className="text-xs font-bold px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded-lg whitespace-nowrap">
+              {allSources.length} tài liệu · {scopedPapers.length} đang sử dụng
+            </span>
         </div>
 
         <DropZone onFiles={uploadFiles} isUploading={isUploading} darkMode={darkMode} />
@@ -293,8 +314,8 @@ export default function WorkspaceTab({
             <SourceCard
               key={paper.id}
               paper={paper}
-              isSelected={selectedSourceIds.includes(paper.id)}
-              onSelect={(id) => setSelectedSourceIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])}
+              isChecked={selectedPaperIds.includes(paper.id)}
+              onToggle={(id) => setSelectedPaperIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id])}
               onRemove={removeSource}
               darkMode={darkMode}
             />
@@ -309,52 +330,36 @@ export default function WorkspaceTab({
         </div>
       </div>
 
-      {/* ── RIGHT: Chat & Synthesis Panel ── */}
+      {/* ── RIGHT: Active Workspace Panel ── */}
       <div className="lg:col-span-9 flex flex-col gap-5 h-full min-h-0 overflow-y-auto">
-        
-        {/* Synthesis Tools Toggle */}
-        <div className={`rounded-3xl border overflow-hidden transition-all shrink-0 ${
-          darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-        }`}>
-          <button 
-            onClick={() => setShowSynthesis(!showSynthesis)}
-            className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400 rounded-xl">
-                <Sparkles className="w-5 h-5" />
-              </div>
-              <h2 className="font-bold text-sm">Công cụ Trích xuất / Synthesis</h2>
-            </div>
-            {showSynthesis ? <ChevronUp className="w-5 h-5 opacity-50" /> : <ChevronDown className="w-5 h-5 opacity-50" />}
-          </button>
-          
-          {showSynthesis && (
-            <div className="p-4 pt-0 border-t dark:border-slate-800 max-h-[52vh] overflow-hidden">
-              <SynthesisPanel
-                workspacePapers={workspacePapers}
-                setActiveCitation={setActiveCitation}
-                darkMode={darkMode}
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Chat */}
-        <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-5 min-h-0">
-          <div className={`lg:col-span-12 h-full rounded-3xl border flex flex-col overflow-hidden ${
+        <div className={`flex-1 rounded-3xl border flex flex-col overflow-hidden ${
             darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
           }`}>
-            <ChatPanel
-              workspacePapers={workspacePapers}
-              selectedSourceIds={selectedSourceIds}
+          <div className={`flex items-center justify-end px-4 py-2 border-b shrink-0 ${darkMode ? 'border-slate-800' : 'border-slate-200'}`}>
+            <div className={`flex rounded-xl p-1 ${darkMode ? 'bg-slate-800' : 'bg-slate-100'}`}>
+              {[
+                ['chat', 'Chat', Bot, 'Chat với tài liệu'],
+                ['synthesis', 'Synthesis', Sparkles, 'Tổng hợp nghiên cứu'],
+              ].map(([id, label, Icon, title]) => (
+                <button key={id} type="button" title={title} onClick={() => setActiveWorkspaceTab(id)} className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${activeWorkspaceTab === id ? 'bg-white text-blue-600 shadow-sm dark:bg-slate-700 dark:text-blue-400' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
+                  <Icon className="w-3.5 h-3.5" />{label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {activeWorkspaceTab === 'chat' ? <ChatPanel
+              workspacePapers={scopedPapers}
+              selectedSourceIds={selectedPaperIds}
               chatMessages={chatMessages}
               setChatMessages={setChatMessages}
               activeCitation={activeCitation}
               setActiveCitation={setActiveCitation}
               darkMode={darkMode}
-            />
-          </div>
+            /> : <SynthesisPanel
+              workspacePapers={scopedPapers}
+              setActiveCitation={setActiveCitation}
+              darkMode={darkMode}
+            />}
         </div>
       </div>
       <VerificationPanel
@@ -362,6 +367,7 @@ export default function WorkspaceTab({
         darkMode={darkMode}
         onClose={() => setActiveCitation(null)}
       />
+      </div>
     </div>
   );
 }
