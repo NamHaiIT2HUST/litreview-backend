@@ -5,7 +5,7 @@ from collections import defaultdict
 from importlib.metadata import PackageNotFoundError, version
 
 from fastapi import UploadFile
-from langchain_community.document_loaders import PyPDFLoader
+
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 UPLOAD_DIR = "uploads/papers"
@@ -16,8 +16,8 @@ class DocumentProcessor:
     def __init__(self):
         os.makedirs(UPLOAD_DIR, exist_ok=True)
         self.text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000,
-            chunk_overlap=200,
+            chunk_size=2000,
+            chunk_overlap=400,
             length_function=len,
             add_start_index=True,
         )
@@ -26,11 +26,11 @@ class DocumentProcessor:
     def parser_metadata() -> dict[str, str]:
         """Return stable parser metadata used for provenance records."""
         try:
-            parser_version = version("langchain-community")
+            parser_version = version("pymupdf")
         except PackageNotFoundError:
             parser_version = "unknown"
         return {
-            "parser_name": "PyPDFLoader",
+            "parser_name": "PyMuPDF",
             "parser_version": parser_version,
             "ingestion_version": INGESTION_VERSION,
         }
@@ -51,8 +51,9 @@ class DocumentProcessor:
         else:
             file_path = os.path.join(UPLOAD_DIR, safe_filename)
 
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(upload_file.file, buffer)
+        content = await upload_file.read()
+        with open(file_path, "wb") as f:
+            f.write(content)
 
         return file_path
 
@@ -97,14 +98,29 @@ class DocumentProcessor:
             # Preserve LangChain's start_index for backwards/debug compatibility.
             chunk_counter[page_number] += 1
 
-    def extract_and_chunk(self, file_path: str):
+    def extract_and_chunk(self, file_path: str, paper_title: str | None = None):
         """Đọc PDF theo trang và cắt chunk với provenance offset theo từng trang."""
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"File not found: {file_path}")
 
-        loader = PyPDFLoader(file_path)
-        pages = loader.load()
+        import pymupdf
+        from langchain_core.documents import Document
+
+        doc = pymupdf.open(file_path)
+        pages = []
+        for i, page in enumerate(doc):
+            pages.append(
+                Document(
+                    page_content=page.get_text(),
+                    metadata={"source": file_path, "page": i}
+                )
+            )
+        doc.close()
         chunks = self.text_splitter.split_documents(pages)
         self._attach_chunk_metadata(pages, chunks)
+
+        if paper_title:
+            for chunk in chunks:
+                chunk.metadata["paper_title"] = paper_title
 
         return pages, chunks

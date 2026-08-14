@@ -39,6 +39,7 @@ services:
       - chroma_data:/data
 
   backend:
+    build: .
     image: p-165-backend:latest
     container_name: litreview-backend
     user: root
@@ -47,7 +48,7 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: sqlite+aiosqlite:///./data/app.db
+      DATABASE_URL: postgresql+asyncpg://postgres:password@db:5432/litreview
       REDIS_URL: redis://redis:6379/0
       CHROMA_HOST: chroma
       CHROMA_PORT: 8000
@@ -76,13 +77,14 @@ services:
   worker:
     profiles:
       - worker
+    build: .
     image: p-165-backend:latest
     container_name: litreview-worker
     user: root
     env_file:
       - .env
     environment:
-      DATABASE_URL: sqlite+aiosqlite:///./data/app.db
+      DATABASE_URL: postgresql+asyncpg://postgres:password@db:5432/litreview
       REDIS_URL: redis://redis:6379/0
       CHROMA_HOST: chroma
       CHROMA_PORT: 8000

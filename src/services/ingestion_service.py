@@ -13,6 +13,13 @@ def _sha256_text(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
+def _sanitize_text(value: str) -> str:
+    """Replace null bytes that PostgreSQL UTF-8 encoding rejects (0x00).
+    Replacing with a space preserves string length and chunk offsets.
+    """
+    return value.replace("\x00", " ")
+
+
 async def persist_pdf_provenance(
     *,
     db: AsyncSession,
@@ -34,7 +41,7 @@ async def persist_pdf_provenance(
 
     for fallback_index, page in enumerate(pages):
         page_number = int(page.metadata.get("page", fallback_index))
-        raw_text = page.page_content
+        raw_text = _sanitize_text(page.page_content)
         page_row = PageText(
             id=uuid.uuid4(),
             paper_id=paper.id,
@@ -60,6 +67,7 @@ async def persist_pdf_provenance(
         end = int(chunk.metadata["page_char_end"])
         chunk_index = int(chunk.metadata["chunk_index"])
 
+        chunk.page_content = _sanitize_text(chunk.page_content)
         if page_row.full_text[start:end] != chunk.page_content:
             raise ValueError(
                 "Cannot persist chunk provenance: raw PageText does not reconstruct chunk content."

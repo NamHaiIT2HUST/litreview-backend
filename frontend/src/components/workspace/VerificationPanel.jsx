@@ -1,62 +1,155 @@
-import React from 'react';
-import { ExternalLink, Quote, ShieldCheck, Sparkles, X } from 'lucide-react';
+import React, { useMemo, useState, useEffect } from 'react';
+import { ShieldCheck, Quote } from 'lucide-react';
+import { Document, Page, pdfjs } from 'react-pdf';
+import 'react-pdf/dist/Page/TextLayer.css';
+import 'react-pdf/dist/Page/AnnotationLayer.css';
 
-function popupPosition(anchor) {
-  if (!anchor || typeof window === 'undefined') return { top: 96, right: 24 };
-  const width = 390;
-  const margin = 16;
-  const left = anchor.right + width + margin <= window.innerWidth
-    ? anchor.right + 10
-    : Math.max(margin, anchor.left - width - 10);
-  const top = Math.min(Math.max(margin, anchor.top - 18), window.innerHeight - 520);
-  return { left, top: Math.max(margin, top), width };
-}
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.min.mjs',
+  import.meta.url,
+).toString();
 
-export default function VerificationPanel({ activeCitation, darkMode, onClose }) {
-  if (!activeCitation) return null;
-  const isSentence = activeCitation.kind === 'sentence';
-  const citations = isSentence ? activeCitation.citations : [activeCitation];
-  const isDiscourse = isSentence && activeCitation.sentence_type === 'discourse';
+export default function VerificationPanel({ activeCitation, darkMode }) {
+  const [rects, setRects] = useState([]);
+  const [loadingCoords, setLoadingCoords] = useState(false);
+
+  const pdfUrl = useMemo(() => {
+    if (!activeCitation?.filename) return null;
+    return `http://localhost:8000/api/v1/workspace/uploads/papers/${activeCitation.filename}`;
+  }, [activeCitation]);
+  
+  const pageNumber = useMemo(() => {
+    return parseInt(activeCitation?.source_page_display || 1, 10);
+  }, [activeCitation]);
+
+  useEffect(() => {
+    let active = true;
+    if (activeCitation?.filename && activeCitation?.quoted_snippet) {
+      setLoadingCoords(true);
+      fetch('http://localhost:8000/api/v1/workspace/evidence-coords', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filename: activeCitation.filename,
+          page: pageNumber,
+          snippet: activeCitation.quoted_snippet
+        })
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (active) {
+          setRects(data.rects || []);
+          setLoadingCoords(false);
+        }
+      })
+      .catch(e => {
+        console.error(e);
+        if (active) {
+          setRects([]);
+          setLoadingCoords(false);
+        }
+      });
+    } else {
+      setRects([]);
+    }
+    return () => { active = false; };
+  }, [activeCitation, pageNumber]);
 
   return (
-    <div
-      role="dialog"
-      aria-label="Xác minh nguồn câu"
-      style={popupPosition(activeCitation.anchor)}
-      className={`fixed z-[80] max-h-[72vh] overflow-y-auto p-5 rounded-2xl border shadow-2xl ${darkMode ? 'bg-slate-900 border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-800'}`}
-    >
-      <div className={`flex items-start justify-between gap-3 border-b pb-3 mb-4 ${darkMode ? 'border-slate-800' : 'border-slate-100'}`}>
+    <div className={`p-6 rounded-3xl border transition-colors flex flex-col space-y-5 sticky top-24 shadow-sm h-[calc(100vh-8rem)] overflow-hidden ${
+      darkMode ? 'bg-slate-900 border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-800'
+    }`}>
+      <div className={`flex items-center justify-between border-b pb-4 shrink-0 ${darkMode ? 'border-slate-800' : 'border-slate-100'}`}>
         <div className="flex items-center gap-2">
-          {isDiscourse ? <Sparkles className="w-5 h-5 text-violet-500" /> : <ShieldCheck className="w-5 h-5 text-emerald-500" />}
-          <div>
-            <h3 className="font-bold text-sm">{isDiscourse ? 'Câu nối do AI tạo' : 'Nguồn xác minh câu'}</h3>
-            <p className="text-[10px] text-slate-500">{isDiscourse ? 'Không thêm dữ kiện mới' : `${citations.length} nguồn bằng chứng`}</p>
-          </div>
+          <ShieldCheck className="w-6 h-6 text-emerald-500" />
+          <h3 className="font-bold text-base">Xác minh nguồn gốc</h3>
         </div>
-        <button type="button" onClick={onClose} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Đóng"><X className="w-4 h-4" /></button>
+        <span className="text-xs font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 px-3 py-1 rounded-full border border-emerald-200 dark:border-emerald-800">
+          Grounded evidence
+        </span>
       </div>
 
-      {isSentence && <p className="text-xs leading-5 font-medium mb-4 p-3 rounded-xl bg-blue-50 dark:bg-blue-950/30">{activeCitation.sentence}</p>}
+      {activeCitation ? (
+        <div className="flex flex-col flex-1 min-h-0 space-y-4 text-sm">
+          <div className="shrink-0 space-y-3">
+            <div>
+              <span className={`font-mono text-xs px-2.5 py-1 rounded-md font-bold ${darkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-700'}`}>
+                {activeCitation.marker_display}
+              </span>
+              <h4 className={`font-extrabold text-base mt-2 leading-snug line-clamp-2 ${darkMode ? 'text-white' : 'text-slate-900'}`} title={activeCitation.title}>
+                {activeCitation.title}
+              </h4>
+            </div>
 
-      {isDiscourse ? (
-        <div className="text-xs leading-5 text-slate-500">
-          Đây là câu chuyển ý/tổng hợp do AI viết từ các claim đã kiểm chứng. Câu này không được dùng để đưa thêm một fact mới.
-          {activeCitation.claim_ids?.length > 0 && <p className="mt-2 font-mono text-[10px]">Truy vết claim: {activeCitation.claim_ids.join(', ')}</p>}
+            <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 font-medium">
+              <p><strong>Trang PDF:</strong> {activeCitation.source_page_display ?? 'N/A'}</p>
+              <p><strong>Raw chars:</strong> {activeCitation.source_char_start ?? '?'}–{activeCitation.source_char_end ?? '?'}</p>
+            </div>
+          </div>
+
+          <div className="shrink-0 space-y-2">
+            <h5 className="font-bold text-xs flex items-center gap-1.5 text-slate-800 dark:text-slate-200">
+              <Quote className="w-4 h-4 text-blue-600" />
+              Evidence nguyên văn đã grounding
+            </h5>
+            <div className={`p-3 rounded-xl leading-relaxed text-xs border max-h-24 overflow-y-auto custom-scrollbar ${
+              darkMode ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'
+            }`}>
+              {activeCitation.quoted_snippet || 'Không có snippet.'}
+            </div>
+          </div>
+
+          {/* PDF Viewer */}
+          {pdfUrl && (
+            <div className="flex-1 min-h-0 mt-2 rounded-xl overflow-auto border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-950 relative shadow-inner custom-scrollbar">
+              <div className="min-w-fit flex justify-center p-4">
+                <Document
+                  file={pdfUrl}
+                  loading={<div className="p-4 text-center text-sm text-slate-500">Đang tải PDF...</div>}
+                  error={<div className="p-4 text-center text-sm text-red-500">Lỗi không thể tải PDF.</div>}
+                >
+                  <div className="relative shadow-md">
+                    <Page 
+                      pageNumber={pageNumber} 
+                      width={450}
+                      renderTextLayer={true}
+                      renderAnnotationLayer={true}
+                      loading={<div className="p-4 text-center text-sm text-slate-500">Đang tải trang...</div>}
+                    />
+                    
+                    {/* Bounding box highlights */}
+                    {rects.map((r, i) => (
+                      <div 
+                        key={i}
+                        className="absolute bg-yellow-400/50 dark:bg-yellow-400/40 mix-blend-multiply dark:mix-blend-screen pointer-events-none rounded-[2px]"
+                        style={{
+                          left: `${r.x * 100}%`,
+                          top: `${r.y * 100}%`,
+                          width: `${r.width * 100}%`,
+                          height: `${r.height * 100}%`
+                        }}
+                      />
+                    ))}
+                    
+                    {/* Missing coords indicator */}
+                    {rects.length === 0 && !loadingCoords && (
+                      <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-red-100 text-red-700 text-[10px] px-2 py-1 rounded shadow-sm opacity-80 pointer-events-none whitespace-nowrap">
+                        Không thể tìm toạ độ chính xác cho đoạn trích dẫn.
+                      </div>
+                    )}
+                  </div>
+                </Document>
+              </div>
+            </div>
+          )}
         </div>
-      ) : citations.map((citation, index) => (
-        <article key={citation.id || index} className="mb-5 last:mb-0 text-xs">
-          <div className="flex gap-2 items-center mb-2">
-            <span className="font-mono font-bold text-blue-600">{citation.marker_display || `[${index + 1}]`}</span>
-            <h4 className="font-extrabold leading-snug">{citation.title}</h4>
-          </div>
-          <p className="text-slate-500 mb-2">{citation.authors}{citation.year ? ` · ${citation.year}` : ''}{citation.source_page_display ? ` · trang ${citation.source_page_display}` : ''}</p>
-          <div className={`p-3 rounded-xl leading-5 border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
-            <Quote className="inline w-3.5 h-3.5 mr-1 text-blue-500" />
-            {citation.quoted_snippet || 'Không có đoạn trích nguồn.'}
-          </div>
-          {citation.url && citation.url !== '#' && <a href={citation.url} target="_blank" rel="noreferrer" className="inline-flex mt-2 items-center gap-1 text-blue-600 font-bold"><ExternalLink className="w-3.5 h-3.5" />Mở paper</a>}
-        </article>
-      ))}
+      ) : (
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-slate-400 text-sm italic text-center max-w-[200px]">
+            Chạy RAG query rồi click marker [1], [2] để xem PDF tại đúng trang chứa evidence.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
