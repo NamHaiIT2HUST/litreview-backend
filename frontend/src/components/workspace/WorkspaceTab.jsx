@@ -167,7 +167,7 @@ export default function WorkspaceTab({
 }) {
   const [uploadQueue, setUploadQueue] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
-  const [selectedSourceId, setSelectedSourceId] = useState(null);
+  const [selectedSourceIds, setSelectedSourceIds] = useState([]);
   const [showSynthesis, setShowSynthesis] = useState(false);
 
   // Lọc và gộp danh sách nguồn tài liệu
@@ -240,7 +240,7 @@ export default function WorkspaceTab({
     setWorkspacePapers((prev) => prev.filter((p) => p.id !== id));
     if (setPapers) setPapers((prev) => prev.filter((p) => p.id !== id));
     if (setSelectedPaperIds) setSelectedPaperIds((prev) => prev.filter((pId) => pId !== id));
-    if (selectedSourceId === id) setSelectedSourceId(null);
+    setSelectedSourceIds((prev) => prev.filter((x) => x !== id));
   };
 
   return (
@@ -272,8 +272,8 @@ export default function WorkspaceTab({
             <SourceCard
               key={paper.id}
               paper={paper}
-              isSelected={paper.id === selectedSourceId}
-              onSelect={setSelectedSourceId}
+              isSelected={selectedSourceIds.includes(paper.id)}
+              onSelect={(id) => setSelectedSourceIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])}
               onRemove={removeSource}
               darkMode={darkMode}
             />
@@ -326,7 +326,7 @@ export default function WorkspaceTab({
           }`}>
             <ChatPanel
               workspacePapers={workspacePapers}
-              selectedSourceId={selectedSourceId}
+              selectedSourceIds={selectedSourceIds}
               chatMessages={chatMessages}
               setChatMessages={setChatMessages}
               activeCitation={activeCitation}

@@ -7,7 +7,7 @@ import rehypeKatex from 'rehype-katex';
 
 export default function ChatPanel({ 
   workspacePapers,
-  selectedSourceId,
+  selectedSourceIds,
   chatMessages, 
   setChatMessages, 
   activeCitation, 
@@ -28,8 +28,8 @@ export default function ChatPanel({
     setIsTyping(true);
 
     try {
-      const paperIds = selectedSourceId 
-        ? [selectedSourceId] 
+      const paperIds = selectedSourceIds && selectedSourceIds.length > 0 
+        ? selectedSourceIds 
         : (workspacePapers ? workspacePapers.map(p => p.id) : []);
         
       const response = await fetch("http://localhost:8000/api/v1/workspace/chat", {
@@ -212,13 +212,13 @@ export default function ChatPanel({
 
       {/* Chat Input Bar */}
       <div className="relative mt-2 shrink-0 w-full flex flex-col gap-2">
-        {selectedSourceId && (
+        {selectedSourceIds && selectedSourceIds.length > 0 && (
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-100 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-[11px] font-semibold w-max self-start shadow-sm">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
             </span>
-            Đang chat với một tài liệu cụ thể
+            Đang chat với {selectedSourceIds.length} tài liệu cụ thể
           </div>
         )}
         <form onSubmit={handleSendMessage} className="relative w-full">

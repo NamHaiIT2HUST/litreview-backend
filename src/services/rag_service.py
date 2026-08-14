@@ -41,8 +41,8 @@ logger = logging.getLogger(__name__)
 # We use 2 as a slight safety margin. The new MAP prompt naturally gives 0 to
 # irrelevant chunks, so heavy filtering at this level is unnecessary.
 MIN_RELEVANCE_SCORE = 2
-# PaperQA2 uses answer_max_sources=5. Keep context focused.
-MAX_CONTEXT_CHUNKS = 5
+# PaperQA2 uses answer_max_sources=5. We increase to 10 so multiple papers can fit in the context.
+MAX_CONTEXT_CHUNKS = 10
 
 
 
@@ -186,6 +186,10 @@ _REDUCE_SYSTEM = (
     "- Use Markdown extensively to structure your answer hierarchically.\n"
     "- Provide a high-level summary/overview first, then dive into details.\n"
     "- Use Headings (###), Bullet points (-), and Bold text (**) to organize concepts (e.g., Core Problem vs Applications).\n\n"
+    "SYNTHESIS RULE — MANDATORY:\n"
+    "- You MUST synthesize information across ALL provided sources.\n"
+    "- If multiple papers discuss the same or related topics, combine their perspectives or compare them.\n"
+    "- Do NOT just summarize one source and ignore the others. Aim to use as many provided citation keys as relevant to provide a complete picture.\n\n"
     "LANGUAGE RULE — MANDATORY:\n"
     "- Detect the language of the Question and answer in that SAME language.\n"
     "- Vietnamese question → answer entirely in Vietnamese.\n"
@@ -203,7 +207,7 @@ _REDUCE_SYSTEM = (
 _REDUCE_HUMAN = (
     "Context:\n\n{context}\n\nValid Keys: {valid_keys}\n\n---\n\n"
     "Question: {question}\n\n"
-    "Write a comprehensive and structured answer based on the context."
+    "Write a comprehensive and structured answer that synthesizes information from across ALL the provided contexts."
     " If the context provides insufficient information,"
     " reply \"Tôi không thể trả lời câu hỏi này dựa trên tài liệu. / I cannot answer this based on the provided documents.\""
     " For each part of your answer, indicate which sources most support it"

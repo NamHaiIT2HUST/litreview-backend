@@ -688,22 +688,38 @@ async def workspace_chat(request: WorkspaceChatRequest) -> WorkspaceChatResponse
     """
     try:
         # Bước 1: Tìm kiếm tài liệu liên quan trong ChromaDB
-        # PaperQA2-inspired: increase top_k to 10 for better evidence recall.
-        filters = {}
+        # Lấy context riêng cho từng paper để đảm bảo phân bổ đều khi query chung chung
+        chunks = []
         if getattr(request, "paper_ids", None) and len(request.paper_ids) > 0:
             if len(request.paper_ids) == 1:
-                filters["paper_id"] = request.paper_ids[0]
+                # Nếu chỉ chat với 1 tài liệu, lấy 8 chunks cho sâu
+                chunks = await vector_store_service.search_similar_documents(
+                    request.message, 
+                    top_k=8,
+                    filters={"paper_id": request.paper_ids[0]}
+                )
             else:
-                filters["paper_id"] = {"$in": request.paper_ids}
+                # Nếu chat với nhiều tài liệu, lấy 4 chunks mỗi tài liệu để đảm bảo tài liệu nào cũng có cơ hội (tránh bị nuốt bởi 1 tài liệu)
+                for pid in request.paper_ids:
+                    paper_chunks = await vector_store_service.search_similar_documents(
+                        request.message,
+                        top_k=4,
+                        filters={"paper_id": pid}
+                    )
+                    chunks.extend(paper_chunks)
         elif getattr(request, "paper_id", None):
-            filters["paper_id"] = request.paper_id
-        # Retrieve top-8 candidates; MAP step then filters by relevance score ≥ 4.
-        chunks = await vector_store_service.search_similar_documents(
-            request.message, 
-            top_k=8,
-            filters=filters if filters else None
-        )
-        
+            chunks = await vector_store_service.search_similar_documents(
+                request.message, 
+                top_k=8,
+                filters={"paper_id": request.paper_id}
+            )
+        else:
+            chunks = await vector_store_service.search_similar_documents(
+                request.message, 
+                top_k=8,
+                filters=None
+            )
+
         # Bước 2: Sinh câu trả lời dựa trên context (có structured citation metadata)
         result = await rag_service.generate_answer_with_citations(request.message, chunks)
         
