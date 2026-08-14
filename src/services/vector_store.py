@@ -148,5 +148,17 @@ class VectorStoreService:
             **kwargs,
         )
 
+    async def search_similar_documents_with_scores(
+        self, query: str, top_k: int = 4, filters: dict | None = None,
+    ) -> list[tuple[Document, float]]:
+        kwargs = {"k": top_k}
+        if filters:
+            kwargs["filter"] = filters
+        return await asyncio.to_thread(
+            self.vector_store.similarity_search_with_relevance_scores,
+            query,
+            **kwargs,
+        )
+
 
 vector_store_service = VectorStoreService()

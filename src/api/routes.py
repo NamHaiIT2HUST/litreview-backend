@@ -359,12 +359,12 @@ async def get_papers_for_query(
     if not sq:
         raise HTTPException(status_code=404, detail=f"Search query '{query_id}' not found")
 
-    from src.models.db_models import ScopusStatusEnum
+    from src.models.db_models import ScopusStatus
     result = await db.execute(
         select(Paper)
         .where(
             Paper.search_query_id == query_uuid,
-            (Paper.scopus_status == ScopusStatusEnum.INDEXED) | (Paper.scopus_status == "indexed")
+            (Paper.scopus_status == ScopusStatus.indexed) | (Paper.scopus_status == "indexed")
         )
     )
     papers = result.scalars().all()

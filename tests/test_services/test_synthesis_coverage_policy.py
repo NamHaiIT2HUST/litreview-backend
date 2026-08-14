@@ -47,26 +47,14 @@ def test_dimension_expands_once_when_initial_evidence_is_thin():
 
 
 def test_general_review_plan_is_supplemented_when_model_returns_one_dimension():
-    assert ensure_review_dimensions(["Dataset and user population"]) == [
-        "Dataset and user population",
-        "Methodology and approach",
-        "Main findings and outcomes",
-        "Limitations and research gaps",
-        "Future research directions",
-    ]
+    from src.models.synthesis_schemas import EvidenceDimension
+    assert ensure_review_dimensions([EvidenceDimension.dataset]) == list(EvidenceDimension)
 
 
-def test_model_plan_keeps_custom_dimensions_and_adds_standard_review_profile():
-    dimensions = ["Methods", "Findings", "Limitations"]
-    assert ensure_review_dimensions(dimensions) == [
-        "Methods",
-        "Findings",
-        "Limitations",
-        "Methodology and approach",
-        "Main findings and outcomes",
-        "Limitations and research gaps",
-        "Future research directions",
-    ]
+def test_model_plan_cannot_remove_dimensions_from_complete_profile():
+    from src.models.synthesis_schemas import EvidenceDimension
+    dimensions = [EvidenceDimension.limitations, EvidenceDimension.future_work]
+    assert ensure_review_dimensions(dimensions) == list(EvidenceDimension)
 
 
 def test_missing_papers_are_reported_from_grounded_evidence_coverage():
