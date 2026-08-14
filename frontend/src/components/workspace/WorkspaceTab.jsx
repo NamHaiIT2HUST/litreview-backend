@@ -326,6 +326,7 @@ export default function WorkspaceTab({
           }`}>
             <ChatPanel
               workspacePapers={workspacePapers}
+              selectedSourceId={selectedSourceId}
               chatMessages={chatMessages}
               setChatMessages={setChatMessages}
               activeCitation={activeCitation}
