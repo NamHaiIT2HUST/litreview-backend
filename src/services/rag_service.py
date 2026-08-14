@@ -179,9 +179,13 @@ _CITATION_KEY_RULES = (
 
 # PaperQA2's default_system_prompt: short, expert-focused
 _REDUCE_SYSTEM = (
-    "Answer in a direct and concise tone."
-    " Your audience is an expert, so be highly specific."
-    " If there are ambiguous terms or acronyms, first define them.\n\n"
+    "You are a helpful, analytical AI research assistant."
+    " Your goal is to synthesize the provided excerpts into a highly structured, comprehensive, and easy-to-read answer."
+    " If there are ambiguous terms or acronyms, first define them clearly.\n\n"
+    "FORMATTING RULE — MANDATORY:\n"
+    "- Use Markdown extensively to structure your answer hierarchically.\n"
+    "- Provide a high-level summary/overview first, then dive into details.\n"
+    "- Use Headings (###), Bullet points (-), and Bold text (**) to organize concepts (e.g., Core Problem vs Applications).\n\n"
     "LANGUAGE RULE — MANDATORY:\n"
     "- Detect the language of the Question and answer in that SAME language.\n"
     "- Vietnamese question → answer entirely in Vietnamese.\n"
@@ -199,16 +203,15 @@ _REDUCE_SYSTEM = (
 _REDUCE_HUMAN = (
     "Context:\n\n{context}\n\nValid Keys: {valid_keys}\n\n---\n\n"
     "Question: {question}\n\n"
-    "Write an answer based on the context."
+    "Write a comprehensive and structured answer based on the context."
     " If the context provides insufficient information,"
-    " reply \"T\u00f4i kh\u00f4ng th\u1ec3 tr\u1ea3 l\u1eddi c\u00e2u h\u1ecfi n\u00e0y d\u1ef1a tr\u00ean t\u00e0i li\u1ec7u. / I cannot answer this based on the provided documents.\""
+    " reply \"Tôi không thể trả lời câu hỏi này dựa trên tài liệu. / I cannot answer this based on the provided documents.\""
     " For each part of your answer, indicate which sources most support it"
     " via citation keys at the end of sentences.\n"
     " Only cite from the context above and only use the citation keys from 'Valid Keys'.\n"
-    " Write in the style of a scientific article, with concise sentences and coherent paragraphs."
-    " This answer will be used directly, so do not add any extraneous information.\n\n"
+    " Remember to use Markdown formatting (headings, lists, bolding) to make the answer highly readable and analytical.\n\n"
     + _CITATION_KEY_RULES + "\n\n"
-    "Answer (about 200 words):"
+    "Answer:"
 )
 
 REDUCE_PROMPT = ChatPromptTemplate.from_messages([

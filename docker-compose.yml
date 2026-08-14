@@ -48,7 +48,7 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: sqlite+aiosqlite:///./data/app.db
+      DATABASE_URL: postgresql+asyncpg://postgres:password@db:5432/litreview
       REDIS_URL: redis://redis:6379/0
       CHROMA_HOST: chroma
       CHROMA_PORT: 8000
@@ -84,7 +84,7 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: sqlite+aiosqlite:///./data/app.db
+      DATABASE_URL: postgresql+asyncpg://postgres:password@db:5432/litreview
       REDIS_URL: redis://redis:6379/0
       CHROMA_HOST: chroma
       CHROMA_PORT: 8000

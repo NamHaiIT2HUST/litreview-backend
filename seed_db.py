@@ -6,7 +6,7 @@ from src.models.db_models import Project
 async def seed_project():
     await create_all_tables()
     async with AsyncSessionLocal() as db:
-        project_id = uuid.UUID("00000000-0000-0000-0000-000000000001")
+        project_uuid = uuid.UUID("00000000-0000-0000-0000-000000000001")
         
         # Check if exists
         result = await db.execute(

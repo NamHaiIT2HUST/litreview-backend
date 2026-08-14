@@ -9,7 +9,8 @@ async def retrieve_node(state: AgentState) -> dict:
     if not query:
         return {"error": "Thiếu query, không thể tìm kiếm."}
 
-    chunks = await vector_store_service.search_similar_documents(query, top_k=4)
+    # Tăng top_k lên 10 để bước MAP (PaperQA2 style) có nhiều candidates hơn để chọn lọc
+    chunks = await vector_store_service.search_similar_documents(query, top_k=10)
 
     if not chunks:
         return {"error": "Không tìm thấy tài liệu nào liên quan trong Vector DB."}

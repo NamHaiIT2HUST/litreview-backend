@@ -630,9 +630,12 @@ async def direct_upload_pdf(
                 vector_ids=old_vector_ids,
             )
             await db.commit()
-        except Exception:
+        except Exception as e:
             await vector_store_service.delete_documents_by_ingestion(str(ingestion_id))
             await db.rollback()
+            import traceback
+            with open("upload_error.log", "w") as f:
+                traceback.print_exc(file=f)
             raise
 
         if cleanup_job is not None:
@@ -655,6 +658,9 @@ async def direct_upload_pdf(
         raise
     except Exception as e:
         await db.rollback()
+        import traceback
+        with open("upload_error_outer.log", "w", encoding="utf-8") as f:
+            traceback.print_exc(file=f)
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/workspace/test-search")

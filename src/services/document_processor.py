@@ -5,7 +5,7 @@ from collections import defaultdict
 from importlib.metadata import PackageNotFoundError, version
 
 from fastapi import UploadFile
-from langchain_community.document_loaders import PyPDFLoader
+
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 UPLOAD_DIR = "uploads/papers"
@@ -26,11 +26,11 @@ class DocumentProcessor:
     def parser_metadata() -> dict[str, str]:
         """Return stable parser metadata used for provenance records."""
         try:
-            parser_version = version("langchain-community")
+            parser_version = version("pymupdf")
         except PackageNotFoundError:
             parser_version = "unknown"
         return {
-            "parser_name": "PyPDFLoader",
+            "parser_name": "PyMuPDF",
             "parser_version": parser_version,
             "ingestion_version": INGESTION_VERSION,
         }
@@ -102,8 +102,19 @@ class DocumentProcessor:
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"File not found: {file_path}")
 
-        loader = PyPDFLoader(file_path)
-        pages = loader.load()
+        import pymupdf
+        from langchain_core.documents import Document
+
+        doc = pymupdf.open(file_path)
+        pages = []
+        for i, page in enumerate(doc):
+            pages.append(
+                Document(
+                    page_content=page.get_text(),
+                    metadata={"source": file_path, "page": i}
+                )
+            )
+        doc.close()
         chunks = self.text_splitter.split_documents(pages)
         self._attach_chunk_metadata(pages, chunks)
 
