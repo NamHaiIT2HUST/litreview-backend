@@ -41,7 +41,7 @@ def llm_trace(db, session_id: UUID, step_name: str):
         _TRACE_CONTEXT.reset(token)
 
 
-def create_synthesis_llm(settings, *, gemini_cls=None, groq_cls=None):
+def create_synthesis_llm(settings, *, gemini_cls=None, groq_cls=None, openai_cls=None):
     """Create the configured synthesis chat model without making a network call."""
     provider = settings.synthesis_llm_provider.lower().strip()
     if provider == "groq":
@@ -54,6 +54,19 @@ def create_synthesis_llm(settings, *, gemini_cls=None, groq_cls=None):
         return groq_cls(
             model=settings.synthesis_model,
             api_key=settings.groq_api_key,
+            temperature=settings.synthesis_temperature,
+        )
+
+    if provider == "openai":
+        if not settings.openai_api_key:
+            raise RuntimeError("OpenAI synthesis requires OPENAI_API_KEY in .env.")
+        if openai_cls is None:
+            from langchain_openai import ChatOpenAI
+
+            openai_cls = ChatOpenAI
+        return openai_cls(
+            model=settings.synthesis_model,
+            api_key=settings.openai_api_key,
             temperature=settings.synthesis_temperature,
         )
 
@@ -73,7 +86,7 @@ def create_synthesis_llm(settings, *, gemini_cls=None, groq_cls=None):
             temperature=settings.synthesis_temperature,
         )
 
-    raise RuntimeError("SYNTHESIS_LLM_PROVIDER must be 'gemini' or 'groq'.")
+    raise RuntimeError("SYNTHESIS_LLM_PROVIDER must be 'gemini', 'groq', or 'openai'.")
 
 
 def _is_transient_provider_error(exc: BaseException) -> bool:

@@ -65,6 +65,8 @@ class PaperRecord(BaseModel):
     source: str = "scholar"
     active_ingestion_id: UUID | None = None
     pdf_status: str = "not_uploaded"
+    total_pages: int | None = None
+    total_chunks: int | None = None
 
     # Module 4 — Quality Verification
     scopus_status: str = "undetermined"

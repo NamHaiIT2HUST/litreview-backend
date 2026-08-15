@@ -81,17 +81,33 @@ async def get_project_papers(
     By default this returns only Scopus-verified papers so the Search view and
     history stay aligned with the Google Scholar -> Scopus acceptance flow.
     """
-    from src.models.db_models import Paper
+    from sqlalchemy import or_, func
+    from src.models.db_models import Paper, PageText, PDFChunk
     
     stmt = select(Paper).where(Paper.project_id == project_id)
     if not include_unverified:
-        stmt = stmt.where(Paper.scopus_status == "indexed")
+        stmt = stmt.where(or_(Paper.scopus_status == "indexed", Paper.source == "direct_upload"))
     if decision:
         stmt = stmt.where(Paper.screening_decision == decision)
         
     result = await db.execute(stmt)
     papers = result.scalars().all()
-    return [PaperRecord.model_validate(p) for p in papers]
+    
+    paper_records = []
+    for p in papers:
+        record = PaperRecord.model_validate(p)
+        if p.source == "direct_upload":
+            pages_stmt = select(func.count(PageText.id)).where(PageText.paper_id == p.id)
+            chunks_stmt = select(func.count(PDFChunk.id)).where(PDFChunk.paper_id == p.id)
+            
+            pages_res = await db.execute(pages_stmt)
+            chunks_res = await db.execute(chunks_stmt)
+            
+            record.total_pages = pages_res.scalar_one()
+            record.total_chunks = chunks_res.scalar_one()
+        paper_records.append(record)
+        
+    return paper_records
 
 @router.put("/projects/{project_id}", response_model=ProjectResponse)
 async def update_project(project_id: UUID, request: ProjectCreateRequest, db: AsyncSession = Depends(get_db)):

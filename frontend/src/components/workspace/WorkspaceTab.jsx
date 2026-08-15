@@ -1,9 +1,8 @@
 import React, { useCallback, useRef, useState } from 'react';
 import ChatPanel from './ChatPanel';
 import VerificationPanel from './VerificationPanel';
-import { persistedDirectUploadSources } from '../../utils/workspaceSources';
 import SynthesisPanel from './SynthesisPanel';
-import { reconcileSelectedPaperIds, selectedPapersFromIds } from '../../utils/workspaceScope';
+import { persistedDirectUploadSources } from '../../utils/workspaceSources';
 import {
   Bot,
   UploadCloud,
@@ -13,7 +12,13 @@ import {
   AlertCircle,
   Loader2,
   Trash2,
+  Plus,
+  Info,
   BookOpen,
+  Layers,
+  Hash,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 
 const API_BASE = 'http://localhost:8000/api/v1';
@@ -21,13 +26,13 @@ const MAX_FILE_SIZE_MB = 20;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 // ─── Source Card ──────────────────────────────────────────────────────────────
-function SourceCard({ paper, isChecked, onToggle, onRemove, darkMode }) {
+function SourceCard({ paper, isSelected, onSelect, onRemove, darkMode }) {
   const isDirectUpload = paper.source === 'direct_upload';
   return (
     <div
-      onClick={() => onToggle(paper.id)}
+      onClick={() => onSelect(paper.id)}
       className={`group relative p-3 rounded-2xl border cursor-pointer transition-all select-none ${
-        isChecked
+        isSelected
           ? 'border-blue-500 ring-2 ring-blue-200 dark:ring-blue-800 bg-blue-50 dark:bg-blue-950/40'
           : darkMode
           ? 'bg-slate-800/70 border-slate-700 hover:border-slate-500'
@@ -42,14 +47,6 @@ function SourceCard({ paper, isChecked, onToggle, onRemove, darkMode }) {
       </button>
 
       <div className="flex items-start gap-3">
-        <input
-          type="checkbox"
-          checked={isChecked}
-          onChange={() => onToggle(paper.id)}
-          onClick={(e) => e.stopPropagation()}
-          aria-label={`Sử dụng ${paper.title}`}
-          className="mt-1 h-4 w-4 accent-blue-600"
-        />
         <div className={`shrink-0 w-8 h-8 rounded-xl flex items-center justify-center ${
           isDirectUpload
             ? 'bg-purple-100 dark:bg-purple-950 text-purple-600 dark:text-purple-400'
@@ -160,6 +157,7 @@ export default function WorkspaceTab({
   papers = [],
   setPapers,
   selectedPapers = [],
+  setSelectedPaperIds,
   workspacePapers,
   setWorkspacePapers,
   chatMessages,
@@ -170,42 +168,69 @@ export default function WorkspaceTab({
 }) {
   const [uploadQueue, setUploadQueue] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
-  const [selectedPaperIds, setSelectedPaperIds] = useState([]);
+  const [selectedSourceIds, setSelectedSourceIds] = useState([]);
   const [activeWorkspaceTab, setActiveWorkspaceTab] = useState('chat');
+  const [isRestoring, setIsRestoring] = useState(false);
+
+  // ── Restore persisted uploaded papers on mount ──
   React.useEffect(() => {
     let cancelled = false;
     const restoreUploads = async () => {
+      setIsRestoring(true);
       try {
         const response = await fetch(`${API_BASE}/projects/00000000-0000-0000-0000-000000000001/papers?include_unverified=true`);
         if (!response.ok) return;
         const persisted = persistedDirectUploadSources(await response.json());
         if (cancelled) return;
         setWorkspacePapers((current) => {
-          const merged = new Map(current.map((paper) => [paper.id, paper]));
-          persisted.forEach((paper) => merged.set(paper.id, { ...paper, ...(merged.get(paper.id) || {}) }));
-          return Array.from(merged.values());
+          return (current || []).map((paper) => {
+            const match = persisted.find(
+              (p) => p.id === paper.id || (p.title === paper.title && p.source === paper.source)
+            );
+            if (match) {
+              return {
+                ...paper,
+                id: match.id,
+                totalPages: match.totalPages || paper.totalPages,
+                totalChunks: match.totalChunks || paper.totalChunks,
+              };
+            }
+            return paper;
+          });
         });
       } catch (error) {
         console.error('Unable to restore uploaded workspace papers:', error);
+      } finally {
+        if (!cancelled) setIsRestoring(false);
       }
     };
     restoreUploads();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [setWorkspacePapers]);
 
-  // Danh sách nguồn tài liệu trong Workspace (CHỈ chứa các file PDF đã tải lên trực tiếp)
+
+  // Lọc và gộp danh sách nguồn tài liệu
   const allSources = React.useMemo(() => {
-    return workspacePapers || [];
-  }, [workspacePapers]);
+    const keepPapers = [...papers, ...selectedPapers].filter((p) => {
+      const d = p.screening_decision || p.screeningDecision;
+      return d === 'keep' || d === 'maybe' || selectedPapers.some((sp) => sp.id === p.id);
+    });
+    const keepIds = new Set(keepPapers.map((p) => p.id));
+    const wsPapers = workspacePapers.filter((w) => !keepIds.has(w.id) || w.source === 'direct_upload');
 
-  React.useEffect(() => {
-    setSelectedPaperIds((current) => reconcileSelectedPaperIds(current, allSources));
-  }, [allSources]);
+    const merged = new Map();
+    keepPapers.forEach((p) => {
+      const wp = workspacePapers.find((w) => w.id === p.id);
+      merged.set(p.id, { ...p, ...(wp || {}), source: p.source || 'library' });
+    });
+    wsPapers.forEach((w) => {
+      if (!merged.has(w.id)) merged.set(w.id, w);
+    });
 
-  const scopedPapers = React.useMemo(
-    () => selectedPapersFromIds(allSources, selectedPaperIds),
-    [allSources, selectedPaperIds],
-  );
+    return Array.from(merged.values());
+  }, [papers, selectedPapers, workspacePapers]);
 
   // Upload Logic
   const uploadFiles = async (files) => {
@@ -243,7 +268,6 @@ export default function WorkspaceTab({
           },
           ...prev.filter((p) => p.id !== data.paper_id),
         ]);
-        setSelectedPaperIds((prev) => prev.includes(data.paper_id) ? prev : [...prev, data.paper_id]);
       } catch (err) {
         items[i] = { ...item, status: 'error', error: err.message };
         setUploadQueue([...items]);
@@ -256,31 +280,22 @@ export default function WorkspaceTab({
   const removeSource = (id) => {
     setWorkspacePapers((prev) => prev.filter((p) => p.id !== id));
     if (setPapers) setPapers((prev) => prev.filter((p) => p.id !== id));
-    setSelectedPaperIds((prev) => prev.filter((paperId) => paperId !== id));
+    if (setSelectedPaperIds) setSelectedPaperIds((prev) => prev.filter((pId) => pId !== id));
+    setSelectedSourceIds((prev) => prev.filter((x) => x !== id));
   };
 
   return (
-    <div className={`flex flex-col gap-4 h-[calc(100vh-140px)] ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>
-      <div className="hidden">
-        <div className={`flex rounded-2xl border p-1 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
-          {[['chat', 'Chat với tài liệu', Bot], ['synthesis', 'Synthesis', Sparkles]].map(([id, label, Icon]) => (
-            <button key={id} type="button" onClick={() => setActiveWorkspaceTab(id)} className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 ${activeWorkspaceTab === id ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
-              <Icon className="w-4 h-4" />{label}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 flex-1 min-h-0">
+    <div className={`grid grid-cols-1 lg:grid-cols-12 gap-5 h-[calc(100vh-140px)] ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>
       
       {/* ── LEFT: Sources Panel ── */}
       <div className={`lg:col-span-3 flex flex-col gap-4 rounded-3xl border p-4 ${
         darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
       }`}>
         <div className="flex items-center justify-between">
-            <h3 className="font-extrabold text-lg whitespace-nowrap">Nguồn tài liệu</h3>
-            <span className="text-xs font-bold px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded-lg whitespace-nowrap">
-              {allSources.length} tài liệu · {scopedPapers.length} đang sử dụng
-            </span>
+          <h3 className="font-extrabold text-lg">Nguồn tài liệu</h3>
+          <span className="text-xs font-bold px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded-lg">
+            {allSources.length} files
+          </span>
         </div>
 
         <DropZone onFiles={uploadFiles} isUploading={isUploading} darkMode={darkMode} />
@@ -298,8 +313,8 @@ export default function WorkspaceTab({
             <SourceCard
               key={paper.id}
               paper={paper}
-              isChecked={selectedPaperIds.includes(paper.id)}
-              onToggle={(id) => setSelectedPaperIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id])}
+              isSelected={selectedSourceIds.includes(paper.id)}
+              onSelect={(id) => setSelectedSourceIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])}
               onRemove={removeSource}
               darkMode={darkMode}
             />
@@ -314,42 +329,76 @@ export default function WorkspaceTab({
         </div>
       </div>
 
-      {/* ── RIGHT: Active Workspace Panel ── */}
-      <div className="lg:col-span-9 flex flex-col gap-5 h-full min-h-0 overflow-y-auto">
-        <div className={`flex-1 rounded-3xl border flex flex-col overflow-hidden ${
-            darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-          }`}>
-          <div className={`flex items-center justify-end px-4 py-2 border-b shrink-0 ${darkMode ? 'border-slate-800' : 'border-slate-200'}`}>
-            <div className={`flex rounded-xl p-1 ${darkMode ? 'bg-slate-800' : 'bg-slate-100'}`}>
-              {[
-                ['chat', 'Chat', Bot, 'Chat với tài liệu'],
-                ['synthesis', 'Synthesis', Sparkles, 'Tổng hợp nghiên cứu'],
-              ].map(([id, label, Icon, title]) => (
-                <button key={id} type="button" title={title} onClick={() => setActiveWorkspaceTab(id)} className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${activeWorkspaceTab === id ? 'bg-white text-blue-600 shadow-sm dark:bg-slate-700 dark:text-blue-400' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
-                  <Icon className="w-3.5 h-3.5" />{label}
-                </button>
-              ))}
-            </div>
+      {/* ── RIGHT: Chat & Synthesis Panel ── */}
+      <div className="lg:col-span-9 flex flex-col gap-5 h-full min-h-0 overflow-hidden">
+        
+        {/* Tab bar */}
+        <div className={`flex items-center justify-between px-4 py-3 rounded-3xl border shrink-0 ${
+          darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+        }`}>
+          <div className={`flex gap-1 p-1 rounded-xl ${darkMode ? 'bg-slate-800' : 'bg-slate-100'}`}>
+            {[
+              ['chat', 'Chat', Bot, 'Chat với tài liệu'],
+              ['synthesis', 'Synthesis', Sparkles, 'Tổng hợp nghiên cứu'],
+            ].map(([id, label, Icon, title]) => (
+              <button
+                key={id}
+                type="button"
+                title={title}
+                onClick={() => setActiveWorkspaceTab(id)}
+                className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
+                  activeWorkspaceTab === id
+                    ? 'bg-white text-blue-600 shadow-sm dark:bg-slate-700 dark:text-blue-400'
+                    : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                {label}
+              </button>
+            ))}
           </div>
-          {activeWorkspaceTab === 'chat' ? <ChatPanel
-              workspacePapers={scopedPapers}
-              chatMessages={chatMessages}
-              setChatMessages={setChatMessages}
-              activeCitation={activeCitation}
-              setActiveCitation={setActiveCitation}
-              darkMode={darkMode}
-            /> : <SynthesisPanel
-              workspacePapers={scopedPapers}
-              setActiveCitation={setActiveCitation}
-              darkMode={darkMode}
-            />}
+          <div className="flex items-center gap-3">
+             {activeCitation && activeWorkspaceTab === 'chat' && (
+                <span className="text-xs font-bold bg-blue-100 text-blue-600 px-3 py-1 rounded-lg">
+                  Đang mở Xác minh
+                </span>
+             )}
+          </div>
         </div>
-      </div>
-      <VerificationPanel
-        activeCitation={activeCitation}
-        darkMode={darkMode}
-        onClose={() => setActiveCitation(null)}
-      />
+
+        {/* Content Area */}
+        {activeWorkspaceTab === 'synthesis' ? (
+          <div className="flex-1 overflow-y-auto min-h-0 pb-4 custom-scrollbar">
+            <SynthesisPanel
+              workspacePapers={workspacePapers}
+              setActiveCitation={setActiveCitation}
+              darkMode={darkMode}
+            />
+          </div>
+        ) : (
+          /* Chat / Verification Split */
+          <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-5 min-h-0 pb-4">
+            <div className={`${activeCitation ? 'lg:col-span-7' : 'lg:col-span-12'} h-full rounded-3xl border flex flex-col overflow-hidden ${
+              darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+            }`}>
+              <ChatPanel
+                workspacePapers={workspacePapers}
+                selectedSourceIds={selectedSourceIds}
+                chatMessages={chatMessages}
+                setChatMessages={setChatMessages}
+                activeCitation={activeCitation}
+                setActiveCitation={setActiveCitation}
+                darkMode={darkMode}
+              />
+            </div>
+
+            {activeCitation && (
+              <div className="lg:col-span-5 h-full overflow-y-auto custom-scrollbar">
+                <VerificationPanel activeCitation={activeCitation} darkMode={darkMode} />
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
