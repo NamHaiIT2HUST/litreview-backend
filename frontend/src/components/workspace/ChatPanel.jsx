@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Layers, Bot, Send } from 'lucide-react';
+import { Layers, Bot, Send, Copy, ThumbsUp, ThumbsDown, Check } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import remarkGfm from 'remark-gfm';
@@ -17,6 +17,13 @@ export default function ChatPanel({
 }) {
   const [inputQuestion, setInputQuestion] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [copiedIndex, setCopiedIndex] = useState(null);
+
+  const handleCopy = (text, idx) => {
+    navigator.clipboard.writeText(text);
+    setCopiedIndex(idx);
+    setTimeout(() => setCopiedIndex(null), 2000);
+  };
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
@@ -167,6 +174,37 @@ export default function ChatPanel({
                     })}
                   </div>
                 </details>
+              )}
+
+              {/* Action Buttons */}
+              {msg.sender === 'ai' && (
+                <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-slate-200 dark:border-slate-700/60">
+                  <button 
+                    onClick={() => handleCopy(msg.text, idx)}
+                    className={`p-1.5 rounded-md transition-colors flex items-center justify-center group relative ${
+                      copiedIndex === idx 
+                        ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/30' 
+                        : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    {copiedIndex === idx ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                    <span className="absolute -top-8 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                      {copiedIndex === idx ? 'Đã sao chép!' : 'Sao chép'}
+                    </span>
+                  </button>
+                  <button 
+                    className="p-1.5 text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-md transition-colors flex items-center justify-center group relative"
+                  >
+                    <ThumbsUp className="w-4 h-4" />
+                    <span className="absolute -top-8 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">Câu trả lời tốt</span>
+                  </button>
+                  <button 
+                    className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-md transition-colors flex items-center justify-center group relative"
+                  >
+                    <ThumbsDown className="w-4 h-4" />
+                    <span className="absolute -top-8 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">Câu trả lời không tốt</span>
+                  </button>
+                </div>
               )}
             </div>
           </div>
