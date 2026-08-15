@@ -193,26 +193,10 @@ export default function WorkspaceTab({
     return () => { cancelled = true; };
   }, [setWorkspacePapers]);
 
-  // Lọc và gộp danh sách nguồn tài liệu
+  // Danh sách nguồn tài liệu trong Workspace (CHỈ chứa các file PDF đã tải lên trực tiếp)
   const allSources = React.useMemo(() => {
-    const keepPapers = [...papers, ...selectedPapers].filter((p) => {
-      const d = p.screening_decision || p.screeningDecision;
-      return d === 'keep' || d === 'maybe' || selectedPapers.some((sp) => sp.id === p.id);
-    });
-    const keepIds = new Set(keepPapers.map((p) => p.id));
-    const wsPapers = workspacePapers.filter((w) => !keepIds.has(w.id) || w.source === 'direct_upload');
-
-    const merged = new Map();
-    keepPapers.forEach((p) => {
-      const wp = workspacePapers.find((w) => w.id === p.id);
-      merged.set(p.id, { ...p, ...(wp || {}), source: p.source || 'library' });
-    });
-    wsPapers.forEach((w) => {
-      if (!merged.has(w.id)) merged.set(w.id, w);
-    });
-
-    return Array.from(merged.values());
-  }, [papers, selectedPapers, workspacePapers]);
+    return workspacePapers || [];
+  }, [workspacePapers]);
 
   React.useEffect(() => {
     setSelectedPaperIds((current) => reconcileSelectedPaperIds(current, allSources));
