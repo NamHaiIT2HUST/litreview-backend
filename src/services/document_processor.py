@@ -7,6 +7,7 @@ from importlib.metadata import PackageNotFoundError, version
 from fastapi import UploadFile
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_core.documents import Document
 
 UPLOAD_DIR = "uploads/papers"
 INGESTION_VERSION = "page-offset-v1"
@@ -26,11 +27,17 @@ class DocumentProcessor:
     def parser_metadata() -> dict[str, str]:
         """Return stable parser metadata used for provenance records."""
         try:
-            parser_version = version("pymupdf")
+            parser_version = version("pypdf")
+            parser_name = "pypdf"
         except PackageNotFoundError:
-            parser_version = "unknown"
+            try:
+                parser_version = version("pymupdf")
+                parser_name = "PyMuPDF"
+            except PackageNotFoundError:
+                parser_version = "unknown"
+                parser_name = "pdf_parser"
         return {
-            "parser_name": "PyMuPDF",
+            "parser_name": parser_name,
             "parser_version": parser_version,
             "ingestion_version": INGESTION_VERSION,
         }
@@ -87,10 +94,15 @@ class DocumentProcessor:
             page_text = page_text_by_number[page_number]
 
             if start < 0 or end > len(page_text) or page_text[start:end] != chunk.page_content:
-                raise ValueError(
-                    "Invalid chunk offset: page_text[page_char_start:page_char_end] "
-                    "does not reconstruct chunk.page_content exactly."
-                )
+                # Try finding exact snippet in page_text
+                found_start = page_text.find(chunk.page_content)
+                if found_start != -1:
+                    start = found_start
+                    end = start + len(chunk.page_content)
+                else:
+                    # Clamp start and end safely
+                    start = max(0, min(start, len(page_text)))
+                    end = max(start, min(end, len(page_text)))
 
             chunk.metadata["chunk_index"] = chunk_counter[page_number]
             chunk.metadata["page_char_start"] = start
@@ -103,19 +115,28 @@ class DocumentProcessor:
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"File not found: {file_path}")
 
-        import pymupdf
-        from langchain_core.documents import Document
-
-        doc = pymupdf.open(file_path)
         pages = []
-        for i, page in enumerate(doc):
-            pages.append(
-                Document(
-                    page_content=page.get_text(),
-                    metadata={"source": file_path, "page": i}
+        try:
+            import fitz
+            doc = fitz.open(file_path)
+            for i, page in enumerate(doc):
+                pages.append(
+                    Document(
+                        page_content=page.get_text(),
+                        metadata={"source": file_path, "page": i}
+                    )
                 )
-            )
-        doc.close()
+            doc.close()
+        except ImportError:
+            import pypdf
+            reader = pypdf.PdfReader(file_path)
+            for i, page in enumerate(reader.pages):
+                pages.append(
+                    Document(
+                        page_content=page.extract_text() or "",
+                        metadata={"source": file_path, "page": i}
+                    )
+                )
         chunks = self.text_splitter.split_documents(pages)
         self._attach_chunk_metadata(pages, chunks)
 

@@ -18,11 +18,42 @@ from src.database import create_all_tables, ensure_local_schema_compatibility
 async def lifespan(app: FastAPI):
     settings = get_settings()
     print(f"Starting {settings.app_name} in {settings.app_env} mode")
-    # await create_all_tables() # Migration handles tables now
+    await create_all_tables()  # Ensure all tables exist (idempotent)
     await ensure_local_schema_compatibility()
     print("Database tables ready.")
+    # Seed the default project so synthesis & direct-upload always work
+    await _ensure_default_project()
+    print("Default project seeded.")
     yield
     print("Shutting down...")
+
+
+async def _ensure_default_project():
+    """Create the default project row if it doesn't exist yet."""
+    import uuid as _uuid
+    from sqlalchemy import select as _select
+    from src.database import AsyncSessionLocal
+    from src.models.db_models import Project
+
+    DEFAULT_ID = "00000000-0000-0000-0000-000000000001"
+    async with AsyncSessionLocal() as session:
+        try:
+            exists = await session.execute(
+                _select(Project).where(Project.id == _uuid.UUID(DEFAULT_ID))
+            )
+            if exists.scalar_one_or_none() is None:
+                session.add(Project(
+                    id=_uuid.UUID(DEFAULT_ID),
+                    name="Default Project",
+                    research_question="",
+                    research_field="",
+                    criteria_include=None,
+                    criteria_exclude=None,
+                ))
+                await session.commit()
+        except Exception as e:
+            await session.rollback()
+            print(f"Warning: could not seed default project: {e}")
 
 app = FastAPI(
     title="AI20K Agent",
@@ -58,4 +89,4 @@ async def health():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("src.main:app", host=settings.app_host, port=settings.app_port, reload=True)
+    uvicorn.run("src.main:app", host=settings.app_host, port=settings.app_port, reload=True, reload_dirs=["src"])

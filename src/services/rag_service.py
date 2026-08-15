@@ -244,8 +244,17 @@ class RAGService:
         if self._llm is None:
             openai_key = self._settings.openai_api_key
             gemini_key = self._settings.gemini_api_key or self._settings.google_api_key
+            provider = (os.getenv("LLM_PROVIDER") or os.getenv("SYNTHESIS_LLM_PROVIDER") or "").lower()
 
-            if openai_key:
+            if (provider == "gemini" or not openai_key) and gemini_key:
+                from langchain_google_genai import ChatGoogleGenerativeAI
+                model_name = self._settings.model_name if self._settings.model_name.startswith("gemini-") else "gemini-3.5-flash-lite"
+                self._llm = ChatGoogleGenerativeAI(
+                    model=model_name,
+                    google_api_key=gemini_key,
+                    temperature=self._settings.llm_temperature,
+                )
+            elif openai_key:
                 from langchain_openai import ChatOpenAI
                 self._llm = ChatOpenAI(
                     model=(
@@ -258,11 +267,12 @@ class RAGService:
                     temperature=self._settings.llm_temperature,
                 )
             elif gemini_key:
+                from langchain_google_genai import ChatGoogleGenerativeAI
                 self._llm = ChatGoogleGenerativeAI(
                     model=(
                         self._settings.model_name
                         if self._settings.model_name.startswith("gemini-")
-                        else "gemini-1.5-flash"
+                        else "gemini-3.5-flash-lite"
                     ),
                     google_api_key=gemini_key,
                     temperature=self._settings.llm_temperature,

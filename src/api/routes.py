@@ -355,12 +355,11 @@ async def get_papers_for_query(
     if not sq:
         raise HTTPException(status_code=404, detail=f"Search query '{query_id}' not found")
 
-    from src.models.db_models import ScopusStatusEnum
     result = await db.execute(
         select(Paper)
         .where(
             Paper.search_query_id == query_uuid,
-            (Paper.scopus_status == ScopusStatusEnum.INDEXED) | (Paper.scopus_status == "indexed")
+            (Paper.scopus_status == ScopusStatus.indexed) | (Paper.scopus_status == "indexed")
         )
     )
     papers = result.scalars().all()
@@ -585,12 +584,27 @@ async def direct_upload_pdf(
 
     try:
         project_uuid = uuid.UUID(DEFAULT_PROJECT_ID)
-        paper_uuid = uuid.uuid4()
-        
+        # Ensure a default SearchQuery exists for direct uploads to satisfy database constraints
+        sq_stmt = select(SearchQuery).where(SearchQuery.project_id == project_uuid)
+        sq_res = await db.execute(sq_stmt)
+        sq = sq_res.scalars().first()
+        if not sq:
+            sq = SearchQuery(
+                id=uuid.uuid4(),
+                project_id=project_uuid,
+                query_string="Direct Upload",
+                strategy_label="direct_upload",
+                result_count=0
+            )
+            db.add(sq)
+            await db.flush()
+
         # Create a new Paper record for this direct upload
+        paper_uuid = uuid.uuid4()
         paper = Paper(
             id=paper_uuid,
             project_id=project_uuid,
+            search_query_id=sq.id,
             title=title,
             authors="Direct Upload",
             year=2024,
@@ -854,7 +868,7 @@ async def create_synthesis_session(
         id=uuid.uuid4(),
         project_id=request.project_id,
         paper_ids=paper_ids,
-        status=SynthesisStatus.PENDING,
+        status=SynthesisStatus.processing,
     )
     db.add(session)
     await db.commit()
