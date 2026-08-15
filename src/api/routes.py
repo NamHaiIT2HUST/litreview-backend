@@ -50,6 +50,7 @@ from src.models.synthesis_schemas import (
     SynthesisSessionCreateRequest,
     SynthesisSessionCreatedResponse,
     SynthesisSessionResponse,
+    SynthesisSessionSummary,
 )
 from src.services.search_service import generate_search_strategies
 from src.services.scholar_api import search_papers_auto
@@ -518,6 +519,8 @@ async def direct_upload_paper_pdf(
 
     try:
         file_path = await processor.save_upload_file(file, project_id=str(project_uuid))
+        paper.file_path = file_path
+        db.add(paper)
         pages, chunks = processor.extract_and_chunk(file_path)
         if not chunks or all(not chunk.page_content.strip() for chunk in chunks):
             raise HTTPException(
@@ -580,8 +583,11 @@ async def upload_paper_pdf(
         paper = paper_result.scalar_one_or_none()
         if paper is None:
             raise HTTPException(status_code=404, detail=f"Paper '{paper_id}' not found")
-
-        file_path = await processor.save_upload_file(file)
+        
+        file_path = await processor.save_upload_file(file, project_id=str(paper.project_id))
+        paper.file_path = file_path
+        db.add(paper)
+        db.add(paper)
         pages, chunks = processor.extract_and_chunk(file_path, paper_title=paper.title)
         if not chunks or all(not chunk.page_content.strip() for chunk in chunks):
             raise HTTPException(
@@ -924,6 +930,33 @@ async def create_synthesis_session(
         session_id=session.id,
         status=session.status.value,
     )
+
+
+@router.get(
+    "/projects/{project_id}/synthesis-sessions",
+    response_model=list[SynthesisSessionSummary],
+)
+async def list_synthesis_sessions(
+    project_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+) -> list[SynthesisSessionSummary]:
+    """List all synthesis sessions for a project."""
+    result = await db.execute(
+        select(SynthesisSession)
+        .where(SynthesisSession.project_id == project_id)
+        .order_by(desc(SynthesisSession.created_at))
+    )
+    sessions = result.scalars().all()
+    
+    return [
+        SynthesisSessionSummary(
+            id=session.id,
+            status=session.status.value,
+            created_at=session.created_at,
+            paper_count=len(session.paper_ids) if isinstance(session.paper_ids, list) else 0,
+        )
+        for session in sessions
+    ]
 
 
 @router.get(

@@ -142,7 +142,7 @@ class SynthesisLLMService:
     def validate_configuration(self) -> None:
         self._get_llm()
 
-    async def _invoke_structured(self, schema, *, system: str, human: str):
+    async def _invoke_structured(self, schema, *, system: str, human: str | list):
         llm = self._get_llm()
         if getattr(llm, "_llm_type", None) == "openai-chat" or type(llm).__name__ == "ChatOpenAI":
             runner = llm.with_structured_output(schema, method="json_schema", strict=True)
@@ -330,6 +330,7 @@ class SynthesisLLMService:
         strict_dimension_ids: bool = False,
         enforce_dimension_membership: bool | None = None,
         exact_quote_only: bool = False,
+        page_images: dict[int, str] | None = None,
     ) -> PaperEvidenceExtractionOutput:
         if enforce_dimension_membership is None:
             enforce_dimension_membership = strict_dimension_ids
@@ -349,39 +350,52 @@ class SynthesisLLMService:
                 if strict_dimension_ids else ""
             )
             contexts.append(f"<dimension name={dimension.value}>\n{id_rule}{body}\n</dimension>")
+            
+        system_prompt = (
+            "Extract auditable evidence for all supplied literature-review dimensions in one "
+            "response. Every item must name its dimension, copy a verbatim quote, identify its "
+            "subject scope with applies_to, and use only a source_chunk_id supplied inside that "
+            "same dimension. Return up to five independent grounded candidates per dimension; "
+            "Copy a short contiguous span directly from exactly one selected source chunk, "
+            "preferably one or two sentences. Do not paraphrase, correct OCR or grammar, "
+            "add or remove words, insert ellipses such as '...', or combine neighboring chunks. "
+            "an empty list is valid when the supplied context contains no author-stated support. "
+            "For objective, extract explicit aims/purposes/research questions, not inferred goals. "
+            "For limitations and future_work, accept only author-stated content and never infer or "
+            "convert a weakness into future work. Preserve exact quote and anchor provenance. "
+            + (
+                "This is a retry after grounding failed. The quote MUST be copied verbatim "
+                "from one supplied continuous raw page window; do not paraphrase, normalize, or repair wording. "
+                if exact_quote_only
+                else "The quote MUST be copied verbatim from a supplied continuous raw page window. "
+            )
+            + (
+                "Never use a source_chunk_id outside its allowed ID list for this dimension. "
+                if enforce_dimension_membership else
+                "A source_chunk_id may come from any supplied dimension block; use only IDs supplied in the paper prompt. "
+            )
+            + "\n\n"
+            "Dimension rules:\n"
+            + "\n".join(rules)
+        )
+        
+        human_text = (
+            f"Research question:\n{research_question}\n\n"
+            + "\n\n--- NEXT DIMENSION ---\n\n".join(contexts)
+        )
+        
+        if page_images:
+            human_message = [{"type": "text", "text": human_text}]
+            for page_num, b64_img in sorted(page_images.items()):
+                human_message.append({"type": "text", "text": f"\n[IMAGE OF PAGE {page_num}]\n"})
+                human_message.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64_img}"}})
+        else:
+            human_message = human_text
+
         return await self._invoke_structured(
             PaperEvidenceExtractionOutput,
-            system=(
-                "Extract auditable evidence for all supplied literature-review dimensions in one "
-                "response. Every item must name its dimension, copy a verbatim quote, identify its "
-                "subject scope with applies_to, and use only a source_chunk_id supplied inside that "
-                "same dimension. Return up to five independent grounded candidates per dimension; "
-                "Copy a short contiguous span directly from exactly one selected source chunk, "
-                "preferably one or two sentences. Do not paraphrase, correct OCR or grammar, "
-                "add or remove words, insert ellipses such as '...', or combine neighboring chunks. "
-                "an empty list is valid when the supplied context contains no author-stated support. "
-                "For objective, extract explicit aims/purposes/research questions, not inferred goals. "
-                "For limitations and future_work, accept only author-stated content and never infer or "
-                "convert a weakness into future work. Preserve exact quote and anchor provenance. "
-                + (
-                    "This is a retry after grounding failed. The quote MUST be copied verbatim "
-                    "from one supplied continuous raw page window; do not paraphrase, normalize, or repair wording. "
-                    if exact_quote_only
-                    else "The quote MUST be copied verbatim from a supplied continuous raw page window. "
-                )
-                + (
-                    "Never use a source_chunk_id outside its allowed ID list for this dimension. "
-                    if enforce_dimension_membership else
-                    "A source_chunk_id may come from any supplied dimension block; use only IDs supplied in the paper prompt. "
-                )
-                + "\n\n"
-                "Dimension rules:\n"
-                + "\n".join(rules)
-            ),
-            human=(
-                f"Research question:\n{research_question}\n\n"
-                + "\n\n--- NEXT DIMENSION ---\n\n".join(contexts)
-            ),
+            system=system_prompt,
+            human=human_message,
         )
 
     async def build_outline(self, *, research_question: str, claims_context: str) -> SynthesisOutlineOutput:
@@ -434,6 +448,36 @@ class SynthesisLLMService:
                 f"Research question:\n{research_question}\n\n"
                 f"Section title:\n{section_title}\n\n"
                 f"Claims and evidence:\n{claims_context}"
+            ),
+        )
+
+    async def refine_section(
+        self,
+        *,
+        research_question: str,
+        section_title: str,
+        claims_context: str,
+        original_draft: str,
+        qa_feedback: str,
+    ) -> SectionDraftOutput:
+        return await self._invoke_structured(
+            SectionDraftOutput,
+            system=(
+                "You are an expert academic editor refining a literature-review section based on automated QA feedback. "
+                "Rewrite the provided draft to fix all sentences flagged by the QA review. "
+                "Return the entire section as sentence-level structured output, maintaining the flow and structure "
+                "where possible, but replacing or modifying problematic sentences to ensure strict adherence to the "
+                "verified claims and evidence. Classify each sentence as claim or discourse. "
+                "Claim sentences state scientific facts and must be directly entailed by their claim_ids. "
+                "Discourse sentences may connect, introduce, or summarize supplied claims, but must not add new facts. "
+                "Do not create citation markers. Every factual statement must remain grounded in the verified claims."
+            ),
+            human=(
+                f"Research question:\n{research_question}\n\n"
+                f"Section title:\n{section_title}\n\n"
+                f"Claims and evidence:\n{claims_context}\n\n"
+                f"Original Draft:\n{original_draft}\n\n"
+                f"QA Feedback to Address:\n{qa_feedback}"
             ),
         )
 

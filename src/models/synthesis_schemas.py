@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import re
 import uuid
+from datetime import datetime
 from enum import Enum
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -356,3 +357,10 @@ class SynthesisSessionResponse(BaseModel):
     sections: list[SynthesisSectionResponse] = Field(default_factory=list)
     evidence_profile: list[SynthesisEvidenceProfileItem] = Field(default_factory=list)
     dimension_statuses: list[SynthesisDimensionStatusItem] = Field(default_factory=list)
+
+
+class SynthesisSessionSummary(BaseModel):
+    id: uuid.UUID
+    status: str
+    created_at: datetime
+    paper_count: int

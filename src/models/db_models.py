@@ -185,6 +185,7 @@ class Paper(Base):
 
     # Module 5 & 6: Library & Extraction
     pdf_status = Column(SQLEnum(PDFStatus), default=PDFStatus.not_uploaded)
+    file_path = Column(String, nullable=True)
     extraction_status = Column(SQLEnum(ExtractionStatus), default=ExtractionStatus.not_extracted)
     # Groups the currently indexed PageText/PDFChunk version in Chroma.
     active_ingestion_id = Column(UUID(as_uuid=True), nullable=True)

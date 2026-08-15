@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { FileCheck2, Loader2, Play, RefreshCw, ShieldCheck } from 'lucide-react';
+import { FileCheck2, Loader2, Play, RefreshCw, ShieldCheck, ChevronDown, History } from 'lucide-react';
 
 import {
   DEFAULT_PROJECT_ID,
@@ -20,8 +20,26 @@ export default function SynthesisPanel({ workspacePapers, setActiveCitation, dar
   const [status, setStatus] = useState('idle');
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
+  const [history, setHistory] = useState([]);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
   const canRun = workspacePapers.length > 0 && workspacePapers.length <= 15;
+
+  const fetchHistory = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/projects/${DEFAULT_PROJECT_ID}/synthesis-sessions`);
+      if (response.ok) {
+        const data = await response.json();
+        setHistory(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch synthesis history:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchHistory();
+  }, []);
 
   const startSynthesis = async () => {
     if (!canRun) return;
@@ -42,10 +60,19 @@ export default function SynthesisPanel({ workspacePapers, setActiveCitation, dar
       }
       setSessionId(data.session_id);
       setStatus(data.status || 'processing');
+      fetchHistory(); // Refresh history
     } catch (err) {
       setStatus('failed');
       setError(err.message || t('synthesis.synthesis_failed'));
     }
+  };
+
+  const loadSession = (id) => {
+    setSessionId(id);
+    setStatus('processing'); // trigger the polling/fetching
+    setResult(null);
+    setError('');
+    setIsHistoryOpen(false);
   };
 
   useEffect(() => {
@@ -123,14 +150,68 @@ export default function SynthesisPanel({ workspacePapers, setActiveCitation, dar
             {workspacePapers.length} {t('synthesis.desc_pt1')}
           </p>
         </div>
-        <button
-          onClick={startSynthesis}
-          disabled={!canRun || isRunning}
-          className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold"
-        >
-          {isRunning ? <Loader2 className="w-4 h-4 animate-spin" /> : result ? <RefreshCw className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-          {isRunning ? t('synthesis.btn_running') : result ? t('synthesis.btn_rerun') : t('synthesis.btn_start')}
-        </button>
+        <div className="flex items-center gap-2">
+          {history.length > 0 && (
+            <div className="relative">
+              <button
+                onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+                className={`inline-flex items-center gap-2 px-3 py-3 rounded-xl border transition-colors text-xs font-semibold ${
+                  darkMode
+                    ? 'border-slate-700 hover:bg-slate-800 text-slate-300'
+                    : 'border-slate-200 hover:bg-slate-100 text-slate-700'
+                }`}
+                title={t('synthesis.history_title') || 'Lịch sử phiên'}
+              >
+                <History className="w-4 h-4" />
+                <ChevronDown className="w-3 h-3" />
+              </button>
+              
+              {isHistoryOpen && (
+                <div className={`absolute right-0 top-full mt-2 w-64 max-h-80 overflow-y-auto rounded-xl shadow-lg border z-50 ${
+                  darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
+                }`}>
+                  <div className="p-2 space-y-1">
+                    {history.map(session => (
+                      <button
+                        key={session.id}
+                        onClick={() => loadSession(session.id)}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors flex flex-col gap-1 ${
+                          sessionId === session.id
+                            ? (darkMode ? 'bg-blue-900/40 text-blue-300' : 'bg-blue-50 text-blue-700')
+                            : (darkMode ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-100 text-slate-700')
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold text-[11px] opacity-80">
+                            {new Date(session.created_at).toLocaleString()}
+                          </span>
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase ${
+                            session.status === 'done' ? 'bg-emerald-100 text-emerald-700' : 
+                            session.status === 'failed' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
+                          }`}>
+                            {session.status}
+                          </span>
+                        </div>
+                        <span className="font-medium opacity-90 truncate">
+                          {session.paper_count} tài liệu
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          
+          <button
+            onClick={startSynthesis}
+            disabled={!canRun || isRunning}
+            className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold"
+          >
+            {isRunning ? <Loader2 className="w-4 h-4 animate-spin" /> : result ? <RefreshCw className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+            {isRunning ? t('synthesis.btn_running') : result ? t('synthesis.btn_rerun') : t('synthesis.btn_start')}
+          </button>
+        </div>
       </div>
 
       {!canRun && (

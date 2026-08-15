@@ -9,6 +9,8 @@ from __future__ import annotations
 import uuid
 import json
 import time
+import os
+import base64
 from collections import defaultdict
 from datetime import UTC, datetime
 
@@ -597,6 +599,7 @@ class SynthesisService:
 
         contexts_by_dimension = {}
         allowed_by_dimension: dict[EvidenceDimension, set[uuid.UUID]] = {}
+        page_numbers_to_render = set()
         filters = {"$and": [
             {"paper_id": str(paper.id)},
             {"ingestion_id": str(paper.active_ingestion_id)},
@@ -614,6 +617,14 @@ class SynthesisService:
                 top_k=12 if dimension in {EvidenceDimension.dataset, EvidenceDimension.evaluation} else 6,
                 filters=filters,
             )
+            for doc, score in scored_docs:
+                page_val = doc.metadata.get("page")
+                if page_val is not None:
+                    try:
+                        page_numbers_to_render.add(int(page_val))
+                    except ValueError:
+                        pass
+
             db.add(RetrievalLog(
                 session_id=session_id, paper_id=paper.id, dimension=dimension.value,
                 query=query,
@@ -633,10 +644,28 @@ class SynthesisService:
                 contexts_by_dimension[dimension] = indexed
                 allowed_by_dimension[dimension] = allowed
 
+        # Render PDF pages to images if file_path is available
+        page_images = {}
+        if getattr(paper, "file_path", None) and os.path.exists(paper.file_path):
+            try:
+                import fitz
+                doc = fitz.open(paper.file_path)
+                for page_num in page_numbers_to_render:
+                    if 0 <= page_num < len(doc):
+                        page = doc[page_num]
+                        pix = page.get_pixmap(dpi=150)
+                        b64_img = base64.b64encode(pix.tobytes("jpeg")).decode("utf-8")
+                        page_images[page_num] = b64_img
+                doc.close()
+            except Exception as e:
+                import logging
+                logging.warning(f"Failed to extract images from PDF for paper {paper.id}: {e}")
+
         with llm_trace(db, session_id, "extract_paper_evidence_batch"):
             output = await synthesis_llm_service.extract_paper_evidence_batch(
                 research_question=research_question,
                 contexts_by_dimension=contexts_by_dimension,
+                page_images=page_images if page_images else None,
             )
 
         grounded_ids: list[str] = []
@@ -1416,34 +1445,120 @@ class SynthesisService:
                 f"Interpreted value: {evidence.value}\nExact quote: {evidence.quote}"
             )
 
-        qa_items: list[str] = []
-        for section in drafted_sections:
-            section_id = str(section.get("section_id"))
-            for index, sentence in enumerate(section.get("sentences", [])):
-                sentence_id = f"{section_id}:{index}"
-                claim_ids = [str(value) for value in sentence.get("claim_ids", [])]
-                claim_context = []
-                for claim_id in claim_ids:
-                    claim_context.append(
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        from copy import deepcopy
+        refined_sections = deepcopy(drafted_sections)
+        
+        # Fetch session to get research_question for refinement
+        session_result = await db.execute(
+            select(SynthesisSession).where(SynthesisSession.id == session_id)
+        )
+        session = session_result.scalar_one_or_none()
+        research_question = session.research_question if session and session.research_question else "General Literature Review"
+
+        MAX_REFINEMENT_ATTEMPTS = 3
+        final_verdicts = {}
+        
+        for attempt in range(1, MAX_REFINEMENT_ATTEMPTS + 1):
+            qa_items: list[str] = []
+            for section in refined_sections:
+                section_id = str(section.get("section_id"))
+                for index, sentence in enumerate(section.get("sentences", [])):
+                    sentence_id = f"{section_id}:{index}"
+                    claim_ids = [str(value) for value in sentence.get("claim_ids", [])]
+                    claim_context = []
+                    for claim_id in claim_ids:
+                        claim_context.append(
+                            f"Claim {claim_id}: {statement_by_claim.get(claim_id, '[missing]')}\n"
+                            + "\n".join(context_by_claim.get(claim_id, ["[no supported evidence]"]))
+                        )
+                    qa_items.append(
+                        f"[sentence_id={sentence_id}]\nType: {sentence.get('sentence_type', 'claim')}\n"
+                        f"Sentence: {sentence.get('sentence', '')}\n" + "\n".join(claim_context)
+                    )
+            
+            if not qa_items:
+                break
+                
+            with llm_trace(db, session_id, f"qa_review_attempt_{attempt}"):
+                output = await synthesis_llm_service.qa_review_batch(
+                    qa_context="\n\n---\n\n".join(qa_items)
+                )
+            
+            verdicts = {item.sentence_id: item.verdict.value for item in output.sentence_checks}
+            reasons = {item.sentence_id: item.reason for item in output.sentence_checks}
+            final_verdicts = verdicts
+            
+            sections_to_refine = []
+            for section in refined_sections:
+                section_id = str(section.get("section_id"))
+                section_qa_issues = []
+                for index, sentence in enumerate(section.get("sentences", [])):
+                    sentence_id = f"{section_id}:{index}"
+                    verdict = verdicts.get(sentence_id, "pass")
+                    if verdict in ("warning", "blocked"):
+                        reason = reasons.get(sentence_id, "No reason provided")
+                        section_qa_issues.append(f"Sentence: \"{sentence.get('sentence', '')}\"\nVerdict: {verdict}\nReason: {reason}")
+                
+                if section_qa_issues:
+                    sections_to_refine.append((section, section_qa_issues))
+            
+            if not sections_to_refine:
+                # All sections passed QA!
+                break
+                
+            if attempt == MAX_REFINEMENT_ATTEMPTS:
+                # Reached max attempts, fallback to pruning
+                break
+                
+            for section, section_qa_issues in sections_to_refine:
+                section_title = section.get("title", "")
+                logger.info(f"⚠️ QA Review flagged [warning/blocked]. Refining section {section_title} (Attempt {attempt}/{MAX_REFINEMENT_ATTEMPTS - 1})")
+                
+                section_claim_ids = set()
+                for sentence in section.get("sentences", []):
+                    section_claim_ids.update(str(value) for value in sentence.get("claim_ids", []))
+                
+                claims_context_parts = []
+                for claim_id in section_claim_ids:
+                    claims_context_parts.append(
                         f"Claim {claim_id}: {statement_by_claim.get(claim_id, '[missing]')}\n"
                         + "\n".join(context_by_claim.get(claim_id, ["[no supported evidence]"]))
                     )
-                qa_items.append(
-                    f"[sentence_id={sentence_id}]\nType: {sentence.get('sentence_type', 'claim')}\n"
-                    f"Sentence: {sentence.get('sentence', '')}\n" + "\n".join(claim_context)
-                )
+                
+                original_draft = " ".join(s.get("sentence", "") for s in section.get("sentences", []))
+                qa_feedback = "\n\n".join(section_qa_issues)
+                
+                with llm_trace(db, session_id, f"refine_section_attempt_{attempt}"):
+                    refined_output = await synthesis_llm_service.refine_section(
+                        research_question=research_question,
+                        section_title=section_title,
+                        claims_context="\n\n".join(claims_context_parts),
+                        original_draft=original_draft,
+                        qa_feedback=qa_feedback,
+                    )
+                
+                sentences = []
+                for item in refined_output.sentences:
+                    valid_claim_ids = [claim_id for claim_id in item.claim_ids if str(claim_id) in section_claim_ids]
+                    if not valid_claim_ids:
+                        continue
+                    sentences.append(
+                        {
+                            "sentence": item.sentence.strip(),
+                            "sentence_type": item.sentence_type.value,
+                            "claim_ids": [str(claim_id) for claim_id in valid_claim_ids],
+                        }
+                    )
+                
+                section["sentences"] = sentences
+                section["raw_draft_word_count"] = sum(len(item["sentence"].split()) for item in sentences)
 
-        with llm_trace(db, session_id, "qa_review"):
-            output = await synthesis_llm_service.qa_review_batch(
-                qa_context="\n\n---\n\n".join(qa_items)
-            )
-        verdicts = {item.sentence_id: item.verdict.value for item in output.sentence_checks}
-        filtered, warning_ids = apply_sentence_qa(drafted_sections, verdicts)
-        qa_warning = (
-            f"QA flagged {len(warning_ids)} sentence(s) for human review."
-            if warning_ids else None
-        )
-        return filtered, qa_warning
+        # Apply standard sentence QA to prune any remaining blocked sentences from the final attempt
+        final_sections, warnings = apply_sentence_qa(refined_sections, final_verdicts)
+        return final_sections, "\n".join(warnings) if warnings else None
 
     async def finalize_review(
         self,
