@@ -29,7 +29,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.agents.graph import agent
 from src.config import get_settings
 from src.database import get_db
-from src.models.db_models import Citation, Paper, Project, SearchQuery, SynthesisSession, SynthesisStatus
+from src.models.db_models import Citation, Paper, Project, SearchQuery, SynthesisSession, SynthesisStatus, ScopusStatus
 
 DEFAULT_PROJECT_ID = "00000000-0000-0000-0000-000000000001"
 

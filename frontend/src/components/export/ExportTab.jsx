@@ -6,8 +6,10 @@ import {
   generateClientJSON,
   downloadFile
 } from '../../utils/exportUtils';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 export default function ExportTab({ papers = [], selectedPapers = [], workspacePapers = [], darkMode = false }) {
+  const { t } = useLanguage();
   // Scope selection: 'keep' | 'all' | 'workspace'
   const [scope, setScope] = useState('keep');
   
@@ -159,7 +161,7 @@ export default function ExportTab({ papers = [], selectedPapers = [], workspaceP
       };
       setExportHistory(prev => [historyItem, ...prev]);
 
-      showToast(`Exported ${finalFilename} successfully!`);
+      showToast(t('export.success_msg'));
     } catch (err) {
       console.error('Export download error:', err);
       // Fallback client download
@@ -174,7 +176,7 @@ export default function ExportTab({ papers = [], selectedPapers = [], workspaceP
   const handleCopy = () => {
     navigator.clipboard.writeText(previewContent).then(() => {
       setCopied(true);
-      showToast('Copied content to clipboard!');
+      showToast(t('export.copied_msg'));
       setTimeout(() => setCopied(false), 2000);
     }).catch(err => {
       console.error('Failed to copy text: ', err);
@@ -198,29 +200,28 @@ export default function ExportTab({ papers = [], selectedPapers = [], workspaceP
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center space-x-2 text-indigo-300 text-sm font-semibold tracking-wide uppercase mb-1">
-              <span>Module 6</span>
+              <span>{t('export.module')}</span>
               <span>•</span>
-              <span>Data Export & Documentation Package</span>
+              <span>{t('export.package')}</span>
             </div>
-            <h1 className="text-2xl md:text-3xl font-extrabold text-white">Export & Citation Hub</h1>
+            <h1 className="text-2xl md:text-3xl font-extrabold text-white">{t('export.title')}</h1>
             <p className="text-slate-300 text-sm mt-1 max-w-2xl">
-              Export verified literature metadata, BibTeX citations, synthesis reports, and raw JSON packages.
-              Preview formatted outputs in real-time or copy snippets instantly.
+              {t('export.desc')}
             </p>
           </div>
 
           {/* Quick Metrics */}
           <div className="flex flex-wrap gap-2 md:gap-3 bg-slate-800/80 backdrop-blur-md p-3 rounded-xl border border-slate-700/60 text-xs">
             <div className="text-center px-3 py-1 bg-slate-700/50 rounded-lg">
-              <div className="text-slate-400 font-medium">Total Papers</div>
+              <div className="text-slate-400 font-medium">{t('export.total_papers')}</div>
               <div className="text-lg font-bold text-white">{stats.total}</div>
             </div>
             <div className="text-center px-3 py-1 bg-emerald-950/60 rounded-lg border border-emerald-800/50">
-              <div className="text-emerald-400 font-medium">Keep Papers</div>
+              <div className="text-emerald-400 font-medium">{t('export.keep_papers')}</div>
               <div className="text-lg font-bold text-emerald-300">{stats.keep}</div>
             </div>
             <div className="text-center px-3 py-1 bg-sky-950/60 rounded-lg border border-sky-800/50">
-              <div className="text-sky-400 font-medium">Scopus Verified</div>
+              <div className="text-sky-400 font-medium">{t('export.scopus_verified')}</div>
               <div className="text-lg font-bold text-sky-300">{stats.scopus}</div>
             </div>
           </div>
@@ -236,7 +237,7 @@ export default function ExportTab({ papers = [], selectedPapers = [], workspaceP
           {/* Step 1: Scope Selection */}
           <div className="bg-white dark:bg-slate-900 p-5 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">
-              1. Choose Data Scope
+              {t('export.step1')}
             </label>
             <div className="grid grid-cols-1 gap-2">
               <button
@@ -249,11 +250,11 @@ export default function ExportTab({ papers = [], selectedPapers = [], workspaceP
                 }`}
               >
                 <div>
-                  <div className="text-sm font-medium">Keep Papers Only (Recommended)</div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400">Export verified papers selected during screening</div>
+                  <div className="text-sm font-medium">{t('export.keep_only')}</div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">{t('export.keep_desc')}</div>
                 </div>
                 <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-bold">
-                  {stats.keep} papers
+                  {stats.keep} {t('export.papers')}
                 </span>
               </button>
 
@@ -267,11 +268,11 @@ export default function ExportTab({ papers = [], selectedPapers = [], workspaceP
                 }`}
               >
                 <div>
-                  <div className="text-sm font-medium">All Project Search Results</div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400">Include all search history & candidate papers</div>
+                  <div className="text-sm font-medium">{t('export.all_project')}</div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">{t('export.all_desc')}</div>
                 </div>
                 <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold">
-                  {stats.total} papers
+                  {stats.total} {t('export.papers')}
                 </span>
               </button>
 
@@ -285,11 +286,11 @@ export default function ExportTab({ papers = [], selectedPapers = [], workspaceP
                 }`}
               >
                 <div>
-                  <div className="text-sm font-medium">Synthesis & Workspace Set</div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400">Papers loaded into synthesis workspace</div>
+                  <div className="text-sm font-medium">{t('export.workspace_set')}</div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">{t('export.workspace_desc')}</div>
                 </div>
                 <span className="text-xs px-2 py-0.5 rounded-full bg-sky-100 dark:bg-sky-950 text-sky-800 dark:text-sky-300 font-bold">
-                  {workspacePapers.length || stats.total} papers
+                  {workspacePapers.length || stats.total} {t('export.papers')}
                 </span>
               </button>
             </div>
@@ -298,7 +299,7 @@ export default function ExportTab({ papers = [], selectedPapers = [], workspaceP
           {/* Step 2: Choose Export Format */}
           <div className="bg-white dark:bg-slate-900 p-5 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">
-              2. Select Export Format
+              {t('export.step2')}
             </label>
             <div className="grid grid-cols-2 gap-3">
               
@@ -319,8 +320,8 @@ export default function ExportTab({ papers = [], selectedPapers = [], workspaceP
                   }`}>.bib</span>
                 </div>
                 <div>
-                  <div className="font-bold text-sm">BibTeX Citations</div>
-                  <div className={`text-xs mt-0.5 ${activeFormat === 'bibtex' ? 'text-indigo-100' : 'text-slate-500 dark:text-slate-400'}`}>LaTeX & Reference Managers</div>
+                  <div className="font-bold text-sm">{t('export.bibtex_cit')}</div>
+                  <div className={`text-xs mt-0.5 ${activeFormat === 'bibtex' ? 'text-indigo-100' : 'text-slate-500 dark:text-slate-400'}`}>{t('export.bibtex_desc')}</div>
                 </div>
               </button>
 
@@ -341,8 +342,8 @@ export default function ExportTab({ papers = [], selectedPapers = [], workspaceP
                   }`}>.csv</span>
                 </div>
                 <div>
-                  <div className="font-bold text-sm">CSV Metadata</div>
-                  <div className={`text-xs mt-0.5 ${activeFormat === 'csv' ? 'text-indigo-100' : 'text-slate-500 dark:text-slate-400'}`}>Excel Grid with UTF-8 BOM</div>
+                  <div className="font-bold text-sm">{t('export.csv_meta')}</div>
+                  <div className={`text-xs mt-0.5 ${activeFormat === 'csv' ? 'text-indigo-100' : 'text-slate-500 dark:text-slate-400'}`}>{t('export.csv_desc')}</div>
                 </div>
               </button>
 
@@ -363,8 +364,8 @@ export default function ExportTab({ papers = [], selectedPapers = [], workspaceP
                   }`}>.md</span>
                 </div>
                 <div>
-                  <div className="font-bold text-sm">Markdown Report</div>
-                  <div className={`text-xs mt-0.5 ${activeFormat === 'markdown' ? 'text-indigo-100' : 'text-slate-500 dark:text-slate-400'}`}>Full Review & Reference List</div>
+                  <div className="font-bold text-sm">{t('export.md_report')}</div>
+                  <div className={`text-xs mt-0.5 ${activeFormat === 'markdown' ? 'text-indigo-100' : 'text-slate-500 dark:text-slate-400'}`}>{t('export.md_desc')}</div>
                 </div>
               </button>
 
@@ -385,8 +386,8 @@ export default function ExportTab({ papers = [], selectedPapers = [], workspaceP
                   }`}>.json</span>
                 </div>
                 <div>
-                  <div className="font-bold text-sm">JSON Data Package</div>
-                  <div className={`text-xs mt-0.5 ${activeFormat === 'json' ? 'text-indigo-100' : 'text-slate-500 dark:text-slate-400'}`}>Structured Backup Data</div>
+                  <div className="font-bold text-sm">{t('export.json_pkg')}</div>
+                  <div className={`text-xs mt-0.5 ${activeFormat === 'json' ? 'text-indigo-100' : 'text-slate-500 dark:text-slate-400'}`}>{t('export.json_desc')}</div>
                 </div>
               </button>
 
@@ -396,11 +397,11 @@ export default function ExportTab({ papers = [], selectedPapers = [], workspaceP
           {/* Step 3: Customization Options */}
           <div className="bg-white dark:bg-slate-900 p-5 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 space-y-4">
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              3. Export Options & Formatting
+              {t('export.step3')}
             </label>
 
             <div className="flex items-center justify-between">
-              <span className="text-sm text-slate-700 dark:text-slate-300 font-medium">Include Paper Abstract</span>
+              <span className="text-sm text-slate-700 dark:text-slate-300 font-medium">{t('export.include_abs')}</span>
               <input
                 type="checkbox"
                 checked={includeAbstract}
@@ -411,7 +412,7 @@ export default function ExportTab({ papers = [], selectedPapers = [], workspaceP
 
             {activeFormat === 'bibtex' && (
               <div>
-                <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Citation Key Style</label>
+                <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">{t('export.cit_style')}</label>
                 <select
                   value={citationStyle}
                   onChange={(e) => setCitationStyle(e.target.value)}
@@ -425,11 +426,11 @@ export default function ExportTab({ papers = [], selectedPapers = [], workspaceP
 
             {activeFormat === 'markdown' && (
               <div>
-                <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Custom Synthesis Draft Text (Optional)</label>
+                <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">{t('export.custom_draft')}</label>
                 <textarea
                   value={customDraft}
                   onChange={(e) => setCustomDraft(e.target.value)}
-                  placeholder="Paste or write your synthesis draft here to embed into the exported Markdown report..."
+                  placeholder={t('export.custom_placeholder')}
                   rows="3"
                   className="w-full text-xs p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:ring-2 focus:ring-indigo-500"
                 />
@@ -451,14 +452,14 @@ export default function ExportTab({ papers = [], selectedPapers = [], workspaceP
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  <span>Exporting...</span>
+                  <span>{t('export.exporting')}</span>
                 </>
               ) : (
                 <>
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                   </svg>
-                  <span>Download {activeFormat.toUpperCase()} ({stats.activeScopeCount})</span>
+                  <span>{t('export.download')} {activeFormat.toUpperCase()} ({stats.activeScopeCount})</span>
                 </>
               )}
             </button>
@@ -475,14 +476,14 @@ export default function ExportTab({ papers = [], selectedPapers = [], workspaceP
                   <svg className="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
                   </svg>
-                  <span className="text-emerald-600 dark:text-emerald-400">Copied!</span>
+                  <span className="text-emerald-600 dark:text-emerald-400">{t('export.copied')}</span>
                 </>
               ) : (
                 <>
                   <svg className="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
                   </svg>
-                  <span>Copy</span>
+                  <span>{t('export.copy')}</span>
                 </>
               )}
             </button>
@@ -505,7 +506,7 @@ export default function ExportTab({ papers = [], selectedPapers = [], workspaceP
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                👁️ Live Format Preview
+                👁️ {t('export.preview')}
               </button>
               <button
                 type="button"
@@ -516,7 +517,7 @@ export default function ExportTab({ papers = [], selectedPapers = [], workspaceP
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                <span>⏳ Export History</span>
+                <span>⏳ {t('export.history')}</span>
                 {exportHistory.length > 0 && (
                   <span className="px-1.5 py-0.2 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 text-[10px]">
                     {exportHistory.length}
@@ -535,7 +536,7 @@ export default function ExportTab({ papers = [], selectedPapers = [], workspaceP
                   onClick={handleCopy}
                   className="text-xs text-indigo-600 dark:text-indigo-400 font-semibold hover:underline"
                 >
-                  Copy Snippet
+                  {t('export.copy_snippet')}
                 </button>
               </div>
             )}
@@ -549,8 +550,8 @@ export default function ExportTab({ papers = [], selectedPapers = [], workspaceP
                   <pre className="whitespace-pre-wrap break-words">{previewContent}</pre>
                 </div>
                 <div className="mt-3 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-                  <span>Target subset: <strong>{targetPapers.length} papers</strong> ({scope})</span>
-                  <span>Character count: <strong>{previewContent.length.toLocaleString()} chars</strong></span>
+                  <span>{t('export.target_subset')} <strong>{targetPapers.length} {t('export.papers')}</strong> ({scope})</span>
+                  <span>{t('export.char_count')} <strong>{previewContent.length.toLocaleString()}</strong></span>
                 </div>
               </div>
             ) : (
@@ -558,8 +559,8 @@ export default function ExportTab({ papers = [], selectedPapers = [], workspaceP
                 {exportHistory.length === 0 ? (
                   <div className="text-center py-16 text-slate-400 dark:text-slate-500">
                     <span className="text-3xl block mb-2">📁</span>
-                    <p className="text-sm">No export downloads triggered in this session yet.</p>
-                    <p className="text-xs mt-1">Select a format on the left and click Download.</p>
+                    <p className="text-sm">{t('export.no_history')}</p>
+                    <p className="text-xs mt-1">{t('export.no_history_desc')}</p>
                   </div>
                 ) : (
                   exportHistory.map((item) => (
@@ -585,7 +586,7 @@ export default function ExportTab({ papers = [], selectedPapers = [], workspaceP
                         onClick={() => downloadFile(item.content, item.filename)}
                         className="text-xs px-3 py-1.5 rounded-lg bg-slate-200 dark:bg-slate-700 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-slate-700 dark:text-slate-200 font-semibold transition-all"
                       >
-                        Re-download
+                        {t('export.redownload')}
                       </button>
                     </div>
                   ))

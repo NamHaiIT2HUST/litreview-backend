@@ -10,10 +10,12 @@ import {
   tokenizeReviewCitations,
 } from '../../utils/synthesis';
 import { reviewScrollClass, sectionEvidenceLabel } from '../../utils/reviewPresentation';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 const API_BASE = 'http://localhost:8000/api/v1';
 
 export default function SynthesisPanel({ workspacePapers, setActiveCitation, darkMode }) {
+  const { t } = useLanguage();
   const [sessionId, setSessionId] = useState(null);
   const [status, setStatus] = useState('idle');
   const [result, setResult] = useState(null);
@@ -36,13 +38,13 @@ export default function SynthesisPanel({ workspacePapers, setActiveCitation, dar
       });
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.detail || 'Không thể tạo synthesis session.');
+        throw new Error(data.detail || t('synthesis.create_failed'));
       }
       setSessionId(data.session_id);
       setStatus(data.status || 'processing');
     } catch (err) {
       setStatus('failed');
-      setError(err.message || 'Không thể bắt đầu synthesis.');
+      setError(err.message || t('synthesis.synthesis_failed'));
     }
   };
 
@@ -55,17 +57,17 @@ export default function SynthesisPanel({ workspacePapers, setActiveCitation, dar
         const response = await fetch(`${API_BASE}/synthesis-sessions/${sessionId}`);
         const data = await response.json();
         if (!response.ok) {
-          throw new Error(data.detail || 'Không đọc được trạng thái synthesis.');
+          throw new Error(data.detail || t('synthesis.read_failed'));
         }
         if (cancelled) return;
         setStatus(data.status);
         setResult(data);
         if (data.status === 'failed') {
-          setError(data.error_message || 'Synthesis thất bại.');
+          setError(data.error_message || t('synthesis.synthesis_failed'));
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err.message || 'Lỗi khi kiểm tra synthesis session.');
+          setError(err.message || t('synthesis.check_failed'));
         }
       }
     };
@@ -115,10 +117,10 @@ export default function SynthesisPanel({ workspacePapers, setActiveCitation, dar
         <div>
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-5 h-5 text-emerald-600" />
-            <h3 className="font-extrabold">Evidence-first Literature Synthesis</h3>
+            <h3 className="font-extrabold">{t('synthesis.title')}</h3>
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            {workspacePapers.length} paper đã ingest • evidence → claim verification → outline → draft → citation resolver
+            {workspacePapers.length} {t('synthesis.desc_pt1')}
           </p>
         </div>
         <button
@@ -127,13 +129,13 @@ export default function SynthesisPanel({ workspacePapers, setActiveCitation, dar
           className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold"
         >
           {isRunning ? <Loader2 className="w-4 h-4 animate-spin" /> : result ? <RefreshCw className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-          {isRunning ? 'Đang tổng hợp...' : result ? 'Chạy lại synthesis' : 'Tạo tổng quan nghiên cứu'}
+          {isRunning ? t('synthesis.btn_running') : result ? t('synthesis.btn_rerun') : t('synthesis.btn_start')}
         </button>
       </div>
 
       {!canRun && (
         <div className="text-xs p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300">
-          Synthesis yêu cầu 1–15 paper đã upload PDF và có provenance.
+          {t('synthesis.req_msg')}
         </div>
       )}
 
@@ -153,18 +155,18 @@ export default function SynthesisPanel({ workspacePapers, setActiveCitation, dar
         <div className={`rounded-2xl border p-5 ${reviewScrollClass} ${darkMode ? 'bg-slate-950/40 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
           <div className="flex items-center gap-2 mb-4 text-sm font-bold">
             <FileCheck2 className="w-4 h-4 text-blue-600" />
-            Tổng quan đã kiểm chứng nguồn
+            {t('synthesis.verified_overview')}
           </div>
           {comparisonRows.length > 0 && (
             <div className="mb-7 overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
               <table className="w-full min-w-[900px] text-xs text-left">
                 <thead className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
                   <tr>
-                    <th className="p-3 font-bold">Tài liệu</th>
-                    <th className="p-3 font-bold">Phương pháp</th>
-                    <th className="p-3 font-bold">Dữ liệu</th>
-                    <th className="p-3 font-bold">Kết quả chính</th>
-                    <th className="p-3 font-bold">Hạn chế</th>
+                    <th className="p-3 font-bold">{t('synthesis.th_doc')}</th>
+                    <th className="p-3 font-bold">{t('synthesis.th_method')}</th>
+                    <th className="p-3 font-bold">{t('synthesis.th_data')}</th>
+                    <th className="p-3 font-bold">{t('synthesis.th_findings')}</th>
+                    <th className="p-3 font-bold">{t('synthesis.th_limits')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
@@ -173,7 +175,7 @@ export default function SynthesisPanel({ workspacePapers, setActiveCitation, dar
                       <td className="p-3 font-bold min-w-[180px]">{row.title}</td>
                       {[row.method, row.dataset, row.findings, row.limitations].map((value, index) => (
                         <td key={index} className="p-3 leading-5 min-w-[170px] text-slate-600 dark:text-slate-300">
-                          {value || <span className="italic text-amber-600 dark:text-amber-400">Chưa đủ bằng chứng</span>}
+                          {value || <span className="italic text-amber-600 dark:text-amber-400">{t('synthesis.insufficient_evidence')}</span>}
                         </td>
                       ))}
                     </tr>
@@ -197,7 +199,7 @@ export default function SynthesisPanel({ workspacePapers, setActiveCitation, dar
                       type="button"
                       onClick={(event) => openSentence(event, sentence)}
                       className={`inline text-left rounded px-0.5 transition-colors ${sentence.sentence_type === 'claim' ? 'hover:bg-blue-100 dark:hover:bg-blue-950/70 decoration-blue-400 underline decoration-dotted underline-offset-4' : 'hover:bg-violet-100 dark:hover:bg-violet-950/70'}`}
-                      title={sentence.sentence_type === 'claim' ? 'Bấm để xác minh nguồn câu này' : 'Bấm để xem truy vết câu nối'}
+                      title={sentence.sentence_type === 'claim' ? t('synthesis.click_verify') : t('synthesis.click_trace')}
                     >
                       {sentence.text}
                     </button>{' '}
@@ -216,7 +218,7 @@ export default function SynthesisPanel({ workspacePapers, setActiveCitation, dar
                   key={`${token.citation.id}-${index}`}
                   onClick={() => openCitation(token.citation)}
                   className="mx-0.5 text-blue-600 dark:text-sky-400 font-extrabold hover:underline align-baseline"
-                  title="Xem evidence gốc"
+                  title={t('synthesis.view_evidence')}
                 >
                   {token.text}
                 </button>

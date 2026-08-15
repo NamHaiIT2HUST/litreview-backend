@@ -4,6 +4,7 @@ import VerificationPanel from './VerificationPanel';
 import { persistedDirectUploadSources } from '../../utils/workspaceSources';
 import SynthesisPanel from './SynthesisPanel';
 import { reconcileSelectedPaperIds, selectedPapersFromIds } from '../../utils/workspaceScope';
+import { useLanguage } from '../../contexts/LanguageContext';
 import {
   Bot,
   UploadCloud,
@@ -26,6 +27,7 @@ const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 // ─── Source Card ──────────────────────────────────────────────────────────────
 function SourceCard({ paper, isChecked, onToggle, onRemove, darkMode }) {
+  const { t } = useLanguage();
   return (
     <div
       onClick={() => onToggle(paper.id)}
@@ -53,7 +55,7 @@ function SourceCard({ paper, isChecked, onToggle, onRemove, darkMode }) {
         <button
           onClick={(e) => { e.stopPropagation(); onRemove(paper.id); }}
           className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/50 transition-all"
-          title="Xóa tài liệu"
+          title={t('workspace.delete_doc')}
         >
           <Trash2 className="w-3.5 h-3.5" />
         </button>
@@ -74,6 +76,7 @@ function SourceCard({ paper, isChecked, onToggle, onRemove, darkMode }) {
 }
 
 function AddSourceButton({ onFiles, isUploading, darkMode }) {
+  const { t } = useLanguage();
   const [isDragging, setIsDragging] = useState(false);
   const inputRef = useRef(null);
 
@@ -120,7 +123,7 @@ function AddSourceButton({ onFiles, isUploading, darkMode }) {
         <Plus className="w-4 h-4" />
       )}
       <span className="text-[13px] font-semibold">
-        {isUploading ? 'Đang tải lên...' : isDragging ? 'Thả PDF vào đây' : 'Thêm nguồn'}
+        {isUploading ? t('workspace.uploading') : isDragging ? t('workspace.drop_pdf') : t('workspace.add_source')}
       </span>
     </div>
   );
@@ -157,6 +160,7 @@ export default function WorkspaceTab({
   setActiveCitation,
   darkMode,
 }) {
+  const { t } = useLanguage();
   const [uploadQueue, setUploadQueue] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const [selectedPaperIds, setSelectedPaperIds] = useState([]);
@@ -256,7 +260,7 @@ export default function WorkspaceTab({
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
       if (item.file.size > MAX_FILE_SIZE_BYTES) {
-        items[i] = { ...item, status: 'error', error: 'File quá lớn' };
+        items[i] = { ...item, status: 'error', error: t('workspace.file_too_large') };
         setUploadQueue([...items]);
         continue;
       }
@@ -266,7 +270,7 @@ export default function WorkspaceTab({
       try {
         const res = await fetch(`${API_BASE}/workspace/direct-upload`, { method: 'POST', body: formData });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || 'Lỗi');
+        if (!res.ok) throw new Error(data.detail || t('workspace.error'));
         items[i] = { ...item, status: 'done' };
         setUploadQueue([...items]);
         setWorkspacePapers((prev) => [
@@ -324,7 +328,7 @@ export default function WorkspaceTab({
             {/* FULL HEADER */}
             <div className={`flex items-center justify-between px-5 h-[56px] border-b shrink-0 ${darkMode ? 'border-slate-800' : 'border-slate-100'}`}>
               <h3 className={`font-bold text-[14px] ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>
-                Nguồn
+                {t('workspace.source_title')}
               </h3>
               <button 
                 onClick={() => setIsSourcesOpen(false)}
@@ -352,7 +356,7 @@ export default function WorkspaceTab({
               <div className="flex flex-col gap-1">
                 <div className="flex items-center justify-between px-3 py-2">
                   <span className={`text-[12px] font-medium ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-                    {scopedPapers.length}/{allSources.length} đang dùng
+                    {scopedPapers.length}/{allSources.length} {t('workspace.using')}
                   </span>
                   <div 
                     onClick={handleSelectAll}
@@ -385,8 +389,8 @@ export default function WorkspaceTab({
                 {allSources.length === 0 && !isUploading && (
                   <div className={`text-center p-6 rounded-2xl border border-dashed ${darkMode ? 'border-slate-700 text-slate-500' : 'border-slate-300 text-slate-400'}`}>
                     <BookOpen className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm font-semibold">Chưa có nguồn nào</p>
-                    <p className="text-xs mt-1 opacity-75">Tải PDF lên hoặc chọn từ thư viện</p>
+                    <p className="text-sm font-semibold">{t('workspace.no_source_title')}</p>
+                    <p className="text-xs mt-1 opacity-75">{t('workspace.no_source_desc')}</p>
                   </div>
                 )}
                 </div>
@@ -400,7 +404,7 @@ export default function WorkspaceTab({
               <button 
                 onClick={() => setIsSourcesOpen(true)}
                 className={`p-1 rounded-lg transition-colors ${darkMode ? 'hover:bg-slate-800 text-slate-400' : 'hover:bg-slate-100 text-slate-500'}`}
-                title="Mở nguồn tài liệu"
+                title={t('workspace.expand_source')}
               >
                 <PanelLeft className="w-[18px] h-[18px]" />
               </button>
@@ -460,13 +464,13 @@ export default function WorkspaceTab({
               <div className="flex items-center gap-3">
                 <span className="text-[14px] font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
                   <Sparkles className="w-4 h-4 text-blue-500" />
-                  AI Assistant
+                  {t('workspace.ai_assistant')}
                 </span>
               </div>
               <div className={`flex rounded-xl p-1 shadow-inner ${darkMode ? 'bg-slate-950' : 'bg-slate-100'}`}>
                 {[
-                  ['chat', 'Chat', Bot, 'Chat với tài liệu'],
-                  ['synthesis', 'Synthesis', Sparkles, 'Tổng hợp nghiên cứu'],
+                  ['chat', t('workspace.chat_title'), Bot, t('workspace.chat_desc')],
+                  ['synthesis', t('workspace.synthesis_title'), Sparkles, t('workspace.synthesis_desc')],
                 ].map(([id, label, Icon, title]) => (
                   <button key={id} type="button" title={title} onClick={() => setActiveWorkspaceTab(id)} className={`px-4 py-1.5 rounded-lg text-[13px] font-bold flex items-center gap-2 transition-all ${activeWorkspaceTab === id ? 'bg-white text-blue-600 shadow dark:bg-slate-800 dark:text-blue-400' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
                     <Icon className="w-4 h-4" />{label}
@@ -511,7 +515,7 @@ export default function WorkspaceTab({
       {/* Disclaimer Text (Centered at the very bottom of the entire layout) */}
       <div className="shrink-0 pb-1 text-center -mt-2">
         <p className={`text-[12px] font-medium ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-          AI Assistant có thể đưa ra thông tin không chính xác nên hãy kiểm tra kỹ câu trả lời mà bạn nhận được.
+          {t('workspace.disclaimer')}
         </p>
       </div>
     </div>

@@ -1,7 +1,10 @@
 import React from 'react';
 import { Search, BrainCircuit, FileDown, ArrowRight, Settings, CheckCircle2, MessageSquare, Zap } from 'lucide-react';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 export default function HomeTab({ setActiveTab, darkMode }) {
+  const { t } = useLanguage();
+
   return (
     <div className={`space-y-16 pb-16 animate-in fade-in duration-500 ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>
       
@@ -13,11 +16,11 @@ export default function HomeTab({ setActiveTab, darkMode }) {
         </div>
         
         <h1 className="text-4xl md:text-5xl font-black tracking-tight leading-tight">
-          Công cụ Tổng hợp Bài báo Khoa học Thông minh
+          {t('home.title')}
         </h1>
         
         <p className={`text-lg md:text-xl font-medium max-w-2xl mx-auto ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-          Giải pháp toàn diện để tìm kiếm, sàng lọc tự động (AI Screening), và trích xuất thông tin bài báo khoa học từ các nguồn uy tín.
+          {t('home.subtitle')}
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-6">
@@ -25,7 +28,7 @@ export default function HomeTab({ setActiveTab, darkMode }) {
             onClick={() => setActiveTab('setup')}
             className="flex items-center gap-2 px-8 py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-lg shadow-lg shadow-blue-500/20 transition-all w-full sm:w-auto justify-center"
           >
-            Bắt đầu ngay <ArrowRight className="w-5 h-5" />
+            {t('home.start_now')} <ArrowRight className="w-5 h-5" />
           </button>
           <a
             href="#features"
@@ -35,7 +38,7 @@ export default function HomeTab({ setActiveTab, darkMode }) {
                 : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
             }`}
           >
-            Tìm hiểu thêm
+            {t('home.learn_more')}
           </a>
         </div>
       </section>
@@ -43,9 +46,9 @@ export default function HomeTab({ setActiveTab, darkMode }) {
       {/* Features Section */}
       <section id="features" className="max-w-5xl mx-auto px-4 space-y-10">
         <div className="text-center space-y-3">
-          <h2 className="text-3xl font-black">Tính năng nổi bật</h2>
+          <h2 className="text-3xl font-black">{t('home.features_title')}</h2>
           <p className={darkMode ? 'text-slate-400' : 'text-slate-500'}>
-            Những công cụ mạnh mẽ giúp bạn tối ưu hóa quy trình nghiên cứu
+            {t('home.features_subtitle')}
           </p>
         </div>
 
@@ -53,18 +56,18 @@ export default function HomeTab({ setActiveTab, darkMode }) {
           {[
             {
               icon: Search,
-              title: 'Tìm kiếm Thông minh',
-              desc: 'Tìm kiếm nhanh chóng từ Google Scholar & Semantic Scholar. Tự động lấy Full Abstract và tính điểm LitScore.'
+              title: t('home.feature1_title'),
+              desc: t('home.feature1_desc')
             },
             {
               icon: BrainCircuit,
-              title: 'AI Sàng lọc (Screening)',
-              desc: 'Đánh giá mức độ phù hợp của bài báo dựa trên các tiêu chí Inclusion/Exclusion do bạn cấu hình.'
+              title: t('home.feature2_title'),
+              desc: t('home.feature2_desc')
             },
             {
               icon: FileDown,
-              title: 'Xuất dữ liệu Dễ dàng',
-              desc: 'Quản lý thư viện bài báo và trích xuất tự động các Insight quan trọng ra định dạng chuẩn.'
+              title: t('home.feature3_title'),
+              desc: t('home.feature3_desc')
             }
           ].map((feat, i) => (
             <div key={i} className={`p-8 rounded-3xl border transition-all ${
@@ -83,16 +86,16 @@ export default function HomeTab({ setActiveTab, darkMode }) {
       {/* How it works */}
       <section className={`max-w-5xl mx-auto rounded-3xl p-8 md:p-12 border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
         <div className="text-center space-y-3 mb-10">
-          <h2 className="text-3xl font-black">Cách sử dụng</h2>
-          <p className={darkMode ? 'text-slate-400' : 'text-slate-500'}>Chỉ với 4 bước đơn giản</p>
+          <h2 className="text-3xl font-black">{t('home.how_it_works')}</h2>
+          <p className={darkMode ? 'text-slate-400' : 'text-slate-500'}>{t('home.how_it_works_subtitle')}</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 relative">
           {[
-            { icon: Settings, title: 'Cấu hình Đề tài', desc: 'Nhập câu hỏi nghiên cứu và tiêu chí sàng lọc' },
-            { icon: Search, title: 'Tra cứu bài báo', desc: 'Tìm kiếm tự động qua các nguồn học thuật uy tín' },
-            { icon: CheckCircle2, title: 'Sàng lọc (AI)', desc: 'AI chấm điểm và loại bỏ các bài không liên quan' },
-            { icon: MessageSquare, title: 'Tổng hợp & Chat', desc: 'Trò chuyện với tài liệu và bóc tách dữ liệu' }
+            { icon: Settings, title: t('home.step1_title'), desc: t('home.step1_desc') },
+            { icon: Search, title: t('home.step2_title'), desc: t('home.step2_desc') },
+            { icon: CheckCircle2, title: t('home.step3_title'), desc: t('home.step3_desc') },
+            { icon: MessageSquare, title: t('home.step4_title'), desc: t('home.step4_desc') }
           ].map((step, i) => (
             <div key={i} className="text-center relative z-10">
               <div className="w-14 h-14 mx-auto rounded-full bg-white dark:bg-slate-800 border-2 border-blue-500 text-blue-600 dark:text-sky-400 flex items-center justify-center font-bold text-xl mb-4 shadow-sm relative z-10">
@@ -109,12 +112,12 @@ export default function HomeTab({ setActiveTab, darkMode }) {
 
       {/* CTA Section */}
       <section className="text-center max-w-2xl mx-auto pt-8">
-        <h2 className="text-3xl font-black mb-6">Sẵn sàng bắt đầu?</h2>
+        <h2 className="text-3xl font-black mb-6">{t('home.ready_title')}</h2>
         <button
           onClick={() => setActiveTab('setup')}
           className="px-10 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-lg shadow-lg shadow-blue-500/20 transition-all hover:-translate-y-1"
         >
-          Bắt đầu sử dụng công cụ
+          {t('home.ready_btn')}
         </button>
       </section>
 

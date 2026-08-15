@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { BookOpen, Target, Settings, Save, Loader2, Wand2, Plus, X, CheckCircle2 } from 'lucide-react';
 import { normalizeResearchSetup } from '../../utils/researchSetup';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 const API_BASE = 'http://localhost:8000/api/v1';
 const DEFAULT_PROJECT_ID = '00000000-0000-0000-0000-000000000001';
 
 export default function ResearchSetupTab({ setActiveTab, darkMode }) {
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
   
@@ -84,11 +86,11 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
         setSuggestedKeywords(kwList);
         localStorage.setItem('suggested_keywords', JSON.stringify(kwList));
       } else {
-        setErrorMsg("Lỗi khi lấy gợi ý từ AI. Hãy chắc chắn Server đang chạy và DB hoạt động.");
+        setErrorMsg(t('setup.error_ai'));
       }
     } catch (err) {
       console.error(err);
-      setErrorMsg("Mất kết nối đến Server. Vui lòng kiểm tra Docker / DB!");
+      setErrorMsg(t('setup.error_server'));
     } finally {
       setLoadingKeywords(false);
     }
@@ -113,7 +115,7 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
       <div className={`p-6 md:p-8 rounded-3xl border shadow-sm ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
         <div className="flex items-center gap-3 mb-6">
           <BookOpen className="w-8 h-8 text-blue-600 dark:text-sky-400" />
-          <h2 className="text-2xl font-extrabold">Cấu hình Đề tài Nghiên cứu</h2>
+          <h2 className="text-2xl font-extrabold">{t('setup.title')}</h2>
         </div>
         
         {errorMsg && (
@@ -124,43 +126,43 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
 
         <div className="space-y-5">
           <div>
-            <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Tên dự án / Đề tài</label>
+            <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">{t('setup.project_name')}</label>
             <input 
               type="text" 
               value={projectData.name}
               onChange={e => setProjectData({...projectData, name: e.target.value})}
-              placeholder="VD: Nghiên cứu tín hiệu điện tim đồ (ECG)..."
+              placeholder={t('setup.project_name_placeholder')}
               className={`w-full p-3 rounded-xl border focus:ring-2 focus:ring-blue-500 ${darkMode ? 'bg-slate-800 border-slate-700 dark:text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
             />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
-              <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Câu hỏi nghiên cứu (Research Question)</label>
+              <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">{t('setup.research_question')}</label>
               <textarea 
                 rows="3"
                 value={projectData.research_question}
                 onChange={e => setProjectData({...projectData, research_question: e.target.value})}
-                placeholder="VD: Những model AI nào (như 1D CNN) hiệu quả nhất trong việc phân loại tín hiệu ECG?"
+                placeholder={t('setup.research_question_placeholder')}
                 className={`w-full p-3 rounded-xl border focus:ring-2 focus:ring-blue-500 ${darkMode ? 'bg-slate-800 border-slate-700 dark:text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
               />
             </div>
             <div>
-              <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Lĩnh vực (Field)</label>
+              <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">{t('setup.research_field')}</label>
               <input 
                 type="text" 
                 value={projectData.research_field}
                 onChange={e => setProjectData({...projectData, research_field: e.target.value})}
-                placeholder="VD: Y tế, AI trong Y tế, Deep Learning..."
+                placeholder={t('setup.research_field_placeholder')}
                 className={`w-full p-3 rounded-xl border focus:ring-2 focus:ring-blue-500 ${darkMode ? 'bg-slate-800 border-slate-700 dark:text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
               />
               <div className="flex gap-4 mt-4">
                 <div className="flex-1">
-                  <label className="block text-xs font-bold text-slate-500 mb-1">Từ năm</label>
+                  <label className="block text-xs font-bold text-slate-500 mb-1">{t('setup.year_from')}</label>
                   <input type="number" value={projectData.year_from} onChange={e => setProjectData({...projectData, year_from: parseInt(e.target.value)})} className={`w-full p-2 rounded-lg border ${darkMode ? 'bg-slate-800 border-slate-700 dark:text-white' : 'bg-slate-50 text-slate-900'}`} />
                 </div>
                 <div className="flex-1">
-                  <label className="block text-xs font-bold text-slate-500 mb-1">Đến năm</label>
+                  <label className="block text-xs font-bold text-slate-500 mb-1">{t('setup.year_to')}</label>
                   <input type="number" value={projectData.year_to} onChange={e => setProjectData({...projectData, year_to: parseInt(e.target.value)})} className={`w-full p-2 rounded-lg border ${darkMode ? 'bg-slate-800 border-slate-700 dark:text-white' : 'bg-slate-50 text-slate-900'}`} />
                 </div>
               </div>
@@ -173,20 +175,20 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
       <div className={`p-6 md:p-8 rounded-3xl border shadow-sm ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
         <div className="flex items-center gap-3 mb-6">
           <Target className="w-7 h-7 text-emerald-500" />
-          <h3 className="text-xl font-extrabold">Tiêu chí Sàng lọc (Criteria)</h3>
+          <h3 className="text-xl font-extrabold">{t('setup.criteria_title')}</h3>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {/* Inclusion */}
           <div className="space-y-3">
-            <h4 className="font-bold text-emerald-600 dark:text-emerald-400">Inclusion Criteria (Nên có)</h4>
+            <h4 className="font-bold text-emerald-600 dark:text-emerald-400">{t('setup.inclusion')}</h4>
             <div className="flex gap-2">
               <input 
                 type="text" 
                 value={newInclude}
                 onChange={e => setNewInclude(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && addInclude()}
-                placeholder="VD: Viết bằng tiếng Anh..."
+                placeholder={t('setup.inclusion_placeholder')}
                 autoComplete="off"
                 className={`flex-1 p-2 rounded-lg border ${darkMode ? 'bg-slate-800 border-slate-700 dark:text-white' : 'bg-slate-50 text-slate-900'}`}
               />
@@ -204,14 +206,14 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
 
           {/* Exclusion */}
           <div className="space-y-3">
-            <h4 className="font-bold text-red-600 dark:text-red-400">Exclusion Criteria (Loại trừ)</h4>
+            <h4 className="font-bold text-red-600 dark:text-red-400">{t('setup.exclusion')}</h4>
             <div className="flex gap-2">
               <input 
                 type="text" 
                 value={newExclude}
                 onChange={e => setNewExclude(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && addExclude()}
-                placeholder="VD: Review papers..."
+                placeholder={t('setup.exclusion_placeholder')}
                 autoComplete="off"
                 className={`flex-1 p-2 rounded-lg border ${darkMode ? 'bg-slate-800 border-slate-700 dark:text-white' : 'bg-slate-50 text-slate-900'}`}
               />
@@ -234,7 +236,7 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
         <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/80 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-sm font-bold flex items-center justify-between shadow-md animate-in fade-in slide-in-from-top-2 duration-300">
           <div className="flex items-center gap-3">
             <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-            <span>✓ Đã lưu cấu hình nghiên cứu thành công! Dữ liệu đã được cập nhật tự động cho toàn bộ hệ thống.</span>
+            <span>{t('setup.save_success_msg')}</span>
           </div>
           <button onClick={() => setSaved(false)} className="text-emerald-700 dark:text-emerald-300 hover:text-emerald-900 font-bold text-xs">
             ✕
@@ -250,7 +252,7 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
           className="w-full sm:w-auto px-6 py-3.5 rounded-2xl font-bold bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-200 transition-colors flex items-center justify-center gap-2"
         >
           {loadingKeywords ? <Loader2 className="w-5 h-5 animate-spin" /> : <Wand2 className="w-5 h-5" />}
-          AI Gợi ý Keywords
+          {t('setup.ai_suggest')}
         </button>
 
         <button 
@@ -269,7 +271,7 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
           ) : (
             <Save className="w-5 h-5" />
           )}
-          <span>{saved ? "Đã Lưu Thành Công!" : "Lưu cấu hình"}</span>
+          <span>{saved ? t('setup.saved') : t('setup.save')}</span>
         </button>
       </div>
 
@@ -277,7 +279,7 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
       {suggestedKeywords.length > 0 && (
         <div className={`p-6 rounded-3xl border border-indigo-200 bg-indigo-50 dark:bg-indigo-900/20 dark:border-indigo-800`}>
           <h4 className="font-bold text-indigo-800 dark:text-indigo-300 mb-3 flex items-center gap-2">
-            <Wand2 className="w-4 h-4" /> Keywords AI Đề Xuất
+            <Wand2 className="w-4 h-4" /> {t('setup.ai_suggested_title')}
           </h4>
           <div className="flex flex-wrap gap-2">
             {suggestedKeywords.map((kw, i) => (

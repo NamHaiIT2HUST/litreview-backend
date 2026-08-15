@@ -7,6 +7,7 @@
  */
 import React, { useState } from 'react';
 import { History, Copy, RotateCcw, ChevronDown, ChevronUp, Clock, Search, Trash2 } from 'lucide-react';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 const API_BASE = 'http://localhost:8000/api/v1';
 const DEFAULT_PROJECT_ID = '00000000-0000-0000-0000-000000000001';
@@ -29,6 +30,7 @@ export default function SearchHistoryPanel({
   loading,
   isSidebar = false,
 }) {
+  const { t } = useLanguage();
   const [collapsed, setCollapsed] = useState(false);
   const [duplicating, setDuplicating] = useState(null);
   const [loadingQueryId, setLoadingQueryId] = useState(null);
@@ -80,7 +82,7 @@ export default function SearchHistoryPanel({
         <div className="text-center py-6">
           <History className="w-8 h-8 mx-auto mb-2 opacity-20 text-blue-500" />
           <p className={`text-xs font-semibold ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-            Chưa có lịch sử tìm kiếm
+            {t('search.no_history_yet')}
           </p>
         </div>
       );
@@ -95,7 +97,7 @@ export default function SearchHistoryPanel({
         <div className="flex items-center gap-2 mb-2">
           <History className="w-4 h-4 text-blue-500" />
           <span className={`text-sm font-bold ${darkMode ? 'text-white' : 'text-slate-800'}`}>
-            Lịch sử tìm kiếm
+            {t('search.search_history')}
           </span>
           <span className="text-xs font-bold bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full">
             {history.length}
@@ -103,7 +105,7 @@ export default function SearchHistoryPanel({
         </div>
 
         {loading && (
-          <p className="text-xs text-slate-400 text-center py-1">Đang tải...</p>
+          <p className="text-xs text-slate-400 text-center py-1">{t('search.loading_history')}</p>
         )}
 
         <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
@@ -123,7 +125,7 @@ export default function SearchHistoryPanel({
                 <Clock className="w-2.5 h-2.5" />
                 <span>{formatTime(item.executed_at)}</span>
                 <span>•</span>
-                <span className="font-bold text-blue-500">{item.result_count} kết quả</span>
+                <span className="font-bold text-blue-500">{item.result_count} {t('search.results')}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <button
@@ -136,7 +138,7 @@ export default function SearchHistoryPanel({
                   }`}
                 >
                   <RotateCcw className={`w-2.5 h-2.5 ${loadingQueryId === item.id ? 'animate-spin' : ''}`} />
-                  {loadingQueryId === item.id ? 'Tải...' : 'Xem'}
+                  {loadingQueryId === item.id ? '...' : t('search.view')}
                 </button>
                 <button
                   onClick={() => handleDuplicate(item.id, item.query_string)}
@@ -148,7 +150,7 @@ export default function SearchHistoryPanel({
                   }`}
                 >
                   <Copy className="w-2.5 h-2.5" />
-                  {duplicating === item.id ? '...' : 'Copy'}
+                  {duplicating === item.id ? '...' : t('search.copy')}
                 </button>
                 <button
                   onClick={(e) => handleDelete(item.id, e)}
@@ -158,7 +160,7 @@ export default function SearchHistoryPanel({
                       ? 'bg-rose-900/30 hover:bg-rose-900/50 border-rose-800 text-rose-300 disabled:opacity-50'
                       : 'bg-rose-50 hover:bg-rose-100 border-rose-200 text-rose-600 disabled:opacity-50'
                   }`}
-                  title="Xóa lịch sử này"
+                  title={t('search.delete_history')}
                 >
                   <Trash2 className="w-3 h-3" />
                 </button>
@@ -184,10 +186,10 @@ export default function SearchHistoryPanel({
         <div className="flex items-center gap-2">
           <History className="w-4 h-4 text-blue-500" />
           <span className={`text-sm font-bold ${darkMode ? 'text-white' : 'text-slate-800'}`}>
-            Lịch sử tìm kiếm
+            {t('search.search_history')}
           </span>
           <span className="text-xs font-bold bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full">
-            {history.length} lần
+            {history.length} {t('search.times')}
           </span>
         </div>
         {collapsed
@@ -199,7 +201,7 @@ export default function SearchHistoryPanel({
       {!collapsed && (
         <div className="px-4 pb-4 space-y-2 max-h-72 overflow-y-auto">
           {loading && (
-            <p className="text-xs text-slate-400 text-center py-4">Đang tải lịch sử...</p>
+            <p className="text-xs text-slate-400 text-center py-4">{t('search.loading_history')}</p>
           )}
           {history.map((item) => (
             <div
@@ -220,7 +222,7 @@ export default function SearchHistoryPanel({
                     {formatTime(item.executed_at)}
                   </span>
                   <span>•</span>
-                  <span className="font-bold text-blue-500">{item.result_count} kết quả</span>
+                  <span className="font-bold text-blue-500">{item.result_count} {t('search.results')}</span>
                   {item.is_duplicated_from && (
                     <>
                       <span>•</span>
@@ -234,7 +236,7 @@ export default function SearchHistoryPanel({
                 <button
                   onClick={() => handleLoadPapers(item.id)}
                   disabled={loadingQueryId === item.id}
-                  title="Tải lại papers"
+                  title={t('search.view_results')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
                     darkMode
                       ? 'bg-slate-700 hover:bg-slate-600 border-slate-600 text-white disabled:opacity-50'
@@ -242,13 +244,13 @@ export default function SearchHistoryPanel({
                   }`}
                 >
                   <RotateCcw className={`w-3.5 h-3.5 ${loadingQueryId === item.id ? 'animate-spin' : ''}`} />
-                  {loadingQueryId === item.id ? 'Đang tải...' : 'Xem kết quả'}
+                  {loadingQueryId === item.id ? '...' : t('search.view_results')}
                 </button>
 
                 <button
                   onClick={() => handleDuplicate(item.id, item.query_string)}
                   disabled={duplicating === item.id}
-                  title="Copy query"
+                  title={t('search.copy')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
                     darkMode
                       ? 'bg-blue-600/20 hover:bg-blue-600/40 border-blue-700 text-blue-300 disabled:opacity-50'
@@ -256,7 +258,7 @@ export default function SearchHistoryPanel({
                   }`}
                 >
                   <Copy className="w-3.5 h-3.5" />
-                  {duplicating === item.id ? 'Đang copy...' : 'Duplicate'}
+                  {duplicating === item.id ? '...' : t('search.copy')}
                 </button>
               </div>
             </div>

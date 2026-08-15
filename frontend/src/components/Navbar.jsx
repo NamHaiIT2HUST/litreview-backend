@@ -1,13 +1,16 @@
 import React from 'react';
-import { Search, Sparkles, Sun, Moon, Home, Settings, Library, Download } from 'lucide-react';
+import { Search, Sparkles, Sun, Moon, Home, Settings, Library, Download, Languages } from 'lucide-react';
+import { useLanguage } from '../contexts/LanguageContext';
 
 export default function Navbar({ activeTab, setActiveTab, darkMode, setDarkMode }) {
+  const { language, setLanguage, t } = useLanguage();
+
   const navItems = [
-    { id: 'overview', label: 'Overview', icon: Home },
-    { id: 'setup', label: 'Research Setup', icon: Settings },
-    { id: 'search', label: 'Search & Verify', icon: Search },
-    { id: 'synthesis', label: 'Workspace', icon: Library },
-    { id: 'export', label: 'Export', icon: Download },
+    { id: 'overview', label: t('nav.overview'), icon: Home },
+    { id: 'setup', label: t('nav.setup'), icon: Settings },
+    { id: 'search', label: t('nav.search'), icon: Search },
+    { id: 'synthesis', label: t('nav.workspace'), icon: Library },
+    { id: 'export', label: t('nav.export'), icon: Download },
   ];
 
   return (
@@ -70,16 +73,29 @@ export default function Navbar({ activeTab, setActiveTab, darkMode, setDarkMode 
         {/* Right Controls */}
         <div className="flex items-center gap-3">
           <button
+            onClick={() => setLanguage(language === 'vi' ? 'en' : 'vi')}
+            className={`p-2.5 rounded-xl border text-sm font-bold transition-all flex items-center gap-2 ${
+              darkMode 
+                ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700' 
+                : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'
+            }`}
+            title={t('nav.toggle_language')}
+          >
+            <Languages className={`w-4 h-4 ${language === 'vi' ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400'}`} />
+            <span className="hidden lg:inline text-xs">{language === 'vi' ? 'VI' : 'EN'}</span>
+          </button>
+
+          <button
             onClick={() => setDarkMode(!darkMode)}
             className={`p-2.5 rounded-xl border text-sm font-bold transition-all flex items-center gap-2 ${
               darkMode 
                 ? 'bg-slate-800 border-slate-700 text-amber-300 hover:bg-slate-700' 
                 : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'
             }`}
-            title="Đổi giao diện Sáng / Tối"
+            title={t('nav.toggle_theme')}
           >
             {darkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-blue-600" />}
-            <span className="hidden lg:inline text-xs">{darkMode ? 'Sáng' : 'Tối'}</span>
+            <span className="hidden lg:inline text-xs">{darkMode ? t('nav.light') : t('nav.dark')}</span>
           </button>
 
           <div className="w-9 h-9 rounded-xl bg-slate-900 dark:bg-slate-700 text-white font-bold text-xs flex items-center justify-center shadow-sm">

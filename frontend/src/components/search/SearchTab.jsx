@@ -8,6 +8,7 @@ import SearchHistoryPanel from './SearchHistoryPanel';
 import FilterSortBar from './FilterSortBar';
 import PaperTable from './PaperTable';
 import { exportPapersToExcel } from '../../utils/excelExport';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 const API_BASE = 'http://localhost:8000/api/v1';
 const DEFAULT_PROJECT_ID = '00000000-0000-0000-0000-000000000001';
@@ -34,6 +35,7 @@ function dbPaperToPaperSchema(dbPaper) {
 }
 
 export default function SearchTab({ papers, setPapers, selectedPaperIds, selectedPapers = [], toggleSelectPaper, clearSelectedPapers, setActiveTab, darkMode }) {
+  const { t } = useLanguage();
   const [apiKey, setApiKey] = useState(
     localStorage.getItem('litreview_serpapi_key') || ''
   );
@@ -263,12 +265,12 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
     }
 
     if (finalChips.length === 0) {
-      setError('Vui lòng nhập ít nhất một từ khóa (nhấn Enter để thêm).');
+      setError(t('search.error_no_keyword'));
       return;
     }
 
     if (!apiKey.trim()) {
-      setError('Vui lòng nhập SerpApi Key để tìm kiếm trên Google Scholar.');
+      setError(t('search.error_no_api_key'));
       return;
     }
 
@@ -314,12 +316,12 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
         await fetchHistory();
       } else {
         setPapers([]);
-        setError('Không tìm thấy bài báo nào thuộc danh mục Scopus phù hợp với từ khóa này. Hãy thử từ khóa khác.');
+        setError(t('search.error_no_result'));
       }
     } catch (err) {
       console.error(err);
       if (err.name === 'TypeError' && err.message.includes('fetch')) {
-        setError('Không thể kết nối đến Backend (http://localhost:8000). Vui lòng đảm bảo Backend đang chạy!');
+        setError(t('search.error_backend'));
       } else {
         setError(err.message || 'Lỗi không xác định khi gọi Backend.');
       }
@@ -451,22 +453,22 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
           <div className="flex items-center gap-2 mb-3 border-b pb-2 border-slate-200 dark:border-slate-700">
             <BookOpen className="w-4 h-4 text-indigo-500" />
             <h4 className={`text-xs font-extrabold uppercase tracking-wider ${darkMode ? 'text-indigo-300' : 'text-indigo-700'}`}>
-              Tiêu chí & Cấu hình
+              {t('search.criteria_setup')}
             </h4>
           </div>
 
           <div className="space-y-3 text-xs">
             <div>
-              <p className="font-bold text-[10px] text-slate-400 uppercase tracking-wider">Lĩnh vực / Chủ đề</p>
+              <p className="font-bold text-[10px] text-slate-400 uppercase tracking-wider">{t('search.field_topic')}</p>
               <p className={`font-semibold mt-0.5 ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>
-                {projectData?.research_field || 'Chưa thiết lập'}
+                {projectData?.research_field || t('search.not_set')}
               </p>
             </div>
 
             <div>
-              <p className="font-bold text-[10px] text-slate-400 uppercase tracking-wider">Câu hỏi nghiên cứu</p>
+              <p className="font-bold text-[10px] text-slate-400 uppercase tracking-wider">{t('search.research_question_short')}</p>
               <p className={`font-medium mt-0.5 line-clamp-3 leading-relaxed ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
-                {projectData?.research_question || 'Chưa thiết lập'}
+                {projectData?.research_question || t('search.not_set')}
               </p>
             </div>
 
@@ -474,7 +476,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
               <div>
                 <p className="font-bold text-[10px] text-emerald-500 dark:text-emerald-400 uppercase tracking-wider flex items-center gap-1">
                   <CheckCircle2 className="w-3 h-3" />
-                  Tiêu chí Chọn (Inclusion)
+                  {t('search.inclusion_short')}
                 </p>
                 <ul className="mt-1 space-y-1 pl-1">
                   {projectData.criteria_include.map((item, idx) => (
@@ -491,7 +493,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
               <div>
                 <p className="font-bold text-[10px] text-rose-500 dark:text-rose-400 uppercase tracking-wider flex items-center gap-1">
                   <X className="w-3 h-3" />
-                  Tiêu chí Loại (Exclusion)
+                  {t('search.exclusion_short')}
                 </p>
                 <ul className="mt-1 space-y-1 pl-1">
                   {projectData.criteria_exclude.map((item, idx) => (
@@ -531,10 +533,10 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                 <BookOpen className="w-6 h-6 text-blue-600 dark:text-sky-400 shrink-0" />
                 <div className="min-w-0">
                   <h3 className={`font-extrabold text-base truncate ${darkMode ? 'text-white' : 'text-slate-900'}`}>
-                    {projectData.name || 'Chưa đặt tên đề tài'}
+                    {projectData.name || t('search.unnamed_project')}
                   </h3>
                   <p className={`text-xs truncate mt-0.5 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                    {projectData.research_question || 'Chưa có câu hỏi nghiên cứu'}
+                    {projectData.research_question || t('search.no_question')}
                   </p>
                 </div>
               </div>
@@ -552,10 +554,10 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
         {/* Page Title */}
         <div className="text-center space-y-2">
           <h2 className={`text-2xl md:text-3xl font-extrabold tracking-tight ${darkMode ? 'text-white' : 'text-slate-900'}`}>
-            Search & Verify
+            {t('search.tab_title')}
           </h2>
           <p className={`text-sm max-w-2xl mx-auto font-medium ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-            Tìm kiếm trên Google Scholar, hệ thống tự động đối chiếu Scopus và chỉ hiển thị bài đã được xác minh.
+            {t('search.tab_desc')}
           </p>
         </div>
 
@@ -566,14 +568,14 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-2 text-sm font-bold text-blue-700 dark:text-sky-300">
               <Key className="w-4 h-4 shrink-0 text-blue-600 dark:text-sky-400" />
-              <span>API Key Google Scholar (SerpApi):</span>
+              <span>{t('search.api_key_label')}</span>
             </div>
             <div className="flex-1 max-w-md flex items-center gap-2">
               <input
                 type="password"
                 value={apiKey}
                 onChange={handleApiKeyChange}
-                placeholder="Dán SerpApi Key vào đây..."
+                placeholder={t('search.api_key_placeholder')}
                 className={`w-full px-4 py-2 border rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-600 ${
                   darkMode ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500' : 'bg-white border-slate-300 text-slate-900'
                 }`}
@@ -581,7 +583,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
             </div>
             <div className="flex items-center gap-3 text-xs font-bold text-blue-600 dark:text-sky-400 shrink-0">
               <a href="https://serpapi.com/users/sign_up" target="_blank" rel="noreferrer" className="hover:underline flex items-center gap-1">
-                <span>Lấy SerpApi Key</span>
+                <span>{t('search.get_api_key')}</span>
                 <ExternalLink className="w-3 h-3" />
               </a>
             </div>
@@ -601,7 +603,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                   value={searchQuery}
                   onChange={handleSearchQueryChange}
                   onKeyDown={handleInputKeyDown}
-                  placeholder="Nhập từ khóa và nhấn Enter..."
+                  placeholder={t('search.search_placeholder')}
                   className={`w-full pl-14 pr-4 py-4 border rounded-2xl text-base font-semibold focus:outline-none focus:ring-2 focus:ring-blue-600 ${
                     darkMode 
                       ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500' 
@@ -617,10 +619,10 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                 {loading ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin" />
-                    <span>Đang tìm kiếm...</span>
+                    <span>{t('search.searching')}</span>
                   </>
                 ) : (
-                    <span>Tìm kiếm</span>
+                    <span>{t('search.search_btn')}</span>
                 )}
               </button>
             </div>
@@ -638,7 +640,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                       type="button"
                       onClick={() => removeChip(idx)}
                       className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5 transition-colors"
-                      title="Xóa từ khóa"
+                      title={t('search.remove_keyword')}
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -706,27 +708,27 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
             <div className="flex items-center gap-2">
               <span className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                 {papers.length > 0 ? (
-                  <>Kết quả Scopus ({filteredAndSortedPapers.length} bài báo đã xác minh)</>
+                  <>{t('search.scopus_result')} ({filteredAndSortedPapers.length} {t('search.verified_papers')})</>
                 ) : (
-                  'Kết quả tìm kiếm'
+                  t('search.search_result')
                 )}
               </span>
               {activeQueryId && (
                 <span className="text-xs font-mono text-slate-400 dark:text-slate-500">
-                  (đã lưu)
+                  ({t('search.saved')})
                 </span>
               )}
             </div>
             {selectedPaperIds.length > 0 && (
               <div className="flex items-center gap-3">
                 <span className="text-sm font-bold text-blue-600 dark:text-sky-400">
-                  Đã chọn {selectedPaperIds.length} bài
+                  {t('search.selected_papers')} {selectedPaperIds.length}
                 </span>
                 <button
                   onClick={clearSelectedPapers}
                   className="text-xs text-slate-500 hover:text-red-500 underline font-medium transition-colors"
                 >
-                  Làm mới
+                  {t('search.clear_selected')}
                 </button>
               </div>
             )}
@@ -738,10 +740,9 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
               darkMode ? 'bg-slate-900/60 border-slate-800 text-slate-400' : 'bg-white border-slate-200 text-slate-500'
             }`}>
               <Search className="w-12 h-12 mx-auto mb-4 opacity-30 text-blue-500" />
-              <h3 className="text-lg font-bold mb-1">Chưa có kết quả tìm kiếm</h3>
+              <h3 className="text-lg font-bold mb-1">{t('search.empty_title')}</h3>
               <p className="text-sm max-w-md mx-auto">
-                Nhập SerpApi Key, sau đó gõ từ khóa nghiên cứu và nhấn <strong>"Tìm kiếm"</strong>. 
-                Hệ thống sẽ tự động đối chiếu Scopus và chỉ hiển thị bài đã xác minh.
+                {t('search.empty_desc')}
               </p>
             </div>
           )}
@@ -752,15 +753,15 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
               darkMode ? 'bg-slate-900/60 border-slate-800 text-slate-400' : 'bg-white border-slate-200 text-slate-500'
             }`}>
               <Search className="w-10 h-10 mx-auto mb-3 opacity-40 text-amber-500" />
-              <h3 className="text-base font-bold text-slate-800 dark:text-slate-200 mb-1">Không có bài báo nào phù hợp</h3>
+              <h3 className="text-base font-bold text-slate-800 dark:text-slate-200 mb-1">{t('search.filter_empty_title')}</h3>
               <p className="text-xs max-w-sm mx-auto mb-4">
-                Thử nới lỏng bộ lọc hoặc nhấn "Xóa bộ lọc".
+                {t('search.filter_empty_desc')}
               </p>
               <button
                 onClick={resetFilters}
                 className="px-4 py-2 bg-blue-600 text-white font-bold text-xs rounded-xl hover:bg-blue-700 transition-colors"
               >
-                Xóa bộ lọc
+                {t('search.clear_filters')}
               </button>
             </div>
           )}

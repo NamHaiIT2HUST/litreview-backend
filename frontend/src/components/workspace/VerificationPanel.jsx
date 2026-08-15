@@ -3,6 +3,7 @@ import { ShieldCheck, Quote, X } from 'lucide-react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/TextLayer.css';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.min.mjs',
@@ -10,6 +11,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 ).toString();
 
 export default function VerificationPanel({ activeCitation, onClose, darkMode }) {
+  const { t } = useLanguage();
   const [rects, setRects] = useState([]);
   const [loadingCoords, setLoadingCoords] = useState(false);
 
@@ -60,17 +62,17 @@ export default function VerificationPanel({ activeCitation, onClose, darkMode })
       <div className={`flex items-center justify-between px-5 h-[56px] border-b shrink-0 ${darkMode ? 'border-slate-800' : 'border-slate-100'}`}>
         <div className="flex items-center gap-2 overflow-hidden mr-2">
           <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-500" />
-          <h3 className={`font-bold text-[14px] truncate ${darkMode ? 'text-slate-200' : 'text-slate-700'}`} title="Xác minh nguồn gốc">Xác minh nguồn gốc</h3>
+          <h3 className={`font-bold text-[14px] truncate ${darkMode ? 'text-slate-200' : 'text-slate-700'}`} title={t('verification.title')}>{t('verification.title')}</h3>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <span className="text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
-            Grounded evidence
+            {t('verification.grounded_evidence')}
           </span>
           {onClose && (
             <button 
               onClick={onClose}
               className="p-1 rounded-md hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 transition-colors shrink-0"
-              title="Đóng xác minh"
+              title={t('verification.close')}
             >
               <X className="w-4 h-4" />
             </button>
@@ -92,8 +94,8 @@ export default function VerificationPanel({ activeCitation, onClose, darkMode })
             </div>
 
             <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-              <p><strong>Trang PDF:</strong> {activeCitation.source_page_display ?? 'N/A'}</p>
-              <p><strong>Raw chars:</strong> {activeCitation.source_char_start ?? '?'}–{activeCitation.source_char_end ?? '?'}</p>
+              <p><strong>{t('verification.pdf_page')}:</strong> {activeCitation.source_page_display ?? 'N/A'}</p>
+              <p><strong>{t('verification.raw_chars')}:</strong> {activeCitation.source_char_start ?? '?'}–{activeCitation.source_char_end ?? '?'}</p>
             </div>
           </div>
 
@@ -104,8 +106,8 @@ export default function VerificationPanel({ activeCitation, onClose, darkMode })
               <div className="min-w-fit flex justify-center p-2">
                 <Document
                   file={pdfUrl}
-                  loading={<div className="p-4 text-center text-sm text-slate-500">Đang tải PDF...</div>}
-                  error={<div className="p-4 text-center text-sm text-red-500">Lỗi không thể tải PDF.</div>}
+                  loading={<div className="p-4 text-center text-sm text-slate-500">{t('verification.loading_pdf')}</div>}
+                  error={<div className="p-4 text-center text-sm text-red-500">{t('verification.pdf_error')}</div>}
                 >
                   <div className="relative shadow-md">
                     <Page 
@@ -113,7 +115,7 @@ export default function VerificationPanel({ activeCitation, onClose, darkMode })
                       width={320}
                       renderTextLayer={true}
                       renderAnnotationLayer={true}
-                      loading={<div className="p-4 text-center text-sm text-slate-500">Đang tải trang...</div>}
+                      loading={<div className="p-4 text-center text-sm text-slate-500">{t('verification.loading_page')}</div>}
                     />
                     
                     {/* Bounding box highlights */}
@@ -133,7 +135,7 @@ export default function VerificationPanel({ activeCitation, onClose, darkMode })
                     {/* Missing coords indicator */}
                     {rects.length === 0 && !loadingCoords && (
                       <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-red-100 text-red-700 text-[10px] px-2 py-1 rounded shadow-sm opacity-80 pointer-events-none whitespace-nowrap">
-                        Không thể tìm toạ độ chính xác cho đoạn trích dẫn.
+                        {t('verification.no_coords')}
                       </div>
                     )}
                   </div>
@@ -145,7 +147,7 @@ export default function VerificationPanel({ activeCitation, onClose, darkMode })
       ) : (
         <div className="flex-1 flex items-center justify-center">
           <p className="text-slate-400 text-sm italic text-center max-w-[200px]">
-            Chạy RAG query rồi click marker [1], [2] để xem PDF tại đúng trang chứa evidence.
+            {t('verification.empty_desc')}
           </p>
         </div>
       )}

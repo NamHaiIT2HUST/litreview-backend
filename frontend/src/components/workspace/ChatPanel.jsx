@@ -5,6 +5,7 @@ import remarkMath from 'remark-math';
 import remarkGfm from 'remark-gfm';
 import rehypeKatex from 'rehype-katex';
 import CitationChip from './CitationChip';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 export default function ChatPanel({ 
   workspacePapers,
@@ -15,6 +16,7 @@ export default function ChatPanel({
   setActiveCitation,
   darkMode
 }) {
+  const { t } = useLanguage();
   const [inputQuestion, setInputQuestion] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState(null);
@@ -63,7 +65,7 @@ export default function ChatPanel({
       console.error("Chat error:", error);
       setChatMessages(prev => [...prev, {
         sender: 'ai',
-        text: "Xin lỗi, đã có lỗi kết nối tới AI Agent. Vui lòng thử lại sau."
+        text: t('chat.error_msg')
       }]);
     } finally {
       setIsTyping(false);
@@ -144,7 +146,7 @@ export default function ChatPanel({
                 <details className="mt-6 group border dark:border-slate-700/60 rounded-2xl overflow-hidden bg-slate-50/50 dark:bg-slate-800/30">
                   <summary className="cursor-pointer p-3.5 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center gap-2 select-none outline-none">
                     <Layers className="w-4 h-4 text-blue-500" />
-                    <span>Ngữ cảnh đã sử dụng ({msg.context_used.length} nguồn)</span>
+                    <span>{t('chat.context_used')} ({msg.context_used.length} {t('chat.sources')})</span>
                   </summary>
                   <div className="p-4 bg-white dark:bg-slate-900 border-t dark:border-slate-700/60 max-h-64 overflow-y-auto space-y-4 custom-scrollbar">
                     {msg.context_used.map((ctx, pIdx) => {
@@ -164,7 +166,7 @@ export default function ChatPanel({
                             className="font-bold text-blue-600 dark:text-blue-400 hover:underline mb-1.5 flex items-center gap-1.5 text-left"
                           >
                              <span className="px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900 text-[10px]">[{ctx.key}]</span>
-                             {ctx.paper_title} (Trang {ctx.page_display})
+                             {ctx.paper_title} ({t('chat.page')} {ctx.page_display})
                           </button>
                           <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl text-slate-600 dark:text-slate-400 leading-relaxed border dark:border-slate-700/50 shadow-sm whitespace-pre-wrap">
                             {ctx.snippet}
@@ -189,20 +191,20 @@ export default function ChatPanel({
                   >
                     {copiedIndex === idx ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                     <span className="absolute -top-8 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                      {copiedIndex === idx ? 'Đã sao chép!' : 'Sao chép'}
+                      {copiedIndex === idx ? t('chat.copied') : t('chat.copy')}
                     </span>
                   </button>
                   <button 
                     className="p-1.5 text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-md transition-colors flex items-center justify-center group relative"
                   >
                     <ThumbsUp className="w-4 h-4" />
-                    <span className="absolute -top-8 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">Câu trả lời tốt</span>
+                    <span className="absolute -top-8 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">{t('chat.good_response')}</span>
                   </button>
                   <button 
                     className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-md transition-colors flex items-center justify-center group relative"
                   >
                     <ThumbsDown className="w-4 h-4" />
-                    <span className="absolute -top-8 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">Câu trả lời không tốt</span>
+                    <span className="absolute -top-8 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">{t('chat.bad_response')}</span>
                   </button>
                 </div>
               )}
@@ -237,7 +239,7 @@ export default function ChatPanel({
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
             </span>
-            Đang chat với {selectedSourceIds.length} tài liệu cụ thể
+            {t('chat.chatting_with')} {selectedSourceIds.length} {t('chat.specific_docs')}
           </div>
         )}
         <form onSubmit={handleSendMessage} className="relative w-full max-w-4xl mx-auto">
@@ -245,7 +247,7 @@ export default function ChatPanel({
           type="text"
           value={inputQuestion}
           onChange={e => setInputQuestion(e.target.value)}
-          placeholder="Hỏi AI assistant về phương pháp, hạn chế hoặc hướng nghiên cứu..."
+          placeholder={t('chat.input_placeholder')}
           className={`w-full pl-6 pr-32 py-4 border rounded-[2rem] text-[14px] font-medium focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 shadow-sm transition-all ${
             darkMode 
               ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500' 
@@ -256,7 +258,7 @@ export default function ChatPanel({
           type="submit"
           className="absolute right-2 top-1/2 -translate-y-1/2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-[1.5rem] text-sm font-bold transition-transform active:scale-95 flex items-center gap-1.5 shadow-md"
         >
-          <span>Gửi</span>
+          <span>{t('chat.send')}</span>
           <Send className="w-4 h-4" />
         </button>
         </form>
