@@ -184,7 +184,7 @@ Example: ["ECG classification 1D CNN", "one-dimensional convolutional neural net
 
             client = genai.Client(api_key=gemini_key)
             response = client.models.generate_content(
-                model="gemini-3.5-flash",
+                model=settings.model_name,
                 contents=prompt,
             )
             content = response.text.strip()

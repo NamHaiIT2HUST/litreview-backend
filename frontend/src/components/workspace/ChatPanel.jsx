@@ -4,11 +4,9 @@ import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import remarkGfm from 'remark-gfm';
 import rehypeKatex from 'rehype-katex';
-import CitationChip from './CitationChip';
 
 export default function ChatPanel({ 
-  workspacePapers,
-  selectedSourceIds,
+  workspacePapers, 
   chatMessages, 
   setChatMessages, 
   activeCitation, 
@@ -20,7 +18,7 @@ export default function ChatPanel({
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!inputQuestion.trim()) return;
+    if (!inputQuestion.trim() || workspacePapers.length === 0) return;
 
     const question = inputQuestion;
     const userMsg = { sender: 'user', text: question };
@@ -29,14 +27,10 @@ export default function ChatPanel({
     setIsTyping(true);
 
     try {
-      const paperIds = selectedSourceIds && selectedSourceIds.length > 0 
-        ? selectedSourceIds 
-        : (workspacePapers ? workspacePapers.map(p => p.id) : []);
-        
       const response = await fetch("http://localhost:8000/api/v1/workspace/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: question, paper_ids: paperIds }),
+        body: JSON.stringify({ message: question, paper_ids: workspacePapers.map((paper) => paper.id) }),
       });
 
       if (!response.ok) {
@@ -48,8 +42,7 @@ export default function ChatPanel({
       const aiReply = {
         sender: 'ai',
         text: data.answer,
-        context_used: data.context_used,
-        citations: data.citations
+        context_used: data.context_used
       };
       setChatMessages(prev => [...prev, aiReply]);
     } catch (error) {
@@ -96,77 +89,29 @@ export default function ChatPanel({
                   <ReactMarkdown
                     remarkPlugins={[remarkMath, remarkGfm]}
                     rehypePlugins={[rehypeKatex]}
-                    components={{
-                      a: ({node, href, children, ...props}) => {
-                        if (href?.startsWith('#cite-')) {
-                          const citeId = href.replace('#cite-', '');
-                          const citeObj = msg.citations?.find(c => c.key === citeId) || msg.context_used?.find(c => c.key === citeId);
-                          return (
-                            <CitationChip
-                              key={citeId}
-                              citeId={citeId}
-                              citeObj={citeObj}
-                              darkMode={darkMode}
-                              onClick={(e) => {
-                                e.preventDefault();
-                                if (citeObj) {
-                                  setActiveCitation({
-                                    marker_display: `[${citeId}]`,
-                                    title: citeObj.paper_title,
-                                    filename: citeObj.filename,
-                                    source_page_display: citeObj.page || citeObj.page_display,
-                                    source_char_start: citeObj.page_char_start,
-                                    source_char_end: citeObj.page_char_end,
-                                    quoted_snippet: citeObj.raw_text || citeObj.snippet
-                                  });
-                                }
-                              }}
-                            >
-                              {children}
-                            </CitationChip>
-                          );
-                        }
-                        return <a href={href} {...props}>{children}</a>;
-                      }
-                    }}
                   >
-                    {msg.text.replace(/\[(\d+)\]/g, '[[$1]](#cite-$1)')}
+                    {msg.text}
                   </ReactMarkdown>
                 )}
               </div>
-              {/* Render Unified Context Used if available */}
+              {/* Render Context Used if available */}
               {msg.sender === 'ai' && msg.context_used && msg.context_used.length > 0 && (
                 <details className="mt-6 group border dark:border-slate-700/60 rounded-2xl overflow-hidden bg-slate-50/50 dark:bg-slate-800/30">
                   <summary className="cursor-pointer p-3.5 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center gap-2 select-none outline-none">
                     <Layers className="w-4 h-4 text-blue-500" />
-                    <span>Ngữ cảnh đã sử dụng ({msg.context_used.length} nguồn)</span>
+                    <span>Đã tham khảo {msg.context_used.length} đoạn ngữ cảnh từ tài liệu</span>
                   </summary>
                   <div className="p-4 bg-white dark:bg-slate-900 border-t dark:border-slate-700/60 max-h-64 overflow-y-auto space-y-4 custom-scrollbar">
-                    {msg.context_used.map((ctx, pIdx) => {
-                      return (
-                        <div key={pIdx} className="text-xs">
-                          <button
-                            type="button"
-                            onClick={() => setActiveCitation({
-                                marker_display: `[${ctx.key}]`,
-                                title: ctx.paper_title,
-                                filename: ctx.filename,
-                                source_page_display: ctx.page_display,
-                                source_char_start: ctx.page_char_start,
-                                source_char_end: ctx.page_char_end,
-                                quoted_snippet: ctx.raw_text || ctx.snippet
-                            })}
-                            className="font-bold text-blue-600 dark:text-blue-400 hover:underline mb-1.5 flex items-center gap-1.5 text-left"
-                          >
-                             <span className="px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900 text-[10px]">[{ctx.key}]</span>
-                             {ctx.paper_title} (Trang {ctx.page_display})
-                          </button>
-                          <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl text-slate-600 dark:text-slate-400 leading-relaxed border dark:border-slate-700/50 shadow-sm whitespace-pre-wrap">
-                            {ctx.snippet}
-                          </div>
+                    {msg.context_used.map((ctx, pIdx) => (
+                      <div key={pIdx} className="text-xs">
+                        <div className="font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
+                           <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span> Nguồn #{pIdx + 1}
                         </div>
-                      );
-                    })}
+                        <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl text-slate-600 dark:text-slate-400 leading-relaxed border dark:border-slate-700/50 shadow-sm">
+                          {ctx}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </details>
               )}
@@ -191,8 +136,8 @@ export default function ChatPanel({
         </div>
       </div>
 
-      {/* Workspace source registry - Floating bottom right */}
-      <div className={`absolute bottom-24 right-6 p-3 rounded-2xl border space-y-2 w-56 shadow-lg z-10 backdrop-blur-md opacity-70 hover:opacity-100 transition-opacity ${
+      {/* Scope is shown by WorkspaceTab; keep the conversation area focused. */}
+      <div className={`hidden ${
         darkMode ? 'bg-slate-800/90 border-slate-700' : 'bg-white/90 border-slate-200'
       }`}>
         <h4 className="font-bold text-xs flex items-center gap-2">
@@ -213,22 +158,15 @@ export default function ChatPanel({
         )}
       </div>
 
+      {workspacePapers.length === 0 && <p className="text-sm text-amber-600 dark:text-amber-300">Chọn ít nhất 1 tài liệu ở cột trái để bắt đầu chat.</p>}
+
       {/* Chat Input Bar */}
-      <div className="relative mt-2 shrink-0 w-full flex flex-col gap-2">
-        {selectedSourceIds && selectedSourceIds.length > 0 && (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-100 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-[11px] font-semibold w-max self-start shadow-sm">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
-            </span>
-            Đang chat với {selectedSourceIds.length} tài liệu cụ thể
-          </div>
-        )}
-        <form onSubmit={handleSendMessage} className="relative w-full">
+      <form onSubmit={handleSendMessage} className="relative mt-2 shrink-0 w-full">
         <input
           type="text"
           value={inputQuestion}
           onChange={e => setInputQuestion(e.target.value)}
+          disabled={workspacePapers.length === 0}
           placeholder="Hỏi AI assistant về phương pháp, hạn chế hoặc hướng nghiên cứu..."
           className={`w-full pl-6 pr-32 py-4 border rounded-full text-sm font-medium focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 shadow-sm transition-all ${
             darkMode 
@@ -238,13 +176,13 @@ export default function ChatPanel({
         />
         <button
           type="submit"
+          disabled={workspacePapers.length === 0}
           className="absolute right-2 top-1/2 -translate-y-1/2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-full text-sm font-bold transition-transform active:scale-95 flex items-center gap-1.5 shadow-md"
         >
           <span>Gửi</span>
           <Send className="w-4 h-4" />
         </button>
-        </form>
-      </div>
+      </form>
     </div>
   );
 }

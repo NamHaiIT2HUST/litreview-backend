@@ -143,19 +143,22 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
         const data = await res.json();
         setAiScreeningResult(data);
       } else {
-        // Smart fallback assessment
+        // Smart fallback assessment with null checks
+        const abstractStr = paper.abstract || "";
+        const titleStr = paper.title || "";
+        
         const matches = (projectData?.criteria_include || []).filter(c => 
-          paper.abstract.toLowerCase().includes(c.toLowerCase()) || 
-          paper.title.toLowerCase().includes(c.toLowerCase())
+          abstractStr.toLowerCase().includes(c.toLowerCase()) || 
+          titleStr.toLowerCase().includes(c.toLowerCase())
         );
         const mismatches = (projectData?.criteria_exclude || []).filter(c => 
-          paper.abstract.toLowerCase().includes(c.toLowerCase())
+          abstractStr.toLowerCase().includes(c.toLowerCase())
         );
 
         setAiScreeningResult({
-          relevance_bucket: matches.length > 0 ? (matches.length >= 2 ? 'high' : 'medium') : 'high',
+          relevance_bucket: matches.length > 0 ? (matches.length >= 2 ? 'high' : 'medium') : 'insufficient_info',
           reason: {
-            matches: matches.length > 0 ? matches.map(m => `Khớp tiêu chí chọn: "${m}"`) : [`Phù hợp với chủ đề: "${projectData?.research_field || paper.title}"`],
+            matches: matches.length > 0 ? matches.map(m => `Khớp tiêu chí chọn: "${m}"`) : [`Không tìm thấy điểm khớp rõ ràng (Fallback).`],
             mismatches: mismatches.length > 0 ? mismatches.map(m => `Cảnh báo tiêu chí loại: "${m}"`) : ['Không vi phạm tiêu chí loại trừ nào.']
           }
         });
@@ -163,10 +166,10 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
     } catch (err) {
       console.error("AI screening error:", err);
       setAiScreeningResult({
-        relevance_bucket: 'high',
+        relevance_bucket: 'insufficient_info',
         reason: {
-          matches: [`Bài báo nghiên cứu về: "${paper.title}"`, `Khớp với định hướng: "${projectData?.research_question || 'Nghiên cứu khoa học'}"`],
-          mismatches: ['Không vi phạm tiêu chí loại trừ.']
+          matches: [],
+          mismatches: ['Lỗi kết nối tới Server hoặc AI. Vui lòng thử lại sau.']
         }
       });
     } finally {

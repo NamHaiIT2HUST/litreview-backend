@@ -349,7 +349,6 @@ export default function WorkspaceTab({
           </div>
           {activeWorkspaceTab === 'chat' ? <ChatPanel
               workspacePapers={scopedPapers}
-              selectedSourceIds={selectedPaperIds}
               chatMessages={chatMessages}
               setChatMessages={setChatMessages}
               activeCitation={activeCitation}

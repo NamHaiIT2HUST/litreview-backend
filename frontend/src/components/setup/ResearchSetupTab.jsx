@@ -10,13 +10,7 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
   const [saved, setSaved] = useState(false);
   
   const [projectData, setProjectData] = useState(() => {
-    try {
-      const cached = localStorage.getItem('research_setup_data');
-      if (cached) return normalizeResearchSetup(JSON.parse(cached));
-    } catch (e) {
-      console.error(e);
-    }
-    return normalizeResearchSetup();
+    return normalizeResearchSetup({});
   });
 
   const [newInclude, setNewInclude] = useState('');

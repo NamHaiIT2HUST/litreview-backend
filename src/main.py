@@ -48,7 +48,13 @@ app.include_router(export_router, prefix="/api/v1")
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "env": settings.app_env}
+    return {
+        "status": "ok",
+        "env": settings.app_env,
+        "model_name": settings.model_name,
+        "gemini_key_prefix": settings.gemini_api_key[:10] if settings.gemini_api_key else "None",
+        "openai_key_prefix": settings.openai_api_key[:10] if settings.openai_api_key else "None"
+    }
 
 if __name__ == "__main__":
     import uvicorn
