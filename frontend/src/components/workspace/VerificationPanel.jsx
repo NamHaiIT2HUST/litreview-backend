@@ -9,7 +9,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   import.meta.url,
 ).toString();
 
-export default function VerificationPanel({ activeCitation, setActiveCitation, darkMode }) {
+export default function VerificationPanel({ activeCitation, onClose, darkMode }) {
   const [rects, setRects] = useState([]);
   const [loadingCoords, setLoadingCoords] = useState(false);
 
@@ -56,22 +56,20 @@ export default function VerificationPanel({ activeCitation, setActiveCitation, d
   }, [activeCitation, pageNumber]);
 
   return (
-    <div className={`p-6 rounded-3xl border transition-colors flex flex-col space-y-5 sticky top-24 shadow-sm h-[calc(100vh-8rem)] overflow-hidden ${
-      darkMode ? 'bg-slate-900 border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-800'
-    }`}>
-      <div className={`flex items-center justify-between border-b pb-4 shrink-0 ${darkMode ? 'border-slate-800' : 'border-slate-100'}`}>
-        <div className="flex items-center gap-2">
-          <ShieldCheck className="w-6 h-6 text-emerald-500" />
-          <h3 className="font-bold text-base">Xác minh nguồn gốc</h3>
+    <div className="flex flex-col h-full w-full">
+      <div className={`flex items-center justify-between px-5 h-[56px] border-b shrink-0 ${darkMode ? 'border-slate-800' : 'border-slate-100'}`}>
+        <div className="flex items-center gap-2 overflow-hidden mr-2">
+          <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-500" />
+          <h3 className={`font-bold text-[14px] truncate ${darkMode ? 'text-slate-200' : 'text-slate-700'}`} title="Xác minh nguồn gốc">Xác minh nguồn gốc</h3>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 px-3 py-1 rounded-full border border-emerald-200 dark:border-emerald-800">
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
             Grounded evidence
           </span>
-          {setActiveCitation && (
+          {onClose && (
             <button 
-              onClick={() => setActiveCitation(null)}
-              className="p-1.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 transition-colors"
+              onClick={onClose}
+              className="p-1 rounded-md hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 transition-colors shrink-0"
               title="Đóng xác minh"
             >
               <X className="w-4 h-4" />
@@ -80,40 +78,30 @@ export default function VerificationPanel({ activeCitation, setActiveCitation, d
         </div>
       </div>
 
+      <div className="flex-1 flex flex-col min-h-0 overflow-y-auto p-5">
       {activeCitation ? (
         <div className="flex flex-col flex-1 min-h-0 space-y-4 text-sm">
           <div className="shrink-0 space-y-3">
             <div>
-              <span className={`font-mono text-xs px-2.5 py-1 rounded-md font-bold ${darkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-700'}`}>
+              <span className={`font-mono text-[11px] px-2 py-0.5 rounded font-bold ${darkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-700'}`}>
                 {activeCitation.marker_display}
               </span>
-              <h4 className={`font-extrabold text-base mt-2 leading-snug line-clamp-2 ${darkMode ? 'text-white' : 'text-slate-900'}`} title={activeCitation.title}>
+              <h4 className={`font-bold text-[14px] mt-1.5 leading-snug line-clamp-2 ${darkMode ? 'text-white' : 'text-slate-800'}`} title={activeCitation.title}>
                 {activeCitation.title}
               </h4>
             </div>
 
-            <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 font-medium">
+            <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 font-medium">
               <p><strong>Trang PDF:</strong> {activeCitation.source_page_display ?? 'N/A'}</p>
               <p><strong>Raw chars:</strong> {activeCitation.source_char_start ?? '?'}–{activeCitation.source_char_end ?? '?'}</p>
             </div>
           </div>
 
-          <div className="shrink-0 space-y-2">
-            <h5 className="font-bold text-xs flex items-center gap-1.5 text-slate-800 dark:text-slate-200">
-              <Quote className="w-4 h-4 text-blue-600" />
-              Evidence nguyên văn đã grounding
-            </h5>
-            <div className={`p-3 rounded-xl leading-relaxed text-xs border max-h-24 overflow-y-auto custom-scrollbar ${
-              darkMode ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'
-            }`}>
-              {activeCitation.quoted_snippet || 'Không có snippet.'}
-            </div>
-          </div>
 
           {/* PDF Viewer */}
           {pdfUrl && (
             <div className="flex-1 min-h-0 mt-2 rounded-xl overflow-auto border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-950 relative shadow-inner custom-scrollbar">
-              <div className="min-w-fit flex justify-center p-4">
+              <div className="min-w-fit flex justify-center p-2">
                 <Document
                   file={pdfUrl}
                   loading={<div className="p-4 text-center text-sm text-slate-500">Đang tải PDF...</div>}
@@ -122,7 +110,7 @@ export default function VerificationPanel({ activeCitation, setActiveCitation, d
                   <div className="relative shadow-md">
                     <Page 
                       pageNumber={pageNumber} 
-                      width={450}
+                      width={320}
                       renderTextLayer={true}
                       renderAnnotationLayer={true}
                       loading={<div className="p-4 text-center text-sm text-slate-500">Đang tải trang...</div>}
@@ -132,7 +120,7 @@ export default function VerificationPanel({ activeCitation, setActiveCitation, d
                     {rects.map((r, i) => (
                       <div 
                         key={i}
-                        className="absolute bg-yellow-400/50 dark:bg-yellow-400/40 mix-blend-multiply dark:mix-blend-screen pointer-events-none rounded-[2px]"
+                        className="absolute bg-yellow-400/50 mix-blend-multiply pointer-events-none rounded-[2px]"
                         style={{
                           left: `${r.x * 100}%`,
                           top: `${r.y * 100}%`,
@@ -161,6 +149,7 @@ export default function VerificationPanel({ activeCitation, setActiveCitation, d
           </p>
         </div>
       )}
+      </div>
     </div>
   );
 }

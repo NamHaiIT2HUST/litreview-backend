@@ -3,6 +3,17 @@ import { Quote, FileText, ChevronRight } from 'lucide-react';
 
 export default function CitationChip({ citeId, citeObj, onClick, darkMode, children }) {
   const [showTooltip, setShowTooltip] = useState(false);
+  const [tooltipPos, setTooltipPos] = useState('top');
+
+  const handleMouseEnter = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    if (rect.top < 250) {
+      setTooltipPos('bottom');
+    } else {
+      setTooltipPos('top');
+    }
+    setShowTooltip(true);
+  };
 
   // If we couldn't find the citation object, just render a fallback button
   if (!citeObj) {
@@ -23,7 +34,7 @@ export default function CitationChip({ citeId, citeObj, onClick, darkMode, child
   return (
     <div 
       className="inline-block relative group align-middle"
-      onMouseEnter={() => setShowTooltip(true)}
+      onMouseEnter={handleMouseEnter}
       onMouseLeave={() => setShowTooltip(false)}
     >
       <button
@@ -40,40 +51,32 @@ export default function CitationChip({ citeId, citeObj, onClick, darkMode, child
       {/* Popover / Tooltip */}
       {showTooltip && (
         <div 
-          className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-3 w-[450px] md:w-[500px] animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-200 ease-out cursor-default text-left whitespace-normal"
+          className={`absolute z-50 left-1/2 -translate-x-1/2 w-[320px] animate-in fade-in zoom-in-95 duration-200 ease-out cursor-default text-left whitespace-normal ${
+            tooltipPos === 'top' 
+              ? 'bottom-full mb-2 slide-in-from-bottom-2' 
+              : 'top-full mt-2 slide-in-from-top-2'
+          }`}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Glassmorphic Container */}
-          <div className={`relative p-5 rounded-2xl shadow-2xl overflow-hidden border backdrop-blur-xl ${
+          {/* Premium Container matching theme */}
+          <div className={`relative p-3.5 rounded-xl shadow-xl overflow-hidden border ${
             darkMode 
-              ? 'bg-slate-900/95 border-slate-700/60 shadow-black/60' 
-              : 'bg-white/95 border-slate-200/60 shadow-blue-900/10'
+              ? 'bg-slate-900 border-slate-700 shadow-black/60' 
+              : 'bg-white border-slate-200 shadow-slate-300/60'
           }`}>
-            {/* Title with Gradient */}
-            <h4 className={`font-extrabold text-lg leading-snug line-clamp-2 bg-clip-text text-transparent bg-gradient-to-r ${
-              darkMode ? 'from-blue-400 to-indigo-400' : 'from-blue-700 to-indigo-700'
-            }`}>
+            {/* Title */}
+            <h4 className={`font-bold text-[13px] leading-snug line-clamp-2 mb-2 ${
+              darkMode ? 'text-white' : 'text-slate-800'
+            }`} title={title}>
               {title}
             </h4>
-
-            {/* Subtitle */}
-            <h5 className={`font-semibold text-[13px] uppercase tracking-wider mb-2 mt-4 ${
-              darkMode ? 'text-slate-400' : 'text-slate-500'
-            }`}>
-              Relevant snippets from the paper
-            </h5>
-            
-            {/* Elegant Divider */}
-            <div className={`h-[1px] w-full mb-3 bg-gradient-to-r ${
-              darkMode ? 'from-slate-700 via-slate-700/50 to-transparent' : 'from-slate-200 via-slate-200/50 to-transparent'
-            }`}></div>
             
             {/* Snippet Content */}
-            <div className={`mt-3 pl-4 border-l-2 py-1 ${
-              darkMode ? 'border-blue-500/50' : 'border-blue-500'
+            <div className={`pl-3 border-l-2 py-0.5 ${
+              darkMode ? 'border-blue-500' : 'border-blue-400'
             }`}>
-              <p className={`text-[14px] leading-relaxed italic ${
-                darkMode ? 'text-slate-300' : 'text-slate-700'
+              <p className={`text-[12px] leading-relaxed italic line-clamp-4 ${
+                darkMode ? 'text-slate-300' : 'text-slate-600'
               }`}>
                 "{snippet}"
               </p>
@@ -82,23 +85,27 @@ export default function CitationChip({ citeId, citeObj, onClick, darkMode, child
             {/* Action Button */}
             <button
               onClick={onClick}
-              className={`w-full mt-5 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] ${
+              className={`w-full mt-3 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 shadow-sm ${
                 darkMode 
-                  ? 'bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/20' 
+                  ? 'bg-blue-600 hover:bg-blue-500 text-white' 
                   : 'bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200/50'
               }`}
             >
               <span>Xem chi tiết PDF</span>
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="w-3 h-3" />
             </button>
           </div>
           
           {/* Tooltip Arrow/Triangle */}
-          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 rotate-45 transform border-b border-r shadow-sm -z-10"
-               style={{
-                 backgroundColor: darkMode ? '#0f172a' : '#ffffff',
-                 borderColor: darkMode ? 'rgba(51, 65, 85, 0.6)' : 'rgba(226, 232, 240, 0.6)'
-               }}
+          <div className={`absolute left-1/2 -translate-x-1/2 w-3 h-3 rotate-45 transform -z-10 ${
+            tooltipPos === 'top' 
+              ? '-bottom-1.5 border-b border-r' 
+              : '-top-1.5 border-t border-l'
+            }`}
+             style={{
+               backgroundColor: darkMode ? '#0f172a' : '#ffffff', // slate-900 or white
+               borderColor: darkMode ? '#334155' : '#e2e8f0'      // slate-700 or slate-200
+             }}
           />
         </div>
       )}

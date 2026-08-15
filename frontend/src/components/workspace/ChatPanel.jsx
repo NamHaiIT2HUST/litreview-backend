@@ -64,32 +64,30 @@ export default function ChatPanel({
   };
 
   return (
-    <div className={`p-6 rounded-3xl border transition-colors h-full flex flex-col space-y-4 shadow-sm overflow-hidden relative ${
-      darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-800'
-    }`}>
+    <div className={`flex-1 min-h-0 flex flex-col relative bg-transparent`}>
       {/* Chat Messages List */}
-      <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
-        <div className="w-full space-y-8 py-4 px-2">
+      <div className="flex-1 overflow-y-auto custom-scrollbar">
+        <div className="w-full max-w-4xl mx-auto space-y-8 py-6 px-4 md:px-8">
           {chatMessages.map((msg, idx) => (
           <div
             key={idx}
-            className={`flex gap-3 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+            className={`flex gap-4 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             {msg.sender === 'ai' && (
-              <div className="w-9 h-9 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-md">
-                <Bot className="w-5 h-5" />
+              <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-md">
+                <Bot className="w-6 h-6" />
               </div>
             )}
             <div
-              className={`text-sm leading-relaxed ${
+              className={`text-[14px] leading-relaxed ${
                 msg.sender === 'user'
-                  ? 'p-5 rounded-2xl max-w-[85%] bg-blue-600 text-white font-medium'
+                  ? 'px-5 py-3.5 rounded-3xl rounded-tr-sm max-w-[85%] md:max-w-[75%] bg-blue-600 text-white font-medium shadow-sm'
                   : darkMode
-                    ? 'py-2 w-full max-w-full text-slate-200'
-                    : 'py-2 w-full max-w-full text-slate-900'
+                    ? 'py-1.5 w-full max-w-full text-slate-200'
+                    : 'py-1.5 w-full max-w-full text-slate-800'
               }`}
             >
-              <div className={msg.sender === 'user' ? 'whitespace-pre-wrap' : 'prose prose-base md:prose-lg prose-slate dark:prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-slate-800'}>
+              <div className={msg.sender === 'user' ? 'whitespace-pre-wrap' : 'prose prose-slate dark:prose-invert max-w-none prose-p:text-[14px] prose-p:leading-relaxed prose-headings:font-bold prose-h1:text-[16px] prose-h2:text-[15px] prose-h3:text-[14px] prose-li:text-[14px] prose-pre:bg-slate-800'}>
                 {msg.sender === 'user' ? (
                   msg.text
                 ) : (
@@ -175,16 +173,16 @@ export default function ChatPanel({
         ))}
         
         {isTyping && (
-          <div className="flex gap-3 justify-start">
-            <div className="w-9 h-9 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-md">
-              <Bot className="w-5 h-5" />
+          <div className="flex gap-4 justify-start">
+            <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-md">
+              <Bot className="w-6 h-6" />
             </div>
-            <div className={`py-2 w-full max-w-full text-sm leading-relaxed flex items-center gap-1 ${
+            <div className={`py-2.5 w-full max-w-full text-sm leading-relaxed flex items-center gap-1.5 ${
               darkMode ? 'text-slate-200' : 'text-slate-900'
             }`}>
-              <div className="w-2 h-2 rounded-full bg-slate-400 animate-bounce"></div>
-              <div className="w-2 h-2 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-              <div className="w-2 h-2 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+              <div className="w-2.5 h-2.5 rounded-full bg-slate-400 animate-bounce"></div>
+              <div className="w-2.5 h-2.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+              <div className="w-2.5 h-2.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: '0.4s' }}></div>
             </div>
           </div>
         )}
@@ -194,9 +192,9 @@ export default function ChatPanel({
 
 
       {/* Chat Input Bar */}
-      <div className="relative mt-2 shrink-0 w-full flex flex-col gap-2">
+      <div className="relative mt-2 shrink-0 w-full flex flex-col items-center gap-2 mb-4 px-4">
         {selectedSourceIds && selectedSourceIds.length > 0 && (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-100 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-[11px] font-semibold w-max self-start shadow-sm">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-100 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-[11px] font-semibold w-max shadow-sm self-start md:self-center md:-ml-[400px]">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
@@ -204,13 +202,13 @@ export default function ChatPanel({
             Đang chat với {selectedSourceIds.length} tài liệu cụ thể
           </div>
         )}
-        <form onSubmit={handleSendMessage} className="relative w-full">
+        <form onSubmit={handleSendMessage} className="relative w-full max-w-4xl mx-auto">
         <input
           type="text"
           value={inputQuestion}
           onChange={e => setInputQuestion(e.target.value)}
           placeholder="Hỏi AI assistant về phương pháp, hạn chế hoặc hướng nghiên cứu..."
-          className={`w-full pl-6 pr-32 py-4 border rounded-full text-sm font-medium focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 shadow-sm transition-all ${
+          className={`w-full pl-6 pr-32 py-4 border rounded-[2rem] text-[14px] font-medium focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 shadow-sm transition-all ${
             darkMode 
               ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500' 
               : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400'
@@ -218,7 +216,7 @@ export default function ChatPanel({
         />
         <button
           type="submit"
-          className="absolute right-2 top-1/2 -translate-y-1/2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-full text-sm font-bold transition-transform active:scale-95 flex items-center gap-1.5 shadow-md"
+          className="absolute right-2 top-1/2 -translate-y-1/2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-[1.5rem] text-sm font-bold transition-transform active:scale-95 flex items-center gap-1.5 shadow-md"
         >
           <span>Gửi</span>
           <Send className="w-4 h-4" />
