@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { ShieldCheck, Quote, X } from 'lucide-react';
+import { ShieldCheck, X } from 'lucide-react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/TextLayer.css';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
@@ -19,7 +19,7 @@ export default function VerificationPanel({ activeCitation, onClose, darkMode })
     if (!activeCitation?.filename) return null;
     return `http://localhost:8000/api/v1/workspace/uploads/papers/${activeCitation.filename}`;
   }, [activeCitation]);
-  
+
   const pageNumber = useMemo(() => {
     return parseInt(activeCitation?.source_page_display || 1, 10);
   }, [activeCitation]);
@@ -98,7 +98,6 @@ export default function VerificationPanel({ activeCitation, onClose, darkMode })
               <p><strong>{t('verification.raw_chars')}:</strong> {activeCitation.source_char_start ?? '?'}–{activeCitation.source_char_end ?? '?'}</p>
             </div>
           </div>
-
 
           {/* PDF Viewer */}
           {pdfUrl && (

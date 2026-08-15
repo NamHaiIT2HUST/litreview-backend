@@ -99,3 +99,7 @@ async def ensure_local_schema_compatibility():
             await conn.execute(
                 text("ALTER TABLE evidence_records ADD COLUMN merge_reason TEXT")
             )
+        if evidence_columns and "applies_to" not in evidence_columns:
+            await conn.execute(
+                text("ALTER TABLE evidence_records ADD COLUMN applies_to VARCHAR(80) NOT NULL DEFAULT 'study'")
+            )

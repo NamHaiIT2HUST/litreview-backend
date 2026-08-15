@@ -48,13 +48,14 @@ def create_synthesis_llm(settings, *, gemini_cls=None, groq_cls=None, openai_cls
         if not settings.groq_api_key:
             raise RuntimeError("Groq synthesis requires GROQ_API_KEY in .env.")
         if groq_cls is None:
-            from langchain_groq import ChatGroq
+            from langchain_groq import ChatGroq  # type: ignore
 
             groq_cls = ChatGroq
         return groq_cls(
             model=settings.synthesis_model,
             api_key=settings.groq_api_key,
             temperature=settings.synthesis_temperature,
+            max_tokens=8192,
         )
 
     if provider == "openai":
@@ -68,6 +69,7 @@ def create_synthesis_llm(settings, *, gemini_cls=None, groq_cls=None, openai_cls
             model=settings.synthesis_model,
             api_key=settings.openai_api_key,
             temperature=settings.synthesis_temperature,
+            max_tokens=4096,
         )
 
     if provider == "gemini":
@@ -141,7 +143,11 @@ class SynthesisLLMService:
         self._get_llm()
 
     async def _invoke_structured(self, schema, *, system: str, human: str):
-        runner = self._get_llm().with_structured_output(schema)
+        llm = self._get_llm()
+        if getattr(llm, "_llm_type", None) == "openai-chat" or type(llm).__name__ == "ChatOpenAI":
+            runner = llm.with_structured_output(schema, method="json_schema", strict=True)
+        else:
+            runner = llm.with_structured_output(schema)
         messages = [("system", system), ("human", human)]
         for attempt in range(len(self._retry_delays) + 1):
             started = time.perf_counter()
@@ -323,6 +329,7 @@ class SynthesisLLMService:
         contexts_by_dimension: dict[EvidenceDimension, Iterable[tuple[UUID, str]]],
         strict_dimension_ids: bool = False,
         enforce_dimension_membership: bool | None = None,
+        exact_quote_only: bool = False,
     ) -> PaperEvidenceExtractionOutput:
         if enforce_dimension_membership is None:
             enforce_dimension_membership = strict_dimension_ids
@@ -356,6 +363,12 @@ class SynthesisLLMService:
                 "For objective, extract explicit aims/purposes/research questions, not inferred goals. "
                 "For limitations and future_work, accept only author-stated content and never infer or "
                 "convert a weakness into future work. Preserve exact quote and anchor provenance. "
+                + (
+                    "This is a retry after grounding failed. The quote MUST be copied verbatim "
+                    "from one supplied continuous raw page window; do not paraphrase, normalize, or repair wording. "
+                    if exact_quote_only
+                    else "The quote MUST be copied verbatim from a supplied continuous raw page window. "
+                )
                 + (
                     "Never use a source_chunk_id outside its allowed ID list for this dimension. "
                     if enforce_dimension_membership else

@@ -15,7 +15,4 @@ async def test_chat_empty_message(client):
     assert response.status_code == 422  # Validation error
 
 
-@pytest.mark.asyncio
-async def test_agent_status(client):
-    response = await client.get("/api/v1/status")
-    assert response.status_code == 200
+

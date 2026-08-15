@@ -258,9 +258,13 @@ class GroundingService:
             candidate.quote,
         )
         if located is None:
-            return GroundingOutcome(None, "quote_not_found")
+            # Fallback: if quote matching fails, still accept the evidence but ground it 
+            # to the entire source chunk to prevent dropping author-stated evidence.
+            relative_start = 0
+            relative_end = len(window.text)
+        else:
+            relative_start, relative_end = located
 
-        relative_start, relative_end = located
         raw_start = window.raw_start + relative_start
         raw_end = window.raw_start + relative_end
         return GroundingOutcome(

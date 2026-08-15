@@ -433,6 +433,21 @@ async def delete_search_query(
     await db.delete(sq)
     await db.commit()
     return {"message": "Search query deleted successfully", "id": str(query_id)}
+
+@router.delete("/papers/{paper_id}")
+async def delete_paper(
+    paper_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Xóa một paper khỏi database."""
+    from sqlalchemy import delete as sql_delete
+    result = await db.execute(sql_delete(Paper).where(Paper.id == paper_id))
+    await db.commit()
+    if result.rowcount == 0:
+        raise HTTPException(status_code=404, detail="Paper not found")
+    return {"message": "Paper deleted successfully", "id": str(paper_id)}
+
+# ──────────────────────────────────────────────────────────────────────────────
 # Quality Verification endpoint (Module 4)
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -647,112 +662,6 @@ async def upload_paper_pdf(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/workspace/direct-upload", response_model=DirectUploadResponse)
-async def direct_upload_pdf(
-    file: UploadFile = File(...),
-    title: str = Form(...),
-    db: AsyncSession = Depends(get_db),
-) -> DirectUploadResponse:
-    """Upload a PDF directly from Workspace without a prior paper search result."""
-    if not file.filename or not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Only PDF files are allowed.")
-
-    try:
-        project_uuid = uuid.UUID(DEFAULT_PROJECT_ID)
-        # Ensure a default SearchQuery exists for direct uploads to satisfy database constraints
-        sq_stmt = select(SearchQuery).where(SearchQuery.project_id == project_uuid)
-        sq_res = await db.execute(sq_stmt)
-        sq = sq_res.scalars().first()
-        if not sq:
-            sq = SearchQuery(
-                id=uuid.uuid4(),
-                project_id=project_uuid,
-                query_string="Direct Upload",
-                strategy_label="direct_upload",
-                result_count=0
-            )
-            db.add(sq)
-            await db.flush()
-
-        # Create a new Paper record for this direct upload
-        paper_uuid = uuid.uuid4()
-        paper = Paper(
-            id=paper_uuid,
-            project_id=project_uuid,
-            search_query_id=sq.id,
-            title=title,
-            authors="Direct Upload",
-            year=2024,
-            abstract="",
-            source="direct_upload",
-            dedup_key=f"direct_upload_{paper_uuid}"
-        )
-        db.add(paper)
-        await db.flush()
-
-        file_path = await processor.save_upload_file(file)
-        pages, chunks = processor.extract_and_chunk(file_path, paper_title=paper.title)
-        
-        if not chunks or all(not chunk.page_content.strip() for chunk in chunks):
-            raise HTTPException(
-                status_code=422,
-                detail="PDF không trích được văn bản — có thể là file scan/ảnh."
-            )
-
-        ingestion_id = await persist_pdf_provenance(
-            db=db,
-            paper=paper,
-            pages=pages,
-            chunks=chunks,
-            parser_metadata=processor.parser_metadata(),
-        )
-
-        old_vector_ids = []
-        cleanup_job = None
-        try:
-            old_vector_ids = await vector_store_service.stage_documents_for_paper(
-                str(paper.id), chunks
-            )
-            cleanup_job = await create_vector_cleanup_job(
-                db,
-                paper_id=paper.id,
-                ingestion_id=ingestion_id,
-                vector_ids=old_vector_ids,
-            )
-            await db.commit()
-        except Exception as e:
-            await vector_store_service.delete_documents_by_ingestion(str(ingestion_id))
-            await db.rollback()
-            import traceback
-            with open("upload_error.log", "w") as f:
-                traceback.print_exc(file=f)
-            raise
-
-        if cleanup_job is not None:
-            try:
-                from src.tasks.vector_cleanup_tasks import run_vector_cleanup_job
-                run_vector_cleanup_job.delay(str(cleanup_job.id))
-            except Exception as cleanup_enqueue_exc:
-                import logging
-                logging.getLogger(__name__).warning("Vector cleanup enqueue failed: %s", cleanup_enqueue_exc)
-
-        return DirectUploadResponse(
-            paper_id=str(paper.id),
-            title=title,
-            filename=file.filename,
-            total_pages=len(pages),
-            total_chunks=len(chunks),
-            message="Direct upload successful"
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        await db.rollback()
-        import traceback
-        with open("upload_error_outer.log", "w", encoding="utf-8") as f:
-            traceback.print_exc(file=f)
-        raise HTTPException(status_code=500, detail=str(e))
-
 @router.get("/workspace/test-search")
 async def test_vector_search(query: str = Query(...)):
     """
@@ -835,9 +744,15 @@ async def get_evidence_coords(
     import fitz  # PyMuPDF
     import logging
     
-    file_path = os.path.join("uploads", "papers", request.filename)
+    base_dir = os.path.join("uploads", "papers")
+    file_path = os.path.join(base_dir, request.filename)
     if not os.path.exists(file_path):
-        return EvidenceCoordsResponse(rects=[])
+        for root, dirs, files in os.walk(base_dir):
+            if request.filename in files:
+                file_path = os.path.join(root, request.filename)
+                break
+        else:
+            return EvidenceCoordsResponse(rects=[])
     
     try:
         doc = fitz.open(file_path)
@@ -986,12 +901,18 @@ async def create_synthesis_session(
     await db.commit()
 
     try:
-        from src.tasks.synthesis_tasks import run_synthesis_task
         if get_settings().app_env == "development":
             # Local mode needs no Redis/Celery process; FastAPI runs the same
             # task body after returning 202. Production remains queue-backed.
-            background_tasks.add_task(run_synthesis_task.run, str(session.id))
+            async def local_run_synthesis(sid: str):
+                from src.tasks.synthesis_tasks import run_synthesis_session, _mark_terminal_failure
+                try:
+                    await run_synthesis_session(sid)
+                except Exception as exc:
+                    await _mark_terminal_failure(sid, exc)
+            background_tasks.add_task(local_run_synthesis, str(session.id))
         else:
+            from src.tasks.synthesis_tasks import run_synthesis_task
             run_synthesis_task.delay(str(session.id))
     except Exception as exc:
         session.status = SynthesisStatus.failed
@@ -1078,7 +999,17 @@ async def get_pdf_file(filename: str):
     """Serve uploaded PDF files."""
     from fastapi.responses import FileResponse
     import os
-    file_path = os.path.join("uploads", "papers", filename)
+    
+    base_dir = os.path.join("uploads", "papers")
+    file_path = os.path.join(base_dir, filename)
+    
     if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="File not found")
+        # Fallback: search in subdirectories (e.g. project_id directories)
+        for root, dirs, files in os.walk(base_dir):
+            if filename in files:
+                file_path = os.path.join(root, filename)
+                break
+        else:
+            raise HTTPException(status_code=404, detail="File not found")
+            
     return FileResponse(file_path, media_type="application/pdf")

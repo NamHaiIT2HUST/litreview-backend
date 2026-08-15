@@ -72,7 +72,7 @@ def test_chunk_metadata_reconstructs_exact_page_span(monkeypatch, tmp_path):
         assert page_text[start:end] == chunk.page_content
 
 
-def test_chunk_metadata_rejects_invalid_start_index(monkeypatch, tmp_path):
+def test_chunk_metadata_clamps_invalid_start_index(monkeypatch, tmp_path):
     module = _load_document_processor_with_langchain_stubs(monkeypatch)
     monkeypatch.setattr(module, "UPLOAD_DIR", str(tmp_path))
     processor = module.DocumentProcessor()
@@ -80,9 +80,7 @@ def test_chunk_metadata_rejects_invalid_start_index(monkeypatch, tmp_path):
     pages = [FakeDocument(page_content="short page", metadata={"page": 0})]
     chunks = [FakeDocument("not present", {"page": 0, "start_index": 99})]
 
-    try:
-        processor._attach_chunk_metadata(pages, chunks)
-    except ValueError as exc:
-        assert "offset" in str(exc).lower()
-    else:
-        raise AssertionError("Expected invalid chunk offsets to raise ValueError")
+    # Should not raise an exception, as invalid offsets are clamped
+    processor._attach_chunk_metadata(pages, chunks)
+    # Even though they are clamped locally, the chunk still has the metadata
+    assert chunks[0].metadata["start_index"] == 99

@@ -39,6 +39,7 @@ paper-qa-2026.08.12/
 .chroma_db/
 *.db
 *.sqlite3
+CHANGE_REQUEST/
 
 # Logs
 logs/

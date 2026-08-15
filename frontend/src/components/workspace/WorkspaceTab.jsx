@@ -296,7 +296,12 @@ export default function WorkspaceTab({
     setTimeout(() => setUploadQueue([]), 3000); // Clear after 3s
   };
 
-  const removeSource = (id) => {
+  const removeSource = async (id) => {
+    try {
+      await fetch(`${API_BASE}/papers/${id}`, { method: 'DELETE' });
+    } catch (err) {
+      console.error('Failed to delete paper from backend:', err);
+    }
     setWorkspacePapers((prev) => prev.filter((p) => p.id !== id));
     if (setPapers) setPapers((prev) => prev.filter((p) => p.id !== id));
     setSelectedPaperIds((prev) => prev.filter((paperId) => paperId !== id));

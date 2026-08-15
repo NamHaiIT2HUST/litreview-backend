@@ -61,16 +61,24 @@ def should_accept_dimension_scope(
     dimension = normalize_dimension(dimension)
     scope = applies_to if isinstance(applies_to, EvidenceSubjectScope) else EvidenceSubjectScope(applies_to)
     if dimension == EvidenceDimension.limitations:
-        return scope in {EvidenceSubjectScope.proposed_method, EvidenceSubjectScope.study}
+        return scope in {
+            EvidenceSubjectScope.proposed_method,
+            EvidenceSubjectScope.study,
+            EvidenceSubjectScope.general,
+        }
     return True
 
 
 def dimension_retrieval_hint(dimension: EvidenceDimension | str) -> str:
     dimension = normalize_dimension(dimension)
     hints = {
+        EvidenceDimension.objective: "objective goal purpose aim problem tackled research question",
+        EvidenceDimension.method: "methodology proposed method approach algorithm technique architecture framework model design",
         EvidenceDimension.dataset: "datasets benchmark data Table sample cohort experimental cases",
         EvidenceDimension.evaluation: "evaluation metrics accuracy runtime efficiency comparison protocol",
-        EvidenceDimension.limitations: "limitations drawbacks proposed method study threats validity",
+        EvidenceDimension.findings: "results findings conclusion performance achieved outperformed state-of-the-art summary",
+        EvidenceDimension.limitations: "limitations drawbacks future work discussion threats to validity shortcomings fail poor performance",
+        EvidenceDimension.future_work: "future work future research next steps",
     }
     return hints.get(dimension, dimension.value)
 
