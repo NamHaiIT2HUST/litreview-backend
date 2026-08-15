@@ -24,6 +24,17 @@ def test_locate_quote_handles_pdf_linebreak_hyphenation_without_fuzzy_acceptance
     assert raw[start:end] == raw
 
 
+def test_locate_quote_handles_pdf_hyphen_followed_by_collapsed_linebreak_space():
+    raw = "values of D- \nefficiency and SAS sta-\ntistical software"
+    quote = "values of D- efficiency and SAS sta- statistical software"
+
+    located = locate_quote_in_raw_text(raw, quote)
+
+    assert located is not None
+    start, end = located
+    assert raw[start:end] == raw
+
+
 def test_locate_quote_returns_none_when_meaning_changed_even_if_words_overlap():
     raw = "The intervention did not significantly improve accuracy."
     changed = "The intervention significantly improved accuracy."

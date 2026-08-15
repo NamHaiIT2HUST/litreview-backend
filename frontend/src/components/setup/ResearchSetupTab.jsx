@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { BookOpen, Target, Settings, Save, Loader2, Wand2, Plus, X, CheckCircle2 } from 'lucide-react';
+import { normalizeResearchSetup } from '../../utils/researchSetup';
 
 const API_BASE = 'http://localhost:8000/api/v1';
 const DEFAULT_PROJECT_ID = '00000000-0000-0000-0000-000000000001';
@@ -9,21 +10,7 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
   const [saved, setSaved] = useState(false);
   
   const [projectData, setProjectData] = useState(() => {
-    try {
-      const cached = localStorage.getItem('research_setup_data');
-      if (cached) return JSON.parse(cached);
-    } catch (e) {
-      console.error(e);
-    }
-    return {
-      name: '',
-      research_question: '',
-      research_field: '',
-      year_from: 2018,
-      year_to: 2026,
-      criteria_include: [],
-      criteria_exclude: []
-    };
+    return normalizeResearchSetup({});
   });
 
   const [newInclude, setNewInclude] = useState('');
@@ -46,8 +33,9 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
         const res = await fetch(`${API_BASE}/projects/${DEFAULT_PROJECT_ID}`);
         if (res.ok) {
           const data = await res.json();
-          setProjectData(data);
-          localStorage.setItem('research_setup_data', JSON.stringify(data));
+          const normalized = normalizeResearchSetup(data);
+          setProjectData(normalized);
+          localStorage.setItem('research_setup_data', JSON.stringify(normalized));
         }
       } catch (err) {
         console.error("DB connection error:", err);

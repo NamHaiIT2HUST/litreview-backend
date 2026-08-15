@@ -84,3 +84,51 @@ def test_synthesis_request_schema_allows_runtime_configured_limits_above_15():
         paper_ids=[uuid.uuid4() for _ in range(16)],
     )
     assert len(request.paper_ids) == 16
+
+
+def test_structured_paper_evidence_groups_grounded_items_by_dimension():
+    import uuid
+
+    from src.models.synthesis_schemas import (
+        EvidenceDimension,
+        EvidenceSubjectScope,
+        GroundedEvidence,
+        StructuredPaperEvidence,
+    )
+
+    paper_id = uuid.uuid4()
+    item = GroundedEvidence(
+        paper_id=paper_id,
+        dimension=EvidenceDimension.findings,
+        value="Accuracy improved.",
+        quote="Accuracy improved by five points.",
+        source_chunk_id=uuid.uuid4(),
+        page_text_id=uuid.uuid4(),
+        page_number=1,
+        page_char_start=10,
+        page_char_end=44,
+    )
+    structured = StructuredPaperEvidence(
+        paper_id=paper_id,
+        dimensions={EvidenceDimension.findings: [item]},
+    )
+
+    assert structured.dimensions[EvidenceDimension.findings][0].quote == item.quote
+    assert structured.dimensions[EvidenceDimension.objective] == []
+
+
+def test_batch_decisive_claim_verification_requires_evidence_ids():
+    import uuid
+
+    import pytest
+    from pydantic import ValidationError
+
+    from src.models.synthesis_schemas import ClaimVerificationBatchItem
+
+    with pytest.raises(ValidationError):
+        ClaimVerificationBatchItem(
+            claim_id=uuid.uuid4(),
+            status="supported",
+            evidence_ids=[],
+            reason="Unsupported decisive response.",
+        )

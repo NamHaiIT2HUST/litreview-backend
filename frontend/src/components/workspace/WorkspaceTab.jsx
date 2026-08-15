@@ -2,6 +2,7 @@ import React, { useCallback, useRef, useState } from 'react';
 import ChatPanel from './ChatPanel';
 import VerificationPanel from './VerificationPanel';
 import SynthesisPanel from './SynthesisPanel';
+import { persistedDirectUploadSources } from '../../utils/workspaceSources';
 import {
   Bot,
   UploadCloud,
@@ -168,7 +169,47 @@ export default function WorkspaceTab({
   const [uploadQueue, setUploadQueue] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const [selectedSourceIds, setSelectedSourceIds] = useState([]);
-  const [showSynthesis, setShowSynthesis] = useState(false);
+  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState('chat');
+  const [isRestoring, setIsRestoring] = useState(false);
+
+  // ── Restore persisted uploaded papers on mount ──
+  React.useEffect(() => {
+    let cancelled = false;
+    const restoreUploads = async () => {
+      setIsRestoring(true);
+      try {
+        const response = await fetch(`${API_BASE}/projects/00000000-0000-0000-0000-000000000001/papers?include_unverified=true`);
+        if (!response.ok) return;
+        const persisted = persistedDirectUploadSources(await response.json());
+        if (cancelled) return;
+        setWorkspacePapers((current) => {
+          return (current || []).map((paper) => {
+            const match = persisted.find(
+              (p) => p.id === paper.id || (p.title === paper.title && p.source === paper.source)
+            );
+            if (match) {
+              return {
+                ...paper,
+                id: match.id,
+                totalPages: match.totalPages || paper.totalPages,
+                totalChunks: match.totalChunks || paper.totalChunks,
+              };
+            }
+            return paper;
+          });
+        });
+      } catch (error) {
+        console.error('Unable to restore uploaded workspace papers:', error);
+      } finally {
+        if (!cancelled) setIsRestoring(false);
+      }
+    };
+    restoreUploads();
+    return () => {
+      cancelled = true;
+    };
+  }, [setWorkspacePapers]);
+
 
   // Lọc và gộp danh sách nguồn tài liệu
   const allSources = React.useMemo(() => {
@@ -289,58 +330,75 @@ export default function WorkspaceTab({
       </div>
 
       {/* ── RIGHT: Chat & Synthesis Panel ── */}
-      <div className="lg:col-span-9 flex flex-col gap-5 h-full min-h-0 overflow-y-auto">
+      <div className="lg:col-span-9 flex flex-col gap-5 h-full min-h-0 overflow-hidden">
         
-        {/* Synthesis Tools Toggle */}
-        <div className={`rounded-3xl border overflow-hidden transition-all shrink-0 ${
+        {/* Tab bar */}
+        <div className={`flex items-center justify-between px-4 py-3 rounded-3xl border shrink-0 ${
           darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
         }`}>
-          <button 
-            onClick={() => setShowSynthesis(!showSynthesis)}
-            className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400 rounded-xl">
-                <Sparkles className="w-5 h-5" />
-              </div>
-              <h2 className="font-bold text-sm">Công cụ Trích xuất / Synthesis</h2>
-            </div>
-            {showSynthesis ? <ChevronUp className="w-5 h-5 opacity-50" /> : <ChevronDown className="w-5 h-5 opacity-50" />}
-          </button>
-          
-          {showSynthesis && (
-            <div className="p-4 pt-0 border-t dark:border-slate-800">
-              <SynthesisPanel
-                workspacePapers={workspacePapers}
-                setActiveCitation={setActiveCitation}
-                darkMode={darkMode}
-              />
-            </div>
-          )}
+          <div className={`flex gap-1 p-1 rounded-xl ${darkMode ? 'bg-slate-800' : 'bg-slate-100'}`}>
+            {[
+              ['chat', 'Chat', Bot, 'Chat với tài liệu'],
+              ['synthesis', 'Synthesis', Sparkles, 'Tổng hợp nghiên cứu'],
+            ].map(([id, label, Icon, title]) => (
+              <button
+                key={id}
+                type="button"
+                title={title}
+                onClick={() => setActiveWorkspaceTab(id)}
+                className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
+                  activeWorkspaceTab === id
+                    ? 'bg-white text-blue-600 shadow-sm dark:bg-slate-700 dark:text-blue-400'
+                    : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-3">
+             {activeCitation && activeWorkspaceTab === 'chat' && (
+                <span className="text-xs font-bold bg-blue-100 text-blue-600 px-3 py-1 rounded-lg">
+                  Đang mở Xác minh
+                </span>
+             )}
+          </div>
         </div>
 
-        {/* Chat / Verification Split */}
-        <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-5 min-h-0">
-          <div className={`${activeCitation ? 'lg:col-span-7' : 'lg:col-span-12'} h-full rounded-3xl border flex flex-col overflow-hidden ${
-            darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-          }`}>
-            <ChatPanel
+        {/* Content Area */}
+        {activeWorkspaceTab === 'synthesis' ? (
+          <div className="flex-1 overflow-y-auto min-h-0 pb-4 custom-scrollbar">
+            <SynthesisPanel
               workspacePapers={workspacePapers}
-              selectedSourceIds={selectedSourceIds}
-              chatMessages={chatMessages}
-              setChatMessages={setChatMessages}
-              activeCitation={activeCitation}
               setActiveCitation={setActiveCitation}
               darkMode={darkMode}
             />
           </div>
-
-          {activeCitation && (
-            <div className="lg:col-span-5 h-full overflow-y-auto">
-              <VerificationPanel activeCitation={activeCitation} darkMode={darkMode} />
+        ) : (
+          /* Chat / Verification Split */
+          <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-5 min-h-0 pb-4">
+            <div className={`${activeCitation ? 'lg:col-span-7' : 'lg:col-span-12'} h-full rounded-3xl border flex flex-col overflow-hidden ${
+              darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+            }`}>
+              <ChatPanel
+                workspacePapers={workspacePapers}
+                selectedSourceIds={selectedSourceIds}
+                chatMessages={chatMessages}
+                setChatMessages={setChatMessages}
+                activeCitation={activeCitation}
+                setActiveCitation={setActiveCitation}
+                darkMode={darkMode}
+              />
             </div>
-          )}
-        </div>
+
+            {activeCitation && (
+              <div className="lg:col-span-5 h-full overflow-y-auto custom-scrollbar">
+                <VerificationPanel activeCitation={activeCitation} darkMode={darkMode} />
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

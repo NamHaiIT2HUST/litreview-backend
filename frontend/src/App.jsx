@@ -117,11 +117,10 @@ export default function App() {
         setActiveTab={setActiveTab}
         darkMode={darkMode}
         setDarkMode={setDarkMode}
-        uploadedCount={selectedPaperIds.length}
       />
 
       {/* Main Multi-Step Navigation Content Area */}
-      <main className={`p-4 md:p-8 mx-auto transition-all ${activeTab === 'synthesis' || activeTab === 'search' ? 'max-w-[1920px] w-full' : 'max-w-7xl'}`}>
+      <main className={`mx-auto transition-all ${activeTab === 'synthesis' ? 'p-0 max-w-[1920px] w-full' : 'p-4 md:p-8'} ${activeTab === 'search' ? 'max-w-[1920px] w-full' : activeTab === 'synthesis' ? '' : 'max-w-7xl'}`}>
         {activeTab === 'overview' && (
           <HomeTab setActiveTab={setActiveTab} darkMode={darkMode} />
         )}

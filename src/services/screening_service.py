@@ -8,9 +8,12 @@ from src.models.db_models import Paper, ScreeningHistory, ScreeningDecision, Rel
 from src.services.rag_service import rag_service
 from src.models.screening_schemas import ScreenResponse
 
-async def recompute_priority(paper_id: str, db: AsyncSession):
+import uuid
+
+async def recompute_priority(paper_id: str | uuid.UUID, db: AsyncSession):
     """Tính lại Priority Score (0-1) theo công thức ở Module 3."""
-    result = await db.execute(select(Paper).where(Paper.id == paper_id))
+    p_id = uuid.UUID(str(paper_id)) if not isinstance(paper_id, uuid.UUID) else paper_id
+    result = await db.execute(select(Paper).where(Paper.id == p_id))
     paper = result.scalar_one_or_none()
     if not paper:
         return
@@ -128,12 +131,10 @@ Tóm tắt (Abstract): {abstract}
         import logging
         logging.getLogger(__name__).error(f"Error screening paper with AI: {e}")
         return ScreenResponse(
-            relevance_bucket="high",
+            relevance_bucket="insufficient_info",
             reason={
-                "matches": [
-                    f"Bài báo '{paper.title}' nghiên cứu về lĩnh vực {getattr(project, 'research_field', 'liên quan')}.",
-                    f"Khớp với định hướng nghiên cứu: {getattr(project, 'research_question', 'đặt ra')}."
-                ],
-                "mismatches": ["Không phát hiện vi phạm tiêu chí loại trừ nào."]
+                "matches": [],
+                "mismatches": ["Lỗi khi gọi AI phân tích (Exception). Vui lòng kiểm tra lại API Key hoặc hệ thống mạng."],
+                "exclusion_notes": []
             }
         )

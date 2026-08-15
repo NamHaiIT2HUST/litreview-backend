@@ -29,7 +29,12 @@ class Settings(BaseSettings):
     model_name: str = "gemini-1.5-flash"
     llm_temperature: float = Field(default=0.7, ge=0.0, le=2.0)
     synthesis_temperature: float = Field(default=0.0, ge=0.0, le=1.0)
-    embedding_model: str = "text-embedding-004"
+    synthesis_llm_provider: Literal["gemini", "groq", "openai"] = "openai"
+    synthesis_model: str = "gpt-4o-mini"
+    synthesis_llm_max_concurrency: int = Field(default=3, ge=1, le=10)
+    groq_api_key: str = ""
+    embedding_model: str = "text-embedding-3-small"
+    embedding_provider: Literal["local", "gemini", "openai"] = "openai"
 
     @property
     def get_api_base(self) -> str:

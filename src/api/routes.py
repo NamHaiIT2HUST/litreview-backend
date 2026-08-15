@@ -355,12 +355,11 @@ async def get_papers_for_query(
     if not sq:
         raise HTTPException(status_code=404, detail=f"Search query '{query_id}' not found")
 
-    from src.models.db_models import ScopusStatusEnum
     result = await db.execute(
         select(Paper)
         .where(
             Paper.search_query_id == query_uuid,
-            (Paper.scopus_status == ScopusStatusEnum.INDEXED) | (Paper.scopus_status == "indexed")
+            (Paper.scopus_status == ScopusStatus.indexed) | (Paper.scopus_status == "indexed")
         )
     )
     papers = result.scalars().all()
@@ -585,16 +584,32 @@ async def direct_upload_pdf(
 
     try:
         project_uuid = uuid.UUID(DEFAULT_PROJECT_ID)
-        paper_uuid = uuid.uuid4()
-        
+        # Ensure a default SearchQuery exists for direct uploads to satisfy database constraints
+        sq_stmt = select(SearchQuery).where(SearchQuery.project_id == project_uuid)
+        sq_res = await db.execute(sq_stmt)
+        sq = sq_res.scalars().first()
+        if not sq:
+            sq = SearchQuery(
+                id=uuid.uuid4(),
+                project_id=project_uuid,
+                query_string="Direct Upload",
+                strategy_label="direct_upload",
+                result_count=0
+            )
+            db.add(sq)
+            await db.flush()
+
         # Create a new Paper record for this direct upload
+        paper_uuid = uuid.uuid4()
         paper = Paper(
             id=paper_uuid,
             project_id=project_uuid,
+            search_query_id=sq.id,
             title=title,
             authors="Direct Upload",
             year=2024,
             abstract="",
+            source="direct_upload",
             dedup_key=f"direct_upload_{paper_uuid}"
         )
         db.add(paper)
@@ -684,30 +699,9 @@ async def test_vector_search(query: str = Query(...)):
 @router.post("/workspace/chat", response_model=WorkspaceChatResponse)
 async def workspace_chat(request: WorkspaceChatRequest) -> WorkspaceChatResponse:
     """
-    Chat với trợ lý AI về các bài báo đã tải lên (RAG).
+    Chat với trợ lý AI về các bài báo đã tải lên (RAG chuẩn NotebookLM).
     """
     try:
-        # Heuristic phát hiện câu hỏi nghiên cứu sâu
-        is_deep = any(kw in request.message.lower() for kw in [
-            "discuss", "overview", "phân tích", "so sánh", "tại sao", "giải thích", "deep", "tổng quan", "định nghĩa"
-        ])
-        
-        if is_deep:
-            paper_ids_list = request.paper_ids if getattr(request, "paper_ids", None) else []
-            if getattr(request, "paper_id", None) and request.paper_id not in paper_ids_list:
-                paper_ids_list.append(request.paper_id)
-                
-            result = await agent.ainvoke({
-                "query": request.message,
-                "task_type": "deep_research",
-                "paper_ids": paper_ids_list
-            })
-            
-            return WorkspaceChatResponse(
-                answer=result.get("response", ""),
-                context_used=[],
-                citations=[]
-            )
 
         # --- LUỒNG RAG TRUYỀN THỐNG (SUPER FAST) ---
         # Bước 1: Tìm kiếm tài liệu liên quan trong ChromaDB
@@ -782,38 +776,60 @@ async def get_evidence_coords(
         page_width = page_rect.width
         page_height = page_rect.height
         
-        # Searching the snippet
-        # If snippet has newlines or variations, search_for can be tricky. We might just search for the first 30-50 chars to locate the bounding box, or use the whole snippet.
         search_text = request.snippet.strip()
-        
-        # We might need to split by newline if the text is multi-line
-        instances = page.search_for(search_text)
-        
-        if not instances:
-            # For long chunks, search_for with the whole text might fail due to hyphens/newlines.
-            # Fallback: search for the first 50 chars and last 50 chars, or split into words.
-            # A simple approach is to just search for the first few words to at least highlight the start.
-            first_part = search_text[:60].strip()
-            if first_part:
-                instances = page.search_for(first_part)
-                
-            # Try to get the end of the chunk too
-            last_part = search_text[-60:].strip()
-            if last_part:
-                instances.extend(page.search_for(last_part))
-                
-        # If still empty, try even shorter
-        if not instances and len(search_text) > 20:
-            instances = page.search_for(search_text[:20])
-
         rects = []
-        for inst in instances:
-            rects.append(RectCoord(
-                x=inst.x0 / page_width,
-                y=inst.y0 / page_height,
-                width=(inst.x1 - inst.x0) / page_width,
-                height=(inst.y1 - inst.y0) / page_height
-            ))
+        
+        # Robust word-level matching
+        import re
+        def clean_word(w):
+            return re.sub(r'\W+', '', w).lower()
+
+        search_words = [clean_word(w) for w in search_text.split() if clean_word(w)]
+        page_words = page.get_text("words")
+        
+        if search_words and page_words:
+            best_start = 0
+            best_end = 0
+            max_matches = -1
+            
+            window_size = min(len(search_words) + 15, len(page_words))
+            
+            for i in range(len(page_words) - window_size + 1):
+                p_ptr = i
+                s_ptr = 0
+                matches = 0
+                while p_ptr < i + window_size and s_ptr < len(search_words):
+                    cw = clean_word(page_words[p_ptr][4])
+                    if not cw:
+                        p_ptr += 1
+                        continue
+                        
+                    # look ahead in search_words
+                    for lookahead in range(4):
+                        if s_ptr + lookahead < len(search_words) and cw == search_words[s_ptr + lookahead]:
+                            matches += 1
+                            s_ptr += lookahead + 1
+                            break
+                    p_ptr += 1
+                
+                if matches > max_matches:
+                    max_matches = matches
+                    best_start = i
+                    best_end = p_ptr - 1
+
+            if max_matches > 0 and max_matches >= len(search_words) * 0.2:
+                # Collect bounding boxes for these words
+                for i in range(best_start, best_end + 1):
+                    w = page_words[i]
+                    rects.append(RectCoord(
+                        x=w[0] / page_width,
+                            y=w[1] / page_height,
+                            width=(w[2] - w[0]) / page_width,
+                            height=(w[3] - w[1]) / page_height
+                        ))
+                    
+                    return EvidenceCoordsResponse(rects=rects)
+
 
             
         return EvidenceCoordsResponse(rects=rects)
@@ -835,24 +851,29 @@ async def create_synthesis_session(
     db: AsyncSession = Depends(get_db),
 ) -> SynthesisSessionCreatedResponse:
     """Create and enqueue a long-running evidence-first synthesis session."""
-    project_result = await db.execute(select(Project).where(Project.id == request.project_id))
+    try:
+        project_uuid = uuid.UUID(str(request.project_id))
+    except ValueError:
+        raise HTTPException(status_code=422, detail=f"Invalid project_id format: {request.project_id}")
+    project_result = await db.execute(select(Project).where(Project.id == project_uuid))
     project = project_result.scalar_one_or_none()
     if project is None:
         raise HTTPException(status_code=404, detail=f"Project '{request.project_id}' not found")
 
     # Keep first occurrence/order because citation numbering follows user selection.
-    paper_ids = list(dict.fromkeys(request.paper_ids))
+    raw_paper_ids = list(dict.fromkeys(request.paper_ids))
     max_papers = get_settings().synthesis_max_papers
-    if len(paper_ids) > max_papers:
+    if len(raw_paper_ids) > max_papers:
         raise HTTPException(
             status_code=422,
             detail=f"Synthesis accepts at most {max_papers} papers per session.",
         )
-    paper_result = await db.execute(select(Paper).where(Paper.id.in_(paper_ids)))
+    parsed_paper_ids = [uuid.UUID(str(pid)) for pid in raw_paper_ids]
+    paper_result = await db.execute(select(Paper).where(Paper.id.in_(parsed_paper_ids)))
     papers = list(paper_result.scalars().all())
     by_id = {paper.id: paper for paper in papers}
 
-    missing = [paper_id for paper_id in paper_ids if paper_id not in by_id]
+    missing = [pid for pid in parsed_paper_ids if pid not in by_id]
     if missing:
         raise HTTPException(
             status_code=404,
@@ -860,7 +881,7 @@ async def create_synthesis_session(
         )
 
     foreign_project = [
-        paper.id for paper in papers if paper.project_id != request.project_id
+        paper.id for paper in papers if paper.project_id != project_uuid
     ]
     if foreign_project:
         raise HTTPException(
@@ -872,17 +893,18 @@ async def create_synthesis_session(
     # Enqueue synthesis job
     session = SynthesisSession(
         id=uuid.uuid4(),
-        project_id=request.project_id,
-        paper_ids=paper_ids,
-        status=SynthesisStatus.PENDING,
+        project_id=project_uuid,
+        paper_ids=[str(pid) for pid in parsed_paper_ids],
+        status=SynthesisStatus.processing,
     )
     db.add(session)
     await db.commit()
     await db.refresh(session)
 
     try:
+        import asyncio
         from src.tasks.synthesis_tasks import run_synthesis_session
-        run_synthesis_session.delay(str(session.id))
+        asyncio.create_task(run_synthesis_session(str(session.id)))
     except Exception as enqueue_exc:
         import logging
         logging.getLogger(__name__).warning(
@@ -937,3 +959,13 @@ async def get_synthesis_session(
             for item in citations
         ],
     )
+
+@router.get("/workspace/uploads/papers/{filename}")
+async def get_pdf_file(filename: str):
+    """Serve uploaded PDF files."""
+    from fastapi.responses import FileResponse
+    import os
+    file_path = os.path.join("uploads", "papers", filename)
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File not found")
+    return FileResponse(file_path, media_type="application/pdf")

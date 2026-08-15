@@ -1,0 +1,189 @@
+============================= test session starts =============================
+platform win32 -- Python 3.11.9, pytest-9.1.1, pluggy-1.6.0
+rootdir: d:\AI Thực chiến\Project\P-165
+plugins: anyio-4.14.2, langsmith-0.10.10, asyncio-1.4.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 128 items / 13 errors
+
+=================================== ERRORS ====================================
+_ ERROR collecting ai2-scholarqa-lib-main/api/scholarqa/test_edit_pipeline_integration.py _
+ImportError while importing test module 'd:\AI Thực chiến\Project\P-165\ai2-scholarqa-lib-main\api\scholarqa\test_edit_pipeline_integration.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\Nguyen Dao Nam Hai\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ai2-scholarqa-lib-main\api\scholarqa\__init__.py:1: in <module>
+    from .scholar_qa import ScholarQA
+ai2-scholarqa-lib-main\api\scholarqa\scholar_qa.py:10: in <module>
+    from anyascii import anyascii
+E   ModuleNotFoundError: No module named 'anyascii'
+_ ERROR collecting ai2-scholarqa-lib-main/api/tests/lite/test_prompt_utils.py _
+ImportError while importing test module 'd:\AI Thực chiến\Project\P-165\ai2-scholarqa-lib-main\api\tests\lite\test_prompt_utils.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\Nguyen Dao Nam Hai\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ai2-scholarqa-lib-main\api\tests\lite\test_prompt_utils.py:7: in <module>
+    from scholarqa.lite.prompt_utils import (
+ai2-scholarqa-lib-main\api\scholarqa\__init__.py:1: in <module>
+    from .scholar_qa import ScholarQA
+ai2-scholarqa-lib-main\api\scholarqa\scholar_qa.py:10: in <module>
+    from anyascii import anyascii
+E   ModuleNotFoundError: No module named 'anyascii'
+_ ERROR collecting ai2-scholarqa-lib-main/api/tests/lite/test_response_parser.py _
+ImportError while importing test module 'd:\AI Thực chiến\Project\P-165\ai2-scholarqa-lib-main\api\tests\lite\test_response_parser.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\Nguyen Dao Nam Hai\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ai2-scholarqa-lib-main\api\tests\lite\test_response_parser.py:5: in <module>
+    from scholarqa.lite.response_parser import (
+ai2-scholarqa-lib-main\api\scholarqa\__init__.py:1: in <module>
+    from .scholar_qa import ScholarQA
+ai2-scholarqa-lib-main\api\scholarqa\scholar_qa.py:10: in <module>
+    from anyascii import anyascii
+E   ModuleNotFoundError: No module named 'anyascii'
+_ ERROR collecting ai2-scholarqa-lib-main/api/tests/test_citation_validation.py _
+ImportError while importing test module 'd:\AI Thực chiến\Project\P-165\ai2-scholarqa-lib-main\api\tests\test_citation_validation.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\Nguyen Dao Nam Hai\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ai2-scholarqa-lib-main\api\tests\test_citation_validation.py:31: in <module>
+    from scholarqa import ScholarQA
+ai2-scholarqa-lib-main\api\scholarqa\__init__.py:1: in <module>
+    from .scholar_qa import ScholarQA
+ai2-scholarqa-lib-main\api\scholarqa\scholar_qa.py:10: in <module>
+    from anyascii import anyascii
+E   ModuleNotFoundError: No module named 'anyascii'
+_ ERROR collecting ai2-scholarqa-lib-main/api/tests/test_json_output_utils.py _
+ImportError while importing test module 'd:\AI Thực chiến\Project\P-165\ai2-scholarqa-lib-main\api\tests\test_json_output_utils.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\Nguyen Dao Nam Hai\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ai2-scholarqa-lib-main\api\tests\test_json_output_utils.py:1: in <module>
+    from scholarqa.postprocess.json_output_utils import get_section_text, get_json_summary, _CITATION_RE
+ai2-scholarqa-lib-main\api\scholarqa\__init__.py:1: in <module>
+    from .scholar_qa import ScholarQA
+ai2-scholarqa-lib-main\api\scholarqa\scholar_qa.py:10: in <module>
+    from anyascii import anyascii
+E   ModuleNotFoundError: No module named 'anyascii'
+___ ERROR collecting ai2-scholarqa-lib-main/api/tests/test_prompt_utils.py ____
+ImportError while importing test module 'd:\AI Thực chiến\Project\P-165\ai2-scholarqa-lib-main\api\tests\test_prompt_utils.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\Nguyen Dao Nam Hai\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ai2-scholarqa-lib-main\api\tests\test_prompt_utils.py:3: in <module>
+    from scholarqa.lite.prompt_utils import normalize_snippet_quote
+ai2-scholarqa-lib-main\api\scholarqa\__init__.py:1: in <module>
+    from .scholar_qa import ScholarQA
+ai2-scholarqa-lib-main\api\scholarqa\scholar_qa.py:10: in <module>
+    from anyascii import anyascii
+E   ModuleNotFoundError: No module named 'anyascii'
+__ ERROR collecting ai2-scholarqa-lib-main/api/tests/test_relaxed_parsing.py __
+ImportError while importing test module 'd:\AI Thực chiến\Project\P-165\ai2-scholarqa-lib-main\api\tests\test_relaxed_parsing.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\Nguyen Dao Nam Hai\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ai2-scholarqa-lib-main\api\tests\test_relaxed_parsing.py:1: in <module>
+    from scholarqa.lite.response_parser import filter_per_paper_summaries
+ai2-scholarqa-lib-main\api\scholarqa\__init__.py:1: in <module>
+    from .scholar_qa import ScholarQA
+ai2-scholarqa-lib-main\api\scholarqa\scholar_qa.py:10: in <module>
+    from anyascii import anyascii
+E   ModuleNotFoundError: No module named 'anyascii'
+_ ERROR collecting paper-qa-2026.08.12/packages/paper-qa-docling/tests/test_paperqa_docling.py _
+ImportError while importing test module 'd:\AI Thực chiến\Project\P-165\paper-qa-2026.08.12\packages\paper-qa-docling\tests\test_paperqa_docling.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\Nguyen Dao Nam Hai\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+paper-qa-2026.08.12\packages\paper-qa-docling\tests\test_paperqa_docling.py:10: in <module>
+    from lmi.utils import bytes_to_string
+E   ModuleNotFoundError: No module named 'lmi'
+____ ERROR collecting paper-qa-2026.08.12/packages/paper-qa-nemotron/tests ____
+C:\Users\Nguyen Dao Nam Hai\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1204: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1176: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1147: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:690: in _load_unlocked
+    ???
+.venv\Lib\site-packages\_pytest\assertion\rewrite.py:188: in exec_module
+    exec(co, module.__dict__)
+paper-qa-2026.08.12\packages\paper-qa-nemotron\tests\conftest.py:5: in <module>
+    import httpx_aiohttp
+E   ModuleNotFoundError: No module named 'httpx_aiohttp'
+_ ERROR collecting paper-qa-2026.08.12/packages/paper-qa-pymupdf/tests/test_paperqa_pymupdf.py _
+ImportError while importing test module 'd:\AI Thực chiến\Project\P-165\paper-qa-2026.08.12\packages\paper-qa-pymupdf\tests\test_paperqa_pymupdf.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\Nguyen Dao Nam Hai\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+paper-qa-2026.08.12\packages\paper-qa-pymupdf\tests\test_paperqa_pymupdf.py:8: in <module>
+    import pymupdf
+E   ModuleNotFoundError: No module named 'pymupdf'
+_ ERROR collecting paper-qa-2026.08.12/packages/paper-qa-pypdf/tests/test_paperqa_pypdf.py _
+ImportError while importing test module 'd:\AI Thực chiến\Project\P-165\paper-qa-2026.08.12\packages\paper-qa-pypdf\tests\test_paperqa_pypdf.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\Nguyen Dao Nam Hai\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+paper-qa-2026.08.12\packages\paper-qa-pypdf\tests\test_paperqa_pypdf.py:12: in <module>
+    from lmi.utils import bytes_to_string
+E   ModuleNotFoundError: No module named 'lmi'
+_ ERROR collecting paper-qa-2026.08.12/packages/paper-qa-pypdf/tests/test_utils.py _
+ImportError while importing test module 'd:\AI Thực chiến\Project\P-165\paper-qa-2026.08.12\packages\paper-qa-pypdf\tests\test_utils.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\Nguyen Dao Nam Hai\AppData\Local\Programs\Python\Python311\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+paper-qa-2026.08.12\packages\paper-qa-pypdf\tests\test_utils.py:3: in <module>
+    from paperqa_pypdf.utils import cluster_bboxes
+E   ModuleNotFoundError: No module named 'paperqa_pypdf'
+_________________ ERROR collecting paper-qa-2026.08.12/tests __________________
+.venv\Lib\site-packages\_pytest\config\__init__.py:758: in _importconftest
+    mod = import_path(
+.venv\Lib\site-packages\_pytest\pathlib.py:619: in import_path
+    raise ImportPathMismatchError(module_name, module_file, path)
+E   _pytest.pathlib.ImportPathMismatchError: ('tests.conftest', 'd:\\AI Thực chiến\\Project\\P-165\\tests\\conftest.py', WindowsPath('d:/AI Thực chiến/Project/P-165/paper-qa-2026.08.12/tests/conftest.py'))
+============================== warnings summary ===============================
+.venv\Lib\site-packages\fastapi\testclient.py:1
+  D:\AI Thực chiến\Project\P-165\.venv\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+ERROR ai2-scholarqa-lib-main/api/scholarqa/test_edit_pipeline_integration.py
+ERROR ai2-scholarqa-lib-main/api/tests/lite/test_prompt_utils.py
+ERROR ai2-scholarqa-lib-main/api/tests/lite/test_response_parser.py
+ERROR ai2-scholarqa-lib-main/api/tests/test_citation_validation.py
+ERROR ai2-scholarqa-lib-main/api/tests/test_json_output_utils.py
+ERROR ai2-scholarqa-lib-main/api/tests/test_prompt_utils.py
+ERROR ai2-scholarqa-lib-main/api/tests/test_relaxed_parsing.py
+ERROR paper-qa-2026.08.12/packages/paper-qa-docling/tests/test_paperqa_docling.py
+ERROR paper-qa-2026.08.12/packages/paper-qa-nemotron/tests - ModuleNotFoundEr...
+ERROR paper-qa-2026.08.12/packages/paper-qa-pymupdf/tests/test_paperqa_pymupdf.py
+ERROR paper-qa-2026.08.12/packages/paper-qa-pypdf/tests/test_paperqa_pypdf.py
+ERROR paper-qa-2026.08.12/packages/paper-qa-pypdf/tests/test_utils.py
+ERROR paper-qa-2026.08.12/tests - _pytest.pathlib.ImportPathMismatchError: ('...
+!!!!!!!!!!!!!!!!!! Interrupted: 13 errors during collection !!!!!!!!!!!!!!!!!!!
+======================= 1 warning, 13 errors in 23.41s ========================

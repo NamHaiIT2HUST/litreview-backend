@@ -78,3 +78,44 @@ def test_vector_cleanup_job_is_durable_outbox_record(monkeypatch):
         "created_at",
         "completed_at",
     }.issubset(names)
+
+
+def test_generic_evidence_cache_is_session_independent_and_provenance_aware(monkeypatch):
+    models = _load_models(monkeypatch)
+    assert models.GenericEvidenceCache.__tablename__ == "generic_evidence_caches"
+    assert models.GenericEvidenceCacheItem.__tablename__ == "generic_evidence_cache_items"
+
+    cache_columns = set(models.GenericEvidenceCache.__table__.columns.keys())
+    assert {
+        "paper_id",
+        "ingestion_id",
+        "content_hash",
+        "extraction_fingerprint",
+        "status",
+        "failure_reason",
+    }.issubset(cache_columns)
+    assert "synthesis_session_id" not in cache_columns
+
+    item_columns = set(models.GenericEvidenceCacheItem.__table__.columns.keys())
+    assert {
+        "cache_id",
+        "paper_id",
+        "dimension",
+        "applies_to",
+        "value",
+        "quote",
+        "page_text_id",
+        "source_chunk_id",
+        "page_char_start",
+        "page_char_end",
+    }.issubset(item_columns)
+    assert "synthesis_session_id" not in item_columns
+    assert "synthesis_session_id" in models.EvidenceRecord.__table__.columns
+    assert "applies_to" in models.EvidenceRecord.__table__.columns
+
+    unique_column_sets = {
+        tuple(column.name for column in constraint.columns)
+        for constraint in models.GenericEvidenceCache.__table__.constraints
+        if constraint.__class__.__name__ == "UniqueConstraint"
+    }
+    assert ("paper_id", "content_hash", "extraction_fingerprint") in unique_column_sets
