@@ -367,20 +367,19 @@ export default function WorkspaceTab({
         </div>
 
         {/* Content Area */}
-        {activeWorkspaceTab === 'synthesis' ? (
-          <div className="flex-1 overflow-y-auto min-h-0 pb-4 custom-scrollbar">
-            <SynthesisPanel
-              workspacePapers={workspacePapers}
-              setActiveCitation={setActiveCitation}
-              darkMode={darkMode}
-            />
-          </div>
-        ) : (
-          /* Chat / Verification Split */
-          <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-5 min-h-0 pb-4">
-            <div className={`${activeCitation ? 'lg:col-span-7' : 'lg:col-span-12'} h-full rounded-3xl border flex flex-col overflow-hidden ${
-              darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-            }`}>
+        <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-5 min-h-0 pb-4">
+          <div className={`${activeCitation ? 'lg:col-span-7' : 'lg:col-span-12'} h-full rounded-3xl border flex flex-col overflow-hidden ${
+            darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+          }`}>
+            {activeWorkspaceTab === 'synthesis' ? (
+              <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar">
+                <SynthesisPanel
+                  workspacePapers={workspacePapers}
+                  setActiveCitation={setActiveCitation}
+                  darkMode={darkMode}
+                />
+              </div>
+            ) : (
               <ChatPanel
                 workspacePapers={workspacePapers}
                 selectedSourceIds={selectedSourceIds}
@@ -390,15 +389,19 @@ export default function WorkspaceTab({
                 setActiveCitation={setActiveCitation}
                 darkMode={darkMode}
               />
-            </div>
-
-            {activeCitation && (
-              <div className="lg:col-span-5 h-full overflow-y-auto custom-scrollbar">
-                <VerificationPanel activeCitation={activeCitation} darkMode={darkMode} />
-              </div>
             )}
           </div>
-        )}
+
+          {activeCitation && (
+            <div className="lg:col-span-5 h-full overflow-y-auto custom-scrollbar">
+              <VerificationPanel 
+                activeCitation={activeCitation} 
+                setActiveCitation={setActiveCitation}
+                darkMode={darkMode} 
+              />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { ShieldCheck, Quote } from 'lucide-react';
+import { ShieldCheck, Quote, X } from 'lucide-react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/TextLayer.css';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
@@ -9,7 +9,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   import.meta.url,
 ).toString();
 
-export default function VerificationPanel({ activeCitation, darkMode }) {
+export default function VerificationPanel({ activeCitation, setActiveCitation, darkMode }) {
   const [rects, setRects] = useState([]);
   const [loadingCoords, setLoadingCoords] = useState(false);
 
@@ -64,9 +64,20 @@ export default function VerificationPanel({ activeCitation, darkMode }) {
           <ShieldCheck className="w-6 h-6 text-emerald-500" />
           <h3 className="font-bold text-base">Xác minh nguồn gốc</h3>
         </div>
-        <span className="text-xs font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 px-3 py-1 rounded-full border border-emerald-200 dark:border-emerald-800">
-          Grounded evidence
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 px-3 py-1 rounded-full border border-emerald-200 dark:border-emerald-800">
+            Grounded evidence
+          </span>
+          {setActiveCitation && (
+            <button 
+              onClick={() => setActiveCitation(null)}
+              className="p-1.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 transition-colors"
+              title="Đóng xác minh"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       {activeCitation ? (

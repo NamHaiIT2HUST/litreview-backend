@@ -102,28 +102,28 @@ export default function ChatPanel({
                           const citeId = href.replace('#cite-', '');
                           const citeObj = msg.citations?.find(c => c.key === citeId) || msg.context_used?.find(c => c.key === citeId);
                           return (
-                            <CitationChip
-                              key={citeId}
-                              citeId={citeId}
-                              citeObj={citeObj}
-                              darkMode={darkMode}
-                              onClick={(e) => {
-                                e.preventDefault();
-                                if (citeObj) {
-                                  setActiveCitation({
-                                    marker_display: `[${citeId}]`,
-                                    title: citeObj.paper_title,
-                                    filename: citeObj.filename,
-                                    source_page_display: citeObj.page || citeObj.page_display,
-                                    source_char_start: citeObj.page_char_start,
-                                    source_char_end: citeObj.page_char_end,
-                                    quoted_snippet: citeObj.raw_text || citeObj.snippet
-                                  });
-                                }
-                              }}
-                            >
-                              {children}
-                            </CitationChip>
+                              <CitationChip
+                                key={citeId}
+                                citeId={citeId}
+                                citeObj={citeObj}
+                                darkMode={darkMode}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  if (citeObj) {
+                                    setActiveCitation({
+                                      marker_display: `[${citeId}]`,
+                                      title: citeObj.paper_title,
+                                      filename: citeObj.filename,
+                                      source_page_display: citeObj.page || citeObj.page_display,
+                                      source_char_start: citeObj.page_char_start,
+                                      source_char_end: citeObj.page_char_end,
+                                      quoted_snippet: citeObj.raw_text || citeObj.snippet
+                                    });
+                                  }
+                                }}
+                              >
+                                {children}
+                              </CitationChip>
                           );
                         }
                         return <a href={href} {...props}>{children}</a>;
@@ -191,27 +191,7 @@ export default function ChatPanel({
         </div>
       </div>
 
-      {/* Workspace source registry - Floating bottom right */}
-      <div className={`absolute bottom-24 right-6 p-3 rounded-2xl border space-y-2 w-56 shadow-lg z-10 backdrop-blur-md opacity-70 hover:opacity-100 transition-opacity ${
-        darkMode ? 'bg-slate-800/90 border-slate-700' : 'bg-white/90 border-slate-200'
-      }`}>
-        <h4 className="font-bold text-xs flex items-center gap-2">
-          <Layers className="w-3.5 h-3.5 text-blue-600 dark:text-sky-400" />
-          <span>Nguồn đã ingest ({workspacePapers.length})</span>
-        </h4>
-        {workspacePapers.length === 0 ? (
-          <p className="text-[10px] text-slate-400">Chưa có PDF.</p>
-        ) : (
-          <div className="space-y-1 max-h-32 overflow-y-auto custom-scrollbar pr-1">
-            {workspacePapers.map((paper, idx) => (
-              <div key={paper.id} className="text-[11px] flex gap-1.5 items-start">
-                <span className="font-bold text-blue-600 dark:text-sky-400 shrink-0">[{idx + 1}]</span>
-                <span className="truncate leading-tight">{paper.title}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+
 
       {/* Chat Input Bar */}
       <div className="relative mt-2 shrink-0 w-full flex flex-col gap-2">

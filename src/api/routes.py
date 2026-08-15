@@ -823,12 +823,12 @@ async def get_evidence_coords(
                     w = page_words[i]
                     rects.append(RectCoord(
                         x=w[0] / page_width,
-                            y=w[1] / page_height,
-                            width=(w[2] - w[0]) / page_width,
-                            height=(w[3] - w[1]) / page_height
-                        ))
+                        y=w[1] / page_height,
+                        width=(w[2] - w[0]) / page_width,
+                        height=(w[3] - w[1]) / page_height
+                    ))
                     
-                    return EvidenceCoordsResponse(rects=rects)
+                return EvidenceCoordsResponse(rects=rects)
 
 
             

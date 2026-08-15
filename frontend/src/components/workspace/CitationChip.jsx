@@ -19,7 +19,6 @@ export default function CitationChip({ citeId, citeObj, onClick, darkMode, child
 
   const title = citeObj.paper_title || 'Unknown Paper';
   const snippet = citeObj.snippet || 'Không có đoạn trích dẫn cụ thể.';
-  const page = citeObj.page || citeObj.page_display || 'N/A';
 
   return (
     <div 
@@ -41,41 +40,66 @@ export default function CitationChip({ citeId, citeObj, onClick, darkMode, child
       {/* Popover / Tooltip */}
       {showTooltip && (
         <div 
-          className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 w-80 shadow-xl rounded-2xl border overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200 cursor-default text-left whitespace-normal"
+          className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-3 w-[450px] md:w-[500px] animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-200 ease-out cursor-default text-left whitespace-normal"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className={`p-4 ${darkMode ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}>
-            <div className="flex gap-2 items-start mb-3">
-              <div className="mt-1 p-1.5 bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded-lg shrink-0">
-                <FileText className="w-4 h-4" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h4 className={`font-bold text-sm leading-snug line-clamp-2 ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>
-                  {title}
-                </h4>
-                <p className={`text-xs mt-1 font-medium ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                  Trang {page}
-                </p>
-              </div>
-            </div>
+          {/* Glassmorphic Container */}
+          <div className={`relative p-5 rounded-2xl shadow-2xl overflow-hidden border backdrop-blur-xl ${
+            darkMode 
+              ? 'bg-slate-900/95 border-slate-700/60 shadow-black/60' 
+              : 'bg-white/95 border-slate-200/60 shadow-blue-900/10'
+          }`}>
+            {/* Title with Gradient */}
+            <h4 className={`font-extrabold text-lg leading-snug line-clamp-2 bg-clip-text text-transparent bg-gradient-to-r ${
+              darkMode ? 'from-blue-400 to-indigo-400' : 'from-blue-700 to-indigo-700'
+            }`}>
+              {title}
+            </h4>
+
+            {/* Subtitle */}
+            <h5 className={`font-semibold text-[13px] uppercase tracking-wider mb-2 mt-4 ${
+              darkMode ? 'text-slate-400' : 'text-slate-500'
+            }`}>
+              Relevant snippets from the paper
+            </h5>
             
-            <div className={`p-3 rounded-xl border relative ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-100'}`}>
-              <Quote className={`absolute top-2 left-2 w-4 h-4 opacity-20 ${darkMode ? 'text-white' : 'text-black'}`} />
-              <p className={`text-xs italic leading-relaxed pl-5 line-clamp-6 ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+            {/* Elegant Divider */}
+            <div className={`h-[1px] w-full mb-3 bg-gradient-to-r ${
+              darkMode ? 'from-slate-700 via-slate-700/50 to-transparent' : 'from-slate-200 via-slate-200/50 to-transparent'
+            }`}></div>
+            
+            {/* Snippet Content */}
+            <div className={`mt-3 pl-4 border-l-2 py-1 ${
+              darkMode ? 'border-blue-500/50' : 'border-blue-500'
+            }`}>
+              <p className={`text-[14px] leading-relaxed italic ${
+                darkMode ? 'text-slate-300' : 'text-slate-700'
+              }`}>
                 "{snippet}"
               </p>
             </div>
             
+            {/* Action Button */}
             <button
               onClick={onClick}
-              className={`w-full mt-3 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-                darkMode ? 'bg-slate-800 hover:bg-slate-700 text-blue-400' : 'bg-slate-100 hover:bg-slate-200 text-blue-600'
+              className={`w-full mt-5 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] ${
+                darkMode 
+                  ? 'bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/20' 
+                  : 'bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200/50'
               }`}
             >
               <span>Xem chi tiết PDF</span>
-              <ChevronRight className="w-3.5 h-3.5" />
+              <ChevronRight className="w-4 h-4" />
             </button>
           </div>
+          
+          {/* Tooltip Arrow/Triangle */}
+          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 rotate-45 transform border-b border-r shadow-sm -z-10"
+               style={{
+                 backgroundColor: darkMode ? '#0f172a' : '#ffffff',
+                 borderColor: darkMode ? 'rgba(51, 65, 85, 0.6)' : 'rgba(226, 232, 240, 0.6)'
+               }}
+          />
         </div>
       )}
     </div>
