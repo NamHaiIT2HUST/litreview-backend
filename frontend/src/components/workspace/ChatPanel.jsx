@@ -57,8 +57,8 @@ export default function ChatPanel({
   };
 
   return (
-    <div className={`p-6 rounded-3xl border transition-colors h-full flex flex-col space-y-4 shadow-sm overflow-hidden relative ${
-      darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-800'
+    <div className={`flex flex-col h-full overflow-hidden px-6 py-4 gap-4 ${
+      darkMode ? 'text-white' : 'text-slate-800'
     }`}>
       {/* Chat Messages List */}
       <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
@@ -95,23 +95,30 @@ export default function ChatPanel({
                 )}
               </div>
               {/* Render Context Used if available */}
-              {msg.sender === 'ai' && msg.context_used && msg.context_used.length > 0 && (
+              {msg.sender === 'ai' && Array.isArray(msg.context_used) && msg.context_used.length > 0 && (
                 <details className="mt-6 group border dark:border-slate-700/60 rounded-2xl overflow-hidden bg-slate-50/50 dark:bg-slate-800/30">
                   <summary className="cursor-pointer p-3.5 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center gap-2 select-none outline-none">
                     <Layers className="w-4 h-4 text-blue-500" />
                     <span>Đã tham khảo {msg.context_used.length} đoạn ngữ cảnh từ tài liệu</span>
                   </summary>
                   <div className="p-4 bg-white dark:bg-slate-900 border-t dark:border-slate-700/60 max-h-64 overflow-y-auto space-y-4 custom-scrollbar">
-                    {msg.context_used.map((ctx, pIdx) => (
-                      <div key={pIdx} className="text-xs">
-                        <div className="font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
-                           <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span> Nguồn #{pIdx + 1}
+                    {msg.context_used.map((ctx, pIdx) => {
+                      const isObj = typeof ctx === 'object' && ctx !== null;
+                      const title = isObj ? (ctx.paper_title || `Nguồn #${pIdx + 1}`) : `Nguồn #${pIdx + 1}`;
+                      const pageText = isObj && ctx.page_display ? ` (Trang ${ctx.page_display})` : '';
+                      const snippetText = isObj ? (ctx.snippet || ctx.raw_text || '') : String(ctx || '');
+
+                      return (
+                        <div key={pIdx} className="text-xs">
+                          <div className="font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
+                             <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span> {title}{pageText}
+                          </div>
+                          <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl text-slate-600 dark:text-slate-400 leading-relaxed border dark:border-slate-700/50 shadow-sm whitespace-pre-wrap">
+                            {snippetText}
+                          </div>
                         </div>
-                        <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl text-slate-600 dark:text-slate-400 leading-relaxed border dark:border-slate-700/50 shadow-sm">
-                          {ctx}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </details>
               )}
