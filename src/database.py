@@ -65,7 +65,7 @@ def _resolve_host_to_ipv4(url: str) -> str:
                 new_url = "postgres://" + new_url[len("postgresql://") :]
             return new_url
     except Exception as e:
-        print(f"Warning: Could not resolve hostname to IPv4: {e}")
+        print(f"Warning: Could not resolve hostname '{hostname if 'hostname' in locals() else 'Unknown'}' to IPv4: {e}")
     return url
 
 
