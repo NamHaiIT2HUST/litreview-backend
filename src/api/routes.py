@@ -308,12 +308,13 @@ async def search_papers(
         sq_id = None
         duplicate_count = 0
 
-    # --- Filter: chỉ giữ bài đã xác minh Scopus, tối đa SCOPUS_TARGET ---
+    # --- Filter: Ưu tiên bài Scopus indexed, nếu thiếu bổ sung undetermined cho đủ SCOPUS_TARGET ---
     all_found = len(papers)
-    scopus_papers = [p for p in papers if p.scopus_status == "indexed"]
-    scopus_papers = scopus_papers[:SCOPUS_TARGET]
+    indexed_papers = [p for p in papers if p.scopus_status == "indexed"]
+    undetermined_papers = [p for p in papers if p.scopus_status != "indexed"]
+    scopus_papers = (indexed_papers + undetermined_papers)[:SCOPUS_TARGET]
 
-    # --- Làm giàu abstract song song chỉ cho 20 bài báo Scopus được chọn ---
+    # --- Làm giàu abstract song song chỉ cho 20 bài báo được chọn ---
     if scopus_papers:
         try:
             import httpx
@@ -341,7 +342,7 @@ async def search_papers(
                                 if oa_issn:
                                     p_obj.issn = oa_issn
                                     
-                                # Cập nhật trực tiếp vào database
+                                # Cập nhật trực tiếp vào database & re-check Scopus
                                 if p_obj.id:
                                     db_p = await db.get(Paper, uuid.UUID(p_obj.id))
                                     if db_p:
@@ -350,6 +351,8 @@ async def search_papers(
                                             db_p.doi = oa_doi
                                         if oa_issn:
                                             db_p.issn = oa_issn
+                                        await run_scopus_quality_check(db, db_p, enrich_abstract=False)
+                                        p_obj.scopus_status = db_p.scopus_status.value if hasattr(db_p.scopus_status, "value") else db_p.scopus_status
                                         await db.commit()
                     except Exception:
                         pass
