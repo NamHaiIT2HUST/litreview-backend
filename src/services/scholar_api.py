@@ -485,6 +485,78 @@ async def search_papers_semanticscholar(query: str, limit: int = 20) -> list[Pap
     return papers
 
 
+async def search_papers_crossref(query: str, limit: int = 10) -> list[Paper]:
+    """Tìm kiếm trực tiếp từ CrossRef API (Miễn phí 100%, không rate limit khắt khe)."""
+    import re
+    url = "https://api.crossref.org/works"
+    params = {
+        "query": query, 
+        "select": "title,author,abstract,published-print,published-online,is-referenced-by-count,URL,DOI,ISSN,container-title",
+        "rows": limit
+    }
+    headers = {"User-Agent": "LitReviewAgent/1.0 (mailto:admin@litreview.org)"}
+
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(url, params=params, headers=headers, timeout=12.0)
+            if response.status_code != 200:
+                print(f"Warning: CrossRef returned status {response.status_code}")
+                return []
+            data = response.json()
+        except Exception as e:
+            print(f"Warning: CrossRef request failed: {e}")
+            return []
+
+    results = data.get("message", {}).get("items", [])
+    papers = []
+
+    for idx, item in enumerate(results):
+        title_list = item.get("title", [])
+        title = title_list[0] if title_list else "Unknown Title"
+        
+        authors_data = item.get("author", [])
+        author_names = [f"{a.get('given', '')} {a.get('family', '')}".strip() for a in authors_data]
+        
+        date_parts = item.get("published-print", {}).get("date-parts", [[2024]])
+        if not date_parts or not date_parts[0]:
+            date_parts = item.get("published-online", {}).get("date-parts", [[2024]])
+        year = int(date_parts[0][0]) if date_parts and date_parts[0] else 2024
+        
+        raw_abstract = item.get("abstract") or ""
+        clean_abstract = re.sub(r'<[^>]+>', '', raw_abstract).strip() if raw_abstract else "No abstract provided."
+        
+        citations = item.get("is-referenced-by-count") or 0
+        doi = item.get("DOI") or "N/A"
+        url_link = item.get("URL") or f"https://doi.org/{doi}"
+        
+        issn_list = item.get("ISSN", [])
+        issn = issn_list[0] if issn_list else None
+        
+        container = item.get("container-title", [])
+        journal = container[0] if container else "Crossref Journal"
+        
+        paper_id = hashlib.md5(title.encode()).hexdigest()[:10]
+
+        paper = Paper(
+            id=f"CR_{paper_id}",
+            title=title,
+            authors=author_names,
+            year=year,
+            abstract=clean_abstract,
+            journal=journal,
+            doi=doi,
+            issn=issn,
+            url=url_link,
+            citations=int(citations),
+            litScore=calculate_litscore(citations, year),
+            tldr=None
+        )
+        papers.append(paper)
+
+    return papers
+
+
+
 async def search_papers_auto(query: str, api_key: str = None, provider: str = "auto", limit: int = 10) -> list[Paper]:
     """Auto-detect provider or use specified provider. Fallback: SerpApi -> Semantic Scholar -> OpenAlex."""
     key = api_key.strip() if api_key else ""
@@ -508,4 +580,13 @@ async def search_papers_auto(query: str, api_key: str = None, provider: str = "a
         logging.getLogger(__name__).warning(f"Semantic Scholar failed: {e}. Falling back to OpenAlex.")
 
     # Fallback 2: OpenAlex (100% free, 250M+ bài)
-    return await search_papers_openalex(query, limit)
+    try:
+        papers = await search_papers_openalex(query, limit)
+        if papers:
+            return papers
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"OpenAlex failed: {e}. Falling back to Crossref.")
+
+    # Fallback 3: Crossref API (Miễn phí 100%, không bị limit 429)
+    return await search_papers_crossref(query, limit)
