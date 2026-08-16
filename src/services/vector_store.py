@@ -132,6 +132,48 @@ class VectorStoreService:
             await asyncio.to_thread(self.vector_store.delete, ids=ids)
         return len(ids)
 
+    async def recover_vectors_for_paper(self, paper_id: str):
+        """Phục hồi vector từ bảng pdf_chunks trong PostgreSQL lên ChromaDB nếu đĩa ảo bị xóa."""
+        from src.database import AsyncSessionLocal
+        from src.models.db_models import PDFChunk, PageText
+        from sqlalchemy import select
+        
+        print(f"[vector-recovery] Auto-recovering vector store for paper {paper_id}...", flush=True)
+        async with AsyncSessionLocal() as session:
+            try:
+                # Query all chunks for this paper
+                result = await session.execute(
+                    select(PDFChunk, PageText.page_number)
+                    .join(PageText, PDFChunk.page_text_id == PageText.id)
+                    .where(PDFChunk.paper_id == paper_id)
+                )
+                rows = result.fetchall()
+                if not rows:
+                    print(f"[vector-recovery] No chunks found in DB for paper {paper_id}. Cannot recover.", flush=True)
+                    return
+                
+                documents = []
+                for chunk_row, page_num in rows:
+                    doc = Document(
+                        page_content=chunk_row.chunk_text,
+                        metadata={
+                            "paper_id": str(paper_id),
+                            "page_text_id": str(chunk_row.page_text_id),
+                            "chunk_id": str(chunk_row.id),
+                            "ingestion_id": str(chunk_row.ingestion_id),
+                            "page": page_num,
+                            "chunk_index": chunk_row.chunk_index,
+                            "page_char_start": chunk_row.page_char_start,
+                            "page_char_end": chunk_row.page_char_end
+                        }
+                    )
+                    documents.append(doc)
+                
+                await asyncio.to_thread(self.vector_store.add_documents, documents=documents)
+                print(f"[vector-recovery] Successfully recovered {len(documents)} vectors for paper {paper_id}.", flush=True)
+            except Exception as e:
+                print(f"[vector-recovery] ERROR: Failed to recover vectors for paper {paper_id}: {e}", flush=True)
+
     async def search_similar_documents(
         self,
         query: str,
@@ -139,6 +181,12 @@ class VectorStoreService:
         filters: dict | None = None,
     ) -> List[Document]:
         """Tìm đoạn tương đồng; sync Chroma call chạy ở worker thread."""
+        if filters and "paper_id" in filters:
+            pid = filters["paper_id"]
+            existing = await asyncio.to_thread(self.vector_store.get, where={"paper_id": str(pid)}, limit=1)
+            if not existing or not existing.get("ids"):
+                await self.recover_vectors_for_paper(pid)
+                
         kwargs = {"k": top_k}
         if filters:
             kwargs["filter"] = filters
@@ -151,6 +199,12 @@ class VectorStoreService:
     async def search_similar_documents_with_scores(
         self, query: str, top_k: int = 4, filters: dict | None = None,
     ) -> list[tuple[Document, float]]:
+        if filters and "paper_id" in filters:
+            pid = filters["paper_id"]
+            existing = await asyncio.to_thread(self.vector_store.get, where={"paper_id": str(pid)}, limit=1)
+            if not existing or not existing.get("ids"):
+                await self.recover_vectors_for_paper(pid)
+                
         kwargs = {"k": top_k}
         if filters:
             kwargs["filter"] = filters
