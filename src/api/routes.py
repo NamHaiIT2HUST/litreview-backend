@@ -1144,21 +1144,59 @@ async def delete_synthesis_session(
 
 
 @router.get("/workspace/uploads/papers/{filename}")
-async def get_pdf_file(filename: str):
-    """Serve uploaded PDF files."""
+async def get_pdf_file(
+    filename: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """Serve uploaded PDF files. If the file is missing locally (e.g. Render container restarts), download it from the paper's online URL."""
     from fastapi.responses import FileResponse
     import os
+    import httpx
     
     base_dir = os.path.join("uploads", "papers")
+    os.makedirs(base_dir, exist_ok=True)
     file_path = os.path.join(base_dir, filename)
     
-    if not os.path.exists(file_path):
-        # Fallback: search in subdirectories (e.g. project_id directories)
+    # Try finding locally
+    found = os.path.exists(file_path)
+    if not found:
+        # Check subdirectories
         for root, dirs, files in os.walk(base_dir):
             if filename in files:
                 file_path = os.path.join(root, filename)
+                found = True
                 break
-        else:
-            raise HTTPException(status_code=404, detail="File not found")
+                
+    if not found:
+        # Ephemeral disk reset fallback: find online url from DB
+        try:
+            # Look for papers where file_path matches filename
+            result = await db.execute(
+                select(Paper).where(Paper.file_path.like(f"%{filename}%"))
+            )
+            paper = result.scalar_one_or_none()
+            
+            # If not found by file_path, try querying papers with similar title/filename match
+            if not paper:
+                clean_title = filename.rsplit(".", 1)[0].replace("-", " ")
+                result = await db.execute(
+                    select(Paper).where(Paper.title.like(f"%{clean_title[:30]}%"))
+                )
+                paper = result.scalar_one_or_none()
+                
+            if paper and paper.url and paper.url.lower().endswith(".pdf"):
+                print(f"[pdf-serve] Local file missing. Re-downloading PDF from {paper.url}...", flush=True)
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    response = await client.get(paper.url, follow_redirects=True)
+                    if response.status_code == 200:
+                        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+                        with open(file_path, "wb") as f:
+                            f.write(response.content)
+                        found = True
+        except Exception as e:
+            print(f"[pdf-serve] WARNING: Failed to re-download PDF: {e}", flush=True)
+
+    if not found or not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File not found")
             
     return FileResponse(file_path, media_type="application/pdf")
