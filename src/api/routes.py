@@ -162,7 +162,7 @@ async def _persist_search(
             coverage_year_status=getattr(p, 'coverage_year_status', None),
             dedup_key=key,
         )
-        await run_scopus_quality_check(db, paper_row)
+        await run_scopus_quality_check(db, paper_row, enrich_abstract=False)
         db.add(paper_row)
         existing_papers_map[key] = paper_row.id
         if paper_row.id not in linked_paper_ids:
@@ -312,6 +312,51 @@ async def search_papers(
     all_found = len(papers)
     scopus_papers = [p for p in papers if p.scopus_status == "indexed"]
     scopus_papers = scopus_papers[:SCOPUS_TARGET]
+
+    # --- Làm giàu abstract song song chỉ cho 20 bài báo Scopus được chọn ---
+    if scopus_papers:
+        try:
+            import httpx
+            from src.services.scholar_api import fetch_full_abstract_openalex, fetch_full_abstract_s2
+            
+            async def enrich_single(p_obj):
+                abs_str = p_obj.abstract or ""
+                if not abs_str or "..." in abs_str or len(abs_str) < 300:
+                    try:
+                        async with httpx.AsyncClient(timeout=10.0) as client:
+                            oa_abstract, oa_doi, oa_issn, oa_journal = await fetch_full_abstract_openalex(client, p_obj.title)
+                            if not oa_abstract or len(oa_abstract) < 300:
+                                s2_abs, _, s2_doi, s2_issn, _ = await fetch_full_abstract_s2(client, p_obj.title)
+                                if s2_abs and len(s2_abs) > len(oa_abstract or ""):
+                                    oa_abstract = s2_abs
+                                    if s2_doi and s2_doi != "N/A":
+                                        oa_doi = s2_doi
+                                    if s2_issn:
+                                        oa_issn = s2_issn
+                            
+                            if oa_abstract and len(oa_abstract) > len(p_obj.abstract or ""):
+                                p_obj.abstract = oa_abstract
+                                if oa_doi and oa_doi != "N/A":
+                                    p_obj.doi = oa_doi
+                                if oa_issn:
+                                    p_obj.issn = oa_issn
+                                    
+                                # Cập nhật trực tiếp vào database
+                                if p_obj.id:
+                                    db_p = await db.get(Paper, uuid.UUID(p_obj.id))
+                                    if db_p:
+                                        db_p.abstract = oa_abstract
+                                        if oa_doi and oa_doi != "N/A":
+                                            db_p.doi = oa_doi
+                                        if oa_issn:
+                                            db_p.issn = oa_issn
+                                        await db.commit()
+                    except Exception:
+                        pass
+                        
+            await asyncio.gather(*(enrich_single(p) for p in scopus_papers))
+        except Exception:
+            pass
 
     # Cập nhật số lượng bài Scopus thực tế vào SearchQuery record trong DB
     if sq_id:
