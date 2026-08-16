@@ -28,6 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.agents.graph import agent
 from src.config import get_settings
+settings = get_settings()
 from src.database import get_db
 from src.models.db_models import Citation, EvidenceRecord, Paper, Project, SearchQuery, SynthesisSection, SynthesisSession, SynthesisStatus
 
