@@ -56,6 +56,18 @@ def extract_issn_from_openalex_location(location: Optional[dict]) -> Optional[st
     return None
 
 
+def clean_paper_title(title: str) -> str:
+    """Clean paper title by removing HTML tags and Google Scholar prefix badges like [PDF] or [HTML]."""
+    if not title:
+        return ""
+    import re
+    # Remove HTML tags like <b>, </b>
+    t = re.sub(r"<[^>]*>", "", title)
+    # Remove Google Scholar prefix badges like [PDF], [HTML], [BOOK], [CITATION]
+    t = re.sub(r"^\[[A-Z\s\-\_]+\]\s*", "", t)
+    return t.strip(" .")
+
+
 async def fetch_full_abstract_openalex(client: httpx.AsyncClient, title: str) -> tuple[Optional[str], str, Optional[str], Optional[str]]:
     """
     Tự động tra cứu OpenAlex (miễn phí, 250M+ bài báo) để lấy Full Abstract nguyên bản,
@@ -63,8 +75,9 @@ async def fetch_full_abstract_openalex(client: httpx.AsyncClient, title: str) ->
     Trả về (abstract, doi, issn, journal).
     """
     try:
+        cleaned_title = clean_paper_title(title)
         url = "https://api.openalex.org/works"
-        params = {"search": title, "per-page": 1}
+        params = {"search": cleaned_title, "per-page": 1}
         res = await client.get(url, params=params, timeout=5.0)
         if res.status_code == 200:
             results = res.json().get("results", [])
@@ -90,9 +103,10 @@ async def fetch_full_abstract_s2(client: httpx.AsyncClient, title: str) -> tuple
     Trả về (abstract, tldr, doi, issn, journal).
     """
     try:
+        cleaned_title = clean_paper_title(title)
         url = "https://api.semanticscholar.org/graph/v1/paper/search"
         params = {
-            "query": title,
+            "query": cleaned_title,
             "limit": 1,
             "fields": "title,abstract,tldr,externalIds,publicationVenue"
         }
