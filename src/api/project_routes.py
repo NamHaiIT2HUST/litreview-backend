@@ -60,6 +60,26 @@ def _fallback_keywords(request: ProjectCreateRequest) -> list[str]:
     return result[:7]
 
 
+@router.post("/projects", response_model=ProjectResponse, status_code=201)
+async def create_project(request: ProjectCreateRequest, db: AsyncSession = Depends(get_db)):
+    """Module 1: Create a new research project."""
+    import uuid
+    project = Project(
+        id=uuid.uuid4(),
+        name=request.name,
+        research_question=request.research_question,
+        research_field=request.research_field,
+        year_from=request.year_from,
+        year_to=request.year_to,
+        criteria_include=request.criteria_include,
+        criteria_exclude=request.criteria_exclude,
+    )
+    db.add(project)
+    await db.commit()
+    await db.refresh(project)
+    return project
+
+
 @router.get("/projects/{project_id}", response_model=ProjectResponse)
 async def get_project(project_id: UUID, db: AsyncSession = Depends(get_db)):
     """Module 1: Get project details."""
