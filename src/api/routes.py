@@ -355,19 +355,21 @@ async def search_papers(
         try:
             sq_obj = await db.get(SearchQuery, sq_id)
             if sq_obj:
-                sq_obj.result_count = len(scopus_papers)
+                sq_obj.total_found = all_found
+                sq_obj.total_confirmed = confirmed_count
+                sq_obj.total_undetermined = undetermined_count
                 await db.commit()
         except Exception:
             pass
 
     return SearchResponse(
-        papers=scopus_papers,
+        papers=target_papers,
         search_query_id=sq_id,
         provider="google_scholar" if effective_provider == "serpapi" else effective_provider,
         limit=SCOPUS_TARGET,
         total_found=all_found,
-        total_confirmed=len(scopus_papers),
-        total_undetermined=sum(1 for p in papers if p.scopus_status == "undetermined"),
+        total_confirmed=confirmed_count,
+        total_undetermined=undetermined_count,
         duplicates=duplicate_count,
     )
 
