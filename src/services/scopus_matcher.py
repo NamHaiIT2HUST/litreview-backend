@@ -162,7 +162,7 @@ async def fetch_issn_by_doi(doi: str) -> Optional[str]:
         clean_doi = doi.strip().replace("https://doi.org/", "").replace("http://doi.org/", "")
         url = f"https://api.openalex.org/works/https://doi.org/{clean_doi}"
         async with httpx.AsyncClient(timeout=4.0) as client:
-            res = await client.get(url)
+            res = await client.get(url, params={"mailto": "litreview.agent@gmail.com"})
             if res.status_code == 200:
                 data = res.json()
                 primary_loc = data.get("primary_location") or {}

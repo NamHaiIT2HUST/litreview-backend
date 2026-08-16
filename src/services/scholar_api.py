@@ -77,7 +77,7 @@ async def fetch_full_abstract_openalex(client: httpx.AsyncClient, title: str) ->
     try:
         cleaned_title = clean_paper_title(title)
         url = "https://api.openalex.org/works"
-        params = {"search": cleaned_title, "per-page": 1}
+        params = {"search": cleaned_title, "per-page": 1, "mailto": "litreview.agent@gmail.com"}
         res = await client.get(url, params=params, timeout=5.0)
         if res.status_code == 200:
             results = res.json().get("results", [])
@@ -133,15 +133,18 @@ async def fetch_full_abstract_s2(client: httpx.AsyncClient, title: str) -> tuple
 async def search_papers_openalex(query: str, limit: int = 10) -> list[Paper]:
     """Tìm kiếm trực tiếp từ OpenAlex API (Tốc độ cao, không cần API Key, không bao giờ bị 429)."""
     url = "https://api.openalex.org/works"
-    params = {"search": query, "per-page": limit}
+    params = {"search": query, "per-page": limit, "mailto": "litreview.agent@gmail.com"}
 
     async with httpx.AsyncClient() as client:
         try:
             response = await client.get(url, params=params, timeout=12.0)
-            response.raise_for_status()
+            if response.status_code != 200:
+                print(f"Warning: OpenAlex returned status {response.status_code}")
+                return []
             data = response.json()
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"OpenAlex API error: {str(e)}")
+            print(f"Warning: OpenAlex request failed: {e}")
+            return []
 
     results = data.get("results", [])
     papers = []
