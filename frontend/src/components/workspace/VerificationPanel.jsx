@@ -10,6 +10,8 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   import.meta.url,
 ).toString();
 
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000/api/v1';
+
 export default function VerificationPanel({ activeCitation, onClose, darkMode }) {
   const { t } = useLanguage();
   const [rects, setRects] = useState([]);
@@ -17,7 +19,7 @@ export default function VerificationPanel({ activeCitation, onClose, darkMode })
 
   const pdfUrl = useMemo(() => {
     if (!activeCitation?.filename) return null;
-    return `http://localhost:8000/api/v1/workspace/uploads/papers/${activeCitation.filename}`;
+    return `${API_BASE}/workspace/uploads/papers/${activeCitation.filename}`;
   }, [activeCitation]);
 
   const pageNumber = useMemo(() => {
@@ -28,7 +30,7 @@ export default function VerificationPanel({ activeCitation, onClose, darkMode })
     let active = true;
     if (activeCitation?.filename && activeCitation?.quoted_snippet) {
       setLoadingCoords(true);
-      fetch('http://localhost:8000/api/v1/workspace/evidence-coords', {
+      fetch(`${API_BASE}/workspace/evidence-coords`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

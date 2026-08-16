@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ShieldAlert, Loader2, Check, X, HelpCircle, Activity } from 'lucide-react';
 
-const API_BASE = 'http://localhost:8000/api/v1';
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000/api/v1';
 
 export default function ScreeningTab({ papers, setPapers, darkMode }) {
   const [screeningLoading, setScreeningLoading] = useState({});

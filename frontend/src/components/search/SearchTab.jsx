@@ -10,7 +10,7 @@ import PaperTable from './PaperTable';
 import { exportPapersToExcel } from '../../utils/excelExport';
 import { useLanguage } from '../../contexts/LanguageContext';
 
-const API_BASE = 'http://localhost:8000/api/v1';
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000/api/v1';
 const DEFAULT_PROJECT_ID = '00000000-0000-0000-0000-000000000001';
 
 function dbPaperToPaperSchema(dbPaper) {

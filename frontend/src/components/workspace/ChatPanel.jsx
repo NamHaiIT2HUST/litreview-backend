@@ -7,6 +7,8 @@ import rehypeKatex from 'rehype-katex';
 import CitationChip from './CitationChip';
 import { useLanguage } from '../../contexts/LanguageContext';
 
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000/api/v1';
+
 export default function ChatPanel({ 
   workspacePapers,
   selectedSourceIds,
@@ -42,7 +44,7 @@ export default function ChatPanel({
         ? selectedSourceIds 
         : (workspacePapers ? workspacePapers.map(p => p.id) : []);
         
-      const response = await fetch("http://localhost:8000/api/v1/workspace/chat", {
+      const response = await fetch(`${API_BASE}/workspace/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: question, paper_ids: paperIds }),

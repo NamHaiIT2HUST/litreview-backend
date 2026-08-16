@@ -9,7 +9,7 @@ import React, { useState } from 'react';
 import { History, Copy, RotateCcw, ChevronDown, ChevronUp, Clock, Search, Trash2 } from 'lucide-react';
 import { useLanguage } from '../../contexts/LanguageContext';
 
-const API_BASE = 'http://localhost:8000/api/v1';
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000/api/v1';
 const DEFAULT_PROJECT_ID = '00000000-0000-0000-0000-000000000001';
 
 function formatTime(isoString) {
