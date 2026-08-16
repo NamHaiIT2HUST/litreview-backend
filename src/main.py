@@ -24,9 +24,10 @@ async def lifespan(app: FastAPI):
     # Seed the default project so synthesis & direct-upload always work
     await _ensure_default_project()
     print("Default project seeded.")
-    # Auto-seed minimal Scopus journals list if DB is empty
-    await _ensure_minimal_scopus_sources()
-    print("Scopus sources seeded/verified.")
+    # Run minimal Scopus seeding in the background to prevent blocking server port binding
+    import asyncio
+    asyncio.create_task(_ensure_minimal_scopus_sources())
+    print("Scopus sources background seed scheduled.")
     yield
     print("Shutting down...")
 
