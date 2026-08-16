@@ -225,7 +225,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
       const res = await fetch(`${API_BASE}/search-queries/${queryId}/papers`);
       if (!res.ok) return;
       const dbPapers = await res.json();
-      const converted = dbPapers.map(dbPaperToPaperSchema).filter(p => p.scopus_status === 'indexed');
+      const converted = dbPapers.map(dbPaperToPaperSchema);
       setPapers(converted);
 
       if (queryString) {
@@ -304,16 +304,17 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
         throw new Error(data.detail || 'Lỗi tìm kiếm từ server');
       }
 
-      const data = await response.json();
-      const scopusOnly = (data.papers || []).filter(p => p.scopus_status === 'indexed');
+      const scopusOnly = data.papers || [];
       if (scopusOnly.length > 0) {
         setPapers(scopusOnly);
+        const confirmedCount = scopusOnly.filter(p => p.scopus_status === 'indexed').length;
+        const undeterminedCount = scopusOnly.filter(p => p.scopus_status !== 'indexed').length;
         setSearchMeta({
           provider: data.provider || 'google_scholar',
           limit: data.limit || 20,
           total_found: scopusOnly.length,
-          total_confirmed: scopusOnly.length,
-          total_undetermined: 0,
+          total_confirmed: confirmedCount,
+          total_undetermined: undeterminedCount,
           duplicates: data.duplicates ?? 0,
         });
         if (data.search_query_id) {
