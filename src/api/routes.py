@@ -347,8 +347,8 @@ async def search_papers(
         duplicate_count = 0
 
     all_found = len(papers)
-        except Exception:
-            pass
+    confirmed_count = sum(1 for p in target_papers if p.scopus_status == "indexed")
+    undetermined_count = sum(1 for p in target_papers if p.scopus_status != "indexed")
 
     # Cập nhật số lượng bài Scopus thực tế vào SearchQuery record trong DB
     if sq_id:
