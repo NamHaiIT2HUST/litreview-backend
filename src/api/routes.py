@@ -283,9 +283,12 @@ async def search_papers(
                 key = _compute_dedup_key(p.doi, p.title, p.authors, p.year)
                 db_paper = dedup_to_paper.get(key)
                 if db_paper:
-                    # If previously cached as undetermined, re-run quality check to apply new heuristics
+                    # If previously cached as undetermined or contains only a snippet abstract, re-run quality check to enrich it
                     status_str = db_paper.scopus_status.value if hasattr(db_paper.scopus_status, "value") else str(db_paper.scopus_status)
-                    if status_str == "undetermined":
+                    abs_str = db_paper.abstract or ""
+                    is_snippet = not abs_str or "..." in abs_str or len(abs_str) < 300
+                    
+                    if status_str == "undetermined" or is_snippet:
                         from src.services.scopus_matcher import quality_check
                         await quality_check(db, db_paper)
                         await db.commit()
