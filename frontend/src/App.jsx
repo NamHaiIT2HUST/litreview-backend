@@ -84,12 +84,26 @@ export default function App() {
   }, [darkMode]);
 
 
-  const [chatMessages, setChatMessages] = useState([
-    {
-      sender: 'ai',
-      text: `Chào mừng bạn đến với **LitReview Agent**! Hãy tìm kiếm trên Google Scholar, hệ thống sẽ tự động đối chiếu Scopus và chỉ giữ các bài đã xác minh.`
+  const [chatMessages, setChatMessages] = useState(() => {
+    const saved = localStorage.getItem('litreview_workspace_chat_messages');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error('Failed to parse saved chat messages:', e);
+      }
     }
-  ]);
+    return [
+      {
+        sender: 'ai',
+        text: `Chào mừng bạn đến với **LitReview Agent**! Hãy tìm kiếm trên Google Scholar, hệ thống sẽ tự động đối chiếu Scopus và chỉ giữ các bài đã xác minh.`
+      }
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('litreview_workspace_chat_messages', JSON.stringify(chatMessages));
+  }, [chatMessages]);
 
   const toggleSelectPaper = (id) => {
     if (selectedPaperIds.includes(id)) {

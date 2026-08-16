@@ -473,6 +473,28 @@ export default function WorkspaceTab({
                   <Sparkles className="w-4 h-4 text-blue-500" />
                   {t('workspace.ai_assistant')}
                 </span>
+                {activeWorkspaceTab === 'chat' && chatMessages && chatMessages.length > 1 && (
+                  <button
+                    onClick={() => {
+                      if (window.confirm("Bạn có chắc chắn muốn xóa lịch sử trò chuyện này không?")) {
+                        setChatMessages([
+                          {
+                            sender: 'ai',
+                            text: `Chào mừng bạn đến với **LitReview Agent**! Hãy tìm kiếm trên Google Scholar, hệ thống sẽ tự động đối chiếu Scopus và chỉ giữ các bài đã xác minh.`
+                          }
+                        ]);
+                      }
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-colors flex items-center gap-1 ${
+                      darkMode
+                        ? 'border-slate-800 text-slate-400 hover:text-red-400 hover:bg-red-950/20'
+                        : 'border-slate-200 text-slate-500 hover:text-red-600 hover:bg-red-50'
+                    }`}
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    <span>Xóa lịch sử</span>
+                  </button>
+                )}
               </div>
               <div className={`flex rounded-xl p-1 shadow-inner ${darkMode ? 'bg-slate-950' : 'bg-slate-100'}`}>
                 {[
