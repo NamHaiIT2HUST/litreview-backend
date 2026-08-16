@@ -260,45 +260,34 @@ async def search_papers(
 
     # --- Duyệt theo thứ tự ranking Google Scholar (batch 10 bài), xác minh Scopus thực sự để gom ĐỦ 20 bài Scopus ---
     confirmed_scopus_papers = []
-    batch_size = 10
-    
-    for i in range(0, len(papers), batch_size):
-        batch = papers[i : i + batch_size]
-        
-        async def verify_paper(p_pydantic):
-            temp_paper = Paper(
-                id=uuid.uuid4(),
-                title=p_pydantic.title,
-                authors=p_pydantic.authors,
-                year=p_pydantic.year,
-                journal=p_pydantic.journal,
-                abstract=p_pydantic.abstract,
-                doi=p_pydantic.doi,
-                issn=p_pydantic.issn,
-                citations=p_pydantic.citations,
-            )
-            try:
-                from src.services.scopus_matcher import quality_check
-                await quality_check(db, temp_paper)
-                p_pydantic.abstract = temp_paper.abstract
-                p_pydantic.doi = temp_paper.doi
-                p_pydantic.issn = temp_paper.issn
-                p_pydantic.scopus_status = temp_paper.scopus_status.value if hasattr(temp_paper.scopus_status, "value") else str(temp_paper.scopus_status)
-                p_pydantic.scopus_quartile = temp_paper.scopus_quartile
-                p_pydantic.coverage_year_status = temp_paper.coverage_year_status.value if hasattr(temp_paper.coverage_year_status, "value") else str(temp_paper.coverage_year_status)
-            except Exception as e:
-                print(f"Error checking paper: {e}")
-                
-        await asyncio.gather(*(verify_paper(p) for p in batch))
-        
-        for p in batch:
-            if p.scopus_status == "indexed":
-                confirmed_scopus_papers.append(p)
-                if len(confirmed_scopus_papers) >= SCOPUS_TARGET:
-                    break
-                    
-        if len(confirmed_scopus_papers) >= SCOPUS_TARGET:
-            break
+    for p in papers:
+        temp_paper = Paper(
+            id=uuid.uuid4(),
+            title=p.title,
+            authors=p.authors,
+            year=p.year,
+            journal=p.journal,
+            abstract=p.abstract,
+            doi=p.doi,
+            issn=p.issn,
+            citations=p.citations,
+        )
+        try:
+            from src.services.scopus_matcher import quality_check
+            await quality_check(db, temp_paper)
+            p.abstract = temp_paper.abstract
+            p.doi = temp_paper.doi
+            p.issn = temp_paper.issn
+            p.scopus_status = temp_paper.scopus_status.value if hasattr(temp_paper.scopus_status, "value") else str(temp_paper.scopus_status)
+            p.scopus_quartile = temp_paper.scopus_quartile
+            p.coverage_year_status = temp_paper.coverage_year_status.value if hasattr(temp_paper.coverage_year_status, "value") else str(temp_paper.coverage_year_status)
+        except Exception as e:
+            print(f"Error checking paper: {e}")
+
+        if p.scopus_status == "indexed":
+            confirmed_scopus_papers.append(p)
+            if len(confirmed_scopus_papers) >= SCOPUS_TARGET:
+                break
 
     # Nếu chưa đủ 20 bài Scopus-indexed sau khi duyệt hết 60 bài, lấy bù bài undetermined cho đủ 20 bài
     if len(confirmed_scopus_papers) < SCOPUS_TARGET:
