@@ -983,9 +983,11 @@ async def create_synthesis_session(
     await db.commit()
 
     try:
-        if get_settings().app_env == "development":
-            # Local mode needs no Redis/Celery process; FastAPI runs the same
-            # task body after returning 202. Production remains queue-backed.
+        import os
+        redis_url = os.getenv("REDIS_URL") or os.getenv("CELERY_BROKER_URL") or os.getenv("REDIS_TLS_URL")
+        
+        if get_settings().app_env == "development" or not redis_url:
+            # Local/Fallback mode: use FastAPI BackgroundTasks so we don't need Redis/Celery on Render Free Tier
             async def local_run_synthesis(sid: str):
                 from src.tasks.synthesis_tasks import run_synthesis_session, _mark_terminal_failure
                 try:
