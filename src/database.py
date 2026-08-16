@@ -103,3 +103,9 @@ async def ensure_local_schema_compatibility():
             await conn.execute(
                 text("ALTER TABLE evidence_records ADD COLUMN applies_to VARCHAR(80) NOT NULL DEFAULT 'study'")
             )
+        paper_rows = await conn.execute(text("PRAGMA table_info(papers)"))
+        paper_columns = {row[1] for row in paper_rows}
+        if paper_columns and "file_path" not in paper_columns:
+            await conn.execute(
+                text("ALTER TABLE papers ADD COLUMN file_path TEXT")
+            )

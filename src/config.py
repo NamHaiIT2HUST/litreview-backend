@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     openai_api_base: str = ""
     gemini_api_key: str = ""
     google_api_key: str = ""
+    serpapi_api_key: str = ""
     model_name: str = "gemini-1.5-flash"
     llm_temperature: float = Field(default=0.7, ge=0.0, le=2.0)
     synthesis_temperature: float = Field(default=0.0, ge=0.0, le=1.0)

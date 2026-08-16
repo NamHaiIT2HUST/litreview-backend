@@ -224,8 +224,7 @@ async def search_papers(
     effective_provider = "serpapi" if provider in (None, "auto") else provider
     if not x_api_key or not x_api_key.strip():
         from src.config import get_settings
-        settings = get_settings()
-        x_api_key = (settings.serpapi_api_key or os.getenv("SERPAPI_API_KEY") or os.getenv("SERP_API_KEY") or "").strip()
+        x_api_key = (getattr(settings, "serpapi_api_key", "") or os.getenv("SERPAPI_API_KEY") or os.getenv("SERPAPI_KEY") or os.getenv("SERP_API_KEY") or "").strip()
 
     if effective_provider == "serpapi" and not x_api_key:
         raise HTTPException(status_code=401, detail="SerpApi key is required for Google Scholar Top 20 search")
