@@ -123,7 +123,7 @@ async def _ensure_default_project():
 app = FastAPI(
     title="AI20K Agent",
     description="AI Agent built with LangGraph",
-    version="1.0.0",
+    version="1.0.5",
     lifespan=lifespan,
 )
 
