@@ -264,7 +264,7 @@ async def search_papers(
         temp_paper = Paper(
             id=uuid.uuid4(),
             title=p.title,
-            authors=p.authors,
+            authors=normalize_authors_for_db(p.authors),
             year=p.year,
             journal=p.journal,
             abstract=p.abstract,
