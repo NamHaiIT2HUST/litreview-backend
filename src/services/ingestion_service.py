@@ -98,6 +98,8 @@ async def persist_pdf_provenance(
         chunk.metadata["chunk_index"] = chunk_index
         chunk.metadata["page_char_start"] = start
         chunk.metadata["page_char_end"] = end
+        chunk.metadata["source"] = str(paper.file_path) if paper.file_path else f"paper_{paper.id}.pdf"
+        chunk.metadata["paper_title"] = str(paper.title) if paper.title else "Unknown Title"
 
     db.add_all(page_rows)
     db.add_all(chunk_rows)
