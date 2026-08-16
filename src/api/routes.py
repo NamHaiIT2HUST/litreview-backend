@@ -232,132 +232,132 @@ async def search_papers(
     db: AsyncSession = Depends(get_db),
 ) -> SearchResponse:
     """Search & Verify: lấy papers từ Google Scholar, đối chiếu Scopus, chỉ trả về bài đã xác minh."""
-    effective_provider = "serpapi" if provider in (None, "auto") else provider
-    if not x_api_key or not x_api_key.strip():
-        from src.config import get_settings
-        x_api_key = (getattr(settings, "serpapi_api_key", "") or os.getenv("SERPAPI_API_KEY") or os.getenv("SERPAPI_KEY") or os.getenv("SERP_API_KEY") or "").strip()
+    try:
+        effective_provider = "serpapi" if provider in (None, "auto") else provider
+        if not x_api_key or not x_api_key.strip():
+            from src.config import get_settings
+            x_api_key = (getattr(settings, "serpapi_api_key", "") or os.getenv("SERPAPI_API_KEY") or os.getenv("SERPAPI_KEY") or os.getenv("SERP_API_KEY") or "").strip()
 
-    # x_api_key is optional; if missing or invalid, search_papers_auto falls back to Semantic Scholar / OpenAlex
-
-    papers = await search_papers_auto(
-        query=request.query_string,
-        api_key=x_api_key or "",
-        provider=effective_provider,
-        limit=GOOGLE_SCHOLAR_FETCH_N,
-    )
-
-    if not papers:
-        return SearchResponse(
-            papers=[],
-            search_query_id=None,
-            provider="google_scholar" if effective_provider == "serpapi" else effective_provider,
-            limit=SCOPUS_TARGET,
-            total_found=0,
-            total_confirmed=0,
-            total_undetermined=0,
-            duplicates=0,
+        papers = await search_papers_auto(
+            query=request.query_string,
+            api_key=x_api_key or "",
+            provider=effective_provider,
+            limit=GOOGLE_SCHOLAR_FETCH_N,
         )
 
-    # --- Duyệt theo thứ tự ranking Google Scholar (batch 10 bài), xác minh Scopus thực sự để gom ĐỦ 20 bài Scopus ---
-    confirmed_scopus_papers = []
-    for p in papers:
-        temp_paper = Paper(
-            id=uuid.uuid4(),
-            title=p.title,
-            authors=normalize_authors_for_db(p.authors),
-            year=p.year,
-            journal=p.journal,
-            abstract=p.abstract,
-            doi=p.doi,
-            issn=p.issn,
-            citations=p.citations,
-        )
-        try:
-            from src.services.scopus_matcher import quality_check
-            await quality_check(db, temp_paper)
-            p.abstract = temp_paper.abstract
-            p.doi = temp_paper.doi
-            p.issn = temp_paper.issn
-            p.scopus_status = temp_paper.scopus_status.value if hasattr(temp_paper.scopus_status, "value") else str(temp_paper.scopus_status)
-            p.scopus_quartile = temp_paper.scopus_quartile
-            p.coverage_year_status = temp_paper.coverage_year_status.value if hasattr(temp_paper.coverage_year_status, "value") else str(temp_paper.coverage_year_status)
-        except Exception as e:
-            print(f"Error checking paper: {e}")
+        if not papers:
+            return SearchResponse(
+                papers=[],
+                search_query_id=None,
+                provider="google_scholar" if effective_provider == "serpapi" else effective_provider,
+                limit=SCOPUS_TARGET,
+                total_found=0,
+                total_confirmed=0,
+                total_undetermined=0,
+                duplicates=0,
+            )
 
-        if p.scopus_status == "indexed":
-            confirmed_scopus_papers.append(p)
-            if len(confirmed_scopus_papers) >= SCOPUS_TARGET:
-                break
-
-    # Nếu chưa đủ 20 bài Scopus-indexed sau khi duyệt hết 60 bài, lấy bù bài undetermined cho đủ 20 bài
-    if len(confirmed_scopus_papers) < SCOPUS_TARGET:
-        scopus_ids = {id(p) for p in confirmed_scopus_papers}
+        confirmed_scopus_papers = []
         for p in papers:
-            if id(p) not in scopus_ids:
+            temp_paper = Paper(
+                id=uuid.uuid4(),
+                title=p.title,
+                authors=normalize_authors_for_db(p.authors),
+                year=p.year,
+                journal=p.journal,
+                abstract=p.abstract,
+                doi=p.doi,
+                issn=p.issn,
+                citations=p.citations,
+            )
+            try:
+                from src.services.scopus_matcher import quality_check
+                await quality_check(db, temp_paper)
+                p.abstract = temp_paper.abstract
+                p.doi = temp_paper.doi
+                p.issn = temp_paper.issn
+                p.scopus_status = temp_paper.scopus_status.value if hasattr(temp_paper.scopus_status, "value") else str(temp_paper.scopus_status)
+                p.scopus_quartile = temp_paper.scopus_quartile
+                p.coverage_year_status = temp_paper.coverage_year_status.value if hasattr(temp_paper.coverage_year_status, "value") else str(temp_paper.coverage_year_status)
+            except Exception as e:
+                print(f"Error checking paper: {e}")
+
+            if p.scopus_status == "indexed":
                 confirmed_scopus_papers.append(p)
                 if len(confirmed_scopus_papers) >= SCOPUS_TARGET:
                     break
 
-    target_papers = confirmed_scopus_papers[:SCOPUS_TARGET]
+        if len(confirmed_scopus_papers) < SCOPUS_TARGET:
+            scopus_ids = {id(p) for p in confirmed_scopus_papers}
+            for p in papers:
+                if id(p) not in scopus_ids:
+                    confirmed_scopus_papers.append(p)
+                    if len(confirmed_scopus_papers) >= SCOPUS_TARGET:
+                        break
 
-    try:
-        sq_id, duplicate_count = await _persist_search(
-            db, 
-            query_string=request.query_string, 
-            papers_pydantic=target_papers, 
-            project_id=project_id,
-            strategy_label=request.strategy_label
-        )
-        
-        if sq_id:
-            project_uuid = uuid.UUID(str(project_id))
-            keys = [_compute_dedup_key(p.doi, p.title, p.authors, p.year) for p in target_papers]
-            result = await db.execute(
-                select(Paper).where(Paper.project_id == project_uuid, Paper.dedup_key.in_(keys))
-            )
-            db_papers = result.scalars().all()
-            dedup_to_paper = {p.dedup_key: p for p in db_papers}
-            
-            for p in target_papers:
-                key = _compute_dedup_key(p.doi, p.title, p.authors, p.year)
-                db_paper = dedup_to_paper.get(key)
-                if db_paper:
-                    p.id = str(db_paper.id)
-                    p.abstract = db_paper.abstract
-                    p.doi = db_paper.doi
-            
-    except Exception as exc:
-        import logging
-        logging.getLogger(__name__).error("Failed to persist search: %s", exc)
-        sq_id = None
-        duplicate_count = 0
+        target_papers = confirmed_scopus_papers[:SCOPUS_TARGET]
 
-    all_found = len(papers)
-    confirmed_count = sum(1 for p in target_papers if p.scopus_status == "indexed")
-    undetermined_count = sum(1 for p in target_papers if p.scopus_status != "indexed")
-
-    # Cập nhật số lượng bài Scopus thực tế vào SearchQuery record trong DB
-    if sq_id:
         try:
-            sq_obj = await db.get(SearchQuery, sq_id)
-            if sq_obj:
-                sq_obj.total_found = all_found
-                sq_obj.total_confirmed = confirmed_count
-                sq_obj.total_undetermined = undetermined_count
-                await db.commit()
-        except Exception:
-            pass
+            sq_id, duplicate_count = await _persist_search(
+                db, 
+                query_string=request.query_string, 
+                papers_pydantic=target_papers, 
+                project_id=project_id,
+                strategy_label=request.strategy_label
+            )
+            
+            if sq_id:
+                project_uuid = uuid.UUID(str(project_id))
+                keys = [_compute_dedup_key(p.doi, p.title, p.authors, p.year) for p in target_papers]
+                result = await db.execute(
+                    select(Paper).where(Paper.project_id == project_uuid, Paper.dedup_key.in_(keys))
+                )
+                db_papers = result.scalars().all()
+                dedup_to_paper = {p.dedup_key: p for p in db_papers}
+                
+                for p in target_papers:
+                    key = _compute_dedup_key(p.doi, p.title, p.authors, p.year)
+                    db_paper = dedup_to_paper.get(key)
+                    if db_paper:
+                        p.id = str(db_paper.id)
+                        p.abstract = db_paper.abstract
+                        p.doi = db_paper.doi
+                
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).error("Failed to persist search: %s", exc)
+            sq_id = None
+            duplicate_count = 0
 
-    return SearchResponse(
-        papers=target_papers,
-        search_query_id=sq_id,
-        provider="google_scholar" if effective_provider == "serpapi" else effective_provider,
-        limit=SCOPUS_TARGET,
-        total_found=all_found,
-        total_confirmed=confirmed_count,
-        total_undetermined=undetermined_count,
-        duplicates=duplicate_count,
-    )
+        all_found = len(papers)
+        confirmed_count = sum(1 for p in target_papers if p.scopus_status == "indexed")
+        undetermined_count = sum(1 for p in target_papers if p.scopus_status != "indexed")
+
+        if sq_id:
+            try:
+                sq_obj = await db.get(SearchQuery, sq_id)
+                if sq_obj:
+                    sq_obj.total_found = all_found
+                    sq_obj.total_confirmed = confirmed_count
+                    sq_obj.total_undetermined = undetermined_count
+                    await db.commit()
+            except Exception:
+                pass
+
+        return SearchResponse(
+            papers=target_papers,
+            search_query_id=sq_id,
+            provider="google_scholar" if effective_provider == "serpapi" else effective_provider,
+            limit=SCOPUS_TARGET,
+            total_found=all_found,
+            total_confirmed=confirmed_count,
+            total_undetermined=undetermined_count,
+            duplicates=duplicate_count,
+        )
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Search execution failed: {str(e)}")
 
 
 @router.post("/chat", response_model=ChatResponse)
