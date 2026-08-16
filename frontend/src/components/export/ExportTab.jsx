@@ -8,6 +8,9 @@ import {
 } from '../../utils/exportUtils';
 import { useLanguage } from '../../contexts/LanguageContext';
 
+const API_BASE = 'http://localhost:8000/api/v1';
+const DEFAULT_PROJECT_ID = '00000000-0000-0000-0000-000000000001';
+
 export default function ExportTab({ papers = [], selectedPapers = [], workspacePapers = [], darkMode = false }) {
   const { t } = useLanguage();
   // Scope selection: 'keep' | 'all' | 'workspace'
@@ -27,7 +30,13 @@ export default function ExportTab({ papers = [], selectedPapers = [], workspaceP
   const [toastMessage, setToastMessage] = useState(null);
   
   // Export Session History Log
-  const [exportHistory, setExportHistory] = useState([]);
+  const [exportHistory, setExportHistory] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('litreview_export_history')) || [];
+    } catch {
+      return [];
+    }
+  });
 
   // Active right column view: 'preview' | 'history'
   const [rightTab, setRightTab] = useState('preview');
@@ -71,6 +80,65 @@ export default function ExportTab({ papers = [], selectedPapers = [], workspaceP
     criteria_include: researchSetup?.criteria_include?.join(', ') || 'Not specified',
     criteria_exclude: researchSetup?.criteria_exclude?.join(', ') || 'Not specified'
   };
+
+  // Sync history to localStorage
+  useEffect(() => {
+    localStorage.setItem('litreview_export_history', JSON.stringify(exportHistory));
+  }, [exportHistory]);
+
+  // Fetch export history from backend on mount and merge
+  useEffect(() => {
+    const fetchExportHistory = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/projects/${DEFAULT_PROJECT_ID}/export/history`);
+        if (response.ok) {
+          const data = await response.json();
+          setExportHistory(prev => {
+            const merged = new Map(prev.map(item => [item.id, item]));
+            data.forEach(item => {
+              merged.set(item.id, {
+                id: item.id,
+                format: item.format,
+                filename: item.filename,
+                papers_count: item.papers_count,
+                timestamp: new Date(item.exported_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+                content: item.content || ''
+              });
+            });
+            return Array.from(merged.values()).sort((a, b) => b.id.localeCompare(a.id));
+          });
+        }
+      } catch (err) {
+        console.error('Failed to fetch backend export history:', err);
+      }
+    };
+    fetchExportHistory();
+  }, []);
+
+  // Fetch the latest successful synthesis session draft on mount to pre-populate customDraft
+  useEffect(() => {
+    const fetchLatestSynthesisDraft = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/projects/${DEFAULT_PROJECT_ID}/synthesis-sessions`);
+        if (response.ok) {
+          const sessions = await response.json();
+          const latestDone = sessions.find(s => s.status === 'done');
+          if (latestDone) {
+            const resDetail = await fetch(`${API_BASE}/synthesis-sessions/${latestDone.id}`);
+            if (resDetail.ok) {
+              const detail = await resDetail.json();
+              if (detail.review_markdown) {
+                setCustomDraft(detail.review_markdown);
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load latest synthesis draft:', err);
+      }
+    };
+    fetchLatestSynthesisDraft();
+  }, []);
 
   // Generate content dynamically for Live Preview
   const previewContent = useMemo(() => {
@@ -133,7 +201,7 @@ export default function ExportTab({ papers = [], selectedPapers = [], workspaceP
         custom_papers: targetPapers
       };
 
-      const response = await fetch('/api/v1/projects/00000000-0000-0000-0000-000000000000/export', {
+      const response = await fetch(`${API_BASE}/projects/${DEFAULT_PROJECT_ID}/export`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(backendPayload)
