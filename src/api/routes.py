@@ -261,46 +261,84 @@ async def search_papers(
             duplicates=0,
         )
 
+    # --- Duyệt theo thứ tự ranking Google Scholar (batch 10 bài), xác minh Scopus thực sự để gom ĐỦ 20 bài Scopus ---
+    confirmed_scopus_papers = []
+    batch_size = 10
+    
+    for i in range(0, len(papers), batch_size):
+        batch = papers[i : i + batch_size]
+        
+        async def verify_paper(p_pydantic):
+            temp_paper = Paper(
+                id=uuid.uuid4(),
+                title=p_pydantic.title,
+                authors=p_pydantic.authors,
+                year=p_pydantic.year,
+                journal=p_pydantic.journal,
+                abstract=p_pydantic.abstract,
+                doi=p_pydantic.doi,
+                issn=p_pydantic.issn,
+                citations=p_pydantic.citations,
+            )
+            try:
+                from src.services.scopus_matcher import quality_check
+                await quality_check(db, temp_paper)
+                p_pydantic.abstract = temp_paper.abstract
+                p_pydantic.doi = temp_paper.doi
+                p_pydantic.issn = temp_paper.issn
+                p_pydantic.scopus_status = temp_paper.scopus_status.value if hasattr(temp_paper.scopus_status, "value") else str(temp_paper.scopus_status)
+                p_pydantic.scopus_quartile = temp_paper.scopus_quartile
+                p_pydantic.coverage_year_status = temp_paper.coverage_year_status.value if hasattr(temp_paper.coverage_year_status, "value") else str(temp_paper.coverage_year_status)
+            except Exception as e:
+                print(f"Error checking paper: {e}")
+                
+        await asyncio.gather(*(verify_paper(p) for p in batch))
+        
+        for p in batch:
+            if p.scopus_status == "indexed":
+                confirmed_scopus_papers.append(p)
+                if len(confirmed_scopus_papers) >= SCOPUS_TARGET:
+                    break
+                    
+        if len(confirmed_scopus_papers) >= SCOPUS_TARGET:
+            break
+
+    # Nếu chưa đủ 20 bài Scopus-indexed sau khi duyệt hết 60 bài, lấy bù bài undetermined cho đủ 20 bài
+    if len(confirmed_scopus_papers) < SCOPUS_TARGET:
+        scopus_ids = {id(p) for p in confirmed_scopus_papers}
+        for p in papers:
+            if id(p) not in scopus_ids:
+                confirmed_scopus_papers.append(p)
+                if len(confirmed_scopus_papers) >= SCOPUS_TARGET:
+                    break
+
+    target_papers = confirmed_scopus_papers[:SCOPUS_TARGET]
+
     try:
         sq_id, duplicate_count = await _persist_search(
             db, 
             query_string=request.query_string, 
-            papers_pydantic=papers, 
+            papers_pydantic=target_papers, 
             project_id=project_id,
             strategy_label=request.strategy_label
         )
         
         if sq_id:
             project_uuid = uuid.UUID(str(project_id))
-            keys = [_compute_dedup_key(p.doi, p.title, p.authors, p.year) for p in papers]
+            keys = [_compute_dedup_key(p.doi, p.title, p.authors, p.year) for p in target_papers]
             result = await db.execute(
                 select(Paper).where(Paper.project_id == project_uuid, Paper.dedup_key.in_(keys))
             )
             db_papers = result.scalars().all()
             dedup_to_paper = {p.dedup_key: p for p in db_papers}
             
-            for p in papers:
+            for p in target_papers:
                 key = _compute_dedup_key(p.doi, p.title, p.authors, p.year)
                 db_paper = dedup_to_paper.get(key)
                 if db_paper:
-                    # If previously cached as undetermined or contains only a snippet abstract, re-run quality check to enrich it
-                    status_str = db_paper.scopus_status.value if hasattr(db_paper.scopus_status, "value") else str(db_paper.scopus_status)
-                    abs_str = db_paper.abstract or ""
-                    is_snippet = not abs_str or "..." in abs_str or len(abs_str) < 300
-                    
-                    if status_str == "undetermined" or is_snippet:
-                        from src.services.scopus_matcher import quality_check
-                        await quality_check(db, db_paper)
-                        await db.commit()
-
                     p.id = str(db_paper.id)
-                    p.issn = db_paper.issn
                     p.abstract = db_paper.abstract
-                    if db_paper.doi and db_paper.doi != "N/A":
-                        p.doi = db_paper.doi
-                    p.scopus_status = db_paper.scopus_status.value if hasattr(db_paper.scopus_status, "value") else db_paper.scopus_status
-                    p.scopus_quartile = db_paper.scopus_quartile
-                    p.coverage_year_status = db_paper.coverage_year_status.value if hasattr(db_paper.coverage_year_status, "value") else db_paper.coverage_year_status
+                    p.doi = db_paper.doi
             
     except Exception as exc:
         import logging
@@ -308,56 +346,7 @@ async def search_papers(
         sq_id = None
         duplicate_count = 0
 
-    # --- Filter: Ưu tiên bài Scopus indexed, nếu thiếu bổ sung undetermined cho đủ SCOPUS_TARGET ---
     all_found = len(papers)
-    indexed_papers = [p for p in papers if p.scopus_status == "indexed"]
-    undetermined_papers = [p for p in papers if p.scopus_status != "indexed"]
-    scopus_papers = (indexed_papers + undetermined_papers)[:SCOPUS_TARGET]
-
-    # --- Làm giàu abstract song song chỉ cho 20 bài báo được chọn ---
-    if scopus_papers:
-        try:
-            import httpx
-            from src.services.scholar_api import fetch_full_abstract_openalex, fetch_full_abstract_s2
-            
-            async def enrich_single(p_obj):
-                abs_str = p_obj.abstract or ""
-                if not abs_str or "..." in abs_str or len(abs_str) < 300:
-                    try:
-                        async with httpx.AsyncClient(timeout=10.0) as client:
-                            oa_abstract, oa_doi, oa_issn, oa_journal = await fetch_full_abstract_openalex(client, p_obj.title)
-                            if not oa_abstract or len(oa_abstract) < 300:
-                                s2_abs, _, s2_doi, s2_issn, _ = await fetch_full_abstract_s2(client, p_obj.title)
-                                if s2_abs and len(s2_abs) > len(oa_abstract or ""):
-                                    oa_abstract = s2_abs
-                                    if s2_doi and s2_doi != "N/A":
-                                        oa_doi = s2_doi
-                                    if s2_issn:
-                                        oa_issn = s2_issn
-                            
-                            if oa_abstract and len(oa_abstract) > len(p_obj.abstract or ""):
-                                p_obj.abstract = oa_abstract
-                                if oa_doi and oa_doi != "N/A":
-                                    p_obj.doi = oa_doi
-                                if oa_issn:
-                                    p_obj.issn = oa_issn
-                                    
-                                # Cập nhật trực tiếp vào database & re-check Scopus
-                                if p_obj.id:
-                                    db_p = await db.get(Paper, uuid.UUID(p_obj.id))
-                                    if db_p:
-                                        db_p.abstract = oa_abstract
-                                        if oa_doi and oa_doi != "N/A":
-                                            db_p.doi = oa_doi
-                                        if oa_issn:
-                                            db_p.issn = oa_issn
-                                        await run_scopus_quality_check(db, db_p, enrich_abstract=False)
-                                        p_obj.scopus_status = db_p.scopus_status.value if hasattr(db_p.scopus_status, "value") else db_p.scopus_status
-                                        await db.commit()
-                    except Exception:
-                        pass
-                        
-            await asyncio.gather(*(enrich_single(p) for p in scopus_papers))
         except Exception:
             pass
 
