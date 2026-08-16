@@ -14,6 +14,19 @@ import { useLanguage } from '../../contexts/LanguageContext';
 
 const API_BASE = 'http://localhost:8000/api/v1';
 
+const formatSessionTime = (isoString) => {
+  if (!isoString) return '';
+  let clean = isoString;
+  if (!clean.endsWith('Z') && !clean.includes('+') && !clean.includes('-')) {
+    clean += 'Z';
+  }
+  const d = new Date(clean);
+  return d.toLocaleString('vi-VN', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  });
+};
+
 export default function SynthesisPanel({ workspacePapers, setActiveCitation, darkMode }) {
   const { t } = useLanguage();
   const [sessionId, setSessionId] = useState(null);
@@ -183,7 +196,7 @@ export default function SynthesisPanel({ workspacePapers, setActiveCitation, dar
                       >
                         <div className="flex items-center justify-between">
                           <span className="font-semibold text-[11px] opacity-80">
-                            {new Date(session.created_at).toLocaleString()}
+                            {formatSessionTime(session.created_at)}
                           </span>
                           <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase ${
                             session.status === 'done' ? 'bg-emerald-100 text-emerald-700' : 

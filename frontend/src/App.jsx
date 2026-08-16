@@ -156,6 +156,7 @@ export default function App() {
               papers={papers}
               setPapers={setPapers}
               selectedPapers={selectedPapers}
+              setSelectedPapers={setSelectedPapers}
               setSelectedPaperIds={setSelectedPaperIds}
               workspacePapers={workspacePapers}
               setWorkspacePapers={setWorkspacePapers}

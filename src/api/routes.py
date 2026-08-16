@@ -441,6 +441,25 @@ async def delete_paper(
 ):
     """Xóa một paper khỏi database."""
     from sqlalchemy import delete as sql_delete
+    from src.models.db_models import (
+        Paper, PageText, PDFChunk, Extraction, ScreeningHistory,
+        EvidenceRecord, EvidenceExtractionAttempt, VectorCleanupJob,
+        GenericEvidenceCache, GenericEvidenceCacheItem, RetrievalLog, Citation
+    )
+    
+    # Delete child rows first to avoid foreign key violations
+    await db.execute(sql_delete(Citation).where(Citation.paper_id == paper_id))
+    await db.execute(sql_delete(RetrievalLog).where(RetrievalLog.paper_id == paper_id))
+    await db.execute(sql_delete(GenericEvidenceCacheItem).where(GenericEvidenceCacheItem.paper_id == paper_id))
+    await db.execute(sql_delete(GenericEvidenceCache).where(GenericEvidenceCache.paper_id == paper_id))
+    await db.execute(sql_delete(VectorCleanupJob).where(VectorCleanupJob.paper_id == paper_id))
+    await db.execute(sql_delete(EvidenceRecord).where(EvidenceRecord.paper_id == paper_id))
+    await db.execute(sql_delete(EvidenceExtractionAttempt).where(EvidenceExtractionAttempt.paper_id == paper_id))
+    await db.execute(sql_delete(ScreeningHistory).where(ScreeningHistory.paper_id == paper_id))
+    await db.execute(sql_delete(Extraction).where(Extraction.paper_id == paper_id))
+    await db.execute(sql_delete(PDFChunk).where(PDFChunk.paper_id == paper_id))
+    await db.execute(sql_delete(PageText).where(PageText.paper_id == paper_id))
+    
     result = await db.execute(sql_delete(Paper).where(Paper.id == paper_id))
     await db.commit()
     if result.rowcount == 0:

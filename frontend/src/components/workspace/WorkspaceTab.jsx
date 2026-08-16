@@ -152,6 +152,7 @@ export default function WorkspaceTab({
   papers = [],
   setPapers,
   selectedPapers = [],
+  setSelectedPapers,
   workspacePapers,
   setWorkspacePapers,
   chatMessages,
@@ -304,6 +305,7 @@ export default function WorkspaceTab({
     }
     setWorkspacePapers((prev) => prev.filter((p) => p.id !== id));
     if (setPapers) setPapers((prev) => prev.filter((p) => p.id !== id));
+    if (setSelectedPapers) setSelectedPapers((prev) => prev.filter((p) => p.id !== id));
     setSelectedPaperIds((prev) => prev.filter((paperId) => paperId !== id));
   };
   const handleSelectAll = () => {

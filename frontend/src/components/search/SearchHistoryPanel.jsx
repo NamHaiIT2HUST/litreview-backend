@@ -14,7 +14,11 @@ const DEFAULT_PROJECT_ID = '00000000-0000-0000-0000-000000000001';
 
 function formatTime(isoString) {
   if (!isoString) return '';
-  const d = new Date(isoString);
+  let clean = isoString;
+  if (!clean.endsWith('Z') && !clean.includes('+') && !clean.includes('-')) {
+    clean += 'Z';
+  }
+  const d = new Date(clean);
   return d.toLocaleString('vi-VN', {
     day: '2-digit', month: '2-digit', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
