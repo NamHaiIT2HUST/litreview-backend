@@ -135,7 +135,7 @@ class VectorStoreService:
     async def recover_vectors_for_paper(self, paper_id: str):
         """Phục hồi vector từ bảng pdf_chunks trong PostgreSQL lên ChromaDB nếu đĩa ảo bị xóa."""
         from src.database import AsyncSessionLocal
-        from src.models.db_models import PDFChunk, PageText
+        from src.models.db_models import PDFChunk, PageText, Paper
         from sqlalchemy import select
         
         print(f"[vector-recovery] Auto-recovering vector store for paper {paper_id}...", flush=True)
@@ -143,8 +143,9 @@ class VectorStoreService:
             try:
                 # Query all chunks for this paper
                 result = await session.execute(
-                    select(PDFChunk, PageText.page_number)
+                    select(PDFChunk, PageText.page_number, Paper.file_path, Paper.title)
                     .join(PageText, PDFChunk.page_text_id == PageText.id)
+                    .join(Paper, PDFChunk.paper_id == Paper.id)
                     .where(PDFChunk.paper_id == paper_id)
                 )
                 rows = result.fetchall()
@@ -153,7 +154,7 @@ class VectorStoreService:
                     return
                 
                 documents = []
-                for chunk_row, page_num in rows:
+                for chunk_row, page_num, file_path, title in rows:
                     doc = Document(
                         page_content=chunk_row.chunk_text,
                         metadata={
@@ -164,7 +165,9 @@ class VectorStoreService:
                             "page": page_num,
                             "chunk_index": chunk_row.chunk_index,
                             "page_char_start": chunk_row.page_char_start,
-                            "page_char_end": chunk_row.page_char_end
+                            "page_char_end": chunk_row.page_char_end,
+                            "source": str(file_path) if file_path else f"paper_{paper_id}.pdf",
+                            "paper_title": str(title) if title else "Unknown Title"
                         }
                     )
                     documents.append(doc)
