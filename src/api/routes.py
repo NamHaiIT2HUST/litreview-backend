@@ -1070,6 +1070,41 @@ async def get_synthesis_session(
         ],
     )
 
+@router.delete("/synthesis-sessions/{session_id}")
+async def delete_synthesis_session(
+    session_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete a synthesis session and its cascades."""
+    from sqlalchemy import delete as sql_delete
+    from src.models.db_models import (
+        SynthesisSession, Citation, EvidenceExtractionAttempt, EvidenceRecord,
+        SynthesisClaim, SynthesisSection, RetrievalLog, LLMCallLog, SynthesisMetrics
+    )
+    
+    # Check existence
+    result = await db.execute(select(SynthesisSession).where(SynthesisSession.id == session_id))
+    session = result.scalar_one_or_none()
+    if session is None:
+        raise HTTPException(status_code=404, detail="Synthesis session not found")
+        
+    # Delete child records
+    await db.execute(sql_delete(RetrievalLog).where(RetrievalLog.session_id == session_id))
+    await db.execute(sql_delete(LLMCallLog).where(LLMCallLog.session_id == session_id))
+    await db.execute(sql_delete(SynthesisMetrics).where(SynthesisMetrics.session_id == session_id))
+    await db.execute(sql_delete(Citation).where(Citation.synthesis_session_id == session_id))
+    await db.execute(sql_delete(EvidenceExtractionAttempt).where(EvidenceExtractionAttempt.synthesis_session_id == session_id))
+    await db.execute(sql_delete(EvidenceRecord).where(EvidenceRecord.synthesis_session_id == session_id))
+    await db.execute(sql_delete(SynthesisClaim).where(SynthesisClaim.synthesis_session_id == session_id))
+    await db.execute(sql_delete(SynthesisSection).where(SynthesisSection.synthesis_session_id == session_id))
+    
+    # Delete the main session
+    await db.execute(sql_delete(SynthesisSession).where(SynthesisSession.id == session_id))
+    await db.commit()
+    
+    return {"message": "Synthesis session deleted successfully", "id": str(session_id)}
+
+
 @router.get("/workspace/uploads/papers/{filename}")
 async def get_pdf_file(filename: str):
     """Serve uploaded PDF files."""

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { FileCheck2, Loader2, Play, RefreshCw, ShieldCheck, ChevronDown, History } from 'lucide-react';
+import { FileCheck2, Loader2, Play, RefreshCw, ShieldCheck, ChevronDown, History, Trash2, Plus } from 'lucide-react';
 
 import {
   DEFAULT_PROJECT_ID,
@@ -38,12 +38,19 @@ export default function SynthesisPanel({ workspacePapers, setActiveCitation, dar
 
   const canRun = workspacePapers.length > 0 && workspacePapers.length <= 15;
 
-  const fetchHistory = async () => {
+  const fetchHistory = async (autoSelect = false) => {
     try {
       const response = await fetch(`${API_BASE}/projects/${DEFAULT_PROJECT_ID}/synthesis-sessions`);
       if (response.ok) {
         const data = await response.json();
         setHistory(data);
+        if (autoSelect && data.length > 0) {
+          const storedId = localStorage.getItem('litreview_active_synthesis_id');
+          const sessionToLoad = data.find(s => s.id === storedId) || data[0];
+          setSessionId(sessionToLoad.id);
+          setStatus(sessionToLoad.status);
+          localStorage.setItem('litreview_active_synthesis_id', sessionToLoad.id);
+        }
       }
     } catch (err) {
       console.error('Failed to fetch synthesis history:', err);
@@ -51,7 +58,7 @@ export default function SynthesisPanel({ workspacePapers, setActiveCitation, dar
   };
 
   useEffect(() => {
-    fetchHistory();
+    fetchHistory(true);
   }, []);
 
   const startSynthesis = async () => {
@@ -73,6 +80,7 @@ export default function SynthesisPanel({ workspacePapers, setActiveCitation, dar
       }
       setSessionId(data.session_id);
       setStatus(data.status || 'processing');
+      localStorage.setItem('litreview_active_synthesis_id', data.session_id);
       fetchHistory(); // Refresh history
     } catch (err) {
       setStatus('failed');
@@ -86,6 +94,30 @@ export default function SynthesisPanel({ workspacePapers, setActiveCitation, dar
     setResult(null);
     setError('');
     setIsHistoryOpen(false);
+    localStorage.setItem('litreview_active_synthesis_id', id);
+  };
+
+  const createNewSession = () => {
+    setSessionId(null);
+    setStatus('idle');
+    setResult(null);
+    setError('');
+    localStorage.removeItem('litreview_active_synthesis_id');
+  };
+
+  const deleteSession = async (id) => {
+    if (!window.confirm("Bạn có chắc chắn muốn xóa phiên tổng hợp này không?")) return;
+    try {
+      const res = await fetch(`${API_BASE}/synthesis-sessions/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        if (sessionId === id) {
+          createNewSession();
+        }
+        fetchHistory(false);
+      }
+    } catch (err) {
+      console.error('Failed to delete synthesis session:', err);
+    }
   };
 
   useEffect(() => {
@@ -164,6 +196,21 @@ export default function SynthesisPanel({ workspacePapers, setActiveCitation, dar
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {sessionId && (
+            <button
+              onClick={createNewSession}
+              className={`inline-flex items-center gap-1.5 px-3 py-3 rounded-xl border transition-colors text-xs font-semibold ${
+                darkMode
+                  ? 'border-slate-700 hover:bg-slate-800 text-slate-300'
+                  : 'border-slate-200 hover:bg-slate-100 text-slate-700'
+              }`}
+              title="Tạo phiên tổng hợp mới"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Phiên mới</span>
+            </button>
+          )}
+
           {history.length > 0 && (
             <div className="relative">
               <button
@@ -180,35 +227,47 @@ export default function SynthesisPanel({ workspacePapers, setActiveCitation, dar
               </button>
               
               {isHistoryOpen && (
-                <div className={`absolute right-0 top-full mt-2 w-64 max-h-80 overflow-y-auto rounded-xl shadow-lg border z-50 ${
+                <div className={`absolute right-0 top-full mt-2 w-72 max-h-80 overflow-y-auto rounded-xl shadow-lg border z-50 ${
                   darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
                 }`}>
                   <div className="p-2 space-y-1">
                     {history.map(session => (
-                      <button
+                      <div
                         key={session.id}
                         onClick={() => loadSession(session.id)}
-                        className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors flex flex-col gap-1 ${
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-colors group cursor-pointer ${
                           sessionId === session.id
                             ? (darkMode ? 'bg-blue-900/40 text-blue-300' : 'bg-blue-50 text-blue-700')
-                            : (darkMode ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-100 text-slate-700')
+                            : (darkMode ? 'hover:bg-slate-700/60 text-slate-300' : 'hover:bg-slate-100 text-slate-700')
                         }`}
                       >
-                        <div className="flex items-center justify-between">
-                          <span className="font-semibold text-[11px] opacity-80">
-                            {formatSessionTime(session.created_at)}
-                          </span>
-                          <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase ${
-                            session.status === 'done' ? 'bg-emerald-100 text-emerald-700' : 
-                            session.status === 'failed' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
-                          }`}>
-                            {session.status}
+                        <div className="flex-1 min-w-0 flex flex-col gap-1">
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-[11px] opacity-80">
+                              {formatSessionTime(session.created_at)}
+                            </span>
+                            <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase shrink-0 ${
+                              session.status === 'done' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400' : 
+                              session.status === 'failed' ? 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400'
+                            }`}>
+                              {session.status}
+                            </span>
+                          </div>
+                          <span className="font-medium opacity-90 truncate">
+                            {session.paper_count} tài liệu
                           </span>
                         </div>
-                        <span className="font-medium opacity-90 truncate">
-                          {session.paper_count} tài liệu
-                        </span>
-                      </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteSession(session.id);
+                          }}
+                          className="opacity-0 group-hover:opacity-100 ml-2 p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all shrink-0"
+                          title="Xóa phiên tổng hợp này"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     ))}
                   </div>
                 </div>
