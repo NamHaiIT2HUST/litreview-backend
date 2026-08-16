@@ -130,13 +130,16 @@ async def _persist_search(
     existing_papers_map = {row[1]: row[0] for row in existing_papers_result.fetchall()}
 
     duplicate_count = 0
+    linked_paper_ids = set()
     from src.models.db_models import SearchQueryPaper
     for p in papers_pydantic:
         key = _compute_dedup_key(p.doi, p.title, p.authors, p.year)
         if key in existing_papers_map:
             duplicate_count += 1
             existing_id = existing_papers_map[key]
-            db.add(SearchQueryPaper(search_query_id=sq.id, paper_id=existing_id))
+            if existing_id not in linked_paper_ids:
+                db.add(SearchQueryPaper(search_query_id=sq.id, paper_id=existing_id))
+                linked_paper_ids.add(existing_id)
             p.id = str(existing_id)
             continue
 
@@ -162,7 +165,9 @@ async def _persist_search(
         await run_scopus_quality_check(db, paper_row)
         db.add(paper_row)
         existing_papers_map[key] = paper_row.id
-        db.add(SearchQueryPaper(search_query_id=sq.id, paper_id=paper_row.id))
+        if paper_row.id not in linked_paper_ids:
+            db.add(SearchQueryPaper(search_query_id=sq.id, paper_id=paper_row.id))
+            linked_paper_ids.add(paper_row.id)
 
         p.id = str(paper_row.id)
         p.issn = paper_row.issn

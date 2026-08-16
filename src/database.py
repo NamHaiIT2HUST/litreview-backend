@@ -75,37 +75,56 @@ async def create_all_tables():
 
 
 async def ensure_local_schema_compatibility():
-    """Apply additive SQLite-only compatibility changes for legacy demo DBs."""
-    if "sqlite" not in DATABASE_URL:
-        return
+    """Apply additive compatibility changes for legacy DBs (both SQLite and Postgres)."""
+    from sqlalchemy import inspect
+
+    def sync_compat(sync_conn):
+        inspector = inspect(sync_conn)
+        existing_tables = inspector.get_table_names()
+
+        # Check synthesis_sessions columns
+        if "synthesis_sessions" in existing_tables:
+            cols = {c["name"] for c in inspector.get_columns("synthesis_sessions")}
+            if "research_question" not in cols:
+                sync_conn.execute(text("ALTER TABLE synthesis_sessions ADD COLUMN research_question TEXT"))
+            if "qa_warning" not in cols:
+                sync_conn.execute(text("ALTER TABLE synthesis_sessions ADD COLUMN qa_warning TEXT"))
+
+        # Check evidence_records columns
+        if "evidence_records" in existing_tables:
+            cols = {c["name"] for c in inspector.get_columns("evidence_records")}
+            if "merged_into_id" not in cols:
+                sync_conn.execute(text("ALTER TABLE evidence_records ADD COLUMN merged_into_id CHAR(32)"))
+            if "merge_reason" not in cols:
+                sync_conn.execute(text("ALTER TABLE evidence_records ADD COLUMN merge_reason TEXT"))
+            if "applies_to" not in cols:
+                sync_conn.execute(text("ALTER TABLE evidence_records ADD COLUMN applies_to VARCHAR(80) NOT NULL DEFAULT 'study'"))
+
+        # Check papers columns
+        if "papers" in existing_tables:
+            col_info = inspector.get_columns("papers")
+            cols = {c["name"] for c in col_info}
+            if "file_path" not in cols:
+                sync_conn.execute(text("ALTER TABLE papers ADD COLUMN file_path TEXT"))
+            if "pdf_status" not in cols:
+                sync_conn.execute(text("ALTER TABLE papers ADD COLUMN pdf_status VARCHAR(50) DEFAULT 'not_uploaded'"))
+            if "extraction_status" not in cols:
+                sync_conn.execute(text("ALTER TABLE papers ADD COLUMN extraction_status VARCHAR(50) DEFAULT 'not_extracted'"))
+            if "active_ingestion_id" not in cols:
+                is_postgres = "postgresql" in DATABASE_URL
+                col_type = "UUID" if is_postgres else "CHAR(36)"
+                sync_conn.execute(text(f"ALTER TABLE papers ADD COLUMN active_ingestion_id {col_type}"))
+            if "relevance_reason" not in cols:
+                sync_conn.execute(text("ALTER TABLE papers ADD COLUMN relevance_reason TEXT"))
+            if "tldr" not in cols:
+                sync_conn.execute(text("ALTER TABLE papers ADD COLUMN tldr TEXT"))
+
+            # Postgres: fix authors column type if it's ARRAY instead of JSONB
+            if "postgresql" in DATABASE_URL:
+                for c in col_info:
+                    if c["name"] == "authors" and str(c.get("type", "")).upper().startswith("ARRAY"):
+                        sync_conn.execute(text("ALTER TABLE papers ALTER COLUMN authors TYPE jsonb USING to_jsonb(authors)"))
+                        break
+
     async with engine.begin() as conn:
-        rows = await conn.execute(text("PRAGMA table_info(synthesis_sessions)"))
-        columns = {row[1] for row in rows}
-        if columns and "research_question" not in columns:
-            await conn.execute(
-                text("ALTER TABLE synthesis_sessions ADD COLUMN research_question TEXT")
-            )
-        if columns and "qa_warning" not in columns:
-            await conn.execute(
-                text("ALTER TABLE synthesis_sessions ADD COLUMN qa_warning TEXT")
-            )
-        evidence_rows = await conn.execute(text("PRAGMA table_info(evidence_records)"))
-        evidence_columns = {row[1] for row in evidence_rows}
-        if evidence_columns and "merged_into_id" not in evidence_columns:
-            await conn.execute(
-                text("ALTER TABLE evidence_records ADD COLUMN merged_into_id CHAR(32)")
-            )
-        if evidence_columns and "merge_reason" not in evidence_columns:
-            await conn.execute(
-                text("ALTER TABLE evidence_records ADD COLUMN merge_reason TEXT")
-            )
-        if evidence_columns and "applies_to" not in evidence_columns:
-            await conn.execute(
-                text("ALTER TABLE evidence_records ADD COLUMN applies_to VARCHAR(80) NOT NULL DEFAULT 'study'")
-            )
-        paper_rows = await conn.execute(text("PRAGMA table_info(papers)"))
-        paper_columns = {row[1] for row in paper_rows}
-        if paper_columns and "file_path" not in paper_columns:
-            await conn.execute(
-                text("ALTER TABLE papers ADD COLUMN file_path TEXT")
-            )
+        await conn.run_sync(sync_compat)
