@@ -287,28 +287,42 @@ async def search_papers_serpapi(query: str, api_key: str, limit: int = 10) -> li
     if not api_key:
         raise HTTPException(status_code=401, detail="API Key is required for SerpApi")
 
-    url = "https://serpapi.com/search"
-    params = {
-        "engine": "google_scholar",
-        "q": query,
-        "api_key": api_key,
-        "num": limit,
-        "hl": "en"
-    }
+    all_results = []
+    start = 0
+    page_size = 20
 
     async with httpx.AsyncClient() as client:
-        try:
-            response = await client.get(url, params=params, timeout=15.0)
-            response.raise_for_status()
-            data = response.json()
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 401:
-                raise HTTPException(status_code=401, detail="Invalid SerpApi Key or unauthorized")
-            raise HTTPException(status_code=500, detail=f"External API error: {str(e)}")
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Request failed: {str(e)}")
+        while len(all_results) < limit:
+            url = "https://serpapi.com/search"
+            current_num = min(limit - start, page_size)
+            params = {
+                "engine": "google_scholar",
+                "q": query,
+                "api_key": api_key,
+                "num": current_num,
+                "start": start,
+                "hl": "en"
+            }
+            try:
+                response = await client.get(url, params=params, timeout=15.0)
+                response.raise_for_status()
+                data = response.json()
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code == 401:
+                    raise HTTPException(status_code=401, detail="Invalid SerpApi Key or unauthorized")
+                raise HTTPException(status_code=500, detail=f"External API error: {str(e)}")
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Request failed: {str(e)}")
 
-        results = data.get("organic_results", [])
+            results = data.get("organic_results", [])
+            if not results:
+                break
+            all_results.extend(results)
+            start += len(results)
+            if len(results) < current_num:
+                break  # No more results available
+
+        results = all_results[:limit]
 
         cr_tasks = [fetch_crossref_info(client, res.get("title", "")) for res in results]
         oa_tasks = [fetch_full_abstract_openalex(client, res.get("title", "")) for res in results]
