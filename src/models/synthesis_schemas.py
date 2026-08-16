@@ -307,6 +307,8 @@ class SynthesisCitationResponse(BaseModel):
     id: uuid.UUID
     marker_display: str
     paper_id: uuid.UUID
+    title: str | None = None
+    filename: str | None = None
     review_char_start: int | None
     review_char_end: int | None
     source_page: int | None

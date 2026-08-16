@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import time
 import uuid
 
@@ -34,7 +35,10 @@ async def run_synthesis_session(session_id: str) -> None:
     started = time.perf_counter()
     checkpoint_dsn = _checkpoint_connection_string(DATABASE_URL)
 
-    if checkpoint_dsn:
+    # psycopg's async checkpoint saver is incompatible with Windows' default
+    # ProactorEventLoop. Local development still persists all synthesis data
+    # through SQLAlchemy; skip only the optional LangGraph checkpoint layer.
+    if checkpoint_dsn and os.name != "nt":
         from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
         async with AsyncPostgresSaver.from_conn_string(checkpoint_dsn) as checkpointer:

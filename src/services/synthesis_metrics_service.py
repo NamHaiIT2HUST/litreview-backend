@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import uuid
 from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 from src.models.db_models import Citation, LLMCallLog, SynthesisMetrics
 
@@ -11,9 +13,25 @@ async def get_or_create_metrics(db, session_id: uuid.UUID) -> SynthesisMetrics:
     result = await db.execute(select(SynthesisMetrics).where(SynthesisMetrics.session_id == session_id))
     metrics = result.scalar_one_or_none()
     if metrics is None:
-        metrics = SynthesisMetrics(id=uuid.uuid4(), session_id=session_id)
-        db.add(metrics)
-        await db.flush()
+        values = {"id": uuid.uuid4(), "session_id": session_id}
+        dialect = db.bind.dialect.name
+        if dialect == "postgresql":
+            statement = pg_insert(SynthesisMetrics).values(**values).on_conflict_do_nothing(
+                index_elements=[SynthesisMetrics.session_id]
+            )
+        elif dialect == "sqlite":
+            statement = sqlite_insert(SynthesisMetrics).values(**values).on_conflict_do_nothing(
+                index_elements=[SynthesisMetrics.session_id]
+            )
+        else:
+            # Keep a sensible fallback for other SQLAlchemy dialects.
+            db.add(SynthesisMetrics(**values))
+            await db.flush()
+            return await get_or_create_metrics(db, session_id)
+
+        await db.execute(statement)
+        result = await db.execute(select(SynthesisMetrics).where(SynthesisMetrics.session_id == session_id))
+        metrics = result.scalar_one()
     return metrics
 
 

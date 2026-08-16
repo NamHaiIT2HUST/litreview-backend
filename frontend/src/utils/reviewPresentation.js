@@ -8,4 +8,6 @@ export function sectionEvidenceLabel(coverage) {
   return `${evidence} bằng chứng · ${papers} nguồn`;
 }
 
-export const reviewScrollClass = 'max-h-[38vh] overflow-y-auto overscroll-contain';
+// The synthesis panel already owns the page scroll. A nested 38vh scroller
+// clips the report and makes the result look like a small embedded frame.
+export const reviewScrollClass = 'overscroll-contain';

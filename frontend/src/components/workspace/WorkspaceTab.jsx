@@ -208,11 +208,15 @@ export default function WorkspaceTab({
         if (!response.ok) return;
         const persisted = persistedDirectUploadSources(await response.json());
         if (cancelled) return;
-        setWorkspacePapers((current) => {
-          const merged = new Map(current.map((paper) => [paper.id, paper]));
-          persisted.forEach((paper) => merged.set(paper.id, { ...paper, ...(merged.get(paper.id) || {}) }));
-          return Array.from(merged.values());
-        });
+        // Drop papers restored from an older database state. Without this,
+        // resetting PostgreSQL leaves stale UUIDs in localStorage and a new
+        // synthesis request sends papers that the API can no longer find.
+        const persistedIds = new Set(persisted.map((paper) => paper.id));
+        setPapers?.((current) => current.filter((paper) => persistedIds.has(String(paper.id))));
+        setSelectedPapers?.((current) => current.filter((paper) => persistedIds.has(String(paper.id))));
+        // The API is the source of truth after a database reset. Do not merge
+        // stale localStorage entries back into the workspace.
+        setWorkspacePapers(persisted);
       } catch (error) {
         console.error('Unable to restore uploaded workspace papers:', error);
       }
@@ -243,7 +247,7 @@ export default function WorkspaceTab({
   }, [papers, selectedPapers, workspacePapers]);
 
   React.useEffect(() => {
-    setSelectedPaperIds((current) => reconcileSelectedPaperIds(current, allSources));
+    setSelectedPaperIds((current) => reconcileSelectedPaperIds(current, allSources, false));
   }, [allSources]);
 
   const scopedPapers = React.useMemo(

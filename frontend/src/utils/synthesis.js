@@ -11,10 +11,11 @@ export function enrichCitation(citation, workspacePapers) {
   const paper = workspacePapers.find((item) => item.id === citation.paper_id) || {};
   return {
     ...citation,
-    title: paper.title || `Paper ${citation.paper_id}`,
+    title: citation.title || paper.title || `Paper ${citation.paper_id}`,
     authors: paper.authors || '',
     journal: paper.journal || '',
     year: paper.year || null,
+    filename: citation.filename || paper.filename || null,
     doi: paper.doi || '',
     url: paper.url || '#',
   };

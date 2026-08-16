@@ -171,7 +171,9 @@ export default function SynthesisPanel({ workspacePapers, setActiveCitation, dar
 
   const openSentence = (event, sentence) => {
     const rect = event.currentTarget.getBoundingClientRect();
+    const citation = sentence.citations?.[0];
     setActiveCitation({
+      ...(citation || {}),
       kind: 'sentence',
       sentence: sentence.text,
       sentence_type: sentence.sentence_type,

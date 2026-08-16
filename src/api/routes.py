@@ -856,20 +856,27 @@ async def get_evidence_coords(
 ) -> EvidenceCoordsResponse:
     """Find text coordinates in PDF for highlighting."""
     import os
-    import fitz  # PyMuPDF
     import logging
     
     base_dir = os.path.join("uploads", "papers")
     file_path = os.path.join(base_dir, request.filename)
     if not os.path.exists(file_path):
         for root, dirs, files in os.walk(base_dir):
-            if request.filename in files:
-                file_path = os.path.join(root, request.filename)
+            matching = [name for name in files if name == request.filename or name.endswith("_" + request.filename)]
+            if matching:
+                file_path = os.path.join(root, matching[0])
                 break
         else:
             return EvidenceCoordsResponse(rects=[])
     
     try:
+        try:
+            import fitz  # PyMuPDF
+        except ImportError:
+            logging.getLogger(__name__).warning(
+                "PyMuPDF is not installed; evidence coordinates are unavailable."
+            )
+            return EvidenceCoordsResponse(rects=[])
         doc = fitz.open(file_path)
         # fitz is 0-indexed, UI is 1-indexed (usually, though the UI sends the actual page number from the source)
         page_index = max(0, request.page - 1)
@@ -922,7 +929,11 @@ async def get_evidence_coords(
                     best_start = i
                     best_end = p_ptr - 1
 
-            if max_matches > 0 and max_matches >= len(search_words) * 0.2:
+            # Long snippets are often clipped/normalized differently by PDF
+            # extraction (especially scanned PDFs). Keep useful partial
+            # matches instead of returning no coordinates at all.
+            minimum_matches = max(3, min(len(search_words), int(len(search_words) * 0.05)))
+            if max_matches >= minimum_matches:
                 # Collect bounding boxes for these words
                 for i in range(best_start, best_end + 1):
                     w = page_words[i]
@@ -934,6 +945,23 @@ async def get_evidence_coords(
                     ))
                     
                 return EvidenceCoordsResponse(rects=rects)
+
+            # Fallback for PDFs whose line wrapping/OCR tokenization prevents
+            # a contiguous window match. Highlight matching words on this
+            # already-selected page rather than reporting no evidence.
+            search_word_set = set(search_words)
+            fallback_rects = [
+                RectCoord(
+                    x=w[0] / page_width,
+                    y=w[1] / page_height,
+                    width=(w[2] - w[0]) / page_width,
+                    height=(w[3] - w[1]) / page_height,
+                )
+                for w in page_words
+                if clean_word(w[4]) in search_word_set
+            ]
+            if fallback_rects:
+                return EvidenceCoordsResponse(rects=fallback_rects)
 
 
             
@@ -1092,6 +1120,9 @@ async def get_synthesis_session(
         .order_by(Citation.review_char_start, Citation.id)
     )
     citations = list(citation_result.scalars().all())
+    paper_ids = {item.paper_id for item in citations if item.paper_id is not None}
+    paper_result = await db.execute(select(Paper).where(Paper.id.in_(paper_ids))) if paper_ids else None
+    papers_by_id = {paper.id: paper for paper in (paper_result.scalars().all() if paper_result else [])}
     section_result = await db.execute(
         select(SynthesisSection)
         .where(SynthesisSection.synthesis_session_id == session_id)
@@ -1115,6 +1146,9 @@ async def get_synthesis_session(
                 id=item.id,
                 marker_display=item.citation_marker,
                 paper_id=item.paper_id,
+                title=(papers_by_id[item.paper_id].title if item.paper_id in papers_by_id else None),
+                filename=(os.path.basename(papers_by_id[item.paper_id].file_path)
+                          if item.paper_id in papers_by_id and papers_by_id[item.paper_id].file_path else None),
                 review_char_start=item.review_char_start,
                 review_char_end=item.review_char_end,
                 source_page=item.source_page,

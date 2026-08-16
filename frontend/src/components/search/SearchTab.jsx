@@ -304,6 +304,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
         throw new Error(data.detail || 'Lỗi tìm kiếm từ server');
       }
 
+      const data = await response.json();
       const scopusOnly = data.papers || [];
       if (scopusOnly.length > 0) {
         setPapers(scopusOnly);

@@ -46,8 +46,8 @@ def create_synthesis_llm(settings, *, gemini_cls=None, groq_cls=None, openai_cls
     provider = settings.synthesis_llm_provider.lower().strip()
     
     # Auto-detect and fallback based on available keys to prevent configuration crashes
-    openai_key = settings.openai_api_key
-    gemini_key = settings.gemini_api_key or settings.google_api_key
+    openai_key = getattr(settings, "openai_api_key", "")
+    gemini_key = getattr(settings, "gemini_api_key", "") or getattr(settings, "google_api_key", "")
     
     if provider == "openai" and not openai_key and gemini_key:
         provider = "gemini"
@@ -122,6 +122,12 @@ def _is_transient_provider_error(exc: BaseException) -> bool:
         or "high demand" in message
         or "resource_exhausted" in message
         or "429" in message
+        # Providers occasionally return malformed structured JSON (often
+        # caused by OCR/control characters in long quotes). A fresh attempt
+        # with the same schema can produce a valid response.
+        or "failed to parse" in message
+        or "outputparser" in name
+        or "validationerror" in name
     )
 
 
