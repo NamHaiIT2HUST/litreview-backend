@@ -18,9 +18,16 @@ from src.services.scopus_matcher import import_scopus_excel
 
 async def main():
     project_root = Path(__file__).parent.parent
-    excel_path = project_root / "data" / "ext_list_Jul_2026.xlsx"
+    # Dynamically find any ext_list_*.xlsx file in the data/ directory
+    excel_path = project_root / "data" / "ext_list_Jun_2026.xlsx"
     if not excel_path.exists():
-        excel_path = Path(r"C:\Users\Dell\Downloads\APPLY\VinUni_AI\TEAM165\P-165\data\ext_list_Jul_2026.xlsx")
+        # Fallback to scanning the directory for any ext_list_*.xlsx file
+        xlsx_files = list((project_root / "data").glob("ext_list_*.xlsx"))
+        if xlsx_files:
+            excel_path = xlsx_files[0]
+        else:
+            excel_path = project_root / "data" / "ext_list_Jul_2026.xlsx"
+
     print(f"[import] Bat dau tao DB schema va nap file Scopus Source List:\n  {excel_path}")
 
     start_time = time.time()
