@@ -186,7 +186,8 @@ Example: ["ECG classification 1D CNN", "one-dimensional convolutional neural net
     # Determine Gemini API key: header > .env GEMINI_API_KEY > .env GOOGLE_API_KEY
     from src.config import get_settings
     settings = get_settings()
-    gemini_key = (x_gemini_key or "").strip()
+    gemini_key = x_gemini_key if isinstance(x_gemini_key, str) else ""
+    gemini_key = gemini_key.strip()
     if not gemini_key:
         gemini_key = settings.gemini_api_key.strip() if settings.gemini_api_key else ""
     if not gemini_key:
@@ -194,13 +195,55 @@ Example: ["ECG classification 1D CNN", "one-dimensional convolutional neural net
 
     keywords: list[str] = []
 
-    if gemini_key:
+    # Decide provider
+    use_openai = False
+    if settings.openai_api_key and (
+        "gpt" in settings.model_name.lower() or not gemini_key
+    ):
+        use_openai = True
+
+    if use_openai:
+        try:
+            from langchain_openai import ChatOpenAI
+            llm = ChatOpenAI(
+                model=settings.model_name,
+                openai_api_key=settings.openai_api_key,
+                openai_api_base=settings.get_api_base or None,
+                temperature=0.0
+            )
+            # Use sync invoke since it's cleaner in this handler
+            response = llm.invoke(prompt)
+            content = response.content.strip()
+
+            # Clean markdown fences and extract JSON
+            try:
+                json_match = re.search(r'\[.*\]', content, re.DOTALL)
+                if json_match:
+                    content = json_match.group(0)
+                parsed = json.loads(content)
+                if isinstance(parsed, list):
+                    keywords = [str(x) for x in parsed][:7]
+                else:
+                    keywords = []
+            except json.JSONDecodeError as je:
+                import logging
+                logging.getLogger(__name__).warning(f"Failed to parse JSON from OpenAI: {content} - Error: {je}")
+                keywords = []
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"OpenAI keyword generation failed: {e}")
+
+    elif gemini_key:
         try:
             from google import genai
 
             client = genai.Client(api_key=gemini_key)
+            gemini_model = settings.model_name
+            if "gemini" not in gemini_model.lower():
+                gemini_model = "gemini-1.5-flash"
+
             response = client.models.generate_content(
-                model=settings.model_name,
+                model=gemini_model,
                 contents=prompt,
             )
             content = response.text.strip()
@@ -226,7 +269,7 @@ Example: ["ECG classification 1D CNN", "one-dimensional convolutional neural net
     else:
         import logging
         logging.getLogger(__name__).warning(
-            "No Gemini API key available. Set GEMINI_API_KEY in .env or pass X-Gemini-Key header. Using fallback keywords."
+            "No API key available for OpenAI/Gemini. Using fallback keywords."
         )
 
     if not keywords:
