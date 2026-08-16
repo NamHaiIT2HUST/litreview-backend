@@ -9,6 +9,8 @@ from fastapi import HTTPException
 
 from src.models.schemas import Paper
 
+DEFAULT_HEADERS = {"User-Agent": "LitReviewAgent/1.0 (mailto:litreview.agent@gmail.com)"}
+
 
 def calculate_litscore(citations: int, year: int) -> int:
     """Tính điểm uy tín LitScore dựa trên trích dẫn và năm xuất bản."""
@@ -135,7 +137,7 @@ async def search_papers_openalex(query: str, limit: int = 10) -> list[Paper]:
     url = "https://api.openalex.org/works"
     params = {"search": query, "per-page": limit, "mailto": "litreview.agent@gmail.com"}
 
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(headers=DEFAULT_HEADERS) as client:
         try:
             response = await client.get(url, params=params, timeout=12.0)
             if response.status_code != 200:
@@ -433,7 +435,7 @@ async def search_papers_semanticscholar(query: str, limit: int = 20) -> list[Pap
         "fields": "title,abstract,authors,year,citationCount,externalIds,publicationVenue,url,tldr"
     }
 
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(headers=DEFAULT_HEADERS) as client:
         try:
             response = await client.get(url, params=params, timeout=10.0)
             if response.status_code != 200:
