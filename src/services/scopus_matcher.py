@@ -186,9 +186,10 @@ async def quality_check(db: AsyncSession, paper: Paper) -> Paper:
     abs_str = paper.abstract or ""
     if not abs_str or "..." in abs_str or len(abs_str) < 300:
         import httpx
-        from src.services.scholar_api import fetch_full_abstract_openalex
+        from src.services.scholar_api import fetch_full_abstract_openalex, fetch_full_abstract_s2
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
+                # Try OpenAlex first
                 oa_abstract, oa_doi, oa_issn, oa_journal = await fetch_full_abstract_openalex(client, paper.title)
                 if oa_abstract and len(oa_abstract) > len(abs_str):
                     paper.abstract = oa_abstract
@@ -196,6 +197,15 @@ async def quality_check(db: AsyncSession, paper: Paper) -> Paper:
                         paper.doi = oa_doi
                     if oa_issn and not paper.issn:
                         paper.issn = oa_issn
+                else:
+                    # Fallback to Semantic Scholar
+                    s2_abstract, tldr_text, s2_doi, s2_issn, s2_journal = await fetch_full_abstract_s2(client, paper.title)
+                    if s2_abstract and len(s2_abstract) > len(abs_str):
+                        paper.abstract = s2_abstract
+                        if s2_doi and s2_doi != "N/A" and not paper.doi:
+                            paper.doi = s2_doi
+                        if s2_issn and not paper.issn:
+                            paper.issn = s2_issn
         except Exception as e:
             print(f"Warning: Failed to fetch full abstract for '{paper.title}': {e}")
 
