@@ -295,6 +295,9 @@ async def search_papers(
 
                     p.id = str(db_paper.id)
                     p.issn = db_paper.issn
+                    p.abstract = db_paper.abstract
+                    if db_paper.doi and db_paper.doi != "N/A":
+                        p.doi = db_paper.doi
                     p.scopus_status = db_paper.scopus_status.value if hasattr(db_paper.scopus_status, "value") else db_paper.scopus_status
                     p.scopus_quartile = db_paper.scopus_quartile
                     p.coverage_year_status = db_paper.coverage_year_status.value if hasattr(db_paper.coverage_year_status, "value") else db_paper.coverage_year_status
