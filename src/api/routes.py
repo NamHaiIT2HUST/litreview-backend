@@ -283,6 +283,13 @@ async def search_papers(
                 key = _compute_dedup_key(p.doi, p.title, p.authors, p.year)
                 db_paper = dedup_to_paper.get(key)
                 if db_paper:
+                    # If previously cached as undetermined, re-run quality check to apply new heuristics
+                    status_str = db_paper.scopus_status.value if hasattr(db_paper.scopus_status, "value") else str(db_paper.scopus_status)
+                    if status_str == "undetermined":
+                        from src.services.scopus_matcher import quality_check
+                        await quality_check(db, db_paper)
+                        await db.commit()
+
                     p.id = str(db_paper.id)
                     p.issn = db_paper.issn
                     p.scopus_status = db_paper.scopus_status.value if hasattr(db_paper.scopus_status, "value") else db_paper.scopus_status
