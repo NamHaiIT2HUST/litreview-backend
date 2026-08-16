@@ -44,6 +44,16 @@ def llm_trace(db, session_id: UUID, step_name: str):
 def create_synthesis_llm(settings, *, gemini_cls=None, groq_cls=None, openai_cls=None):
     """Create the configured synthesis chat model without making a network call."""
     provider = settings.synthesis_llm_provider.lower().strip()
+    
+    # Auto-detect and fallback based on available keys to prevent configuration crashes
+    openai_key = settings.openai_api_key
+    gemini_key = settings.gemini_api_key or settings.google_api_key
+    
+    if provider == "openai" and not openai_key and gemini_key:
+        provider = "gemini"
+    elif provider == "gemini" and not gemini_key and openai_key:
+        provider = "openai"
+
     if provider == "groq":
         if not settings.groq_api_key:
             raise RuntimeError("Groq synthesis requires GROQ_API_KEY in .env.")
@@ -59,21 +69,25 @@ def create_synthesis_llm(settings, *, gemini_cls=None, groq_cls=None, openai_cls
         )
 
     if provider == "openai":
-        if not settings.openai_api_key:
+        if not openai_key:
             raise RuntimeError("OpenAI synthesis requires OPENAI_API_KEY in .env.")
         if openai_cls is None:
             from langchain_openai import ChatOpenAI
 
             openai_cls = ChatOpenAI
+            
+        model_name = settings.synthesis_model
+        if "gemini-" in model_name or "llama-" in model_name:
+            model_name = "gpt-4o-mini"
+            
         return openai_cls(
-            model=settings.synthesis_model,
-            api_key=settings.openai_api_key,
+            model=model_name,
+            api_key=openai_key,
             temperature=settings.synthesis_temperature,
             max_tokens=4096,
         )
 
     if provider == "gemini":
-        gemini_key = settings.gemini_api_key or settings.google_api_key
         if not gemini_key:
             raise RuntimeError(
                 "Gemini synthesis requires GEMINI_API_KEY or GOOGLE_API_KEY in .env."
@@ -82,8 +96,13 @@ def create_synthesis_llm(settings, *, gemini_cls=None, groq_cls=None, openai_cls
             from langchain_google_genai import ChatGoogleGenerativeAI
 
             gemini_cls = ChatGoogleGenerativeAI
+            
+        model_name = settings.synthesis_model
+        if "gpt-" in model_name or "claude-" in model_name or "llama-" in model_name:
+            model_name = "gemini-1.5-flash"
+            
         return gemini_cls(
-            model=settings.synthesis_model,
+            model=model_name,
             google_api_key=gemini_key,
             temperature=settings.synthesis_temperature,
         )
