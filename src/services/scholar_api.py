@@ -424,8 +424,67 @@ async def search_papers_serpapi(query: str, api_key: str, limit: int = 10) -> li
     return papers
 
 
+async def search_papers_semanticscholar(query: str, limit: int = 20) -> list[Paper]:
+    """Tìm kiếm trực tiếp từ Semantic Scholar API (Miễn phí 100%, không cần API Key)."""
+    url = "https://api.semanticscholar.org/graph/v1/paper/search"
+    params = {
+        "query": query,
+        "limit": min(limit, 100),
+        "fields": "title,abstract,authors,year,citationCount,externalIds,publicationVenue,url,tldr"
+    }
+
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(url, params=params, timeout=10.0)
+            if response.status_code != 200:
+                print(f"Warning: Semantic Scholar returned status {response.status_code}")
+                return []
+            data = response.json()
+        except Exception as e:
+            print(f"Warning: Semantic Scholar request failed: {e}")
+            return []
+
+    results = data.get("data", [])
+    papers = []
+
+    for idx, item in enumerate(results):
+        title = item.get("title") or "Unknown Title"
+        authors_data = item.get("authors") or []
+        author_names = [a.get("name") for a in authors_data if isinstance(a, dict) and a.get("name")]
+        year = item.get("year") or 2024
+        abstract = item.get("abstract")
+        citations = item.get("citationCount") or 0
+        ext_ids = item.get("externalIds") or {}
+        raw_doi = ext_ids.get("DOI") if isinstance(ext_ids, dict) else None
+        doi = raw_doi if (raw_doi and isinstance(raw_doi, str)) else "N/A"
+        venue = item.get("publicationVenue") or {}
+        issn = venue.get("issn") if isinstance(venue, dict) else None
+        journal = venue.get("name") if isinstance(venue, dict) else None
+        tldr_obj = item.get("tldr") or {}
+        tldr_text = tldr_obj.get("text") if isinstance(tldr_obj, dict) else None
+        url_link = item.get("url") or (f"https://doi.org/{doi}" if doi != "N/A" else "")
+
+        paper = Paper(
+            id=f"S2_{idx+1}",
+            title=title,
+            authors=author_names,
+            year=year,
+            abstract=abstract,
+            journal=journal or "Semantic Scholar",
+            doi=doi,
+            issn=issn,
+            url=url_link,
+            citations=citations,
+            litScore=calculate_litscore(citations, year),
+            tldr=tldr_text
+        )
+        papers.append(paper)
+
+    return papers
+
+
 async def search_papers_auto(query: str, api_key: str = None, provider: str = "auto", limit: int = 10) -> list[Paper]:
-    """Auto-detect provider or use specified provider. Automatically fallback to OpenAlex if SerpApi fails."""
+    """Auto-detect provider or use specified provider. Fallback: SerpApi -> Semantic Scholar -> OpenAlex."""
     key = api_key.strip() if api_key else ""
 
     if key and not key.startswith("AQ."):
@@ -435,7 +494,16 @@ async def search_papers_auto(query: str, api_key: str = None, provider: str = "a
                 return papers
         except Exception as e:
             import logging
-            logging.getLogger(__name__).warning(f"SerpApi failed: {e}. Falling back to OpenAlex.")
+            logging.getLogger(__name__).warning(f"SerpApi failed: {e}. Falling back to Semantic Scholar.")
 
-    # Fallback: OpenAlex (100% free, no key required)
+    # Fallback 1: Semantic Scholar API (Miễn phí 100%, chất lượng bài báo học thuật cao)
+    try:
+        papers = await search_papers_semanticscholar(query, limit)
+        if papers:
+            return papers
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"Semantic Scholar failed: {e}. Falling back to OpenAlex.")
+
+    # Fallback 2: OpenAlex (100% free, 250M+ bài)
     return await search_papers_openalex(query, limit)

@@ -237,10 +237,7 @@ async def search_papers(
         from src.config import get_settings
         x_api_key = (getattr(settings, "serpapi_api_key", "") or os.getenv("SERPAPI_API_KEY") or os.getenv("SERPAPI_KEY") or os.getenv("SERP_API_KEY") or "").strip()
 
-    if effective_provider == "serpapi" and not x_api_key:
-        raise HTTPException(status_code=401, detail="SerpApi key is required for Google Scholar Top 20 search")
-    if effective_provider != "serpapi" and not x_api_key:
-        raise HTTPException(status_code=401, detail="X-API-Key header is missing")
+    # x_api_key is optional; if missing or invalid, search_papers_auto falls back to Semantic Scholar / OpenAlex
 
     papers = await search_papers_auto(
         query=request.query_string,
