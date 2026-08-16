@@ -5,7 +5,9 @@ Sử dụng SQLAlchemy async với SQLite (dev) / PostgreSQL (prod).
 from __future__ import annotations
 
 import os
+import socket
 from contextlib import asynccontextmanager
+from urllib.parse import urlparse, urlunparse
 
 from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -14,6 +16,57 @@ from sqlalchemy.orm import DeclarativeBase
 
 load_dotenv()
 os.makedirs("data", exist_ok=True)
+
+
+def _resolve_host_to_ipv4(url: str) -> str:
+    """Resolve database hostname to IPv4 address to prevent Render's IPv6 limitation with Supabase."""
+    if not ("postgresql" in url or "postgres" in url):
+        return url
+    try:
+        scheme_prefix = ""
+        parse_url = url
+        if url.startswith("postgresql+asyncpg://"):
+            scheme_prefix = "postgresql+asyncpg://"
+            parse_url = "postgresql://" + url[len("postgresql+asyncpg://") :]
+        elif url.startswith("postgres://"):
+            scheme_prefix = "postgres://"
+            parse_url = "postgresql://" + url[len("postgres://") :]
+        elif url.startswith("postgresql://"):
+            scheme_prefix = "postgresql://"
+            parse_url = url
+
+        parsed = urlparse(parse_url)
+        hostname = parsed.hostname
+        if not hostname:
+            return url
+
+        ip_addresses = socket.getaddrinfo(hostname, parsed.port or 5432, family=socket.AF_INET)
+        if ip_addresses:
+            ipv4 = ip_addresses[0][4][0]
+            # Extract userinfo from netloc to preserve special characters accurately
+            if "@" in parsed.netloc:
+                userinfo = parsed.netloc.rsplit("@", 1)[0]
+                auth = f"{userinfo}@"
+            elif parsed.username is not None:
+                auth = parsed.username
+                if parsed.password is not None:
+                    auth += f":{parsed.password}"
+                auth += "@"
+            else:
+                auth = ""
+
+            port_part = f":{parsed.port}" if parsed.port else ""
+            netloc = f"{auth}{ipv4}{port_part}"
+            new_parsed = parsed._replace(netloc=netloc)
+            new_url = urlunparse(new_parsed)
+            if scheme_prefix == "postgresql+asyncpg://":
+                new_url = "postgresql+asyncpg://" + new_url[len("postgresql://") :]
+            elif scheme_prefix == "postgres://":
+                new_url = "postgres://" + new_url[len("postgresql://") :]
+            return new_url
+    except Exception as e:
+        print(f"Warning: Could not resolve hostname to IPv4: {e}")
+    return url
 
 
 def _normalize_async_database_url(url: str) -> str:
@@ -27,8 +80,10 @@ def _normalize_async_database_url(url: str) -> str:
     return url
 
 
-DATABASE_URL = _normalize_async_database_url(
-    os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./data/app.db")
+DATABASE_URL = _resolve_host_to_ipv4(
+    _normalize_async_database_url(
+        os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./data/app.db")
+    )
 )
 
 engine = create_async_engine(
