@@ -57,10 +57,10 @@ export default function SearchHistoryPanel({
     }
   };
 
-  const handleLoadPapers = async (queryId) => {
+  const handleLoadPapers = async (queryId, queryString) => {
     setLoadingQueryId(queryId);
     try {
-      await onLoadPapers(queryId);
+      await onLoadPapers(queryId, queryString);
     } finally {
       setLoadingQueryId(null);
     }
@@ -133,7 +133,7 @@ export default function SearchHistoryPanel({
               </div>
               <div className="flex items-center gap-1.5">
                 <button
-                  onClick={() => handleLoadPapers(item.id)}
+                  onClick={() => handleLoadPapers(item.id, item.query_string)}
                   disabled={loadingQueryId === item.id}
                   className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-[10px] font-bold transition-all border ${
                     darkMode
@@ -238,7 +238,7 @@ export default function SearchHistoryPanel({
 
               <div className="flex items-center gap-2 shrink-0">
                 <button
-                  onClick={() => handleLoadPapers(item.id)}
+                  onClick={() => handleLoadPapers(item.id, item.query_string)}
                   disabled={loadingQueryId === item.id}
                   title={t('search.view_results')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${

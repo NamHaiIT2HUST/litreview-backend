@@ -220,13 +220,19 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
   }, []);
 
   // Tải papers của 1 lần search cụ thể từ backend
-  const loadPapersForQuery = useCallback(async (queryId) => {
+  const loadPapersForQuery = useCallback(async (queryId, queryString) => {
     try {
       const res = await fetch(`${API_BASE}/search-queries/${queryId}/papers`);
       if (!res.ok) return;
       const dbPapers = await res.json();
       const converted = dbPapers.map(dbPaperToPaperSchema).filter(p => p.scopus_status === 'indexed');
       setPapers(converted);
+
+      if (queryString) {
+        setQueryChips([queryString]);
+        localStorage.setItem('last_search_query', queryString);
+      }
+
       setSearchMeta({
         provider: 'saved_search',
         limit: 20,
@@ -247,7 +253,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
       const historyList = await fetchHistory();
       if (historyList && historyList.length > 0 && papers.length === 0) {
         const latestQuery = historyList[0];
-        await loadPapersForQuery(latestQuery.id);
+        await loadPapersForQuery(latestQuery.id, latestQuery.query_string);
       }
     };
     restore();

@@ -152,6 +152,12 @@ class SearchQuery(Base):
     papers = relationship("Paper", back_populates="search_query")
 
 
+class SearchQueryPaper(Base):
+    __tablename__ = "search_query_papers"
+    search_query_id = Column(UUID(as_uuid=True), ForeignKey("search_queries.id", ondelete="CASCADE"), primary_key=True)
+    paper_id = Column(UUID(as_uuid=True), ForeignKey("papers.id", ondelete="CASCADE"), primary_key=True)
+
+
 class Paper(Base):
     __tablename__ = "papers"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

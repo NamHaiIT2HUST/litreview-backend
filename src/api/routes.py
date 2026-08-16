@@ -124,17 +124,21 @@ async def _persist_search(
     )
     db.add(sq)
 
-    existing_keys_result = await db.execute(
-        select(Paper.dedup_key).where(Paper.project_id == project_uuid)
+    existing_papers_result = await db.execute(
+        select(Paper.id, Paper.dedup_key).where(Paper.project_id == project_uuid)
     )
-    existing_keys = {row[0] for row in existing_keys_result.fetchall()}
+    existing_papers_map = {row[1]: row[0] for row in existing_papers_result.fetchall()}
 
     duplicate_count = 0
+    from src.models.db_models import SearchQueryPaper
     for p in papers_pydantic:
         key = _compute_dedup_key(p.doi, p.title, p.authors, p.year)
-        if key in existing_keys:
+        if key in existing_papers_map:
             duplicate_count += 1
-            continue  # bỏ qua bản trùng, không insert (đúng thuật toán dedup spec)
+            existing_id = existing_papers_map[key]
+            db.add(SearchQueryPaper(search_query_id=sq.id, paper_id=existing_id))
+            p.id = str(existing_id)
+            continue
 
         paper_row = Paper(
             id=uuid.uuid4(),
@@ -157,7 +161,9 @@ async def _persist_search(
         )
         await run_scopus_quality_check(db, paper_row)
         db.add(paper_row)
-        existing_keys.add(key)
+        existing_papers_map[key] = paper_row.id
+        db.add(SearchQueryPaper(search_query_id=sq.id, paper_id=paper_row.id))
+
         p.id = str(paper_row.id)
         p.issn = paper_row.issn
         p.scopus_status = getattr(paper_row.scopus_status, "value", paper_row.scopus_status)
@@ -362,15 +368,30 @@ async def get_papers_for_query(
     if not sq:
         raise HTTPException(status_code=404, detail=f"Search query '{query_id}' not found")
 
-    from src.models.db_models import ScopusStatus
-    result = await db.execute(
+    from src.models.db_models import ScopusStatus, SearchQueryPaper
+    
+    # Try querying via the new association table first
+    assoc_result = await db.execute(
         select(Paper)
+        .join(SearchQueryPaper, SearchQueryPaper.paper_id == Paper.id)
         .where(
-            Paper.search_query_id == query_uuid,
+            SearchQueryPaper.search_query_id == query_uuid,
             (Paper.scopus_status == ScopusStatus.indexed) | (Paper.scopus_status == "indexed")
         )
     )
-    papers = result.scalars().all()
+    papers = assoc_result.scalars().all()
+    
+    # Fallback to old behavior for legacy queries without associations
+    if not papers:
+        legacy_result = await db.execute(
+            select(Paper)
+            .where(
+                Paper.search_query_id == query_uuid,
+                (Paper.scopus_status == ScopusStatus.indexed) | (Paper.scopus_status == "indexed")
+            )
+        )
+        papers = legacy_result.scalars().all()
+
     return [PaperRecord.model_validate(p) for p in papers]
 
 
