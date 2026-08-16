@@ -182,6 +182,23 @@ async def quality_check(db: AsyncSession, paper: Paper) -> Paper:
     Chạy Quality Check Scopus cho 1 paper. Mutates `paper` in-place;
     caller chịu trách nhiệm flush/commit.
     """
+    # Auto-enrich abstract if it is a snippet (contains '...' or is very short)
+    abs_str = paper.abstract or ""
+    if not abs_str or "..." in abs_str or len(abs_str) < 300:
+        import httpx
+        from src.services.scholar_api import fetch_full_abstract_openalex
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                oa_abstract, oa_doi, oa_issn, oa_journal = await fetch_full_abstract_openalex(client, paper.title)
+                if oa_abstract and len(oa_abstract) > len(abs_str):
+                    paper.abstract = oa_abstract
+                    if oa_doi and oa_doi != "N/A" and not paper.doi:
+                        paper.doi = oa_doi
+                    if oa_issn and not paper.issn:
+                        paper.issn = oa_issn
+        except Exception as e:
+            print(f"Warning: Failed to fetch full abstract for '{paper.title}': {e}")
+
     issn = normalize_issn(paper.issn)
 
     # Nếu thiếu ISSN nhưng có DOI -> Tra cứu ISSN từ DOI qua OpenAlex
