@@ -335,7 +335,10 @@ async def get_search_history(
     project_uuid = uuid.UUID(str(project_id))
     result = await db.execute(
         select(SearchQuery)
-        .where(SearchQuery.project_id == project_uuid)
+        .where(
+            SearchQuery.project_id == project_uuid,
+            SearchQuery.query_string != "Direct Ingestion"
+        )
         .order_by(desc(SearchQuery.executed_at))
     )
     rows = result.scalars().all()
@@ -522,13 +525,35 @@ async def direct_upload_paper_pdf(
     if project_result.scalar_one_or_none() is None:
         raise HTTPException(status_code=404, detail=f"Project '{project_id}' not found")
 
+    # Ensure there is a dummy SearchQuery for direct uploads to satisfy legacy NOT NULL constraints on search_query_id
+    from src.models.db_models import SearchQuery
+    dummy_query_result = await db.execute(
+        select(SearchQuery).where(
+            SearchQuery.project_id == project_uuid,
+            SearchQuery.query_string == "Direct Ingestion"
+        )
+    )
+    dummy_query = dummy_query_result.scalar_one_or_none()
+    if not dummy_query:
+        dummy_query = SearchQuery(
+            id=uuid.uuid4(),
+            project_id=project_uuid,
+            query_string="Direct Ingestion",
+            result_count=0
+        )
+        db.add(dummy_query)
+        await db.flush()
+
+    from datetime import datetime
     paper_id = uuid.uuid4()
     clean_title = (title or file.filename.rsplit(".", 1)[0]).strip()
     paper = Paper(
         id=paper_id,
         project_id=project_uuid,
+        search_query_id=dummy_query.id,
         title=clean_title or file.filename,
         authors=[],
+        year=datetime.now().year,
         source="direct_upload",
         dedup_key=f"direct-upload:{paper_id}",
         screening_decision="keep",
