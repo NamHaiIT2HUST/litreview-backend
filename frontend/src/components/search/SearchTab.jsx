@@ -138,8 +138,17 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
     setAiScreeningLoading(true);
 
     try {
-      const res = await fetch(`${API_BASE}/papers/${paper.id}/screen`, {
+      const res = await fetch(`${API_BASE}/papers/${encodeURIComponent(paper.id)}/screen`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: paper.title,
+          abstract: paper.abstract,
+          journal: paper.journal,
+          year: paper.year,
+          doi: paper.doi,
+          authors: paper.authors
+        })
       });
       if (res.ok) {
         const data = await res.json();

@@ -70,63 +70,104 @@ def clean_paper_title(title: str) -> str:
     return t.strip(" .")
 
 
-async def fetch_full_abstract_openalex(client: httpx.AsyncClient, title: str) -> tuple[Optional[str], str, Optional[str], Optional[str]]:
+async def fetch_full_abstract_openalex(client: httpx.AsyncClient, title: str, doi: Optional[str] = None) -> tuple[Optional[str], str, Optional[str], Optional[str]]:
     """
     Tự động tra cứu OpenAlex (miễn phí, 250M+ bài báo) để lấy Full Abstract nguyên bản,
     DOI, ISSN và Tên Tạp chí (cần cho Module 4 Quality Check).
+    Ưu tiên tra cứu trực tiếp theo DOI nếu có.
     Trả về (abstract, doi, issn, journal).
     """
     try:
-        cleaned_title = clean_paper_title(title)
-        url = "https://api.openalex.org/works"
-        params = {"search": cleaned_title, "per-page": 1, "mailto": "litreview.agent@gmail.com"}
-        res = await client.get(url, params=params, timeout=5.0)
-        if res.status_code == 200:
-            results = res.json().get("results", [])
-            if results:
-                item = results[0]
+        if doi and doi.strip() and doi.strip().upper() != "N/A":
+            clean_doi = doi.strip().replace("https://doi.org/", "")
+            url = f"https://api.openalex.org/works/https://doi.org/{clean_doi}"
+            params = {"mailto": "litreview.agent@gmail.com"}
+            res = await client.get(url, params=params, timeout=5.0)
+            if res.status_code == 200:
+                item = res.json()
                 inv = item.get("abstract_inverted_index")
                 full_abstract = reconstruct_abstract_from_openalex(inv)
                 raw_doi = item.get("doi")
-                doi = raw_doi.replace("https://doi.org/", "") if (raw_doi and isinstance(raw_doi, str)) else "N/A"
+                found_doi = raw_doi.replace("https://doi.org/", "") if (raw_doi and isinstance(raw_doi, str)) else clean_doi
                 primary_loc = item.get("primary_location") or {}
                 issn = extract_issn_from_openalex_location(primary_loc)
                 source_obj = primary_loc.get("source") or {} if isinstance(primary_loc, dict) else {}
                 journal = source_obj.get("display_name") if isinstance(source_obj, dict) else None
-                return (full_abstract if len(full_abstract) > 50 else None), doi, issn, journal
+                if full_abstract and len(full_abstract) > 50:
+                    return full_abstract, found_doi, issn, journal
+
+        cleaned_title = clean_paper_title(title)
+        if cleaned_title:
+            url = "https://api.openalex.org/works"
+            params = {"search": cleaned_title, "per-page": 1, "mailto": "litreview.agent@gmail.com"}
+            res = await client.get(url, params=params, timeout=5.0)
+            if res.status_code == 200:
+                results = res.json().get("results", [])
+                if results:
+                    item = results[0]
+                    inv = item.get("abstract_inverted_index")
+                    full_abstract = reconstruct_abstract_from_openalex(inv)
+                    raw_doi = item.get("doi")
+                    found_doi = raw_doi.replace("https://doi.org/", "") if (raw_doi and isinstance(raw_doi, str)) else "N/A"
+                    primary_loc = item.get("primary_location") or {}
+                    issn = extract_issn_from_openalex_location(primary_loc)
+                    source_obj = primary_loc.get("source") or {} if isinstance(primary_loc, dict) else {}
+                    journal = source_obj.get("display_name") if isinstance(source_obj, dict) else None
+                    return (full_abstract if len(full_abstract) > 50 else None), found_doi, issn, journal
     except Exception:
         pass
     return None, "N/A", None, None
 
 
-async def fetch_full_abstract_s2(client: httpx.AsyncClient, title: str) -> tuple[Optional[str], Optional[str], str, Optional[str], Optional[str]]:
+async def fetch_full_abstract_s2(client: httpx.AsyncClient, title: str, doi: Optional[str] = None) -> tuple[Optional[str], Optional[str], str, Optional[str], Optional[str]]:
     """
-    Tra cứu phụ từ Semantic Scholar để bổ sung TL;DR, ISSN và Tên Tạp chí nếu có.
+    Tra cứu từ Semantic Scholar để bổ sung Abstract, TL;DR, ISSN và Tên Tạp chí.
+    Ưu tiên tra cứu trực tiếp theo DOI nếu có.
     Trả về (abstract, tldr, doi, issn, journal).
     """
     try:
-        cleaned_title = clean_paper_title(title)
-        url = "https://api.semanticscholar.org/graph/v1/paper/search"
-        params = {
-            "query": cleaned_title,
-            "limit": 1,
-            "fields": "title,abstract,tldr,externalIds,publicationVenue"
-        }
-        res = await client.get(url, params=params, timeout=4.0)
-        if res.status_code == 200:
-            data = res.json().get("data", [])
-            if data:
-                item = data[0]
+        if doi and doi.strip() and doi.strip().upper() != "N/A":
+            clean_doi = doi.strip().replace("https://doi.org/", "")
+            url = f"https://api.semanticscholar.org/graph/v1/paper/DOI:{clean_doi}"
+            params = {"fields": "title,abstract,tldr,externalIds,publicationVenue"}
+            res = await client.get(url, params=params, timeout=5.0)
+            if res.status_code == 200:
+                item = res.json()
                 abstract = item.get("abstract")
                 tldr_info = item.get("tldr")
                 tldr_text = tldr_info.get("text") if isinstance(tldr_info, dict) else None
                 ext_ids = item.get("externalIds") or {}
                 raw_doi = ext_ids.get("DOI") if isinstance(ext_ids, dict) else None
-                doi = raw_doi if (raw_doi and isinstance(raw_doi, str)) else "N/A"
+                found_doi = raw_doi if (raw_doi and isinstance(raw_doi, str)) else clean_doi
                 venue = item.get("publicationVenue") or {}
                 issn = venue.get("issn") if isinstance(venue, dict) else None
                 journal = venue.get("name") if isinstance(venue, dict) else None
-                return abstract, tldr_text, doi, issn, journal
+                if abstract and len(abstract) > 30:
+                    return abstract, tldr_text, found_doi, issn, journal
+
+        cleaned_title = clean_paper_title(title)
+        if cleaned_title:
+            url = "https://api.semanticscholar.org/graph/v1/paper/search"
+            params = {
+                "query": cleaned_title,
+                "limit": 1,
+                "fields": "title,abstract,tldr,externalIds,publicationVenue"
+            }
+            res = await client.get(url, params=params, timeout=4.0)
+            if res.status_code == 200:
+                data = res.json().get("data", [])
+                if data:
+                    item = data[0]
+                    abstract = item.get("abstract")
+                    tldr_info = item.get("tldr")
+                    tldr_text = tldr_info.get("text") if isinstance(tldr_info, dict) else None
+                    ext_ids = item.get("externalIds") or {}
+                    raw_doi = ext_ids.get("DOI") if isinstance(ext_ids, dict) else None
+                    found_doi = raw_doi if (raw_doi and isinstance(raw_doi, str)) else "N/A"
+                    venue = item.get("publicationVenue") or {}
+                    issn = venue.get("issn") if isinstance(venue, dict) else None
+                    journal = venue.get("name") if isinstance(venue, dict) else None
+                    return abstract, tldr_text, found_doi, issn, journal
     except Exception:
         pass
     return None, None, "N/A", None, None

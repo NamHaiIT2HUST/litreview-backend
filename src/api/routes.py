@@ -163,7 +163,11 @@ async def _persist_search(
             coverage_year_status=getattr(p, 'coverage_year_status', None),
             dedup_key=key,
         )
-        await run_scopus_quality_check(db, paper_row, enrich_abstract=False)
+        try:
+            await run_scopus_quality_check(db, paper_row)
+        except Exception as q_err:
+            import logging
+            logging.getLogger(__name__).warning("Quality check error during persist: %s", q_err)
         db.add(paper_row)
         existing_papers_map[key] = paper_row.id
         if paper_row.id not in linked_paper_ids:
@@ -171,6 +175,8 @@ async def _persist_search(
             linked_paper_ids.add(paper_row.id)
 
         p.id = str(paper_row.id)
+        p.abstract = paper_row.abstract
+        p.doi = paper_row.doi
         p.issn = paper_row.issn
         p.scopus_status = getattr(paper_row.scopus_status, "value", paper_row.scopus_status)
         p.scopus_quartile = paper_row.scopus_quartile
@@ -815,14 +821,19 @@ async def workspace_chat(request: WorkspaceChatRequest) -> WorkspaceChatResponse
                     filters={"paper_id": request.paper_ids[0]}
                 )
             else:
-                # Nếu chat với nhiều tài liệu, lấy 4 chunks mỗi tài liệu để đảm bảo tài liệu nào cũng có cơ hội (tránh bị nuốt bởi 1 tài liệu)
-                for pid in request.paper_ids:
-                    paper_chunks = await vector_store_service.search_similar_documents(
+                # Chat với nhiều tài liệu: lấy chunks song song từ từng tài liệu qua asyncio.gather
+                tasks = [
+                    vector_store_service.search_similar_documents(
                         request.message,
                         top_k=4,
                         filters={"paper_id": pid}
                     )
-                    chunks.extend(paper_chunks)
+                    for pid in request.paper_ids
+                ]
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+                for res in results:
+                    if isinstance(res, list):
+                        chunks.extend(res)
         elif getattr(request, "paper_id", None):
             chunks = await vector_store_service.search_similar_documents(
                 request.message, 

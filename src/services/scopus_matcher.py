@@ -182,30 +182,30 @@ async def quality_check(db: AsyncSession, paper: Paper) -> Paper:
     Chạy Quality Check Scopus cho 1 paper. Mutates `paper` in-place;
     caller chịu trách nhiệm flush/commit.
     """
-    # Auto-enrich abstract if it is a snippet (contains '...' or is very short)
+    # Auto-enrich abstract if it is missing, snippet, short, or 'No abstract provided.'
     abs_str = paper.abstract or ""
-    if not abs_str or "..." in abs_str or len(abs_str) < 300:
+    if not abs_str or "..." in abs_str or len(abs_str) < 300 or "No abstract" in abs_str:
         import httpx
         from src.services.scholar_api import fetch_full_abstract_openalex, fetch_full_abstract_s2
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
-                # Try OpenAlex first
-                oa_abstract, oa_doi, oa_issn, oa_journal = await fetch_full_abstract_openalex(client, paper.title)
-                if oa_abstract and len(oa_abstract) > len(abs_str):
-                    paper.abstract = oa_abstract
-                    if oa_doi and oa_doi != "N/A" and not paper.doi:
-                        paper.doi = oa_doi
-                    if oa_issn and not paper.issn:
-                        paper.issn = oa_issn
+                # Try Semantic Scholar by DOI / Title first (often has complete abstract text)
+                s2_abstract, tldr_text, s2_doi, s2_issn, s2_journal = await fetch_full_abstract_s2(client, paper.title, doi=paper.doi)
+                if s2_abstract and (len(s2_abstract) > len(abs_str) or "No abstract" in abs_str):
+                    paper.abstract = s2_abstract
+                    if s2_doi and s2_doi != "N/A" and (not paper.doi or paper.doi == "N/A"):
+                        paper.doi = s2_doi
+                    if s2_issn and not paper.issn:
+                        paper.issn = s2_issn
                 else:
-                    # Fallback to Semantic Scholar
-                    s2_abstract, tldr_text, s2_doi, s2_issn, s2_journal = await fetch_full_abstract_s2(client, paper.title)
-                    if s2_abstract and len(s2_abstract) > len(abs_str):
-                        paper.abstract = s2_abstract
-                        if s2_doi and s2_doi != "N/A" and not paper.doi:
-                            paper.doi = s2_doi
-                        if s2_issn and not paper.issn:
-                            paper.issn = s2_issn
+                    # Fallback to OpenAlex
+                    oa_abstract, oa_doi, oa_issn, oa_journal = await fetch_full_abstract_openalex(client, paper.title, doi=paper.doi)
+                    if oa_abstract and (len(oa_abstract) > len(abs_str) or "No abstract" in abs_str):
+                        paper.abstract = oa_abstract
+                        if oa_doi and oa_doi != "N/A" and (not paper.doi or paper.doi == "N/A"):
+                            paper.doi = oa_doi
+                        if oa_issn and not paper.issn:
+                            paper.issn = oa_issn
         except Exception as e:
             print(f"Warning: Failed to fetch full abstract for '{paper.title}': {e}")
 

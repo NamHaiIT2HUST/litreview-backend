@@ -11,8 +11,20 @@ from src.services.screening_service import screen_paper_ai, recompute_priority
 
 router = APIRouter()
 
+from pydantic import BaseModel
+from typing import Optional, Any
+from src.config import get_settings
+
+class PaperScreenPayload(BaseModel):
+    title: Optional[str] = None
+    abstract: Optional[str] = None
+    journal: Optional[str] = None
+    year: Optional[int] = None
+    doi: Optional[str] = None
+    authors: Optional[Any] = None
+
 @router.post("/papers/{paper_id}/screen", response_model=ScreenResponse)
-async def screen_paper(paper_id: str, db: AsyncSession = Depends(get_db)):
+async def screen_paper(paper_id: str, payload: Optional[PaperScreenPayload] = None, db: AsyncSession = Depends(get_db)):
     """Module 3: AI Screening - Gọi LLM để đánh giá relevance của bài báo."""
     paper = None
     try:
@@ -22,27 +34,46 @@ async def screen_paper(paper_id: str, db: AsyncSession = Depends(get_db)):
     except Exception:
         pass
 
-    if not paper:
-        # Search by external id string or title
+    if not paper and payload and payload.title:
+        result = await db.execute(select(Paper).where(Paper.title.ilike(f"%{payload.title.strip()}%")))
+        paper = result.scalars().first()
+
+    if not paper and paper_id and len(paper_id) > 3:
         result = await db.execute(select(Paper).where(Paper.title.ilike(f"%{paper_id}%")))
         paper = result.scalars().first()
 
-    if not paper:
-        raise HTTPException(status_code=404, detail="Paper not found")
-        
-    project_result = await db.execute(select(Project).where(Project.id == paper.project_id))
+    # Always fetch project setup
+    DEFAULT_PROJECT_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
+    project_result = await db.execute(select(Project).where(Project.id == (paper.project_id if paper else DEFAULT_PROJECT_ID)))
     project = project_result.scalar_one_or_none()
-    
+
+    if not paper:
+        if payload and payload.title:
+            authors_str = str(payload.authors) if payload.authors else "Unknown Authors"
+            paper = Paper(
+                id=uuid.uuid4(),
+                project_id=DEFAULT_PROJECT_ID,
+                title=payload.title,
+                abstract=payload.abstract or "",
+                journal=payload.journal or "Academic Journal",
+                year=payload.year or 2024,
+                doi=payload.doi or "N/A",
+                authors=authors_str
+            )
+        else:
+            raise HTTPException(status_code=404, detail="Paper not found")
+        
     # Thực hiện screening
     screen_result = await screen_paper_ai(paper, project)
     
-    # Cập nhật thông tin vào DB
-    paper.relevance_bucket = RelevanceBucket(screen_result.relevance_bucket)
-    paper.relevance_reason = screen_result.reason
-    await db.commit()
-    
-    # Tính lại điểm
-    await recompute_priority(str(paper.id), db)
+    # Cập nhật thông tin vào DB nếu paper đã tồn tại trong DB
+    try:
+        paper.relevance_bucket = RelevanceBucket(screen_result.relevance_bucket)
+        paper.relevance_reason = screen_result.reason
+        await db.commit()
+        await recompute_priority(str(paper.id), db)
+    except Exception:
+        pass
     
     return screen_result
 
