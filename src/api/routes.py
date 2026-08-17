@@ -511,7 +511,7 @@ async def delete_search_query(
 
 @router.delete("/papers/{paper_id}")
 async def delete_paper(
-    paper_id: UUID,
+    paper_id: str,
     db: AsyncSession = Depends(get_db),
 ):
     """Xóa một paper khỏi database."""
@@ -522,23 +522,35 @@ async def delete_paper(
         GenericEvidenceCache, GenericEvidenceCacheItem, RetrievalLog, Citation
     )
     
+    target_uuid = None
+    try:
+        target_uuid = UUID(paper_id)
+    except Exception:
+        stmt = select(Paper).where(
+            Paper.title.ilike(f"%{paper_id}%") | Paper.dedup_key.ilike(f"%{paper_id}%")
+        )
+        found = (await db.execute(stmt)).scalars().first()
+        if found:
+            target_uuid = found.id
+
+    if not target_uuid:
+        return {"message": "Paper already deleted or not stored", "id": str(paper_id)}
+
     # Delete child rows first to avoid foreign key violations
-    await db.execute(sql_delete(Citation).where(Citation.paper_id == paper_id))
-    await db.execute(sql_delete(RetrievalLog).where(RetrievalLog.paper_id == paper_id))
-    await db.execute(sql_delete(GenericEvidenceCacheItem).where(GenericEvidenceCacheItem.paper_id == paper_id))
-    await db.execute(sql_delete(GenericEvidenceCache).where(GenericEvidenceCache.paper_id == paper_id))
-    await db.execute(sql_delete(VectorCleanupJob).where(VectorCleanupJob.paper_id == paper_id))
-    await db.execute(sql_delete(EvidenceRecord).where(EvidenceRecord.paper_id == paper_id))
-    await db.execute(sql_delete(EvidenceExtractionAttempt).where(EvidenceExtractionAttempt.paper_id == paper_id))
-    await db.execute(sql_delete(ScreeningHistory).where(ScreeningHistory.paper_id == paper_id))
-    await db.execute(sql_delete(Extraction).where(Extraction.paper_id == paper_id))
-    await db.execute(sql_delete(PDFChunk).where(PDFChunk.paper_id == paper_id))
-    await db.execute(sql_delete(PageText).where(PageText.paper_id == paper_id))
+    await db.execute(sql_delete(Citation).where(Citation.paper_id == target_uuid))
+    await db.execute(sql_delete(RetrievalLog).where(RetrievalLog.paper_id == target_uuid))
+    await db.execute(sql_delete(GenericEvidenceCacheItem).where(GenericEvidenceCacheItem.paper_id == target_uuid))
+    await db.execute(sql_delete(GenericEvidenceCache).where(GenericEvidenceCache.paper_id == target_uuid))
+    await db.execute(sql_delete(VectorCleanupJob).where(VectorCleanupJob.paper_id == target_uuid))
+    await db.execute(sql_delete(EvidenceRecord).where(EvidenceRecord.paper_id == target_uuid))
+    await db.execute(sql_delete(EvidenceExtractionAttempt).where(EvidenceExtractionAttempt.paper_id == target_uuid))
+    await db.execute(sql_delete(ScreeningHistory).where(ScreeningHistory.paper_id == target_uuid))
+    await db.execute(sql_delete(Extraction).where(Extraction.paper_id == target_uuid))
+    await db.execute(sql_delete(PDFChunk).where(PDFChunk.paper_id == target_uuid))
+    await db.execute(sql_delete(PageText).where(PageText.paper_id == target_uuid))
     
-    result = await db.execute(sql_delete(Paper).where(Paper.id == paper_id))
+    result = await db.execute(sql_delete(Paper).where(Paper.id == target_uuid))
     await db.commit()
-    if result.rowcount == 0:
-        raise HTTPException(status_code=404, detail="Paper not found")
     return {"message": "Paper deleted successfully", "id": str(paper_id)}
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -1087,10 +1099,9 @@ async def create_synthesis_session(
 
     try:
         import os
-        redis_url = os.getenv("REDIS_URL") or os.getenv("CELERY_BROKER_URL") or os.getenv("REDIS_TLS_URL")
-        
-        if get_settings().app_env == "development" or not redis_url:
-            # Local/Fallback mode: use FastAPI BackgroundTasks so we don't need Redis/Celery on Render Free Tier
+        use_celery = os.getenv("USE_CELERY", "false").lower() in ("true", "1")
+        if not use_celery:
+            # Use FastAPI BackgroundTasks so synthesis runs in the web process directly
             async def local_run_synthesis(sid: str):
                 from src.tasks.synthesis_tasks import run_synthesis_session, _mark_terminal_failure
                 try:
