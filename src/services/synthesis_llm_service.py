@@ -47,7 +47,7 @@ def create_synthesis_llm(settings, *, gemini_cls=None, groq_cls=None, openai_cls
     
     # Auto-detect and fallback based on available keys to prevent configuration crashes
     openai_key = getattr(settings, "openai_api_key", "")
-    gemini_key = getattr(settings, "gemini_api_key", "") or getattr(settings, "google_api_key", "")
+    gemini_key = getattr(settings, "effective_gemini_api_key", "") or getattr(settings, "gemini_api_key", "") or getattr(settings, "google_api_key", "")
     
     if provider == "openai" and not openai_key and gemini_key:
         provider = "gemini"

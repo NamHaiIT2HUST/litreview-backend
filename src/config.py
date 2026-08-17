@@ -38,6 +38,13 @@ class Settings(BaseSettings):
     embedding_provider: Literal["local", "gemini", "openai"] = "openai"
 
     @property
+    def effective_gemini_api_key(self) -> str:
+        key = self.gemini_api_key or self.google_api_key or os.getenv("GEMINI_API_KEYS") or os.getenv("GEMINI_API_KEY") or ""
+        if "," in key:
+            key = key.split(",")[0].strip()
+        return key.strip()
+
+    @property
     def get_api_base(self) -> str:
         if self.openai_api_base:
             return self.openai_api_base
