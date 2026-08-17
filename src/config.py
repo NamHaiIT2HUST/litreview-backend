@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     google_api_key: str = ""
     serpapi_api_key: str = ""
-    model_name: str = "gemini-1.5-flash"
+    model_name: str = "gpt-4o-mini"
     llm_temperature: float = Field(default=0.7, ge=0.0, le=2.0)
     synthesis_temperature: float = Field(default=0.0, ge=0.0, le=1.0)
     synthesis_llm_provider: Literal["gemini", "groq", "openai"] = "openai"
