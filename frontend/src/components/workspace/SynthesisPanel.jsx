@@ -46,10 +46,17 @@ export default function SynthesisPanel({ workspacePapers, setActiveCitation, dar
         setHistory(data);
         if (autoSelect && data.length > 0) {
           const storedId = localStorage.getItem('litreview_active_synthesis_id');
-          const sessionToLoad = data.find(s => s.id === storedId) || data[0];
-          setSessionId(sessionToLoad.id);
-          setStatus(sessionToLoad.status);
-          localStorage.setItem('litreview_active_synthesis_id', sessionToLoad.id);
+          const sessionToLoad = data.find(s => s.id === storedId) || data.find(s => s.status === 'done') || data[0];
+          if (sessionToLoad && sessionToLoad.status !== 'failed') {
+            setSessionId(sessionToLoad.id);
+            setStatus(sessionToLoad.status);
+            localStorage.setItem('litreview_active_synthesis_id', sessionToLoad.id);
+          } else {
+            setSessionId(null);
+            setStatus('idle');
+            setError('');
+            localStorage.removeItem('litreview_active_synthesis_id');
+          }
         }
       }
     } catch (err) {

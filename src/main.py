@@ -142,6 +142,12 @@ app.include_router(screening_router, prefix="/api/v1")
 app.include_router(export_router, prefix="/api/v1")
 
 
+@app.get("/")
+@app.head("/")
+async def root_health():
+    return {"status": "ok", "app": "LitReview Agent", "version": "1.0.5"}
+
+
 @app.get("/health")
 async def health():
     return {
