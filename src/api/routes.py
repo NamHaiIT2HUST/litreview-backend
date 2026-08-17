@@ -1006,13 +1006,44 @@ async def create_synthesis_session(
     if project is None:
         raise HTTPException(status_code=404, detail=f"Project '{request.project_id}' not found")
     # Keep first occurrence/order because citation numbering follows user selection.
-    paper_ids = list(dict.fromkeys(request.paper_ids))
+    raw_paper_ids = list(dict.fromkeys(request.paper_ids))
     max_papers = get_settings().synthesis_max_papers
-    if len(paper_ids) > max_papers:
+    if len(raw_paper_ids) > max_papers:
         raise HTTPException(
             status_code=422,
             detail=f"Synthesis accepts at most {max_papers} papers per session.",
         )
+
+    from datetime import datetime
+    paper_uuids = []
+    for pid_raw in raw_paper_ids:
+        pid_str = str(pid_raw).strip()
+        try:
+            paper_uuids.append(uuid.UUID(pid_str))
+        except Exception:
+            stmt = select(Paper).where(
+                Paper.project_id == request.project_id,
+                (Paper.title.ilike(f"%{pid_str}%") | Paper.dedup_key.ilike(f"%{pid_str}%"))
+            )
+            found = (await db.execute(stmt)).scalars().first()
+            if found:
+                paper_uuids.append(found.id)
+            else:
+                new_id = uuid.uuid4()
+                new_paper = Paper(
+                    id=new_id,
+                    project_id=request.project_id,
+                    title=pid_str,
+                    abstract="",
+                    journal="Academic Journal",
+                    year=datetime.now().year,
+                    source="synthesis_request",
+                )
+                db.add(new_paper)
+                await db.flush()
+                paper_uuids.append(new_id)
+
+    paper_ids = paper_uuids
     paper_result = await db.execute(select(Paper).where(Paper.id.in_(paper_ids)))
     papers = list(paper_result.scalars().all())
     by_id = {paper.id: paper for paper in papers}

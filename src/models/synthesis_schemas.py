@@ -7,6 +7,7 @@ These models intentionally separate:
 """
 from __future__ import annotations
 
+from typing import Any
 import re
 import uuid
 from datetime import datetime
@@ -288,7 +289,7 @@ class EvidenceDeduplicationBatch(BaseModel):
 
 class SynthesisSessionCreateRequest(BaseModel):
     project_id: uuid.UUID
-    paper_ids: list[uuid.UUID] = Field(min_length=1, max_length=100)
+    paper_ids: list[Any] = Field(min_length=1, max_length=100)
     research_question: str | None = None
 
     @field_validator("research_question")
