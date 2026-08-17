@@ -537,6 +537,12 @@ async def delete_paper(
         return {"message": "Paper already deleted or not stored", "id": str(paper_id)}
 
     # Delete child rows first to avoid foreign key violations
+    from src.models.db_models import ClaimEvidenceLink
+    ev_result = await db.execute(select(EvidenceRecord.id).where(EvidenceRecord.paper_id == target_uuid))
+    ev_ids = ev_result.scalars().all()
+    if ev_ids:
+        await db.execute(sql_delete(ClaimEvidenceLink).where(ClaimEvidenceLink.evidence_id.in_(ev_ids)))
+
     await db.execute(sql_delete(Citation).where(Citation.paper_id == target_uuid))
     await db.execute(sql_delete(RetrievalLog).where(RetrievalLog.paper_id == target_uuid))
     await db.execute(sql_delete(GenericEvidenceCacheItem).where(GenericEvidenceCacheItem.paper_id == target_uuid))
