@@ -34,9 +34,6 @@ class Settings(BaseSettings):
     synthesis_model: str = "gpt-4o-mini"
     synthesis_llm_max_concurrency: int = Field(default=1, ge=1, le=10)
     groq_api_key: str = ""
-    gorouter_api_key: str = ""
-    gorouter_base_url: str = "https://gorouter.app/v1"
-    gorouter_model: str = "claude-opus-5-thinking"
     embedding_model: str = "text-embedding-3-small"
     embedding_provider: Literal["local", "gemini", "openai"] = "openai"
 
@@ -47,8 +44,6 @@ class Settings(BaseSettings):
         env_base = os.getenv("OPENAI_API_BASE") or os.getenv("OPENAI_BASE_URL")
         if env_base:
             return env_base
-        if self.gorouter_api_key or (self.openai_api_key and self.openai_api_key.startswith("sk-evy")):
-            return self.gorouter_base_url
         if self.openai_api_key and self.openai_api_key.startswith("sk-or-v1-"):
             return "https://openrouter.ai/api/v1"
         return ""
