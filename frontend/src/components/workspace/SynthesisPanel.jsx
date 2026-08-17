@@ -12,7 +12,7 @@ import {
 import { reviewScrollClass, sectionEvidenceLabel } from '../../utils/reviewPresentation';
 import { useLanguage } from '../../contexts/LanguageContext';
 
-import { API_BASE } from '../../utils/apiConfig';
+import { API_BASE, safeFetch } from '../../utils/apiConfig';
 
 const formatSessionTime = (isoString) => {
   if (!isoString) return '';
@@ -20,11 +20,8 @@ const formatSessionTime = (isoString) => {
   if (!clean.endsWith('Z') && !clean.includes('+') && !clean.includes('-')) {
     clean += 'Z';
   }
-  const d = new Date(clean);
-  return d.toLocaleString('vi-VN', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  });
+  const date = new Date(clean);
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' ' + date.toLocaleDateString();
 };
 
 export default function SynthesisPanel({ workspacePapers, setActiveCitation, darkMode }) {
@@ -40,7 +37,7 @@ export default function SynthesisPanel({ workspacePapers, setActiveCitation, dar
 
   const fetchHistory = async (autoSelect = false) => {
     try {
-      const response = await fetch(`${API_BASE}/projects/${DEFAULT_PROJECT_ID}/synthesis-sessions`);
+      const response = await safeFetch(`/projects/${DEFAULT_PROJECT_ID}/synthesis-sessions`);
       if (response.ok) {
         const data = await response.json();
         setHistory(data);
@@ -76,7 +73,7 @@ export default function SynthesisPanel({ workspacePapers, setActiveCitation, dar
     setActiveCitation(null);
 
     try {
-      const response = await fetch(`${API_BASE}/synthesis-sessions`, {
+      const response = await safeFetch('/synthesis-sessions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(buildSynthesisRequest(workspacePapers, DEFAULT_PROJECT_ID)),
@@ -116,7 +113,7 @@ export default function SynthesisPanel({ workspacePapers, setActiveCitation, dar
   const deleteSession = async (id) => {
     if (!window.confirm("Bạn có chắc chắn muốn xóa phiên tổng hợp này không?")) return;
     try {
-      const res = await fetch(`${API_BASE}/synthesis-sessions/${id}`, { method: 'DELETE' });
+      const res = await safeFetch(`/synthesis-sessions/${id}`, { method: 'DELETE' });
       if (res.ok) {
         if (sessionId === id) {
           createNewSession();
@@ -134,7 +131,7 @@ export default function SynthesisPanel({ workspacePapers, setActiveCitation, dar
     let cancelled = false;
     const poll = async () => {
       try {
-        const response = await fetch(`${API_BASE}/synthesis-sessions/${sessionId}`);
+        const response = await safeFetch(`/synthesis-sessions/${sessionId}`);
         const data = await response.json();
         if (!response.ok) {
           throw new Error(data.detail || t('synthesis.read_failed'));
