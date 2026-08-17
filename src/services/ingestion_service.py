@@ -107,3 +107,74 @@ async def persist_pdf_provenance(
     paper.pdf_status = PDFStatus.user_uploaded
     await db.flush()
     return ingestion_id
+
+
+async def ensure_paper_ingested(db: AsyncSession, paper: Paper) -> uuid.UUID:
+    """Ensure a Paper has an active_ingestion_id.
+    If active_ingestion_id is already set, return it.
+    If paper.file_path exists and is readable, run PDF extractor and persist provenance.
+    Otherwise (e.g. metadata/search paper), construct a synthetic provenance page from
+    title + abstract text and persist provenance.
+    """
+    if paper.active_ingestion_id is not None:
+        return paper.active_ingestion_id
+
+    import os
+    from src.services.document_processor import processor
+    from src.services.vector_store import vector_store_service
+    from langchain_core.documents import Document
+
+    if paper.file_path and os.path.exists(paper.file_path):
+        try:
+            pages, chunks = processor.extract_and_chunk(paper.file_path)
+            if chunks and any(c.page_content.strip() for c in chunks):
+                ingestion_id = await persist_pdf_provenance(
+                    db=db,
+                    paper=paper,
+                    pages=pages,
+                    chunks=chunks,
+                    parser_metadata=processor.parser_metadata()
+                )
+                await vector_store_service.stage_documents_for_paper(str(paper.id), chunks)
+                await db.commit()
+                return ingestion_id
+        except Exception as e:
+            print(f"Warning: Failed PDF re-ingestion for '{paper.title}': {e}")
+
+    # Fallback for metadata / search paper (or unparseable PDF)
+    abstract_text = (paper.abstract or "").strip()
+    if len(abstract_text) < 10:
+        abstract_text = f"Title: {paper.title}. No detailed abstract provided."
+
+    authors_str = paper.authors if isinstance(paper.authors, str) else ", ".join(paper.authors or [])
+    full_page_content = f"Title: {paper.title}\nAuthors: {authors_str}\nJournal: {paper.journal or 'N/A'} ({paper.year or 'N/A'})\nAbstract: {abstract_text}"
+    
+    page = Document(page_content=full_page_content, metadata={"page": 0})
+    chunk = Document(
+        page_content=full_page_content,
+        metadata={
+            "page": 0,
+            "chunk_index": 0,
+            "page_char_start": 0,
+            "page_char_end": len(full_page_content)
+        }
+    )
+    
+    ingestion_id = await persist_pdf_provenance(
+        db=db,
+        paper=paper,
+        pages=[page],
+        chunks=[chunk],
+        parser_metadata={
+            "parser_name": "metadata_fallback",
+            "parser_version": "1.0",
+            "ingestion_version": "1.0"
+        }
+    )
+    try:
+        await vector_store_service.stage_documents_for_paper(str(paper.id), [chunk])
+    except Exception:
+        pass
+    await db.commit()
+    return ingestion_id
+

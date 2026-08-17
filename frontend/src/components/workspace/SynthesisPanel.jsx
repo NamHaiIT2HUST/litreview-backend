@@ -76,7 +76,8 @@ export default function SynthesisPanel({ workspacePapers, setActiveCitation, dar
       });
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.detail || t('synthesis.create_failed'));
+        const detailStr = typeof data.detail === 'string' ? data.detail : (Array.isArray(data.detail) ? data.detail.map(d => d.msg || JSON.stringify(d)).join(', ') : JSON.stringify(data.detail));
+        throw new Error(detailStr || t('synthesis.create_failed'));
       }
       setSessionId(data.session_id);
       setStatus(data.status || 'processing');

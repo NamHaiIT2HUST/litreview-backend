@@ -1034,15 +1034,15 @@ async def create_synthesis_session(
             + ", ".join(str(item) for item in foreign_project),
         )
 
-    not_ingested = [paper.id for paper in papers if paper.active_ingestion_id is None]
-    if not_ingested:
-        raise HTTPException(
-            status_code=409,
-            detail=(
-                "PDF provenance ingestion is required before synthesis for papers: "
-                + ", ".join(str(item) for item in not_ingested)
-            ),
-        )
+    # Auto-ingest any papers missing active_ingestion_id
+    from src.services.ingestion_service import ensure_paper_ingested
+    for paper in papers:
+        if paper.active_ingestion_id is None:
+            try:
+                await ensure_paper_ingested(db, paper)
+            except Exception as ing_err:
+                import logging
+                logging.getLogger(__name__).warning("Auto-ingestion error for paper %s: %s", paper.id, ing_err)
 
     session = SynthesisSession(
         id=uuid.uuid4(),
