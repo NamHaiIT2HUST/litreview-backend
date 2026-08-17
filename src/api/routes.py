@@ -827,43 +827,43 @@ async def workspace_chat(request: WorkspaceChatRequest) -> WorkspaceChatResponse
     try:
 
         # --- LUỒNG RAG TRUYỀN THỐNG (SUPER FAST) ---
-        # Bước 1: Tìm kiếm tài liệu liên quan trong ChromaDB
-        # Lấy context riêng cho từng paper để đảm bảo phân bổ đều khi query chung chung
+        # Bước 1: Tìm kiếm tài liệu liên quan trong ChromaDB với fallback tự động
+        target_pids = request.paper_ids if getattr(request, "paper_ids", None) else ([request.paper_id] if getattr(request, "paper_id", None) else [])
+        
         chunks = []
-        if getattr(request, "paper_ids", None) and len(request.paper_ids) > 0:
-            if len(request.paper_ids) == 1:
-                # Nếu chỉ chat với 1 tài liệu, lấy 8 chunks cho sâu
-                chunks = await vector_store_service.search_similar_documents(
-                    request.message, 
-                    top_k=8,
-                    filters={"paper_id": request.paper_ids[0]}
+        if target_pids:
+            from sqlalchemy import String
+            for pid in target_pids:
+                pid_str = str(pid).strip()
+                res_chunks = await vector_store_service.search_similar_documents(
+                    request.message, top_k=8, filters={"paper_id": pid_str}
                 )
-            else:
-                # Chat với nhiều tài liệu: lấy chunks song song từ từng tài liệu qua asyncio.gather
-                tasks = [
-                    vector_store_service.search_similar_documents(
-                        request.message,
-                        top_k=4,
-                        filters={"paper_id": pid}
+                if res_chunks:
+                    chunks.extend(res_chunks)
+                else:
+                    stmt = select(Paper).where(
+                        (Paper.id.cast(String) == pid_str) | (Paper.title.ilike(f"%{pid_str}%")) | (Paper.dedup_key.ilike(f"%{pid_str}%"))
                     )
-                    for pid in request.paper_ids
-                ]
-                results = await asyncio.gather(*tasks, return_exceptions=True)
-                for res in results:
-                    if isinstance(res, list):
-                        chunks.extend(res)
-        elif getattr(request, "paper_id", None):
-            chunks = await vector_store_service.search_similar_documents(
-                request.message, 
-                top_k=8,
-                filters={"paper_id": request.paper_id}
-            )
+                    paper = (await db.execute(stmt)).scalars().first()
+                    if paper:
+                        if paper.active_ingestion_id is None:
+                            try:
+                                from src.services.ingestion_service import ensure_paper_ingested
+                                await ensure_paper_ingested(db, paper)
+                            except Exception:
+                                pass
+                        res_chunks = await vector_store_service.search_similar_documents(
+                            request.message, top_k=8, filters={"paper_id": str(paper.id)}
+                        )
+                        if res_chunks:
+                            chunks.extend(res_chunks)
+                        else:
+                            from langchain_core.documents import Document
+                            text = f"Title: {paper.title}\nAuthors: {paper.authors}\nJournal: {paper.journal or 'N/A'} ({paper.year or 'N/A'})\nAbstract: {paper.abstract or 'No abstract'}"
+                            doc = Document(page_content=text, metadata={"paper_id": str(paper.id), "paper_title": paper.title})
+                            chunks.append(doc)
         else:
-            chunks = await vector_store_service.search_similar_documents(
-                request.message, 
-                top_k=8,
-                filters=None
-            )
+            chunks = await vector_store_service.search_similar_documents(request.message, top_k=8, filters=None)
 
         # Bước 2: Sinh câu trả lời dựa trên context (có structured citation metadata)
         result = await rag_service.generate_answer_with_citations(request.message, chunks)

@@ -39,10 +39,12 @@ class Settings(BaseSettings):
 
     @property
     def effective_gemini_api_key(self) -> str:
-        key = self.gemini_api_key or self.google_api_key or os.getenv("GEMINI_API_KEYS") or os.getenv("GEMINI_API_KEY") or ""
-        if "," in key:
-            key = key.split(",")[0].strip()
-        return key.strip()
+        raw = self.gemini_api_key or self.google_api_key or os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEYS") or ""
+        tokens = [t.strip() for t in raw.split(",") if t.strip()]
+        for token in tokens:
+            if token.startswith("AIzaSy"):
+                return token
+        return tokens[0] if tokens else ""
 
     @property
     def get_api_base(self) -> str:
