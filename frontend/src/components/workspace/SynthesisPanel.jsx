@@ -12,7 +12,7 @@ import {
 import { reviewScrollClass, sectionEvidenceLabel } from '../../utils/reviewPresentation';
 import { useLanguage } from '../../contexts/LanguageContext';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000/api/v1';
+import { API_BASE } from '../../utils/apiConfig';
 
 const formatSessionTime = (isoString) => {
   if (!isoString) return '';

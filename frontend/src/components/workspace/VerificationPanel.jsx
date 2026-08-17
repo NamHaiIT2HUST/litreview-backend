@@ -10,7 +10,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   import.meta.url,
 ).toString();
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000/api/v1';
+import { API_BASE } from '../../utils/apiConfig';
 
 export default function VerificationPanel({ activeCitation, onClose, darkMode }) {
   const { t } = useLanguage();

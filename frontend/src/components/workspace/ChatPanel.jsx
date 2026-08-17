@@ -7,7 +7,7 @@ import rehypeKatex from 'rehype-katex';
 import CitationChip from './CitationChip';
 import { useLanguage } from '../../contexts/LanguageContext';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000/api/v1';
+import { API_BASE } from '../../utils/apiConfig';
 
 export default function ChatPanel({ 
   workspacePapers,
