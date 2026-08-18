@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Award, ExternalLink, FileText, Copy, Check, Quote, PlusCircle, CheckCircle2, Sparkles } from 'lucide-react';
+import { Award, ExternalLink, FileText, Copy, Check, Quote, PlusCircle, CheckCircle2, Sparkles, GitFork } from 'lucide-react';
 
-export default function PaperTable({ papers, selectedPaperIds, toggleSelectPaper, onOpenAiScreening, darkMode }) {
+export default function PaperTable({ papers, selectedPaperIds, toggleSelectPaper, onOpenAiScreening, onOpenGenealogy, darkMode }) {
   const [copiedDoi, setCopiedDoi] = useState(null);
   const [citationModalPaper, setCitationModalPaper] = useState(null);
   const [expandedRowIds, setExpandedRowIds] = useState([]);
@@ -230,6 +230,16 @@ export default function PaperTable({ papers, selectedPaperIds, toggleSelectPaper
                         >
                           <FileText className="w-3.5 h-3.5" />
                         </a>
+
+                        <button
+                          onClick={() => onOpenGenealogy && onOpenGenealogy(paper)}
+                          className={`p-2 rounded-xl transition-all border ${
+                            darkMode ? 'bg-slate-800 hover:bg-slate-700 border-sky-500/40 text-sky-400' : 'bg-sky-50 hover:bg-sky-100 border-sky-200 text-sky-700'
+                          }`}
+                          title="Khám phá Cây phả hệ trích dẫn"
+                        >
+                          <GitFork className="w-3.5 h-3.5" />
+                        </button>
 
                         <button
                           onClick={() => toggleSelectPaper(paper.id)}
