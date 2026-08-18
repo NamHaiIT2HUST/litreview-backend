@@ -19,6 +19,8 @@ from src.agents.slr_swarm.agents.gap_finder import run_gap_finder
 from src.agents.slr_swarm.agents.snowball import run_snowball
 from src.agents.slr_swarm.agents.peer_screener import run_peer_screener
 from src.agents.slr_swarm.agents.prisma_drafter import run_prisma_drafter
+from src.agents.slr_swarm.agents.scope_optimizer import run_scope_optimizer, ScopeAnalysisResult
+from src.agents.slr_swarm.agents.criteria_generator import run_criteria_generator, CriteriaGenerationResult
 from src.agents.slr_swarm.kpi import compute_kpi, estimated_cost_saved
 from src.config import get_settings
 
@@ -121,6 +123,25 @@ async def step1_setup(payload: SetupRequest) -> SetupResponse:
         trace=state.get("trace", []),
         error=state.get("error", "")
     )
+
+class ScopeRequest(BaseModel):
+    idea: str
+    research_field: str = ""
+
+@router.post("/optimize-scope", response_model=ScopeAnalysisResult)
+async def optimize_scope(payload: ScopeRequest) -> ScopeAnalysisResult:
+    """Agent Cố Vấn Phạm Vi (Scope Optimizer Agent) — Phân tích độ rộng/hẹp đề tài."""
+    return await run_scope_optimizer(payload.idea, payload.research_field)
+
+class CriteriaRequest(BaseModel):
+    idea: str
+    research_field: str = ""
+
+@router.post("/generate-criteria", response_model=CriteriaGenerationResult)
+async def generate_criteria(payload: CriteriaRequest) -> CriteriaGenerationResult:
+    """Agent Tự Động Sinh Tiêu Chí (Criteria Auto-Generator) — Đề xuất Inclusion & Exclusion."""
+    return await run_criteria_generator(payload.idea, payload.research_field)
+
 
 class SearchRequest(BaseModel):
     idea: str
