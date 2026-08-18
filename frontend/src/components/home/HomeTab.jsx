@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { 
   Search, BrainCircuit, FileDown, ArrowRight, Settings, CheckCircle2, 
   Layers, ShieldCheck, Database, Cpu, Compass, BookOpen, ChevronRight,
-  TrendingUp, Sparkles, Activity, FileText
+  TrendingUp, Sparkles, Activity, FileText, Check, Zap, Eye
 } from 'lucide-react';
 import { useLanguage } from '../../contexts/LanguageContext';
+import InteractiveHeroBackground from './InteractiveHeroBackground';
 
 export default function HomeTab({ setActiveTab, darkMode }) {
   const { t } = useLanguage();
@@ -74,35 +75,58 @@ export default function HomeTab({ setActiveTab, darkMode }) {
   ];
 
   return (
-    <div className="space-y-16 pb-20 font-sans">
+    <div className="space-y-16 pb-20 font-sans relative overflow-hidden">
       
-      {/* 🚀 HERO SECTION WITH DYNAMIC GRADIENT & DEPTH */}
-      <section className="relative pt-8 pb-12 px-4 max-w-5xl mx-auto text-center space-y-6">
+      {/* 🚀 HERO SECTION WITH DYNAMIC VINDYNAMICS-STYLE BACKGROUND */}
+      <section className="relative pt-12 pb-16 px-4 max-w-6xl mx-auto text-center space-y-8 min-h-[560px] flex flex-col justify-center items-center">
         
-        {/* Subtle Ambient Background Light */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[300px] bg-blue-500/10 dark:bg-blue-600/15 blur-[100px] rounded-full pointer-events-none -z-10" />
+        {/* Interactive Neural Canvas Background */}
+        <InteractiveHeroBackground darkMode={darkMode} />
 
-        {/* Live System Badge */}
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-display font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/70 dark:text-sky-300 border border-blue-200/80 dark:border-blue-800 shadow-sm animate-in fade-in zoom-in duration-500">
-          <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
-          <span>HỆ THỐNG TỔNG QUAN Y VĂN THÔNG MINH THẾ HỆ MỚI</span>
+        {/* Live System Badge with Ripple Effect */}
+        <div className="relative inline-flex items-center gap-2.5 px-5 py-2 rounded-full text-xs font-display font-black bg-white/80 dark:bg-slate-900/90 text-blue-700 dark:text-sky-300 border border-blue-200/90 dark:border-blue-800 shadow-lg shadow-blue-500/10 backdrop-blur-md animate-in fade-in zoom-in duration-500 hover:scale-105 transition-transform cursor-default">
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-600"></span>
+          </span>
+          <span className="tracking-wider uppercase">LITREVIEW AGENT · NEXT-GEN LITERATURE WORKSPACE</span>
         </div>
 
         {/* Main Hero Headline */}
-        <h1 className="text-4xl sm:text-5xl md:text-6xl font-display font-black tracking-tight leading-[1.15] text-slate-900 dark:text-white max-w-4xl mx-auto">
-          Tăng Tốc Nghiên Cứu Với <span className="text-blue-600 dark:text-sky-400">Multi-Agent Intelligence</span>
-        </h1>
+        <div className="space-y-4 max-w-4xl mx-auto">
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-display font-black tracking-tight leading-[1.12] text-slate-900 dark:text-white">
+            Tăng Tốc Tổng Quan Y Văn Với <br className="hidden sm:block" />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-500 dark:from-blue-400 dark:via-indigo-300 dark:to-sky-300">
+              Multi-Agent Intelligence
+            </span>
+          </h1>
 
-        {/* Subtitle */}
-        <p className="text-base sm:text-lg text-slate-600 dark:text-slate-300 max-w-2xl mx-auto font-normal leading-relaxed">
-          Nền tảng hỗ trợ tổng quan tài liệu khoa học khép kín, tự động hóa từ khâu thiết lập đề tài, sàng lọc PRISMA đến trích xuất ma trận dữ liệu theo chuẩn quốc tế.
-        </p>
+          <p className="text-sm sm:text-base md:text-lg text-slate-600 dark:text-slate-300 max-w-2xl mx-auto font-normal leading-relaxed">
+            Hệ thống hỗ trợ nghiên cứu khép kín: Tự động cố vấn phạm vi, thiết lập tiêu chí PRISMA, đối chiếu dữ liệu Scopus và tổng hợp báo cáo y văn học thuật chuẩn xác.
+          </p>
+        </div>
 
-        {/* CTA Buttons */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+        {/* Floating Telemetry Micro-Badges */}
+        <div className="hidden lg:flex items-center justify-center gap-3 pt-1">
+          <span className="px-3 py-1 rounded-xl bg-slate-900/5 dark:bg-white/5 border border-slate-200 dark:border-slate-800 text-[11px] font-mono text-slate-600 dark:text-slate-400 flex items-center gap-1.5 backdrop-blur-sm shadow-sm">
+            <Activity className="w-3.5 h-3.5 text-blue-500 animate-pulse" />
+            <span>Agent Consensus: Synced</span>
+          </span>
+          <span className="px-3 py-1 rounded-xl bg-slate-900/5 dark:bg-white/5 border border-slate-200 dark:border-slate-800 text-[11px] font-mono text-slate-600 dark:text-slate-400 flex items-center gap-1.5 backdrop-blur-sm shadow-sm">
+            <Check className="w-3.5 h-3.5 text-emerald-500" />
+            <span>PRISMA 2020: Compliant</span>
+          </span>
+          <span className="px-3 py-1 rounded-xl bg-slate-900/5 dark:bg-white/5 border border-slate-200 dark:border-slate-800 text-[11px] font-mono text-slate-600 dark:text-slate-400 flex items-center gap-1.5 backdrop-blur-sm shadow-sm">
+            <Zap className="w-3.5 h-3.5 text-amber-500" />
+            <span>Flash Engine: 1.45s</span>
+          </span>
+        </div>
+
+        {/* CTA Action Buttons */}
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2 w-full max-w-md mx-auto">
           <button
             onClick={() => setActiveTab('setup')}
-            className="w-full sm:w-auto px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-display font-black text-sm shadow-xl shadow-blue-600/25 transition-all hover:scale-[1.03] active:scale-95 flex items-center justify-center gap-2 group"
+            className="w-full sm:w-auto px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-display font-black text-xs md:text-sm shadow-xl shadow-blue-600/30 transition-all hover:scale-[1.03] active:scale-95 flex items-center justify-center gap-2 group"
           >
             <span>Bắt đầu thiết lập đề tài</span>
             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
@@ -110,10 +134,10 @@ export default function HomeTab({ setActiveTab, darkMode }) {
           
           <button
             onClick={() => setActiveTab('search')}
-            className={`w-full sm:w-auto px-7 py-4 rounded-2xl font-display font-bold text-sm transition-all border ${
+            className={`w-full sm:w-auto px-7 py-4 rounded-2xl font-display font-bold text-xs md:text-sm transition-all border backdrop-blur-md ${
               darkMode 
-                ? 'bg-slate-900 hover:bg-slate-800 text-slate-200 border-slate-700' 
-                : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200 shadow-sm'
+                ? 'bg-slate-900/80 hover:bg-slate-800 text-slate-200 border-slate-700' 
+                : 'bg-white/90 hover:bg-white text-slate-800 border-slate-200 shadow-md shadow-slate-200/50'
             } flex items-center justify-center gap-2`}
           >
             <Search className="w-4 h-4 text-blue-600" />
@@ -122,12 +146,12 @@ export default function HomeTab({ setActiveTab, darkMode }) {
         </div>
 
         {/* 📊 LIVE METRICS TICKER */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-8 max-w-4xl mx-auto">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-6 max-w-4xl mx-auto w-full">
           {stats.map((item, idx) => (
             <div 
               key={idx}
-              className={`p-4 rounded-2xl border text-center transition-all ${
-                darkMode ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200/90 shadow-sm'
+              className={`p-4 md:p-5 rounded-2xl border text-center transition-all backdrop-blur-md ${
+                darkMode ? 'bg-slate-900/80 border-slate-800 hover:border-blue-500/50' : 'bg-white/90 border-slate-200 shadow-sm hover:border-blue-400'
               }`}
             >
               <div className="text-2xl md:text-3xl font-display font-black text-blue-600 dark:text-sky-400">
@@ -144,26 +168,25 @@ export default function HomeTab({ setActiveTab, darkMode }) {
         </div>
       </section>
 
-      {/* 🔄 INTERACTIVE 4-STEP PIPELINE (HOẠT ẢNH TIẾN TRÌNH) */}
+      {/* 🔄 INTERACTIVE 4-STEP PIPELINE */}
       <section className="max-w-5xl mx-auto px-4 space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pb-2 border-b border-slate-200 dark:border-slate-800">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
           <div>
-            <span className="text-xs font-display font-bold text-blue-600 dark:text-sky-400 uppercase tracking-widest block">
-              QUY TRÌNH KHOA HỌC CHUẨN MỰC
+            <span className="text-xs font-display font-extrabold text-blue-600 dark:text-sky-400 uppercase tracking-widest block">
+              QUY TRÌNH HỌC THUẬT TOÀN DIỆN
             </span>
             <h2 className="text-2xl md:text-3xl font-display font-black text-slate-900 dark:text-white tracking-tight mt-1">
-              Luồng Làm Việc 4 Giai Đoạn
+              Luồng Nghiên Cứu 4 Giai Đoạn
             </h2>
           </div>
           <p className="text-xs text-slate-500 font-medium max-w-xs">
-            Hỗ trợ toàn diện từ giai đoạn lên ý tưởng đến khi hoàn thiện bài báo cáo.
+            Được thiết kế để tối ưu hóa từng bước từ ý tưởng ban đầu đến bài báo hoàn chỉnh.
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {workflowSteps.map((step, idx) => {
             const Icon = step.icon;
-            const isHovered = hoveredCard === idx;
             return (
               <div
                 key={idx}
@@ -172,17 +195,17 @@ export default function HomeTab({ setActiveTab, darkMode }) {
                 onClick={() => setActiveTab(step.tab)}
                 className={`p-6 rounded-3xl border transition-all cursor-pointer flex flex-col justify-between space-y-5 group relative overflow-hidden ${
                   darkMode 
-                    ? 'bg-slate-900 border-slate-800 hover:border-blue-500/60 hover:bg-slate-850' 
-                    : 'bg-white border-slate-200 hover:border-blue-400 hover:shadow-lg hover:shadow-blue-500/5'
+                    ? 'bg-slate-900 border-slate-800 hover:border-blue-500/60' 
+                    : 'bg-white border-slate-200 hover:border-blue-400 hover:shadow-xl hover:shadow-blue-500/10'
                 }`}
               >
                 {/* Step Top Bar */}
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-display font-black text-blue-600 dark:text-sky-400 bg-blue-50 dark:bg-blue-950 px-2.5 py-1 rounded-lg border border-blue-100 dark:border-blue-900">
+                  <span className="text-xs font-display font-black text-blue-600 dark:text-sky-400 bg-blue-50 dark:bg-blue-950 px-2.5 py-1 rounded-xl border border-blue-100 dark:border-blue-900">
                     STEP {step.step}
                   </span>
-                  <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 group-hover:bg-blue-600 group-hover:text-white transition-colors shadow-sm">
-                    <Icon className="w-4 h-4" />
+                  <div className="w-10 h-10 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 group-hover:bg-blue-600 group-hover:text-white transition-colors shadow-sm">
+                    <Icon className="w-5 h-5" />
                   </div>
                 </div>
 
@@ -191,13 +214,13 @@ export default function HomeTab({ setActiveTab, darkMode }) {
                   <h3 className="font-display font-bold text-base text-slate-900 dark:text-white leading-snug group-hover:text-blue-600 dark:group-hover:text-sky-400 transition-colors">
                     {step.title}
                   </h3>
-                  <p className="text-xs text-slate-500 leading-relaxed">
+                  <p className="text-xs text-slate-500 leading-relaxed font-normal">
                     {step.desc}
                   </p>
                 </div>
 
                 {/* Bottom Action Link */}
-                <div className="pt-2 flex items-center justify-between text-xs font-display font-bold text-blue-600 dark:text-sky-400 border-t border-slate-100 dark:border-slate-800/80">
+                <div className="pt-2 flex items-center justify-between text-xs font-display font-extrabold text-blue-600 dark:text-sky-400 border-t border-slate-100 dark:border-slate-800/80">
                   <span>Trải nghiệm ngay</span>
                   <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1.5 transition-transform" />
                 </div>
@@ -210,11 +233,11 @@ export default function HomeTab({ setActiveTab, darkMode }) {
       {/* 🛡️ CORE CAPABILITIES & ARCHITECTURE */}
       <section className="max-w-5xl mx-auto px-4 space-y-6">
         <div className="text-center max-w-2xl mx-auto space-y-2">
-          <span className="text-xs font-display font-bold text-blue-600 dark:text-sky-400 uppercase tracking-widest">
-            TẠI SAO LỰA CHỌN LITREVIEW PRO
+          <span className="text-xs font-display font-extrabold text-blue-600 dark:text-sky-400 uppercase tracking-widest">
+            KIẾN TRÚC ĐỘT PHÁ
           </span>
           <h2 className="text-2xl md:text-3xl font-display font-black text-slate-900 dark:text-white tracking-tight">
-            Nền Tảng Đột Phá Cho Nghiên Cứu Viên
+            Nền Tảng Tự Động Hóa Chuyên Sâu
           </h2>
         </div>
 
@@ -225,8 +248,8 @@ export default function HomeTab({ setActiveTab, darkMode }) {
               <div 
                 key={i} 
                 className={`p-7 rounded-3xl border transition-all ${
-                  darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200/90 shadow-sm'
-                } space-y-4 hover:border-blue-300 dark:hover:border-blue-700 transition-colors`}
+                  darkMode ? 'bg-slate-900 border-slate-800 hover:border-blue-600/50' : 'bg-white border-slate-200/90 shadow-sm hover:border-blue-400 hover:shadow-lg'
+                } space-y-4 transition-all`}
               >
                 <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-sky-400 flex items-center justify-center shadow-sm">
                   <Icon className="w-6 h-6" />
@@ -234,7 +257,7 @@ export default function HomeTab({ setActiveTab, darkMode }) {
                 <h3 className="font-display font-bold text-base text-slate-900 dark:text-white">
                   {cap.title}
                 </h3>
-                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
                   {cap.desc}
                 </p>
               </div>
@@ -248,16 +271,16 @@ export default function HomeTab({ setActiveTab, darkMode }) {
         <div className="p-8 md:p-12 rounded-3xl bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-800 text-white shadow-2xl relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="space-y-2 text-center md:text-left z-10">
             <h3 className="text-2xl md:text-3xl font-display font-black tracking-tight">
-              Sẵn sàng bắt đầu dự án nghiên cứu của bạn?
+              Bắt đầu dự án tổng quan y văn của bạn
             </h3>
             <p className="text-xs md:text-sm text-blue-100 max-w-xl font-normal leading-relaxed">
-              Thiết lập đề tài ngay bây giờ để được Agent Cố vấn phạm vi và tự động sinh khung tiêu chí chuẩn PRISMA trong vài giây.
+              Khởi tạo cấu hình nghiên cứu và để các Agent chuyên trách đồng hành cùng bạn ở từng bước.
             </p>
           </div>
 
           <button
             onClick={() => setActiveTab('setup')}
-            className="px-8 py-4 bg-white text-blue-700 hover:bg-blue-50 rounded-2xl font-display font-black text-xs md:text-sm shadow-lg transition-transform hover:scale-105 active:scale-95 shrink-0 z-10"
+            className="px-8 py-4 bg-white text-blue-700 hover:bg-blue-50 rounded-2xl font-display font-black text-xs md:text-sm shadow-xl transition-transform hover:scale-105 active:scale-95 shrink-0 z-10"
           >
             Vào Tab Cấu hình →
           </button>
