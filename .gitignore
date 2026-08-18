@@ -66,3 +66,12 @@ out/
 # AI logs — tracked structure, ignored content
 .ai-log/*.jsonl
 .ai-log/archive/
+
+# Temporary test folders & files
+.tmp/
+.tmp-*/
+tmp/
+tmp-*/
+dummy.pdf
+*.log
+.worktrees/
