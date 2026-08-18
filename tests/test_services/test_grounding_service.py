@@ -100,6 +100,83 @@ async def test_build_anchor_contexts_uses_raw_grounding_windows_not_retrieved_ch
     assert allowed_ids == {anchor_id}
 
 
+@pytest.mark.asyncio
+async def test_ground_candidate_replaces_llm_quote_with_verbatim_raw_span():
+    import uuid
+
+    from src.models.synthesis_schemas import EvidenceDimension, EvidenceExtractionCandidate
+    from src.services.grounding_service import GroundingService, GroundingWindow
+
+    page_text_id = uuid.uuid4()
+    source_chunk_id = uuid.uuid4()
+    paper_id = uuid.uuid4()
+    raw_text = "The proposed trans-\nformer  improved accuracy."
+    class FakeService(GroundingService):
+        async def build_window(self, db, *, source_chunk_id, paper_id):
+            return GroundingWindow(
+                anchor_chunk_id=source_chunk_id,
+                page_text_id=page_text_id,
+                page_number=3,
+                raw_start=100,
+                raw_end=100 + len(raw_text),
+                text=raw_text,
+            ), None
+
+    service = FakeService()
+    candidate = EvidenceExtractionCandidate(
+        paper_id=paper_id,
+        dimension=EvidenceDimension.findings,
+        value="improved accuracy",
+        quote="The proposed transformer improved accuracy.",
+        source_chunk_id=source_chunk_id,
+    )
+
+    outcome = await service.ground_candidate(object(), candidate)
+
+    assert outcome.grounded is True
+    assert outcome.evidence.quote == raw_text
+    assert outcome.evidence.quote != candidate.quote
+    assert (outcome.evidence.page_char_start, outcome.evidence.page_char_end) == (
+        100,
+        100 + len(raw_text),
+    )
+
+
+@pytest.mark.asyncio
+async def test_ground_candidate_rejects_quote_that_is_not_in_raw_window():
+    import uuid
+
+    from src.models.synthesis_schemas import EvidenceDimension, EvidenceExtractionCandidate
+    from src.services.grounding_service import GroundingService, GroundingWindow
+
+    source_chunk_id = uuid.uuid4()
+    class FakeService(GroundingService):
+        async def build_window(self, db, *, source_chunk_id, paper_id):
+            return GroundingWindow(
+                anchor_chunk_id=source_chunk_id,
+                page_text_id=uuid.uuid4(),
+                page_number=1,
+                raw_start=0,
+                raw_end=20,
+                text="The source says alpha.",
+            ), None
+
+    service = FakeService()
+    candidate = EvidenceExtractionCandidate(
+        paper_id=uuid.uuid4(),
+        dimension=EvidenceDimension.findings,
+        value="beta",
+        quote="The source says beta.",
+        source_chunk_id=source_chunk_id,
+    )
+
+    outcome = await service.ground_candidate(object(), candidate)
+
+    assert outcome.grounded is False
+    assert outcome.evidence is None
+    assert outcome.failure_reason == "quote_not_found"
+
+
 def test_normalize_for_matching_trims_text_and_mapping_together():
     from src.services.grounding_service import normalize_for_matching
 
