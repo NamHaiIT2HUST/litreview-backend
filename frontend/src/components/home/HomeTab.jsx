@@ -3,7 +3,7 @@ import {
   Search, BrainCircuit, FileDown, ArrowRight, Settings, CheckCircle2, 
   Layers, ShieldCheck, Database, Cpu, Compass, BookOpen, ChevronRight,
   TrendingUp, Activity, FileText, Check, Zap, AlertTriangle, Scale,
-  Sparkles, CheckCheck, Clock, Award, Eye, Radio, Server
+  Sparkles, CheckCheck, Clock, Award, Eye, Radio, Server, Play
 } from 'lucide-react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import InteractiveHeroBackground from './InteractiveHeroBackground';
@@ -43,33 +43,30 @@ export default function HomeTab({ setActiveTab, darkMode }) {
   ];
 
   return (
-    <div className="space-y-16 pb-24 font-sans text-slate-900 dark:text-white">
+    <div className="space-y-16 pb-28 font-sans text-slate-900 dark:text-white">
       
-      {/* 🎬 1. DYNAMIC HERO SECTION — LIVE ANIMATED KNOWLEDGE GRAPH */}
-      <section className="relative w-full rounded-3xl overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800 bg-slate-950 min-h-[560px] md:min-h-[640px] flex items-center justify-center group">
+      {/* 🎬 1. FULL-BLEED LIVE CINEMATIC HERO VIDEO — 100% DYNAMIC VINDYNAMICS STAGE */}
+      <section className="relative w-full rounded-3xl overflow-hidden shadow-2xl border border-slate-800 bg-black min-h-[580px] md:min-h-[660px] flex items-center justify-center group">
         
-        {/* Layer 1: Cinematic Ken-Burns 3D Render Image Background */}
-        <div className="absolute inset-0 overflow-hidden">
-          <img 
-            src="/assets/academic_knowledge_graph.jpg"
-            alt="Academic Knowledge Graph Network"
-            className="w-full h-full object-cover opacity-50 filter brightness-95 animate-ken-burns scale-110"
-          />
-        </div>
+        {/* Full-Motion 4K Background Video */}
+        <video 
+          className="absolute inset-0 w-full h-full object-cover opacity-60 scale-105 filter brightness-90 transition-transform duration-1000 group-hover:scale-110"
+          src="https://vindynamics.net/api/v2/file/view?fileId=mwp-prod%2Fpublic%2F2026%2F08%2F07%2F019fdbf24ee77a8791cceab252e3b198_D050F5FCA2A8E3427EE3B8AC81AEFD3F.mp4&site=000006"
+          poster="https://vindynamics.net/api/v2/file/view?fileId=mwp-prod%2Fpublic%2F2026%2F08%2F07%2F019fdc00d5af7aa5a5f001bc773ee36d_2C3F027FB9D6AACEF873C026AA2CCF98.png&site=000006"
+          autoPlay 
+          muted 
+          loop 
+          playsInline 
+        />
 
-        {/* Layer 2: Real-Time Interactive Particle Canvas (Reacts to Cursor) */}
+        {/* Live Interactive Mouse-Reactive Neural Particles Canvas */}
         <InteractiveHeroBackground darkMode={true} />
 
-        {/* Layer 3: Laser Optical Scanning Beam Animation */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className="w-full h-24 bg-gradient-to-b from-transparent via-blue-500/20 to-blue-400/40 border-b border-blue-400/80 shadow-[0_0_25px_rgba(59,130,246,0.6)] animate-scanline-v" />
-        </div>
+        {/* Ambient Dark Overlay Gradients */}
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/45 to-slate-950/75 pointer-events-none" />
+        <div className="absolute inset-0 bg-radial from-transparent via-black/20 to-slate-950/85 pointer-events-none" />
 
-        {/* Layer 4: Dark Vignette Gradient Overlays */}
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/50 to-slate-950/75 pointer-events-none" />
-        <div className="absolute inset-0 bg-radial from-transparent via-black/20 to-slate-950/90 pointer-events-none" />
-
-        {/* Floating Interactive Live Badges */}
+        {/* Floating Live Telemetry Badges */}
         <div className="absolute top-8 left-8 hidden lg:flex flex-col gap-3 pointer-events-none z-10">
           <div className="px-3.5 py-2 rounded-2xl bg-slate-900/85 border border-blue-500/40 text-[11px] font-mono text-blue-300 flex items-center gap-2 backdrop-blur-md shadow-lg animate-float">
             <span className="w-2 h-2 rounded-full bg-blue-400 animate-ping" />
@@ -241,23 +238,19 @@ export default function HomeTab({ setActiveTab, darkMode }) {
         </div>
       </section>
 
-      {/* 🎬 3. DYNAMIC BANNER SECTION A: DỰNG BẢNG SO SÁNH & LIVE HORIZONTAL SCANNER */}
-      <section className="max-w-6xl mx-auto rounded-3xl overflow-hidden shadow-2xl border border-slate-800 bg-slate-950 relative min-h-[420px] md:min-h-[480px] flex items-center group">
+      {/* 🎬 3. LIVE FULL-MOTION BANNER A: LITERATURE DATA FACTORY & SYNTHESIS MATRIX */}
+      <section className="max-w-6xl mx-auto rounded-3xl overflow-hidden shadow-2xl border border-slate-800 bg-black relative min-h-[420px] md:min-h-[460px] flex items-center group">
         
-        {/* Animated 3D Background Image */}
-        <div className="absolute inset-0 overflow-hidden">
-          <img 
-            src="/assets/literature_synthesis_matrix.jpg"
-            alt="AI Literature Synthesis and Comparison Matrix"
-            className="w-full h-full object-cover opacity-60 filter brightness-95 animate-ken-burns scale-105"
-          />
-        </div>
-
-        {/* Live Horizontal Cyber Scanning Line */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className="h-full w-24 bg-gradient-to-r from-transparent via-cyan-500/20 to-blue-400/40 border-r border-cyan-400/80 shadow-[0_0_30px_rgba(6,182,212,0.6)] animate-scanline-h" />
-        </div>
-
+        {/* Live Video Background Stream */}
+        <video 
+          className="absolute inset-0 w-full h-full object-cover opacity-60 filter brightness-90 transition-transform duration-1000 group-hover:scale-105"
+          src="https://vindynamics.net/api/v2/file/view?fileId=mwp-prod%2Fpublic%2F2026%2F08%2F07%2F019fdc0608017e4baa6b9ef096cb9081_69773710B111EC68F0CB2CA13B136F1C.mp4&site=000006"
+          poster="https://vindynamics.net/api/v2/file/view?fileId=mwp-prod%2Fpublic%2F2026%2F08%2F04%2F019fcd162fe67cd39e62bd2829322100_41FB427A939D56ED07A0894CFF198CBF.jpg&site=000006"
+          autoPlay 
+          muted 
+          loop 
+          playsInline 
+        />
         <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/80 to-transparent" />
 
         {/* Content */}
@@ -344,23 +337,19 @@ export default function HomeTab({ setActiveTab, darkMode }) {
         </div>
       </section>
 
-      {/* 🎬 5. DYNAMIC BANNER SECTION B: HUMAN-IN-THE-LOOP & CITATION VERIFICATION */}
-      <section className="max-w-6xl mx-auto rounded-3xl overflow-hidden shadow-2xl border border-slate-800 bg-slate-950 relative min-h-[420px] md:min-h-[480px] flex items-center justify-end text-right group">
+      {/* 🎬 5. LIVE FULL-MOTION BANNER B: HUMAN-IN-THE-LOOP & EVIDENCE VERIFICATION */}
+      <section className="max-w-6xl mx-auto rounded-3xl overflow-hidden shadow-2xl border border-slate-800 bg-black relative min-h-[420px] md:min-h-[460px] flex items-center justify-end text-right group">
         
-        {/* Animated 3D Background Image */}
-        <div className="absolute inset-0 overflow-hidden">
-          <img 
-            src="/assets/hitl_research_governance.jpg"
-            alt="Human-in-the-Loop Researcher Verification"
-            className="w-full h-full object-cover opacity-60 filter brightness-95 animate-ken-burns scale-105"
-          />
-        </div>
-
-        {/* Live Vertical Laser Scanning Line */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className="w-full h-20 bg-gradient-to-b from-transparent via-emerald-500/15 to-blue-400/30 border-b border-emerald-400/60 shadow-[0_0_20px_rgba(16,185,129,0.5)] animate-scanline-v" />
-        </div>
-
+        {/* Live Video Background Stream */}
+        <video 
+          className="absolute inset-0 w-full h-full object-cover opacity-60 filter brightness-90 transition-transform duration-1000 group-hover:scale-105"
+          src="https://vindynamics.net/api/v2/file/view?fileId=mwp-prod%2Fpublic%2F2026%2F08%2F07%2F019fdc0511537e3da40b09b6d6a2cc89_F5B4B12B36E58B58BEBA71D555C9A57B.mp4&site=000006"
+          poster="https://vindynamics.net/api/v2/file/view?fileId=mwp-prod%2Fpublic%2F2026%2F08%2F04%2F019fcd16317a7d69b1ebea86d928fd2a_0F2C020B2D6A492E341D3A876CFD5ED5.jpg&site=000006"
+          autoPlay 
+          muted 
+          loop 
+          playsInline 
+        />
         <div className="absolute inset-0 bg-gradient-to-l from-slate-950 via-slate-950/80 to-transparent" />
 
         {/* Content */}
