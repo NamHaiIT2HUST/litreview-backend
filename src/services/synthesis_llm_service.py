@@ -98,8 +98,8 @@ def create_synthesis_llm(settings, *, gemini_cls=None, groq_cls=None, openai_cls
             gemini_cls = ChatGoogleGenerativeAI
             
         model_name = settings.synthesis_model
-        if "gpt-" in model_name or "claude-" in model_name or "llama-" in model_name:
-            model_name = "gemini-1.5-flash"
+        if "gpt-" in model_name or "claude-" in model_name or "llama-" in model_name or "1.5" in model_name or "2.5" in model_name:
+            model_name = "gemini-3.6-flash"
             
         return gemini_cls(
             model=model_name,

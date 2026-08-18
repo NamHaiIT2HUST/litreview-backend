@@ -3,6 +3,7 @@ import ChatPanel from './ChatPanel';
 import VerificationPanel from './VerificationPanel';
 import { persistedDirectUploadSources } from '../../utils/workspaceSources';
 import SynthesisPanel from './SynthesisPanel';
+import StudioPanel from './StudioPanel';
 import { reconcileSelectedPaperIds, selectedPapersFromIds } from '../../utils/workspaceScope';
 import { useLanguage } from '../../contexts/LanguageContext';
 import {
@@ -532,15 +533,20 @@ export default function WorkspaceTab({
             </div>
           </div>
 
-        {/* Verification Sidebar */}
-        {activeCitation && (
-          <div className="w-[380px] shrink-0 h-full overflow-hidden rounded-3xl border shadow-sm bg-white dark:bg-slate-900 dark:border-slate-800 border-slate-200 transition-all">
+        {/* Verification Sidebar OR Studio Panel */}
+        {activeCitation ? (
+          <div className="w-[380px] shrink-0 h-full overflow-hidden rounded-3xl border shadow-sm bg-white dark:bg-slate-900 dark:border-slate-800 border-slate-200 transition-all animate-in slide-in-from-right-4 duration-300">
             <VerificationPanel
               activeCitation={activeCitation}
               darkMode={darkMode}
               onClose={() => setActiveCitation(null)}
             />
           </div>
+        ) : (
+          <StudioPanel 
+            workspacePapers={scopedPapers}
+            darkMode={darkMode}
+          />
         )}
       </div>
       </div>

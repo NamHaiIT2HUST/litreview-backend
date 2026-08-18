@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   Search, Download, ExternalLink, PlusCircle, CheckCircle2, Key, Loader2, AlertCircle, 
   ChevronDown, ChevronUp, ShieldCheck, ShieldAlert, Activity, Check, X, HelpCircle,
-  BookOpen, Sparkles, Trash2
+  BookOpen, Sparkles, Trash2, Target
 } from 'lucide-react';
 import SearchHistoryPanel from './SearchHistoryPanel';
 import FilterSortBar from './FilterSortBar';
@@ -39,10 +39,73 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
   const [apiKey, setApiKey] = useState(
     localStorage.getItem('litreview_serpapi_key') || ''
   );
+  // Helper: chỉ giữ từ khóa tiếng Anh hợp lệ (loại bỏ từ tiếng Việt rác)
+  const filterEnglishKeywords = (arr) => {
+    if (!Array.isArray(arr)) return [];
+    return arr.filter(kw => kw && kw.trim().length >= 3 && /^[a-zA-Z0-9\s\-\/&.]+$/.test(kw.trim()));
+  };
+
   const [queryChips, setQueryChips] = useState(() => {
+    try {
+      const raw = localStorage.getItem('suggested_keywords');
+      if (raw) {
+        const arr = JSON.parse(raw);
+        const filtered = arr.filter(kw => kw && kw.trim().length >= 3 && /^[a-zA-Z0-9\s\-\/&.]+$/.test(kw.trim()));
+        if (filtered.length > 0) return filtered;
+      }
+    } catch (e) {}
     const saved = localStorage.getItem('last_search_query');
     return saved ? [saved] : [];
   });
+
+  const [suggestedKeywords, setSuggestedKeywords] = useState(() => {
+    try {
+      const cachedPico = localStorage.getItem('slr_pico_data');
+      if (cachedPico) {
+        const p = JSON.parse(cachedPico);
+        const filtered = filterEnglishKeywords(p.search_keywords);
+        if (filtered.length > 0) return filtered;
+      }
+      const raw = localStorage.getItem('suggested_keywords');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const filtered = filterEnglishKeywords(parsed);
+        if (filtered.length > 0) return filtered;
+      }
+    } catch (e) {}
+    return [];
+  });
+
+  // Lắng nghe Mesh Query & Keywords mới từ Setup Tab
+  useEffect(() => {
+    const handleMeshQuery = () => {
+      try {
+        const cachedPico = localStorage.getItem('slr_pico_data');
+        if (cachedPico) {
+          const p = JSON.parse(cachedPico);
+          const filtered = filterEnglishKeywords(p.search_keywords);
+          if (filtered.length > 0) {
+            setSuggestedKeywords(filtered);
+            setQueryChips(filtered);
+            return;
+          }
+        }
+        const raw = localStorage.getItem('suggested_keywords');
+        if (raw) {
+          const arr = JSON.parse(raw);
+          const filtered = filterEnglishKeywords(arr);
+          if (filtered.length > 0) {
+            setSuggestedKeywords(filtered);
+            setQueryChips(filtered);
+            return;
+          }
+        }
+      } catch (e) {}
+    };
+    window.addEventListener('new_mesh_query_ready', handleMeshQuery);
+    handleMeshQuery();
+    return () => window.removeEventListener('new_mesh_query_ready', handleMeshQuery);
+  }, []);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -76,6 +139,46 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
   const [aiScreeningPaper, setAiScreeningPaper] = useState(null);
   const [aiScreeningResult, setAiScreeningResult] = useState(null);
   const [aiScreeningLoading, setAiScreeningLoading] = useState(false);
+
+  // Gap Map Modal state for Search Tab
+  const [showGapModal, setShowGapModal] = useState(false);
+  const [gapMapLoading, setGapMapLoading] = useState(false);
+  const [gapMapData, setGapMapData] = useState(null);
+
+  const handleOpenGapAnalysis = async () => {
+    setShowGapModal(true);
+    if (gapMapData) return;
+    setGapMapLoading(true);
+    try {
+      const idea = projectData?.research_question || projectData?.name || 'Academic Research';
+      const res = await fetch(`${API_BASE}/slr-swarm/step1-setup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          idea,
+          research_field: projectData?.research_field || '',
+          criteria_include: projectData?.criteria_include || [],
+          criteria_exclude: projectData?.criteria_exclude || [],
+          corpus: papers.map(p => ({
+            paper_id: String(p.id),
+            title: p.title,
+            abstract: p.abstract || '',
+            year: p.year,
+            venue: p.journal,
+            doi: p.doi
+          }))
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setGapMapData(data.gap_map);
+      }
+    } catch (err) {
+      console.error("Gap analysis error:", err);
+    } finally {
+      setGapMapLoading(false);
+    }
+  };
 
   // Screening states
   const [screeningLoading, setScreeningLoading] = useState({});
@@ -535,6 +638,18 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
           loading={historyLoading}
           isSidebar={true}
         />
+
+        {/* --- 3. Khoảng trống nghiên cứu Button (Góc dưới bên trái) --- */}
+        <div className="pt-2">
+          <button
+            type="button"
+            onClick={handleOpenGapAnalysis}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-2xl font-extrabold text-xs bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-700 hover:to-pink-700 text-white shadow-lg transition-transform hover:scale-[1.02]"
+          >
+            <Target className="w-4 h-4" />
+            <span>Khoảng trống nghiên cứu ({papers.length} bài)</span>
+          </button>
+        </div>
       </aside>
 
       {/* ====== MAIN CONTENT: Right side ====== */}
@@ -606,6 +721,43 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
             </div>
           </div>
         </div>
+
+        {/* Active Suggested Keywords Banner */}
+        {suggestedKeywords && suggestedKeywords.length > 0 && (
+          <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 text-slate-200 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-inner">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 overflow-x-auto">
+              <span className="text-amber-400 font-extrabold shrink-0 uppercase tracking-wider">Các từ khóa gợi ý:</span>
+              <div className="flex flex-wrap gap-2">
+                {suggestedKeywords.map((kw, idx) => (
+                  <span 
+                    key={idx} 
+                    onClick={() => setSearchQuery(kw)}
+                    className="px-3 py-1.5 rounded-xl bg-indigo-600/90 hover:bg-indigo-500 text-white font-bold text-xs border border-indigo-400/40 cursor-pointer transition-all hover:scale-105 shadow-md"
+                    title="Nhấn để đưa vào ô tìm kiếm"
+                  >
+                    {kw}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => navigator.clipboard.writeText(suggestedKeywords.join(' '))}
+                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold text-xs border border-slate-700 transition-colors"
+              >
+                Sao chép
+              </button>
+              <button
+                type="button"
+                onClick={() => setSearchQuery(suggestedKeywords.join(' '))}
+                className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition-colors"
+              >
+                Điền vào ô tìm kiếm
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Search Bar */}
         <form onSubmit={handleSearch} className={`p-4 md:p-6 rounded-3xl border shadow-lg transition-colors ${
@@ -730,25 +882,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                   t('search.search_result')
                 )}
               </span>
-              {activeQueryId && (
-                <span className="text-xs font-mono text-slate-400 dark:text-slate-500">
-                  ({t('search.saved')})
-                </span>
-              )}
             </div>
-            {selectedPaperIds.length > 0 && (
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-bold text-blue-600 dark:text-sky-400">
-                  {t('search.selected_papers')} {selectedPaperIds.length}
-                </span>
-                <button
-                  onClick={clearSelectedPapers}
-                  className="text-xs text-slate-500 hover:text-red-500 underline font-medium transition-colors"
-                >
-                  {t('search.clear_selected')}
-                </button>
-              </div>
-            )}
           </div>
 
           {/* Empty State */}
@@ -1209,6 +1343,123 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
               <button
                 onClick={() => { setAiScreeningPaper(null); setAiScreeningResult(null); }}
                 className="px-5 py-2.5 rounded-xl text-xs font-bold bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 transition-colors"
+              >
+                Đóng (X)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ====== MODAL 3: KHOẢNG TRỐNG NGHIÊN CỨU (GAP ANALYSIS MODAL) ====== */}
+      {showGapModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-200">
+          <div className={`w-full max-w-4xl max-h-[90vh] flex flex-col p-6 md:p-8 rounded-3xl border shadow-2xl overflow-hidden ${
+            darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
+          }`}>
+            {/* Header */}
+            <div className="flex items-center justify-between pb-5 border-b border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-500 flex items-center justify-center">
+                  <Target className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-extrabold flex items-center gap-2">
+                    Bản Đồ Khoảng Trống Nghiên Cứu (Research Gap Map)
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Phân tích giao thoa 2 chiều dựa trên <strong>{papers.length} bài báo</strong> bạn vừa tìm kiếm
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowGapModal(false)}
+                className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto py-5 space-y-5 custom-scrollbar">
+              {gapMapLoading ? (
+                <div className="py-20 flex flex-col items-center justify-center gap-4 text-slate-400">
+                  <Loader2 className="w-10 h-10 animate-spin text-rose-500" />
+                  <p className="text-sm font-bold">Đang quét toàn văn {papers.length} bài báo để tìm khoảng trống...</p>
+                </div>
+              ) : gapMapData && gapMapData.cells && gapMapData.cells.length > 0 ? (
+                <div className="space-y-5">
+                  {/* Legend & Guide */}
+                  <div className="p-4 rounded-2xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs leading-relaxed space-y-2">
+                    <p className="font-extrabold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                      <span>💡 Ý nghĩa phân tích:</span>
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+                      <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800">
+                        <span className="font-extrabold text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5 mb-0.5">
+                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span> Khoảng trống (0 bài)
+                        </span>
+                        <p className="text-[11px] text-emerald-900/80 dark:text-emerald-300/80">Chưa ai làm trong 20 bài này → Cơ hội làm đề tài mới!</p>
+                      </div>
+                      <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800">
+                        <span className="font-extrabold text-amber-700 dark:text-amber-400 flex items-center gap-1.5 mb-0.5">
+                          <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span> Đang phát triển (&lt; 3 bài)
+                        </span>
+                        <p className="text-[11px] text-amber-900/80 dark:text-amber-300/80">Có 1-2 nghiên cứu sơ khai → Rất tiềm năng mở rộng.</p>
+                      </div>
+                      <div className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800">
+                        <span className="font-extrabold text-rose-700 dark:text-rose-400 flex items-center gap-1.5 mb-0.5">
+                          <span className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block"></span> Bão hoà (Nhiều bài)
+                        </span>
+                        <p className="text-[11px] text-rose-900/80 dark:text-rose-300/80">Đã có nhiều nghiên cứu → Tránh trùng lặp ý tưởng.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Grid Matrix */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                    {gapMapData.cells.map((c, idx) => (
+                      <div 
+                        key={idx} 
+                        className={`p-4 rounded-2xl border transition-all shadow-sm ${
+                          c.saturation === 'saturated' 
+                            ? 'bg-rose-50/80 border-rose-300 dark:bg-rose-950/40 dark:border-rose-800' 
+                            : c.saturation === 'sparse' 
+                              ? 'bg-amber-50/80 border-amber-300 dark:bg-amber-950/40 dark:border-amber-800' 
+                              : 'bg-emerald-50/80 border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800'
+                        }`}
+                      >
+                        <div className="flex justify-between items-center text-[10px] font-extrabold uppercase tracking-wider mb-2">
+                          <span className={`px-2 py-0.5 rounded-md ${
+                            c.saturation === 'saturated' ? 'bg-rose-200/70 text-rose-800 dark:bg-rose-900/60 dark:text-rose-300' :
+                            c.saturation === 'sparse' ? 'bg-amber-200/70 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300' :
+                            'bg-emerald-200/70 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300'
+                          }`}>
+                            {c.saturation === 'empty' ? 'Khoảng trống mới' : c.saturation === 'sparse' ? 'Còn dư địa' : 'Đã bão hoà'}
+                          </span>
+                          <span className="font-extrabold text-slate-600 dark:text-slate-300">
+                            {c.paper_count} bài báo
+                          </span>
+                        </div>
+                        <div className="font-black text-sm text-slate-900 dark:text-slate-100 leading-snug">
+                          {c.dimension_x} <span className="text-indigo-600 dark:text-sky-400">&</span> {c.dimension_y}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="py-16 text-center text-slate-400 text-sm">
+                  Chưa có dữ liệu khoảng trống. Hãy bấm tìm kiếm bài báo trước!
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="border-t pt-4 border-slate-200 dark:border-slate-800 flex justify-end">
+              <button
+                onClick={() => setShowGapModal(false)}
+                className="px-6 py-2.5 rounded-xl text-xs font-bold bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 transition-colors"
               >
                 Đóng (X)
               </button>

@@ -128,8 +128,8 @@ class Project(Base):
     research_field = Column(String, nullable=False)
     year_from = Column(Integer, nullable=True)
     year_to = Column(Integer, nullable=True)
-    criteria_include = Column(JSONB, nullable=True)
-    criteria_exclude = Column(JSONB, nullable=True)
+    criteria_include = Column(ARRAY(String), nullable=True)
+    criteria_exclude = Column(ARRAY(String), nullable=True)
     created_at = Column(DateTime(timezone=True), default=_now_utc)
     updated_at = Column(DateTime(timezone=True), default=_now_utc, onupdate=_now_utc)
 

@@ -26,6 +26,20 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
     }
     return [];
   });
+  const [picoData, setPicoData] = useState(() => {
+    try {
+      const cached = localStorage.getItem('slr_pico_data');
+      if (cached) return JSON.parse(cached);
+    } catch (e) {}
+    return null;
+  });
+  const [gapMapData, setGapMapData] = useState(() => {
+    try {
+      const cached = localStorage.getItem('slr_gap_map');
+      if (cached) return JSON.parse(cached);
+    } catch (e) {}
+    return null;
+  });
   const [loadingKeywords, setLoadingKeywords] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
 
@@ -75,18 +89,60 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
     setLoadingKeywords(true);
     setErrorMsg(null);
     try {
-      const res = await fetch(`${API_BASE}/projects/${DEFAULT_PROJECT_ID}/suggest-keywords`, {
+      // Call new Agent 1 setup phase
+      const ideaText = projectData.research_question || projectData.name;
+      if (!ideaText) {
+        setErrorMsg("Vui lòng nhập câu hỏi hoặc tên đề tài nghiên cứu!");
+        setLoadingKeywords(false);
+        return;
+      }
+      
+      const res = await fetch(`${API_BASE}/slr-swarm/step1-setup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(projectData)
+        body: JSON.stringify({ 
+          idea: ideaText,
+          research_field: projectData.research_field || '',
+          criteria_include: projectData.criteria_include || [],
+          criteria_exclude: projectData.criteria_exclude || []
+        })
       });
       if (res.ok) {
         const data = await res.json();
-        const kwList = data.suggested_keywords || [];
-        setSuggestedKeywords(kwList);
-        localStorage.setItem('suggested_keywords', JSON.stringify(kwList));
+        
+        // PICO & Keywords
+        if (data.pico) {
+          setPicoData(data.pico);
+          localStorage.setItem('slr_pico_data', JSON.stringify(data.pico));
+          
+          // Lấy search_keywords (phải là mảng từ khóa tiếng Anh chuẩn từ AI)
+          const rawKws = data.pico.search_keywords || [];
+          // Lọc: chỉ giữ các từ khóa tiếng Anh hợp lệ (>= 2 ký tự, không phải từ tiếng Việt đơn lẻ)
+          const kwList = rawKws.filter(kw => 
+            kw && kw.trim().length >= 3 && /^[a-zA-Z0-9\s\-\/&]+$/.test(kw.trim())
+          );
+          
+          if (kwList.length > 0) {
+            setSuggestedKeywords(kwList);
+            localStorage.setItem('suggested_keywords', JSON.stringify(kwList));
+          }
+          
+          // Boolean query for search tab
+          const boolQuery = kwList.length > 0 ? kwList.join(' ') : (data.pico.boolean_query || '');
+          if (boolQuery) {
+             localStorage.setItem('litreview_active_mesh_query', boolQuery);
+             window.dispatchEvent(new Event('new_mesh_query_ready'));
+          }
+        }
+        
+        // Gap Map Heatmap
+        if (data.gap_map) {
+          setGapMapData(data.gap_map);
+          localStorage.setItem('slr_gap_map', JSON.stringify(data.gap_map));
+        }
+
       } else {
-        setErrorMsg(t('setup.error_ai'));
+        setErrorMsg(t('setup.error_ai') + ' (Agent 1 failed)');
       }
     } catch (err) {
       console.error(err);
@@ -245,14 +301,15 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
       )}
 
       {/* Suggestion AI & Actions */}
+      {/* Suggestion AI & Actions */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
         <button 
           onClick={handleSuggestKeywords}
           disabled={loadingKeywords}
-          className="w-full sm:w-auto px-6 py-3.5 rounded-2xl font-bold bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-200 transition-colors flex items-center justify-center gap-2"
+          className="w-full sm:w-auto px-6 py-3.5 rounded-2xl font-bold bg-indigo-600 text-white hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2 shadow-lg"
         >
-          {loadingKeywords ? <Loader2 className="w-5 h-5 animate-spin" /> : <Wand2 className="w-5 h-5" />}
-          {t('setup.ai_suggest')}
+          {loadingKeywords ? <Loader2 className="w-5 h-5 animate-spin" /> : <Wand2 className="w-5 h-5 text-amber-300" />}
+          Tìm kiếm từ khóa gợi ý
         </button>
 
         <button 
@@ -275,18 +332,74 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
         </button>
       </div>
 
-      {/* Suggested Keywords Display */}
-      {suggestedKeywords.length > 0 && (
-        <div className={`p-6 rounded-3xl border border-indigo-200 bg-indigo-50 dark:bg-indigo-900/20 dark:border-indigo-800`}>
-          <h4 className="font-bold text-indigo-800 dark:text-indigo-300 mb-3 flex items-center gap-2">
-            <Wand2 className="w-4 h-4" /> {t('setup.ai_suggested_title')}
-          </h4>
-          <div className="flex flex-wrap gap-2">
-            {suggestedKeywords.map((kw, i) => (
-              <span key={i} className="px-3 py-1.5 bg-white dark:bg-slate-800 text-indigo-700 dark:text-indigo-400 rounded-xl text-sm font-semibold border shadow-sm animate-in zoom-in duration-300 hover:scale-105 transition-transform cursor-default" style={{ animationDelay: `${i * 50}ms`, animationFillMode: 'both' }}>
-                {kw}
+      {/* Suggested Keywords & Frame Display */}
+      {picoData && (
+        <div className={`p-6 md:p-8 rounded-3xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-white dark:from-indigo-950/30 dark:to-slate-900 dark:border-indigo-800 shadow-sm space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500`}>
+          
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-black shadow-md">
+              <CheckCircle2 className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="text-lg font-extrabold text-indigo-900 dark:text-indigo-300 leading-tight">
+                Kết quả tra cứu
+              </h4>
+              <p className="text-xs text-indigo-600 dark:text-indigo-400 font-bold">Khung phân tích nghiên cứu & Đề xuất từ khoá tìm kiếm</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border shadow-sm">
+              <strong className="block text-indigo-700 dark:text-indigo-400 mb-1 text-sm font-bold">Vấn đề / Đối tượng nghiên cứu:</strong>
+              <p className="text-sm font-medium leading-relaxed">{picoData.population}</p>
+            </div>
+            <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border shadow-sm">
+              <strong className="block text-emerald-700 dark:text-emerald-400 mb-1 text-sm font-bold">Giải pháp / Kỹ thuật chính:</strong>
+              <p className="text-sm font-medium leading-relaxed">{picoData.intervention}</p>
+            </div>
+            <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border shadow-sm">
+              <strong className="block text-amber-700 dark:text-amber-400 mb-1 text-sm font-bold">Phương pháp đối chứng:</strong>
+              <p className="text-sm font-medium leading-relaxed">{picoData.comparison || "Không áp dụng"}</p>
+            </div>
+            <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border shadow-sm">
+              <strong className="block text-sky-700 dark:text-sky-400 mb-1 text-sm font-bold">Kết quả đánh giá mong đợi:</strong>
+              <p className="text-sm font-medium leading-relaxed">{picoData.outcome}</p>
+            </div>
+          </div>
+
+          {/* Unified Keywords Block */}
+          <div className="p-5 bg-slate-900 text-slate-100 rounded-2xl border border-slate-800 shadow-inner space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-extrabold text-amber-400 uppercase tracking-wider">
+                Các từ khóa gợi ý:
               </span>
-            ))}
+              {picoData.search_keywords && picoData.search_keywords.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => navigator.clipboard.writeText(picoData.search_keywords.join(' '))}
+                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-300 rounded-lg text-xs font-bold shrink-0 transition-colors border border-slate-700 shadow-sm"
+                >
+                  Sao chép từ khóa
+                </button>
+              )}
+            </div>
+
+            <div className="flex flex-wrap gap-2 pt-1">
+              {(picoData.search_keywords || []).map((kw, i) => (
+                <span key={i} className="px-3.5 py-1.5 bg-indigo-600/80 text-white rounded-xl text-xs font-bold border border-indigo-500/50 shadow-sm">
+                  {kw}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex justify-end pt-4">
+             <button 
+                onClick={() => setActiveTab('search')}
+                className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 shadow-md transition-transform hover:scale-105"
+             >
+                Đem Keyword đi Tìm kiếm →
+             </button>
           </div>
         </div>
       )}

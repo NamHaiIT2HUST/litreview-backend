@@ -23,6 +23,7 @@ class PICOFrame(BaseModel):
     comparison: str = ""
     outcome: str = ""
     boolean_query: str = ""
+    search_keywords: list[str] = Field(default_factory=list)
     mesh_terms: list[str] = Field(default_factory=list)
 
 

@@ -251,7 +251,7 @@ class RAGService:
 
         if (provider == "gemini" or not openai_key) and gemini_key:
             from langchain_google_genai import ChatGoogleGenerativeAI
-            model_name = settings.model_name if settings.model_name.startswith("gemini-") else "gemini-2.0-flash"
+            model_name = settings.model_name if settings.model_name.startswith("gemini-") else "gemini-3.6-flash"
             return ChatGoogleGenerativeAI(
                 model=model_name,
                 google_api_key=gemini_key,
@@ -275,7 +275,7 @@ class RAGService:
                 model=(
                     settings.model_name
                     if settings.model_name.startswith("gemini-")
-                    else "gemini-2.0-flash"
+                    else "gemini-3.6-flash"
                 ),
                 google_api_key=gemini_key,
                 temperature=settings.llm_temperature,

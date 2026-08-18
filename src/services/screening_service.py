@@ -1,5 +1,7 @@
 import json
 import datetime
+import asyncio
+import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from fastapi import HTTPException
@@ -7,8 +9,9 @@ from src.database import get_db
 from src.models.db_models import Paper, ScreeningHistory, ScreeningDecision, RelevanceBucket
 from src.services.rag_service import rag_service
 from src.models.screening_schemas import ScreenResponse
-
 import uuid
+
+logger = logging.getLogger(__name__)
 
 async def recompute_priority(paper_id: str | uuid.UUID, db: AsyncSession):
     """Tính lại Priority Score (0-1) theo công thức ở Module 3."""
@@ -107,11 +110,39 @@ Tóm tắt (Abstract): {abstract}
 """
     
     try:
-        response = await rag_service.llm.ainvoke(prompt)
-        content = response.content
-        if isinstance(content, list):
-            content = content[0].get("text", "")
-        content = content.strip()
+        from google import genai
+        from google.genai import types
+        from src.config import get_settings
+        import os
+
+        st = get_settings()
+        key = (st.effective_gemini_api_key or os.getenv("GEMINI_API_KEY") or "").strip()
+        client = genai.Client(api_key=key)
+
+        config = types.GenerateContentConfig(
+            temperature=0.1,
+            thinking_config=types.ThinkingConfig(thinking_budget=0),
+        )
+
+        models_to_try = ["gemini-3.1-flash-lite", "gemini-3.5-flash", "gemini-3.1-pro-preview", "gemini-flash-latest"]
+        response = None
+        for m in models_to_try:
+            try:
+                response = await client.aio.models.generate_content(
+                    model=m,
+                    contents=prompt,
+                    config=config
+                )
+                if response and response.text:
+                    break
+            except Exception as ex:
+                logger.warning(f"Model {m} failed ({ex}), trying next...")
+                continue
+
+        if not response or not response.text:
+            raise RuntimeError("All Gemini model fallbacks failed due to provider traffic.")
+
+        content = (response.text or "").strip()
         
         if "```json" in content:
             content = content.split("```json")[1].split("```")[0].strip()
@@ -128,8 +159,7 @@ Tóm tắt (Abstract): {abstract}
             reason=data.get("reason", {"matches": [f"Bài báo '{paper.title}' phù hợp với hướng nghiên cứu."], "mismatches": ["Không phát hiện vi phạm tiêu chí loại trừ."]})
         )
     except Exception as e:
-        import logging
-        logging.getLogger(__name__).error(f"Error screening paper with AI: {e}")
+        logger.error(f"Error screening paper with AI: {e}")
         return ScreenResponse(
             relevance_bucket="insufficient_info",
             reason={
