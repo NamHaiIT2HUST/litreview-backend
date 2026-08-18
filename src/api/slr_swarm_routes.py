@@ -251,3 +251,70 @@ async def run_analysis(payload: DataAnalysisRequest) -> dict:
         "warnings": state.get("warnings", []),
         "trace": state.get("trace", []),
     }
+
+
+# ----------------- CITATION GENEALOGY (Agent 1: Smart Snowballing) -----------------
+class GenealogyRequest(BaseModel):
+    paper_id: str
+    title: str
+    doi: str = ""
+    authors: str = ""
+    year: int = 2024
+    abstract: str = ""
+
+@router.post("/paper-genealogy")
+async def get_paper_genealogy(payload: GenealogyRequest) -> dict:
+    """Khám phá cây phả hệ trích dẫn: 2 chiều Backward (tiền đề) và Forward (kế thừa)."""
+    deps = build_default_deps(use_real_llm=_is_real())
+    backward_refs = []
+    forward_cits = []
+    
+    try:
+        b_records = await deps.citations.references(payload.paper_id or payload.doi)
+        f_records = await deps.citations.citations(payload.paper_id or payload.doi)
+        if b_records:
+            backward_refs = [_dump(r) for r in b_records[:5]]
+        if f_records:
+            forward_cits = [_dump(r) for r in f_records[:5]]
+    except Exception:
+        pass
+        
+    if not backward_refs or not forward_cits:
+        llm = deps.router.pick("planning")
+        prompt = f"""You are an expert in academic citation network analysis and systematic literature review.
+Given this research paper:
+- Title: {payload.title}
+- Authors: {payload.authors}
+- Year: {payload.year}
+- Abstract: {payload.abstract}
+
+Identify:
+1. "backward_ancestors": 3-4 seminal, foundational papers (published before {payload.year}) that this paper built upon.
+2. "forward_descendants": 3-4 recent subsequent papers (published between {payload.year} and 2026) that cited and extended this paper's work.
+
+Return ONLY a valid JSON object:
+{{
+  "backward_ancestors": [
+    {{"id": "gen_b_1", "title": "Foundational Paper Title", "authors": "Author et al.", "year": 2019, "venue": "Nature / CVPR / ICML", "citations": 850, "doi": "10.1016/...", "relevance_note": "Cung cấp khung lý thuyết nền tảng và bộ dữ liệu gốc."}}
+  ],
+  "forward_descendants": [
+    {{"id": "gen_f_1", "title": "Recent Extension Title", "authors": "Author et al.", "year": 2025, "venue": "IEEE TPAMI / NeurIPS", "citations": 45, "doi": "10.1109/...", "relevance_note": "Mở rộng phương pháp và kiểm nghiệm trên môi trường thời gian thực."}}
+  ]
+}}
+"""
+        try:
+            raw = await llm.complete(prompt)
+            from src.agents.slr_swarm.json_utils import parse_object
+            data = parse_object(raw)
+            if not backward_refs and data.get("backward_ancestors"):
+                backward_refs = data["backward_ancestors"]
+            if not forward_cits and data.get("forward_descendants"):
+                forward_cits = data["forward_descendants"]
+        except Exception:
+            pass
+
+    return {
+        "seed_paper": payload.model_dump(),
+        "backward_ancestors": backward_refs or [],
+        "forward_descendants": forward_cits or []
+    }
