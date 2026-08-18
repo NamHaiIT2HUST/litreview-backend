@@ -34,7 +34,7 @@ Nhiệm vụ của bạn:
    - "optimal": Đề tài có phạm vi vừa vặn, đủ rõ ràng về đối tượng, phương pháp và mục tiêu.
 2. Cho điểm độ tối ưu `score` từ 0 đến 100 (Điểm tối ưu là 75-95, nếu quá rộng điểm < 50, nếu quá hẹp điểm 50-65).
 3. Đưa ra `feedback` (1-2 câu ngắn gọn, súc tích bằng tiếng Việt) chỉ rõ ưu điểm hoặc điểm cần thu hẹp/mở rộng.
-4. Đề xuất `suggested_topics`: Đúng 2-3 câu hỏi nghiên cứu tinh chỉnh (bằng tiếng Việt hoặc tiếng Anh phù hợp ngữ cảnh) giúp đề tài sắc bén hơn.
+4. Đề xuất `suggested_topics`: Đúng 2-3 câu hỏi nghiên cứu tinh chỉnh HOÀN TOÀN BẰNG TIẾNG VIỆT chuẩn học thuật, rõ ràng, sắc bén (ví dụ: "Đánh giá hiệu năng của các mô hình LLM trong...").
 
 TRẢ VỀ DUY NHẤT MỘT JSON HỢP LỆ (KHÔNG THÊM MARKDOWN):
 {{

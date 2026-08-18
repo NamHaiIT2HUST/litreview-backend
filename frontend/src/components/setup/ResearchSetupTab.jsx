@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   BookOpen, Target, Settings, Save, Loader2, Wand2, Plus, X, 
   CheckCircle2, Sparkles, Compass, AlertCircle, ArrowRight, Check,
-  Flame, Sliders, ShieldCheck
+  ChevronDown, ChevronUp, Layers, HelpCircle
 } from 'lucide-react';
 import { normalizeResearchSetup } from '../../utils/researchSetup';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -14,6 +14,9 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
   const { t } = useLanguage();
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [hasSavedOnce, setHasSavedOnce] = useState(() => {
+    return !!localStorage.getItem('research_setup_data');
+  });
   
   const [projectData, setProjectData] = useState(() => {
     return normalizeResearchSetup({});
@@ -45,7 +48,7 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
     return null;
   });
 
-  // State for Scope Optimizer Agent (Agent Cố Vấn Phạm Vi)
+  // State: Scope Optimizer Agent
   const [scopeResult, setScopeResult] = useState(() => {
     try {
       const cached = localStorage.getItem('slr_scope_result');
@@ -56,14 +59,28 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
   const [loadingScope, setLoadingScope] = useState(false);
   const [appliedTopicToast, setAppliedTopicToast] = useState(null);
 
-  // State for Criteria Auto-Generator Agent (Agent Tự Động Sinh Tiêu Chí)
+  // State: Criteria Section Visibility & Generator
+  const [showCriteriaSection, setShowCriteriaSection] = useState(() => {
+    try {
+      const savedData = localStorage.getItem('research_setup_data');
+      if (savedData) {
+        const parsed = JSON.parse(savedData);
+        if ((parsed.criteria_include && parsed.criteria_include.length > 0) || 
+            (parsed.criteria_exclude && parsed.criteria_exclude.length > 0)) {
+          return true;
+        }
+      }
+    } catch (e) {}
+    return false;
+  });
   const [loadingCriteria, setLoadingCriteria] = useState(false);
   const [criteriaToast, setCriteriaToast] = useState(false);
 
+  // State: Keywords Generation
   const [loadingKeywords, setLoadingKeywords] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const fetchProject = async () => {
       try {
         const res = await fetch(`${API_BASE}/projects/${DEFAULT_PROJECT_ID}`);
@@ -72,6 +89,10 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
           const normalized = normalizeResearchSetup(data);
           setProjectData(normalized);
           localStorage.setItem('research_setup_data', JSON.stringify(normalized));
+          if ((normalized.criteria_include && normalized.criteria_include.length > 0) ||
+              (normalized.criteria_exclude && normalized.criteria_exclude.length > 0)) {
+            setShowCriteriaSection(true);
+          }
         }
       } catch (err) {
         console.error("DB connection error:", err);
@@ -80,10 +101,12 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
     fetchProject();
   }, []);
 
+  // --- 1. LƯU CẤU HÌNH ---
   const handleSave = async () => {
     setLoading(true);
     setSaved(false);
     localStorage.setItem('research_setup_data', JSON.stringify(projectData));
+    setHasSavedOnce(true);
     window.dispatchEvent(new Event('research_setup_updated'));
     try {
       const res = await fetch(`${API_BASE}/projects/${DEFAULT_PROJECT_ID}`, {
@@ -101,15 +124,15 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
       setSaved(true);
     } finally {
       setLoading(false);
-      setTimeout(() => setSaved(false), 4000);
+      setTimeout(() => setSaved(false), 3500);
     }
   };
 
-  // --- AGENT 1: SCOPE OPTIMIZER (Cố vấn phạm vi đề tài) ---
+  // --- 2. NHẬN XÉT PHẠM VI ĐỀ TÀI ---
   const handleOptimizeScope = async () => {
     const ideaText = projectData.research_question || projectData.name;
     if (!ideaText || ideaText.trim().length < 3) {
-      setErrorMsg("Vui lòng nhập câu hỏi hoặc tên đề tài nghiên cứu trước khi cố vấn phạm vi!");
+      setErrorMsg("Vui lòng nhập câu hỏi hoặc tên đề tài nghiên cứu trước khi nhận xét phạm vi!");
       return;
     }
 
@@ -131,11 +154,11 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
         setScopeResult(data);
         localStorage.setItem('slr_scope_result', JSON.stringify(data));
       } else {
-        setErrorMsg("Không thể kết nối đến Scope Optimizer Agent.");
+        setErrorMsg("Không thể kết nối đến Agent Nhận xét phạm vi.");
       }
     } catch (err) {
       console.error(err);
-      setErrorMsg("Lỗi khi chạy Scope Optimizer Agent.");
+      setErrorMsg("Lỗi khi chạy Nhận xét phạm vi đề tài.");
     } finally {
       setLoadingScope(false);
     }
@@ -147,7 +170,16 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
     setTimeout(() => setAppliedTopicToast(null), 3500);
   };
 
-  // --- AGENT 2: CRITERIA AUTO-GENERATOR (Tự động sinh tiêu chí) ---
+  // --- 3. MỞ TIÊU CHÍ SÀNG LỌC & TỰ ĐỘNG GỢI Ý ---
+  const handleOpenAndGenerateCriteria = async () => {
+    setShowCriteriaSection(true);
+    
+    // Nếu chưa có tiêu chí nào thì tự động gọi AI sinh sẵn
+    if (projectData.criteria_include.length === 0 && projectData.criteria_exclude.length === 0) {
+      await handleGenerateCriteria();
+    }
+  };
+
   const handleGenerateCriteria = async () => {
     const ideaText = projectData.research_question || projectData.name;
     if (!ideaText || ideaText.trim().length < 3) {
@@ -182,17 +214,17 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
         setCriteriaToast(true);
         setTimeout(() => setCriteriaToast(false), 3500);
       } else {
-        setErrorMsg("Không thể kết nối đến Criteria Generator Agent.");
+        setErrorMsg("Không thể kết nối đến Agent Sinh tiêu chí.");
       }
     } catch (err) {
       console.error(err);
-      setErrorMsg("Lỗi khi chạy Criteria Generator Agent.");
+      setErrorMsg("Lỗi khi chạy Agent Sinh tiêu chí.");
     } finally {
       setLoadingCriteria(false);
     }
   };
 
-  // --- AGENT 3: PICO & KEYWORDS FINDER ---
+  // --- 4. GỢI Ý TÌM KIẾM TỪ KHÓA (AGENT 1 PICO) ---
   const handleSuggestKeywords = async () => {
     setLoadingKeywords(true);
     setErrorMsg(null);
@@ -272,20 +304,11 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       
-      {/* Header Banner with Multi-Agent Swarm Badge */}
+      {/* 1. THẺ CẤU HÌNH ĐỀ TÀI NGHIÊN CỨU */}
       <div className={`p-6 md:p-8 rounded-3xl border shadow-sm ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-          <div className="flex items-center gap-3">
-            <BookOpen className="w-8 h-8 text-blue-600 dark:text-sky-400" />
-            <div>
-              <h2 className="text-2xl font-extrabold">{t('setup.title')}</h2>
-              <p className="text-xs text-slate-500 font-medium mt-0.5">Thiết lập bài toán nghiên cứu với sự hỗ trợ của Multi-Agent Swarm</p>
-            </div>
-          </div>
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-xs font-bold shrink-0">
-            <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
-            <span>Multi-Agent Swarm Active</span>
-          </div>
+        <div className="flex items-center gap-3 mb-6">
+          <BookOpen className="w-8 h-8 text-blue-600 dark:text-sky-400" />
+          <h2 className="text-2xl font-extrabold">{t('setup.title')}</h2>
         </div>
         
         {errorMsg && (
@@ -299,7 +322,7 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
           <div className="mb-6 p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 font-bold text-xs flex items-center justify-between shadow-sm animate-in fade-in slide-in-from-top-2">
             <div className="flex items-center gap-2">
               <Check className="w-4 h-4 text-emerald-600" />
-              <span>Đã áp dụng câu hỏi nghiên cứu mới từ Scope Optimizer Agent!</span>
+              <span>Đã áp dụng câu hỏi nghiên cứu tinh chỉnh mới!</span>
             </div>
             <button onClick={() => setAppliedTopicToast(null)} className="text-slate-400 hover:text-slate-600">✕</button>
           </div>
@@ -319,19 +342,7 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300">{t('setup.research_question')}</label>
-                <button
-                  type="button"
-                  onClick={handleOptimizeScope}
-                  disabled={loadingScope}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-bold transition-all border border-amber-500/30 shadow-sm hover:scale-105"
-                  title="Đo lường độ rộng/hẹp và đề xuất câu hỏi tinh chỉnh"
-                >
-                  {loadingScope ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Compass className="w-3.5 h-3.5" />}
-                  <span>🎯 Cố vấn phạm vi đề tài</span>
-                </button>
-              </div>
+              <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">{t('setup.research_question')}</label>
               <textarea 
                 rows="3"
                 value={projectData.research_question}
@@ -362,217 +373,222 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
             </div>
           </div>
 
-          {/* SCOPE OPTIMIZER CARD (Agent Cố Vấn Phạm Vi) */}
-          {scopeResult && (
-            <div className={`mt-4 p-5 rounded-2xl border transition-all ${
+          {/* NÚT NHẬN XÉT PHẠM VI ĐỀ TÀI (Nằm ngay trong thẻ Cấu hình) */}
+          <div className="pt-2 flex justify-start">
+            <button
+              type="button"
+              onClick={handleOptimizeScope}
+              disabled={loadingScope}
+              className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-all shadow-md hover:scale-105 flex items-center gap-2"
+            >
+              {loadingScope ? <Loader2 className="w-4 h-4 animate-spin" /> : <Compass className="w-4 h-4" />}
+              <span>Nhận xét phạm vi đề tài</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* 2. THẺ ĐÁNH GIÁ PHẠM VI ĐỀ TÀI (Hiển thị sau khi bấm Nhận xét) */}
+      {scopeResult && (
+        <div className={`p-6 md:p-8 rounded-3xl border transition-all ${
+          scopeResult.status === 'optimal'
+            ? 'bg-emerald-500/10 border-emerald-500/30 dark:bg-emerald-950/30'
+            : scopeResult.status === 'too_narrow'
+            ? 'bg-purple-500/10 border-purple-500/30 dark:bg-purple-950/30'
+            : 'bg-amber-500/10 border-amber-500/30 dark:bg-amber-950/30'
+        } shadow-sm animate-in fade-in slide-in-from-top-4 duration-300 space-y-4`}>
+          
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <Compass className={`w-6 h-6 ${
+                scopeResult.status === 'optimal' ? 'text-emerald-600 dark:text-emerald-400' :
+                scopeResult.status === 'too_narrow' ? 'text-purple-600 dark:text-purple-400' : 'text-amber-600 dark:text-amber-400'
+              }`} />
+              <h3 className="font-extrabold text-base text-slate-800 dark:text-slate-100">
+                Đánh giá phạm vi đề tài
+              </h3>
+            </div>
+            
+            {/* Status Badge (Không hiển thị điểm số theo yêu cầu) */}
+            <span className={`px-3.5 py-1.5 rounded-full text-xs font-black uppercase tracking-wider ${
               scopeResult.status === 'optimal'
-                ? 'bg-emerald-500/10 border-emerald-500/30 dark:bg-emerald-950/30'
+                ? 'bg-emerald-600 text-white shadow-sm'
                 : scopeResult.status === 'too_narrow'
-                ? 'bg-purple-500/10 border-purple-500/30 dark:bg-purple-950/30'
-                : 'bg-amber-500/10 border-amber-500/30 dark:bg-amber-950/30'
-            } shadow-sm animate-in fade-in slide-in-from-top-4 duration-300`}>
-              
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
-                <div className="flex items-center gap-2.5">
-                  <Compass className={`w-5 h-5 ${
-                    scopeResult.status === 'optimal' ? 'text-emerald-600 dark:text-emerald-400' :
-                    scopeResult.status === 'too_narrow' ? 'text-purple-600 dark:text-purple-400' : 'text-amber-600 dark:text-amber-400'
-                  }`} />
-                  <span className="font-extrabold text-sm text-slate-800 dark:text-slate-100">
-                    Đánh giá phạm vi đề tài (Scope Optimizer)
-                  </span>
-                </div>
-                
-                {/* Status Badge */}
-                <div className="flex items-center gap-2">
-                  <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
-                    scopeResult.status === 'optimal'
-                      ? 'bg-emerald-500 text-white'
-                      : scopeResult.status === 'too_narrow'
-                      ? 'bg-purple-600 text-white'
-                      : 'bg-amber-500 text-white'
-                  }`}>
-                    {scopeResult.status === 'optimal' ? '✨ Vừa vặn / Tối ưu' :
-                     scopeResult.status === 'too_narrow' ? '🔍 Đề tài Quá hẹp' : '⚠️ Đề tài Quá rộng'}
-                  </span>
-                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
-                    Điểm tối ưu: {scopeResult.score}/100
-                  </span>
-                </div>
-              </div>
+                ? 'bg-purple-600 text-white shadow-sm'
+                : 'bg-amber-600 text-white shadow-sm'
+            }`}>
+              {scopeResult.status === 'optimal' ? '✨ Vừa vặn / Tối ưu' :
+               scopeResult.status === 'too_narrow' ? '🔍 Đề tài Quá hẹp' : '⚠️ Đề tài Quá rộng'}
+            </span>
+          </div>
 
-              <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed mb-4">
-                {scopeResult.feedback}
-              </p>
+          <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+            {scopeResult.feedback}
+          </p>
 
-              {/* Refined Topics Suggestions */}
-              {scopeResult.suggested_topics && scopeResult.suggested_topics.length > 0 && (
-                <div className="space-y-2 pt-2 border-t border-slate-200/50 dark:border-slate-800/50">
-                  <span className="block text-xs font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1.5">
-                    💡 Đề xuất câu hỏi nghiên cứu tinh chỉnh (Nhấn để áp dụng ngay):
-                  </span>
-                  <div className="grid grid-cols-1 gap-2">
-                    {scopeResult.suggested_topics.map((topic, i) => (
-                      <div 
-                        key={i} 
-                        className="p-3 rounded-xl bg-white dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3 hover:border-indigo-400 dark:hover:border-indigo-500 transition-colors shadow-sm group"
-                      >
-                        <span className="text-xs font-medium text-slate-800 dark:text-slate-200 leading-snug">
-                          {topic}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleApplyTopic(topic)}
-                          className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shrink-0 transition-transform group-hover:scale-105 flex items-center gap-1 shadow-sm"
-                        >
-                          <span>Áp dụng</span>
-                          <ArrowRight className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ))}
+          {/* Gợi ý tinh chỉnh bằng tiếng Việt */}
+          {scopeResult.suggested_topics && scopeResult.suggested_topics.length > 0 && (
+            <div className="space-y-2.5 pt-3 border-t border-slate-200/50 dark:border-slate-800/50">
+              <span className="block text-xs font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-300">
+                💡 Gợi ý một số tinh chỉnh đề tài (Bấm "Áp dụng" để thay thế):
+              </span>
+              <div className="grid grid-cols-1 gap-2.5">
+                {scopeResult.suggested_topics.map((topic, i) => (
+                  <div 
+                    key={i} 
+                    className="p-3.5 rounded-2xl bg-white dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3 hover:border-indigo-400 dark:hover:border-indigo-500 transition-colors shadow-sm group"
+                  >
+                    <span className="text-xs font-medium text-slate-800 dark:text-slate-200 leading-relaxed">
+                      {topic}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleApplyTopic(topic)}
+                      className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shrink-0 transition-transform group-hover:scale-105 flex items-center gap-1 shadow-sm"
+                    >
+                      <span>Áp dụng</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
                   </div>
-                </div>
-              )}
+                ))}
+              </div>
             </div>
           )}
         </div>
-      </div>
+      )}
 
-      {/* Criteria Section (Agent Tự Động Sinh Tiêu Chí) */}
-      <div className={`p-6 md:p-8 rounded-3xl border shadow-sm ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-          <div className="flex items-center gap-3">
-            <Target className="w-7 h-7 text-emerald-500" />
-            <div>
-              <h3 className="text-xl font-extrabold">{t('setup.criteria_title')}</h3>
-              <p className="text-xs text-slate-500 font-medium">Tiêu chí chọn vào (Inclusion) và loại trừ (Exclusion) chuẩn PRISMA</p>
-            </div>
+      {/* 3. BƯỚC THÊM TIÊU CHÍ SÀNG LỌC */}
+      {!showCriteriaSection ? (
+        <div className={`p-6 rounded-3xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/40 text-center space-y-3 transition-colors`}>
+          <div className="flex items-center justify-center gap-2 text-slate-600 dark:text-slate-400">
+            <Target className="w-5 h-5 text-emerald-500" />
+            <span className="text-sm font-bold">Bạn có muốn thêm các tiêu chí sàng lọc (Inclusion / Exclusion)?</span>
           </div>
-
-          {/* AI Criteria Generator Button */}
+          <p className="text-xs text-slate-500">
+            AI sẽ tự động đọc câu hỏi nghiên cứu của bạn và gợi ý sẵn 3 tiêu chí chọn + 3 tiêu chí loại chuẩn học thuật.
+          </p>
           <button
             type="button"
-            onClick={handleGenerateCriteria}
-            disabled={loadingCriteria}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-md transition-all hover:scale-105"
-            title="AI đọc câu hỏi nghiên cứu và tự động sinh 3 tiêu chí chọn + 3 tiêu chí loại"
+            onClick={handleOpenAndGenerateCriteria}
+            className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-md transition-transform hover:scale-105 inline-flex items-center gap-2"
           >
-            {loadingCriteria ? (
-              <Loader2 className="w-4 h-4 animate-spin text-emerald-200" />
-            ) : (
-              <Sparkles className="w-4 h-4 text-amber-300" />
-            )}
-            <span>⚡ AI Tự động sinh tiêu chí</span>
+            <Sparkles className="w-4 h-4 text-amber-300" />
+            <span>Thêm & Tự động gợi ý tiêu chí sàng lọc</span>
           </button>
         </div>
+      ) : (
+        <div className={`p-6 md:p-8 rounded-3xl border shadow-sm ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} space-y-6 animate-in fade-in slide-in-from-bottom-2`}>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <Target className="w-7 h-7 text-emerald-500" />
+              <div>
+                <h3 className="text-xl font-extrabold">{t('setup.criteria_title')}</h3>
+                <p className="text-xs text-slate-500 font-medium">Tiêu chí chọn vào (Inclusion) và loại trừ (Exclusion) đã được AI gợi ý</p>
+              </div>
+            </div>
 
-        {criteriaToast && (
-          <div className="mb-6 p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 font-bold text-xs flex items-center justify-between shadow-sm animate-in fade-in slide-in-from-top-2">
-            <div className="flex items-center gap-2">
-              <Check className="w-4 h-4 text-emerald-600" />
-              <span>Đã tự động tạo và điền bộ tiêu chí Inclusion & Exclusion chuẩn học thuật!</span>
-            </div>
-            <button onClick={() => setCriteriaToast(false)} className="text-slate-400 hover:text-slate-600">✕</button>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Inclusion */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h4 className="font-bold text-emerald-600 dark:text-emerald-400 text-sm flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4" />
-                <span>{t('setup.inclusion')}</span>
-              </h4>
-              <span className="text-xs text-slate-400 font-medium">({projectData.criteria_include.length} tiêu chí)</span>
-            </div>
-            <div className="flex gap-2">
-              <input 
-                type="text" 
-                value={newInclude}
-                onChange={e => setNewInclude(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && addInclude()}
-                placeholder={t('setup.inclusion_placeholder')}
-                autoComplete="off"
-                className={`flex-1 p-2.5 rounded-xl border text-sm ${darkMode ? 'bg-slate-800 border-slate-700 dark:text-white' : 'bg-slate-50 text-slate-900 border-slate-300'}`}
-              />
-              <button onClick={addInclude} className="p-2.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 rounded-xl hover:bg-emerald-200 transition-colors">
-                <Plus className="w-5 h-5"/>
-              </button>
-            </div>
-            <ul className="space-y-2 mt-3">
-              {projectData.criteria_include.map((item, idx) => (
-                <li key={idx} className="flex justify-between items-center bg-emerald-50 dark:bg-emerald-900/30 p-2.5 rounded-xl text-xs font-medium border border-emerald-100 dark:border-emerald-800 animate-in fade-in slide-in-from-left-4 duration-300 text-slate-800 dark:text-slate-200">
-                  <span className="pr-2">{item}</span>
-                  <button onClick={() => setProjectData(p => ({...p, criteria_include: p.criteria_include.filter((_, i) => i !== idx)}))} className="text-slate-400 hover:text-red-500 transition-colors">
-                    <X className="w-4 h-4"/>
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <button
+              type="button"
+              onClick={handleGenerateCriteria}
+              disabled={loadingCriteria}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-200 dark:hover:bg-emerald-900 font-bold text-xs shadow-sm transition-all"
+              title="Yêu cầu AI sinh lại tiêu chí mới"
+            >
+              {loadingCriteria ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+              )}
+              <span>AI Gợi ý lại tiêu chí</span>
+            </button>
           </div>
 
-          {/* Exclusion */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h4 className="font-bold text-red-600 dark:text-red-400 text-sm flex items-center gap-1.5">
-                <AlertCircle className="w-4 h-4" />
-                <span>{t('setup.exclusion')}</span>
-              </h4>
-              <span className="text-xs text-slate-400 font-medium">({projectData.criteria_exclude.length} tiêu chí)</span>
+          {criteriaToast && (
+            <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 font-bold text-xs flex items-center justify-between shadow-sm animate-in fade-in slide-in-from-top-2">
+              <div className="flex items-center gap-2">
+                <Check className="w-4 h-4 text-emerald-600" />
+                <span>Đã điền các tiêu chí Inclusion & Exclusion do AI gợi ý!</span>
+              </div>
+              <button onClick={() => setCriteriaToast(false)} className="text-slate-400 hover:text-slate-600">✕</button>
             </div>
-            <div className="flex gap-2">
-              <input 
-                type="text" 
-                value={newExclude}
-                onChange={e => setNewExclude(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && addExclude()}
-                placeholder={t('setup.exclusion_placeholder')}
-                autoComplete="off"
-                className={`flex-1 p-2.5 rounded-xl border text-sm ${darkMode ? 'bg-slate-800 border-slate-700 dark:text-white' : 'bg-slate-50 text-slate-900 border-slate-300'}`}
-              />
-              <button onClick={addExclude} className="p-2.5 bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-300 rounded-xl hover:bg-red-200 transition-colors">
-                <Plus className="w-5 h-5"/>
-              </button>
-            </div>
-            <ul className="space-y-2 mt-3">
-              {projectData.criteria_exclude.map((item, idx) => (
-                <li key={idx} className="flex justify-between items-center bg-red-50 dark:bg-red-900/30 p-2.5 rounded-xl text-xs font-medium border border-red-100 dark:border-red-800 animate-in fade-in slide-in-from-right-4 duration-300 text-slate-800 dark:text-slate-200">
-                  <span className="pr-2">{item}</span>
-                  <button onClick={() => setProjectData(p => ({...p, criteria_exclude: p.criteria_exclude.filter((_, i) => i !== idx)}))} className="text-slate-400 hover:text-red-500 transition-colors">
-                    <X className="w-4 h-4"/>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      </div>
+          )}
 
-      {/* Save Success Alert Banner */}
-      {saved && (
-        <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/80 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-sm font-bold flex items-center justify-between shadow-md animate-in fade-in slide-in-from-top-2 duration-300">
-          <div className="flex items-center gap-3">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-            <span>{t('setup.save_success_msg')}</span>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Inclusion */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="font-bold text-emerald-600 dark:text-emerald-400 text-sm flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>{t('setup.inclusion')}</span>
+                </h4>
+                <span className="text-xs text-slate-400 font-medium">({projectData.criteria_include.length} tiêu chí)</span>
+              </div>
+              <div className="flex gap-2">
+                <input 
+                  type="text" 
+                  value={newInclude}
+                  onChange={e => setNewInclude(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && addInclude()}
+                  placeholder={t('setup.inclusion_placeholder')}
+                  autoComplete="off"
+                  className={`flex-1 p-2.5 rounded-xl border text-sm ${darkMode ? 'bg-slate-800 border-slate-700 dark:text-white' : 'bg-slate-50 text-slate-900 border-slate-300'}`}
+                />
+                <button onClick={addInclude} className="p-2.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 rounded-xl hover:bg-emerald-200 transition-colors">
+                  <Plus className="w-5 h-5"/>
+                </button>
+              </div>
+              <ul className="space-y-2 mt-3">
+                {projectData.criteria_include.map((item, idx) => (
+                  <li key={idx} className="flex justify-between items-center bg-emerald-50 dark:bg-emerald-900/30 p-2.5 rounded-xl text-xs font-medium border border-emerald-100 dark:border-emerald-800 animate-in fade-in slide-in-from-left-4 duration-300 text-slate-800 dark:text-slate-200">
+                    <span className="pr-2">{item}</span>
+                    <button onClick={() => setProjectData(p => ({...p, criteria_include: p.criteria_include.filter((_, i) => i !== idx)}))} className="text-slate-400 hover:text-red-500 transition-colors">
+                      <X className="w-4 h-4"/>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Exclusion */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="font-bold text-red-600 dark:text-red-400 text-sm flex items-center gap-1.5">
+                  <AlertCircle className="w-4 h-4" />
+                  <span>{t('setup.exclusion')}</span>
+                </h4>
+                <span className="text-xs text-slate-400 font-medium">({projectData.criteria_exclude.length} tiêu chí)</span>
+              </div>
+              <div className="flex gap-2">
+                <input 
+                  type="text" 
+                  value={newExclude}
+                  onChange={e => setNewExclude(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && addExclude()}
+                  placeholder={t('setup.exclusion_placeholder')}
+                  autoComplete="off"
+                  className={`flex-1 p-2.5 rounded-xl border text-sm ${darkMode ? 'bg-slate-800 border-slate-700 dark:text-white' : 'bg-slate-50 text-slate-900 border-slate-300'}`}
+                />
+                <button onClick={addExclude} className="p-2.5 bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-300 rounded-xl hover:bg-red-200 transition-colors">
+                  <Plus className="w-5 h-5"/>
+                </button>
+              </div>
+              <ul className="space-y-2 mt-3">
+                {projectData.criteria_exclude.map((item, idx) => (
+                  <li key={idx} className="flex justify-between items-center bg-red-50 dark:bg-red-900/30 p-2.5 rounded-xl text-xs font-medium border border-red-100 dark:border-red-800 animate-in fade-in slide-in-from-right-4 duration-300 text-slate-800 dark:text-slate-200">
+                    <span className="pr-2">{item}</span>
+                    <button onClick={() => setProjectData(p => ({...p, criteria_exclude: p.criteria_exclude.filter((_, i) => i !== idx)}))} className="text-slate-400 hover:text-red-500 transition-colors">
+                      <X className="w-4 h-4"/>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
-          <button onClick={() => setSaved(false)} className="text-emerald-700 dark:text-emerald-300 hover:text-emerald-900 font-bold text-xs">
-            ✕
-          </button>
         </div>
       )}
 
-      {/* Action Buttons: Agent 1 (Keywords) & Save */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-        <button 
-          onClick={handleSuggestKeywords}
-          disabled={loadingKeywords}
-          className="w-full sm:w-auto px-6 py-3.5 rounded-2xl font-extrabold bg-indigo-600 text-white hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 shadow-lg hover:scale-105"
-        >
-          {loadingKeywords ? <Loader2 className="w-5 h-5 animate-spin" /> : <Wand2 className="w-5 h-5 text-amber-300" />}
-          <span>Tìm kiếm từ khóa gợi ý</span>
-        </button>
-
+      {/* 4. NÚT LƯU CẤU HÌNH */}
+      <div className="flex justify-end pt-2">
         <button 
           onClick={handleSave}
           disabled={loading}
@@ -593,7 +609,21 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
         </button>
       </div>
 
-      {/* Suggested Keywords & Frame Display */}
+      {/* 5. GỢI Ý TÌM KIẾM TỪ KHÓA (Xuất hiện sau khi lưu cấu hình) */}
+      {hasSavedOnce && (
+        <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center space-y-4">
+          <button 
+            onClick={handleSuggestKeywords}
+            disabled={loadingKeywords}
+            className="px-8 py-4 rounded-2xl font-extrabold bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white transition-all flex items-center justify-center gap-3 shadow-xl hover:scale-105"
+          >
+            {loadingKeywords ? <Loader2 className="w-5 h-5 animate-spin" /> : <Wand2 className="w-5 h-5 text-amber-300" />}
+            <span className="text-sm">✨ Gợi ý tìm kiếm từ khóa</span>
+          </button>
+        </div>
+      )}
+
+      {/* 6. KẾT QUẢ TRA CỨU PICO & KEYWORDS */}
       {picoData && (
         <div className={`p-6 md:p-8 rounded-3xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-white dark:from-indigo-950/30 dark:to-slate-900 dark:border-indigo-800 shadow-sm space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500`}>
           
