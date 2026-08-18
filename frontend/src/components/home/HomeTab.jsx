@@ -3,9 +3,10 @@ import {
   Search, BrainCircuit, FileDown, ArrowRight, Settings, CheckCircle2, 
   Layers, ShieldCheck, Database, Cpu, Compass, BookOpen, ChevronRight,
   TrendingUp, Activity, FileText, Check, Zap, AlertTriangle, Scale,
-  Sparkles, CheckCheck, Clock, Award
+  Sparkles, CheckCheck, Clock, Award, Eye, Radio, Server
 } from 'lucide-react';
 import { useLanguage } from '../../contexts/LanguageContext';
+import InteractiveHeroBackground from './InteractiveHeroBackground';
 
 export default function HomeTab({ setActiveTab, darkMode }) {
   const { t } = useLanguage();
@@ -44,31 +45,65 @@ export default function HomeTab({ setActiveTab, darkMode }) {
   return (
     <div className="space-y-16 pb-24 font-sans text-slate-900 dark:text-white">
       
-      {/* 🎬 1. HERO SECTION — ACADEMIC KNOWLEDGE GRAPH */}
-      <section className="relative w-full rounded-3xl overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800 bg-slate-950 min-h-[540px] md:min-h-[620px] flex items-center justify-center">
+      {/* 🎬 1. DYNAMIC HERO SECTION — LIVE ANIMATED KNOWLEDGE GRAPH */}
+      <section className="relative w-full rounded-3xl overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800 bg-slate-950 min-h-[560px] md:min-h-[640px] flex items-center justify-center group">
         
-        {/* Academic Knowledge Graph Render Image */}
-        <img 
-          src="/assets/academic_knowledge_graph.jpg"
-          alt="Academic Knowledge Graph Network"
-          className="absolute inset-0 w-full h-full object-cover opacity-50 scale-105 filter brightness-95"
-        />
+        {/* Layer 1: Cinematic Ken-Burns 3D Render Image Background */}
+        <div className="absolute inset-0 overflow-hidden">
+          <img 
+            src="/assets/academic_knowledge_graph.jpg"
+            alt="Academic Knowledge Graph Network"
+            className="w-full h-full object-cover opacity-50 filter brightness-95 animate-ken-burns scale-110"
+          />
+        </div>
 
-        {/* Ambient Dark Overlay Gradients */}
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-slate-950/80" />
-        <div className="absolute inset-0 bg-radial from-transparent via-black/30 to-slate-950/90" />
+        {/* Layer 2: Real-Time Interactive Particle Canvas (Reacts to Cursor) */}
+        <InteractiveHeroBackground darkMode={true} />
+
+        {/* Layer 3: Laser Optical Scanning Beam Animation */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="w-full h-24 bg-gradient-to-b from-transparent via-blue-500/20 to-blue-400/40 border-b border-blue-400/80 shadow-[0_0_25px_rgba(59,130,246,0.6)] animate-scanline-v" />
+        </div>
+
+        {/* Layer 4: Dark Vignette Gradient Overlays */}
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/50 to-slate-950/75 pointer-events-none" />
+        <div className="absolute inset-0 bg-radial from-transparent via-black/20 to-slate-950/90 pointer-events-none" />
+
+        {/* Floating Interactive Live Badges */}
+        <div className="absolute top-8 left-8 hidden lg:flex flex-col gap-3 pointer-events-none z-10">
+          <div className="px-3.5 py-2 rounded-2xl bg-slate-900/85 border border-blue-500/40 text-[11px] font-mono text-blue-300 flex items-center gap-2 backdrop-blur-md shadow-lg animate-float">
+            <span className="w-2 h-2 rounded-full bg-blue-400 animate-ping" />
+            <span>Citation Mesh: 100% Grounded</span>
+          </div>
+          <div className="px-3.5 py-2 rounded-2xl bg-slate-900/85 border border-slate-700 text-[11px] font-mono text-slate-300 flex items-center gap-2 backdrop-blur-md shadow-lg animate-float-slow">
+            <Radio className="w-3.5 h-3.5 text-sky-400 animate-pulse" />
+            <span>Real-Time Scholar Search: Active</span>
+          </div>
+        </div>
+
+        <div className="absolute top-8 right-8 hidden lg:flex flex-col gap-3 pointer-events-none z-10 text-right">
+          <div className="px-3.5 py-2 rounded-2xl bg-slate-900/85 border border-emerald-500/40 text-[11px] font-mono text-emerald-300 flex items-center gap-2 backdrop-blur-md shadow-lg animate-float">
+            <CheckCheck className="w-3.5 h-3.5 text-emerald-400" />
+            <span>PRISMA 2020 Protocol: Verified</span>
+          </div>
+          <div className="px-3.5 py-2 rounded-2xl bg-slate-900/85 border border-amber-500/40 text-[11px] font-mono text-amber-300 flex items-center gap-2 backdrop-blur-md shadow-lg animate-float-slow">
+            <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+            <span>Human-in-the-Loop: 3 Gates Active</span>
+          </div>
+        </div>
 
         {/* Hero Content Shell */}
         <div className="relative z-10 max-w-4xl mx-auto px-6 py-16 text-center space-y-8">
           
           <div className="space-y-4">
-            <span className="font-display font-bold text-xs uppercase tracking-[0.25em] text-blue-400 block animate-in fade-in slide-in-from-top-3 duration-500">
-              ACADEMIC SYSTEMATIC REVIEW & RESEARCH ASSISTANT
-            </span>
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-950/80 border border-blue-500/40 text-blue-300 text-xs font-mono backdrop-blur-md shadow-lg shadow-blue-500/10">
+              <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+              <span className="tracking-wider uppercase">ACADEMIC SYSTEMATIC REVIEW ASSISTANT</span>
+            </div>
 
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-display font-black tracking-tight leading-[1.1] text-white drop-shadow-lg">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-display font-black tracking-tight leading-[1.08] text-white drop-shadow-2xl">
               Tự Động Hóa Tổng Quan Y Văn<br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-sky-300 to-white">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-sky-300 to-white animate-laser">
                 Chuẩn Xác & Khép Kín Trong Từng Luận Điểm
               </span>
             </h1>
@@ -90,7 +125,7 @@ export default function HomeTab({ setActiveTab, darkMode }) {
             
             <button
               onClick={() => setActiveTab('search')}
-              className="w-full sm:w-auto px-8 py-4 rounded-2xl font-display font-bold text-xs md:text-sm tracking-wider uppercase transition-all bg-white/10 hover:bg-white/20 text-white border border-white/20 backdrop-blur-md flex items-center justify-center gap-2.5 hover:scale-105 active:scale-95"
+              className="w-full sm:w-auto px-8 py-4 rounded-2xl font-display font-bold text-xs md:text-sm tracking-wider uppercase transition-all bg-white/10 hover:bg-white/20 text-white border border-white/20 backdrop-blur-md flex items-center justify-center gap-2.5 hover:scale-105 active:scale-95 shadow-md"
             >
               <Search className="w-4 h-4 text-sky-400" />
               <span>KHÁM PHÁ NGUỒN BÀI BÁO</span>
@@ -129,7 +164,7 @@ export default function HomeTab({ setActiveTab, darkMode }) {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           
           {/* Card 1: Thực Trạng */}
-          <div className={`p-8 rounded-3xl border transition-all flex flex-col justify-between space-y-5 ${
+          <div className={`p-8 rounded-3xl border transition-all flex flex-col justify-between space-y-5 hover:border-amber-400/50 hover:shadow-lg ${
             darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
           }`}>
             <div className="space-y-4">
@@ -149,11 +184,11 @@ export default function HomeTab({ setActiveTab, darkMode }) {
           </div>
 
           {/* Card 2: Mục Tiêu & Vấn Đề */}
-          <div className={`p-8 rounded-3xl border-2 transition-all flex flex-col justify-between space-y-5 border-blue-500/50 ${
+          <div className={`p-8 rounded-3xl border-2 transition-all flex flex-col justify-between space-y-5 border-blue-500/50 hover:border-blue-400 hover:shadow-xl ${
             darkMode ? 'bg-slate-900/90' : 'bg-blue-50/30 shadow-md'
           }`}>
             <div className="space-y-4">
-              <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-black text-xl shadow-md shadow-blue-500/20">
+              <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-black text-xl shadow-md shadow-blue-500/20 animate-pulse">
                 🎯
               </div>
               <h3 className="font-display font-black text-lg text-blue-900 dark:text-blue-200">
@@ -173,7 +208,7 @@ export default function HomeTab({ setActiveTab, darkMode }) {
           </div>
 
           {/* Card 3: Ràng Buộc & Cam Kết */}
-          <div className={`p-8 rounded-3xl border transition-all flex flex-col justify-between space-y-5 ${
+          <div className={`p-8 rounded-3xl border transition-all flex flex-col justify-between space-y-5 hover:border-emerald-400/50 hover:shadow-lg ${
             darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
           }`}>
             <div className="space-y-4">
@@ -206,21 +241,31 @@ export default function HomeTab({ setActiveTab, darkMode }) {
         </div>
       </section>
 
-      {/* 🎬 3. BANNER SECTION A: DỰNG BẢNG SO SÁNH & TỔNG HỢP LUẬN ĐIỂM */}
-      <section className="max-w-6xl mx-auto rounded-3xl overflow-hidden shadow-2xl border border-slate-800 bg-slate-950 relative min-h-[420px] md:min-h-[460px] flex items-center">
-        {/* Background Image Render */}
-        <img 
-          src="/assets/literature_synthesis_matrix.jpg"
-          alt="AI Literature Synthesis and Comparison Matrix"
-          className="absolute inset-0 w-full h-full object-cover opacity-60 filter brightness-95"
-        />
+      {/* 🎬 3. DYNAMIC BANNER SECTION A: DỰNG BẢNG SO SÁNH & LIVE HORIZONTAL SCANNER */}
+      <section className="max-w-6xl mx-auto rounded-3xl overflow-hidden shadow-2xl border border-slate-800 bg-slate-950 relative min-h-[420px] md:min-h-[480px] flex items-center group">
+        
+        {/* Animated 3D Background Image */}
+        <div className="absolute inset-0 overflow-hidden">
+          <img 
+            src="/assets/literature_synthesis_matrix.jpg"
+            alt="AI Literature Synthesis and Comparison Matrix"
+            className="w-full h-full object-cover opacity-60 filter brightness-95 animate-ken-burns scale-105"
+          />
+        </div>
+
+        {/* Live Horizontal Cyber Scanning Line */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="h-full w-24 bg-gradient-to-r from-transparent via-cyan-500/20 to-blue-400/40 border-r border-cyan-400/80 shadow-[0_0_30px_rgba(6,182,212,0.6)] animate-scanline-h" />
+        </div>
+
         <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/80 to-transparent" />
 
         {/* Content */}
         <div className="relative z-10 max-w-xl p-8 md:p-14 space-y-4 text-white">
-          <span className="font-display font-bold text-xs uppercase tracking-[0.2em] text-blue-400 block">
-            &gt; COMPARISON MATRIX & GAP DISCOVERY
-          </span>
+          <div className="flex items-center gap-2 text-xs font-display font-bold uppercase tracking-[0.2em] text-cyan-400">
+            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+            <span>&gt; COMPARISON MATRIX & GAP DISCOVERY</span>
+          </div>
           <h2 className="text-3xl md:text-4xl font-display font-black tracking-tight leading-tight">
             Dựng Bảng So Sánh Phương Pháp & Phát Hiện Khoảng Trống Nghiên Cứu
           </h2>
@@ -299,21 +344,31 @@ export default function HomeTab({ setActiveTab, darkMode }) {
         </div>
       </section>
 
-      {/* 🎬 5. BANNER SECTION B: HUMAN-IN-THE-LOOP & CITATION VERIFICATION */}
-      <section className="max-w-6xl mx-auto rounded-3xl overflow-hidden shadow-2xl border border-slate-800 bg-slate-950 relative min-h-[420px] md:min-h-[460px] flex items-center justify-end text-right">
-        {/* Background Image Render */}
-        <img 
-          src="/assets/hitl_research_governance.jpg"
-          alt="Human-in-the-Loop Researcher Verification"
-          className="absolute inset-0 w-full h-full object-cover opacity-60 filter brightness-95"
-        />
+      {/* 🎬 5. DYNAMIC BANNER SECTION B: HUMAN-IN-THE-LOOP & CITATION VERIFICATION */}
+      <section className="max-w-6xl mx-auto rounded-3xl overflow-hidden shadow-2xl border border-slate-800 bg-slate-950 relative min-h-[420px] md:min-h-[480px] flex items-center justify-end text-right group">
+        
+        {/* Animated 3D Background Image */}
+        <div className="absolute inset-0 overflow-hidden">
+          <img 
+            src="/assets/hitl_research_governance.jpg"
+            alt="Human-in-the-Loop Researcher Verification"
+            className="w-full h-full object-cover opacity-60 filter brightness-95 animate-ken-burns scale-105"
+          />
+        </div>
+
+        {/* Live Vertical Laser Scanning Line */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="w-full h-20 bg-gradient-to-b from-transparent via-emerald-500/15 to-blue-400/30 border-b border-emerald-400/60 shadow-[0_0_20px_rgba(16,185,129,0.5)] animate-scanline-v" />
+        </div>
+
         <div className="absolute inset-0 bg-gradient-to-l from-slate-950 via-slate-950/80 to-transparent" />
 
         {/* Content */}
         <div className="relative z-10 max-w-xl p-8 md:p-14 space-y-4 text-white">
-          <span className="font-display font-bold text-xs uppercase tracking-[0.2em] text-blue-400 block">
-            &gt; HUMAN-IN-THE-LOOP & CITATION VERIFICATION
-          </span>
+          <div className="flex items-center justify-end gap-2 text-xs font-display font-bold uppercase tracking-[0.2em] text-emerald-400">
+            <span>&gt; HUMAN-IN-THE-LOOP & CITATION VERIFICATION</span>
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+          </div>
           <h2 className="text-3xl md:text-4xl font-display font-black tracking-tight leading-tight">
             Mọi Luận Điểm Đều Neo Vào Văn Bản Gốc — Con Người Phê Duyệt Cuối
           </h2>
