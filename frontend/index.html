@@ -6,10 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>LitReview AI Scholar - Premium Academic Workspace</title>
     
-    <!-- Google Fonts -->
+    <!-- Google Fonts: Space Grotesk & Inter (VinDynamics Design Standard) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     
     <!-- KaTeX CSS for Math Rendering -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" integrity="sha384-n8MVd4RsNIU0tAv4ct0nTaAbDJwPJzDEaqSD1odI+WdtXRGWt2kTvGFasHpSy3SV" crossorigin="anonymous">
@@ -22,8 +22,24 @@
         theme: {
           extend: {
             fontFamily: {
-              sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+              sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+              display: ['"Space Grotesk"', 'sans-serif'],
             },
+            colors: {
+              vindy: {
+                50: '#F0FDF4',
+                100: '#DCFCE7',
+                200: '#BBF7D0',
+                300: '#86EFAC',
+                400: '#4ADE80',
+                500: '#28AB67', // VinDynamics signature brand green
+                600: '#22A35F',
+                700: '#15803D',
+                800: '#166534',
+                900: '#14532D',
+                950: '#052E16',
+              }
+            }
           }
         }
       }
