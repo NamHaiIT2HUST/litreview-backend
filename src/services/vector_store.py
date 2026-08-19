@@ -5,6 +5,7 @@ from langchain_chroma import Chroma
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain_openai import OpenAIEmbeddings
 
 from src.config import get_settings
 from src.services.vector_store_config import build_chroma_connection_kwargs
@@ -19,6 +20,12 @@ def should_use_gemini_embeddings(settings) -> bool:
             getattr(settings, "gemini_api_key", "")
             or getattr(settings, "google_api_key", "")
         )
+    )
+
+
+def should_use_openai_embeddings(settings) -> bool:
+    return getattr(settings, "embedding_provider", "local") == "openai" and bool(
+        getattr(settings, "openai_api_key", "")
     )
 
 
@@ -54,12 +61,19 @@ class VectorStoreService:
             settings, "google_api_key", ""
         )
 
-        # Gemini embeddings first. If the key is missing, keep the app bootable
-        # with a lightweight offline fallback so local smoke tests still work.
+        # Pick the embedding provider the caller configured. If its key is
+        # missing, keep the app bootable with a lightweight offline fallback
+        # so local smoke tests still work.
         if should_use_gemini_embeddings(settings):
             self.embeddings = GoogleGenerativeAIEmbeddings(
                 model=settings.embedding_model,
                 google_api_key=gemini_key,
+            )
+        elif should_use_openai_embeddings(settings):
+            self.embeddings = OpenAIEmbeddings(
+                model=settings.embedding_model,
+                api_key=settings.openai_api_key,
+                base_url=settings.get_api_base or None,
             )
         else:
             self.embeddings = LightweightHashEmbeddings()
