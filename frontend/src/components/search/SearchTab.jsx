@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   Search, Download, ExternalLink, PlusCircle, CheckCircle2, Key, Loader2, AlertCircle, 
   ChevronDown, ChevronUp, ShieldCheck, ShieldAlert, Activity, Check, X, HelpCircle,
-  BookOpen, Sparkles, Trash2, Target, GitFork
+  BookOpen, Sparkles, Trash2, Target, GitFork, FileText
 } from 'lucide-react';
 import SearchHistoryPanel from './SearchHistoryPanel';
 import FilterSortBar from './FilterSortBar';
@@ -198,6 +198,41 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
   // --- Expand Abstract State ---
   const [expandedPaperIds, setExpandedPaperIds] = useState([]);
   const [isQuestionExpanded, setIsQuestionExpanded] = useState(false);
+
+  // --- Paper Summary States (TL;DR) ---
+  const [summaryPaper, setSummaryPaper] = useState(null);
+  const [summaryData, setSummaryData] = useState(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+
+  const handleOpenSummary = async (paper) => {
+    setSummaryPaper(paper);
+    setSummaryData(null);
+    setSummaryLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/slr-swarm/paper-summary`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          paper_id: paper.id || paper.external_id || "unknown",
+          title: paper.title || "No title",
+          abstract: paper.abstract || "",
+          authors: Array.isArray(paper.authors) ? paper.authors.join(", ") : (paper.authors || ""),
+          year: paper.year || 2024,
+          venue: paper.venue || paper.journal || "",
+          citations: paper.citations || 0,
+          doi: paper.doi || ""
+        })
+      });
+      if (!res.ok) throw new Error("Failed to fetch summary");
+      const data = await res.json();
+      setSummaryData(data);
+    } catch (err) {
+      console.error("Summary error:", err);
+      setSummaryData({ tldr: "Không thể kết nối đến máy chủ AI để sinh tóm tắt." });
+    } finally {
+      setSummaryLoading(false);
+    }
+  };
 
   // --- Citation Genealogy States (Smart Snowballing) ---
   const [genealogyPaper, setGenealogyPaper] = useState(null);
@@ -1061,12 +1096,12 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                     DOI: {paper.doi} • {paper.citations ? paper.citations.toLocaleString() : 0} trích dẫn
                   </div>
 
-                  <div className="flex items-center gap-3 w-full sm:w-auto">
+                  <div className="flex flex-wrap items-center justify-end gap-3 w-full sm:w-auto mt-2 sm:mt-0">
                     <a
                       href={paper.url}
                       target="_blank"
                       rel="noreferrer"
-                      className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-xs font-bold transition-all border ${
+                      className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-bold transition-all border ${
                         darkMode 
                           ? 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-white' 
                           : 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-800'
@@ -1078,8 +1113,21 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                     </a>
 
                     <button
+                      onClick={() => handleOpenSummary(paper)}
+                      className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-bold transition-all border shadow-sm ${
+                        darkMode 
+                          ? 'bg-slate-800 hover:bg-slate-700 border-emerald-500/40 text-emerald-400' 
+                          : 'bg-emerald-50 hover:bg-emerald-100 border-emerald-200 text-emerald-700'
+                      }`}
+                      title="Xem Hồ sơ tóm tắt bài báo (TL;DR)"
+                    >
+                      <FileText className="w-4 h-4 text-emerald-500" />
+                      <span>Tóm tắt bài báo</span>
+                    </button>
+
+                    <button
                       onClick={() => handleOpenGenealogy(paper)}
-                      className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-xs font-bold transition-all border shadow-sm ${
+                      className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-bold transition-all border shadow-sm ${
                         darkMode 
                           ? 'bg-slate-800 hover:bg-slate-700 border-sky-500/40 text-sky-400' 
                           : 'bg-sky-50 hover:bg-sky-100 border-sky-200 text-sky-700'
@@ -1092,7 +1140,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
 
                     <button
                       onClick={() => handleOpenAiScreening(paper)}
-                      className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-xs font-bold transition-all bg-indigo-600 hover:bg-indigo-700 text-white shadow-md"
+                      className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-bold transition-all bg-indigo-600 hover:bg-indigo-700 text-white shadow-md"
                       title="Phân tích AI Screening"
                     >
                       <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
@@ -1101,7 +1149,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
 
                     <button
                       onClick={() => toggleSelectPaper(paper.id)}
-                      className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-xs font-bold transition-all shadow-md ${
+                      className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-xs font-bold transition-all shadow-md ${
                         isSelected
                           ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
                           : 'bg-blue-600 hover:bg-blue-700 text-white'
@@ -1585,6 +1633,113 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
               >
                 Đóng (X)
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ====== MODAL 5: PAPER SUMMARY (TL;DR) ====== */}
+      {summaryPaper && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200">
+          <div className={`w-full max-w-4xl max-h-[92vh] flex flex-col p-6 md:p-8 rounded-3xl border shadow-2xl overflow-hidden ${
+            darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
+          }`}>
+            <div className="flex items-center justify-between pb-5 border-b border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 flex items-center justify-center">
+                  <FileText className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-display font-bold">Hồ sơ Bài báo (TL;DR One-Pager)</h3>
+                  <p className="text-xs font-mono text-slate-500 mt-1">{summaryPaper.id} | Trích xuất bởi AI</p>
+                </div>
+              </div>
+              <button
+                onClick={() => { setSummaryPaper(null); setSummaryData(null); }}
+                className="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 flex items-center justify-center transition-colors"
+              >
+                <X className="w-5 h-5 text-slate-600 dark:text-slate-300" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto min-h-0 py-6 pr-2 space-y-6">
+              <div className="space-y-1">
+                <h4 className="text-lg font-bold leading-tight">{summaryPaper.title}</h4>
+                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                  {summaryPaper.authors} • {summaryPaper.year} • DOI: {summaryPaper.doi || 'N/A'}
+                </p>
+              </div>
+
+              {summaryLoading ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-4">
+                  <Loader2 className="w-10 h-10 text-emerald-500 animate-spin" />
+                  <p className="text-sm font-bold text-slate-500 animate-pulse">AI đang đọc toàn văn bài báo và trích xuất số liệu...</p>
+                </div>
+              ) : summaryData ? (
+                <div className="space-y-6">
+                  {/* TL;DR Box */}
+                  <div className={`p-5 rounded-2xl border ${darkMode ? 'bg-emerald-950/30 border-emerald-900/50' : 'bg-emerald-50 border-emerald-100'}`}>
+                    <h5 className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-2 flex items-center gap-2">
+                      <Sparkles className="w-4 h-4" /> TÓM TẮT SIÊU TỐC (TL;DR)
+                    </h5>
+                    <p className="text-sm font-medium leading-relaxed">{summaryData.tldr}</p>
+                  </div>
+                  
+                  {(summaryData.is_paywalled === true || summaryData.is_paywalled === 'true' || summaryData?.tldr?.includes('PAYWALL') || summaryData?.tldr?.includes('KHÓA')) && (
+                    <div className="flex items-center justify-center py-2 my-2">
+                      <div className="flex-1 h-px bg-rose-300/40 dark:bg-rose-900/50"></div>
+                      <span className="mx-4 text-xs font-black text-rose-600 dark:text-rose-400 uppercase tracking-widest bg-rose-50 dark:bg-rose-950/50 px-4 py-2 rounded-full border border-rose-200 dark:border-rose-800 shadow-sm flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 text-rose-500 animate-pulse" />
+                        NỘI DUNG DỰ ĐOÁN VỀ BÀI BÁO
+                      </span>
+                      <div className="flex-1 h-px bg-rose-300/40 dark:bg-rose-900/50"></div>
+                    </div>
+                  )}
+
+                  {/* Structured Breakdown */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className={`p-5 rounded-2xl border ${darkMode ? 'bg-slate-800/50 border-slate-700/50' : 'bg-slate-50 border-slate-200'}`}>
+                      <h5 className="text-xs font-bold text-blue-500 mb-2">🎯 MỤC TIÊU (OBJECTIVE)</h5>
+                      <p className="text-sm leading-relaxed">{summaryData.objective}</p>
+                    </div>
+                    <div className={`p-5 rounded-2xl border ${darkMode ? 'bg-slate-800/50 border-slate-700/50' : 'bg-slate-50 border-slate-200'}`}>
+                      <h5 className="text-xs font-bold text-purple-500 mb-2">⚙️ PHƯƠNG PHÁP (METHODOLOGY)</h5>
+                      <p className="text-sm leading-relaxed">{summaryData.methodology}</p>
+                    </div>
+                    <div className={`p-5 rounded-2xl border ${darkMode ? 'bg-slate-800/50 border-slate-700/50' : 'bg-slate-50 border-slate-200'}`}>
+                      <h5 className="text-xs font-bold text-amber-500 mb-2">📦 DỮ LIỆU & MẪU (DATASET)</h5>
+                      <p className="text-sm leading-relaxed">{summaryData.dataset}</p>
+                    </div>
+                    <div className={`p-5 rounded-2xl border ${darkMode ? 'bg-slate-800/50 border-slate-700/50' : 'bg-slate-50 border-slate-200'}`}>
+                      <h5 className="text-xs font-bold text-red-500 mb-2">🚧 HẠN CHẾ (LIMITATIONS)</h5>
+                      <p className="text-sm leading-relaxed">{summaryData.limitations}</p>
+                    </div>
+                  </div>
+
+                  {/* Key Findings (Full width) */}
+                  <div className={`p-5 rounded-2xl border ${darkMode ? 'bg-indigo-950/30 border-indigo-900/50' : 'bg-indigo-50 border-indigo-100'}`}>
+                    <h5 className="text-xs font-bold text-indigo-600 dark:text-indigo-400 mb-2">📈 KẾT QUẢ NỔI BẬT (KEY FINDINGS & METRICS)</h5>
+                    <p className="text-sm leading-relaxed">{summaryData.key_findings}</p>
+                  </div>
+
+                  {/* Reliability Metrics */}
+                  <div className={`p-4 rounded-xl border flex flex-wrap gap-6 items-center ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">Lượt trích dẫn</span>
+                      <span className="text-sm font-bold">{summaryData.reliability_metrics?.citations || 0}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">Năm xuất bản</span>
+                      <span className="text-sm font-bold">{summaryData.reliability_metrics?.year || summaryPaper.year}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">Tạp chí / Nguồn</span>
+                      <span className="text-sm font-bold">{summaryData.reliability_metrics?.venue || summaryPaper.journal || "Google Scholar"}</span>
+                    </div>
+                  </div>
+
+                </div>
+              ) : null}
             </div>
           </div>
         </div>

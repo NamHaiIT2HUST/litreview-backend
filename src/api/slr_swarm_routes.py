@@ -318,3 +318,152 @@ Return ONLY a valid JSON object:
         "backward_ancestors": backward_refs or [],
         "forward_descendants": forward_cits or []
     }
+
+from typing import Optional, Any
+
+# ----------------- PAPER SUMMARY (TL;DR ONE-PAGER) -----------------
+class PaperSummaryRequest(BaseModel):
+    paper_id: str
+    title: str
+    abstract: Optional[str] = ""
+    authors: Any = ""
+    year: Any = 2024
+    venue: Optional[str] = ""
+    citations: Any = 0
+    doi: Optional[str] = ""
+
+@router.post("/paper-summary")
+async def get_paper_summary(payload: PaperSummaryRequest) -> dict:
+    """Sinh bản tóm tắt TL;DR và cấu trúc bài báo cực kỳ chi tiết."""
+    # Dùng key từ biến môi trường để bảo mật khi push code lên GitHub
+    API_KEY = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY") or ""
+    
+    abstract_text = payload.abstract if payload.abstract and len(payload.abstract) > 20 else "NO ABSTRACT AVAILABLE."
+    
+    # --- AUTO-FETCH FULL TEXT IF DOI IS AVAILABLE ---
+    full_text = ""
+    is_paywalled = False
+    
+    if payload.doi:
+        try:
+            import aiohttp
+            import pypdf
+            import io
+            async with aiohttp.ClientSession() as session:
+                unpaywall_url = f"https://api.unpaywall.org/v2/{payload.doi}?email=admin@litreview.ai"
+                async with session.get(unpaywall_url, timeout=4) as resp:
+                    if resp.status == 200:
+                        oa_data = await resp.json()
+                        if oa_data.get("best_oa_location") and oa_data["best_oa_location"].get("url_for_pdf"):
+                            pdf_url = oa_data["best_oa_location"]["url_for_pdf"]
+                            async with session.get(pdf_url, timeout=10) as pdf_resp:
+                                if pdf_resp.status == 200:
+                                    pdf_bytes = await pdf_resp.read()
+                                    reader = pypdf.PdfReader(io.BytesIO(pdf_bytes))
+                                    # Đọc TOÀN BỘ bài báo (không giới hạn số trang)
+                                    full_text = "\n".join(page.extract_text() for page in reader.pages)
+                                    full_text = full_text[:200000] # Giới hạn an toàn (khoảng 50-60 trang)
+                        else:
+                            is_paywalled = True
+        except Exception as e:
+            print(f"Full-text fetch failed for {payload.doi}: {e}")
+            is_paywalled = True
+
+    # --- XÂY DỰNG PROMPT ĐỘNG ---
+    if full_text:
+        context_block = f"""
+PAPER DETAILS (FULL TEXT EXTRACTED!):
+Title: {payload.title}
+Authors: {payload.authors}
+Year: {payload.year}
+Venue: {payload.venue}
+
+--- FULL TEXT (ENTIRE PAPER) ---
+{full_text}
+--- END FULL TEXT ---
+
+CRITICAL INSTRUCTIONS:
+- You have access to the actual full text of this paper! You DO NOT need to guess.
+- Extract the EXACT methodology, dataset sizes, limitations, and key findings directly from the full text.
+- Be extremely comprehensive and detailed.
+"""
+        tldr_hint = "Một đoạn tóm tắt siêu tốc (2-3 câu). Bắt buộc ghi chú rõ ràng ở đầu: '🟢 ĐÃ ĐỌC TOÀN VĂN (FULL-TEXT OPEN ACCESS)'"
+        predict_prefix = ""
+    else:
+        paywall_warning = "🔴 BÀI BÁO BỊ KHÓA BẢN QUYỀN (PAYWALL / TRẢ PHÍ)." if is_paywalled else "⚠️ KHÔNG TÌM THẤY BẢN TOÀN VĂN."
+        
+        context_block = f"""
+PAPER DETAILS (ABSTRACT ONLY - PAYWALLED):
+Title: {payload.title}
+Abstract: {abstract_text}
+Authors: {payload.authors}
+Year: {payload.year}
+Venue: {payload.venue}
+
+CRITICAL ANTI-HALLUCINATION INSTRUCTIONS:
+1. You MUST explicitly start the 'tldr' field with this exact warning: '{paywall_warning} AI chỉ tóm tắt dựa trên Abstract và tiêu đề.'
+2. If a specific detail (like dataset size, specific algorithm, or metrics) is NOT in the abstract, you MUST state "Bị khóa bản quyền, không có số liệu" (Paywalled, no data). DO NOT GUESS OR INVENT NUMBERS.
+3. Extract any exact numbers, sample sizes, or metrics you can find in the abstract.
+"""
+        tldr_hint = f"Bắt buộc mở đầu bằng: '{paywall_warning} AI chỉ tóm tắt dựa trên Abstract...'. Sau đó mới tóm tắt 2-3 câu."
+
+    prompt = f"""You are an elite scientific researcher and AI assistant. Your task is to provide an EXTREMELY DETAILED and COMPREHENSIVE structured summary of the following research paper. 
+
+{context_block}
+
+Return ONLY a valid JSON object with EXACTLY these keys:
+{{
+  "tldr": "{tldr_hint}",
+  "objective": "Trình bày chi tiết: Họ muốn giải quyết vấn đề gì? (Ghi 'Không rõ' nếu thiếu dữ kiện).",
+  "methodology": "Phân tích kỹ lưỡng: Thuật toán, kiến trúc là gì? (Tuyệt đối không bịa thuật toán nếu không chắc chắn).",
+  "dataset": "Mô tả chi tiết: Kích thước mẫu, nguồn dữ liệu. (Ghi 'Không đề cập' hoặc 'Bị khóa bản quyền, không có số liệu' nếu không có).",
+  "key_findings": "Liệt kê rõ ràng: Kết quả, chỉ số hiệu suất. (Chỉ ghi số liệu có thật trong văn bản, nếu không có ghi 'Bị khóa bản quyền, không có số liệu').",
+  "limitations": "Phân tích sắc bén: Điểm yếu, giới hạn của phương pháp dựa trên suy luận học thuật.",
+  "is_paywalled": {"true" if is_paywalled else "false"},
+  "reliability_metrics": {{
+    "citations": {payload.citations},
+    "venue": "{payload.venue}",
+    "year": {payload.year}
+  }}
+}}
+"""
+    try:
+        from google import genai
+        from google.genai import types
+        import json
+        
+        client = genai.Client(api_key=API_KEY)
+        config = types.GenerateContentConfig(
+            thinking_config=types.ThinkingConfig(thinking_budget=0)
+        )
+        # Ưu tiên dùng model thông minh nhất để phân tích sâu
+        res = await client.aio.models.generate_content(
+            model="gemini-3.5-flash",
+            contents=prompt,
+            config=config
+        )
+        
+        raw_text = res.text
+        # Làm sạch JSON (loại bỏ markdown block nếu có)
+        raw_text = raw_text.strip()
+        if raw_text.startswith("```json"):
+            raw_text = raw_text[7:]
+        if raw_text.startswith("```"):
+            raw_text = raw_text[3:]
+        if raw_text.endswith("```"):
+            raw_text = raw_text[:-3]
+            
+        data = json.loads(raw_text.strip())
+        return data
+    except Exception as e:
+        return {
+            "error": str(e),
+            "tldr": f"Không thể kết nối đến máy chủ AI (Lỗi: {str(e)[:50]}). Vui lòng thử lại.",
+            "objective": "Lỗi kết nối",
+            "methodology": "Lỗi kết nối",
+            "dataset": "Lỗi kết nối",
+            "key_findings": "Lỗi kết nối",
+            "limitations": "Lỗi kết nối",
+            "reliability_metrics": {}
+        }
+
