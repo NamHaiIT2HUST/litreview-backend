@@ -87,6 +87,9 @@ async def deduplicate_evidence_node(state: SynthesisState) -> dict:
         return {"deduplicated_evidence_count": 0}
 
 
+MAX_COVERAGE_EXPANSION_ROUNDS = 3
+
+
 async def ensure_coverage_node(state: SynthesisState) -> dict:
     expected = set(state["paper_ids"])
     completed = set(state.get("completed_papers", []))
@@ -94,20 +97,29 @@ async def ensure_coverage_node(state: SynthesisState) -> dict:
         raise RuntimeError("Cannot expand retrieval before every paper is extracted")
     async with synthesis_write_gate.hold():
         async with session_scope() as db:
-            expanded = await synthesis_service.expand_thin_dimensions_once(
-                db,
-                session_id=uuid.UUID(state["session_id"]),
-                paper_ids=[uuid.UUID(value) for value in state["paper_ids"]],
-                research_question=state["research_question"],
-                dimensions=list(state["dimensions"]),
-            )
+            all_expanded: list[str] = []
+            for _ in range(MAX_COVERAGE_EXPANSION_ROUNDS):
+                # expand_thin_dimensions_once marks a dimension "sparse" (and
+                # excludes it from future rounds) once an expansion attempt
+                # yields no new evidence, so this loop naturally terminates
+                # even when coverage never reaches the 2-paper threshold.
+                expanded = await synthesis_service.expand_thin_dimensions_once(
+                    db,
+                    session_id=uuid.UUID(state["session_id"]),
+                    paper_ids=[uuid.UUID(value) for value in state["paper_ids"]],
+                    research_question=state["research_question"],
+                    dimensions=list(state["dimensions"]),
+                )
+                if not expanded:
+                    break
+                all_expanded.extend(expanded)
             await synthesis_service.recover_and_validate_paper_coverage(
                 db,
                 session_id=uuid.UUID(state["session_id"]),
                 paper_ids=[uuid.UUID(value) for value in state["paper_ids"]],
                 research_question=state["research_question"],
             )
-    return {"expanded_dimensions": expanded}
+    return {"expanded_dimensions": all_expanded}
 
 
 async def build_outline_node(state: SynthesisState) -> dict:
