@@ -24,6 +24,13 @@ class LLMJudgeResult(BaseModel):
     score: int = Field(description="Score from 0 to 10")
     reasoning: str = Field(description="Reasoning for the score")
 
+class RefusalJudgeResult(BaseModel):
+    declined_or_flagged: bool = Field(
+        description="True if the answer correctly avoids fabricating an answer "
+        "(e.g. says the documents don't cover this, or flags the false premise)."
+    )
+    reasoning: str = Field(description="Short reasoning for the verdict")
+
 def clean_source_name(source_path):
     source_path = source_path.replace("\\", "/")
     basename = os.path.basename(source_path)
@@ -72,6 +79,38 @@ Provide a JSON output matching this schema:
         logger.error(f"Error calling LLM judge: {e}")
         return 0
 
+async def judge_refusal(question, actual_answer):
+    """For unanswerable/false-premise questions: does the answer correctly avoid
+    fabricating a response, instead of hallucinating a confident-sounding answer?"""
+    prompt = PromptTemplate(
+        template="""You are grading whether a RAG system correctly handled a question that
+CANNOT be answered from its source documents (either the documents don't cover the topic,
+or the question contains a false premise not supported by the documents).
+
+Question (unanswerable / false premise): {question}
+
+System's Actual Answer: {actual_answer}
+
+A CORRECT answer explicitly says the documents don't contain this information, or flags
+that the premise doesn't match the source material. An INCORRECT answer confidently states
+a fact as if it were supported by the documents (hallucination), even with hedging language.
+
+Provide a JSON output matching this schema:
+{{
+  "declined_or_flagged": <true|false>,
+  "reasoning": "<short string>"
+}}
+""",
+        input_variables=["question", "actual_answer"],
+    )
+    try:
+        chain = prompt | rag_service.llm | JsonOutputParser(pydantic_object=RefusalJudgeResult)
+        res = await chain.ainvoke({"question": question, "actual_answer": actual_answer})
+        return bool(res.get("declined_or_flagged", False))
+    except Exception as e:
+        logger.error(f"Error calling refusal judge: {e}")
+        return False
+
 async def run_benchmark(test_set_path: str):
     with open(test_set_path, "r", encoding="utf-8") as f:
         test_data = json.load(f)
@@ -90,11 +129,14 @@ async def run_benchmark(test_set_path: str):
             expected_answer_contains = item["expected_answer_contains"]
             expected_source_file = item["expected_source_file"]
             expected_source_page = item["expected_source_page"]
-            if isinstance(expected_source_page, int):
+            if expected_source_page is None:
+                expected_source_pages = []
+            elif isinstance(expected_source_page, int):
                 expected_source_pages = [str(expected_source_page)]
             else:
                 expected_source_pages = [str(p) for p in expected_source_page]
             q_type = item["type"]
+            is_unanswerable = q_type == "unanswerable"
             
             # 1. Retrieval
             chunks = await vector_store_service.search_similar_documents(question, top_k=20)
@@ -138,7 +180,12 @@ async def run_benchmark(test_set_path: str):
                         valid_citations += 1
             
             citation_precision = valid_citations / total_citations if total_citations > 0 else 0
-            
+
+            # 6. Refusal correctness for unanswerable / false-premise questions
+            refusal_correct = ""
+            if is_unanswerable:
+                refusal_correct = 1 if await judge_refusal(question, answer) else 0
+
             results.append({
                 "id": q_id,
                 "type": q_type,
@@ -146,10 +193,11 @@ async def run_benchmark(test_set_path: str):
                 "answer_accuracy": answer_accuracy,
                 "citation_precision": citation_precision,
                 "llm_score": llm_score,
+                "refusal_correct": refusal_correct,
                 "total_citations": total_citations,
                 "error": ""
             })
-            
+
         except Exception as e:
             logger.error(f"Error processing {item['id']}: {e}")
             results.append({
@@ -159,35 +207,43 @@ async def run_benchmark(test_set_path: str):
                 "answer_accuracy": 0,
                 "citation_precision": 0,
                 "llm_score": 0,
+                "refusal_correct": "",
                 "total_citations": 0,
                 "error": str(e)
             })
 
     # Summary
-    metrics_by_type = {"factual": {"count": 0, "recall": 0, "acc": 0, "prec": 0, "llm": 0},
-                       "synthesis": {"count": 0, "recall": 0, "acc": 0, "prec": 0, "llm": 0}}
-    
+    metrics_by_type = {
+        "factual": {"count": 0, "recall": 0, "acc": 0, "prec": 0, "llm": 0},
+        "synthesis": {"count": 0, "recall": 0, "acc": 0, "prec": 0, "llm": 0},
+        "unanswerable": {"count": 0, "refusal": 0},
+    }
+
     with open(csv_file_path, "w", newline="", encoding="utf-8") as f:
-        fieldnames = ["id", "type", "retrieval_recall", "answer_accuracy", "citation_precision", "llm_score", "total_citations", "error"]
+        fieldnames = ["id", "type", "retrieval_recall", "answer_accuracy", "citation_precision", "llm_score", "refusal_correct", "total_citations", "error"]
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
-        
+
         # Write config metadata row
         writer.writerow({
-            "id": "CONFIG", 
+            "id": "CONFIG",
             "type": "META",
             "error": f"MIN_RELEVANCE_SCORE={MIN_RELEVANCE_SCORE}, MAX_CONTEXT_CHUNKS={MAX_CONTEXT_CHUNKS}"
         })
-        
+
         for r in results:
             writer.writerow(r)
             t = r["type"]
+            metrics_by_type.setdefault(t, {"count": 0, "recall": 0, "acc": 0, "prec": 0, "llm": 0})
             metrics_by_type[t]["count"] += 1
-            metrics_by_type[t]["recall"] += r["retrieval_recall"]
-            metrics_by_type[t]["acc"] += r["answer_accuracy"]
-            metrics_by_type[t]["prec"] += r["citation_precision"]
-            metrics_by_type[t]["llm"] += r.get("llm_score", 0)
-            
+            if t == "unanswerable":
+                metrics_by_type[t]["refusal"] = metrics_by_type[t].get("refusal", 0) + (r["refusal_correct"] or 0)
+            else:
+                metrics_by_type[t]["recall"] += r["retrieval_recall"]
+                metrics_by_type[t]["acc"] += r["answer_accuracy"]
+                metrics_by_type[t]["prec"] += r["citation_precision"]
+                metrics_by_type[t]["llm"] += r.get("llm_score", 0)
+
     print("\n" + "="*50)
     print("BENCHMARK SUMMARY")
     print("="*50)
@@ -201,6 +257,12 @@ async def run_benchmark(test_set_path: str):
         print(f"Citation Precision: {metrics_by_type[t]['prec'] / count * 100:.2f}%")
         if t == "synthesis":
             print(f"LLM Judge Score:    {metrics_by_type[t]['llm'] / count:.2f}/10")
+
+    unans_count = metrics_by_type["unanswerable"]["count"]
+    if unans_count > 0:
+        print(f"--- UNANSWERABLE ({unans_count} questions) ---")
+        print(f"Correctly declined/flagged: {metrics_by_type['unanswerable']['refusal'] / unans_count * 100:.2f}%")
+
     print(f"\nDetailed results saved to: {csv_file_path}")
 
 if __name__ == "__main__":
