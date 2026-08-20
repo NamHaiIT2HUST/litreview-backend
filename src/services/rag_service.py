@@ -43,6 +43,10 @@ logger = logging.getLogger(__name__)
 MIN_RELEVANCE_SCORE = 2
 # PaperQA2 uses answer_max_sources=5. We increase to 10 so multiple papers can fit in the context.
 MAX_CONTEXT_CHUNKS = 10
+# Grounding-sensitive steps (MAP scoring, REDUCE synthesis, structured citation
+# extraction) need run-to-run consistency, not creative variation — keep this
+# near 0 rather than inheriting the chat-oriented llm_temperature default.
+GROUNDED_TEMPERATURE = 0.1
 
 
 
@@ -186,7 +190,8 @@ _REDUCE_SYSTEM = (
     "STRICT GROUNDING RULE — MANDATORY:\n"
     "- You MUST NOT use any external knowledge. All claims MUST be grounded in the provided context.\n"
     "- You MUST ONLY use the information explicitly stated in the provided excerpts.\n"
-    "- If the provided excerpts do not contain the answer, you MUST decline to answer and state that the information is not found in the documents.\n\n"
+    "- Answer using whatever relevant information the excerpts DO contain, even if it only covers part of the question — do not decline just because coverage is partial.\n"
+    "- Only decline entirely, and state that the information is not found in the documents, if NONE of the excerpts are relevant to the question at all.\n\n"
     "FORMATTING RULE — MANDATORY:\n"
     "- Use Markdown extensively to structure your answer hierarchically.\n"
     "- ALWAYS break your answer down into clear numbered sections (e.g., 1. Định nghĩa Toán học / Mathematical Definition, 2. Ý nghĩa & Tính chất / Properties & Intuition, 3. Các dạng phổ biến / Common Forms, 4. Ứng dụng / Applications).\n"
@@ -217,8 +222,11 @@ _REDUCE_HUMAN = (
     "Question: {question}\n\n"
     "Write a comprehensive, deep, and textbook-style structured answer that synthesizes information from across ALL the provided contexts."
     " Your answer should be highly detailed (acting like a comprehensive study guide). Break it down into clear logical sections (e.g. Definition, Intuition, Properties, Forms/Applications).\n"
-    " If the context provides insufficient information or does not contain the answer,"
-    " you MUST immediately reply \"Tôi không thể trả lời câu hỏi này dựa trên tài liệu. / I cannot answer this based on the provided documents.\" and STOP.\n"
+    " If the context contains information that answers the question — even partially, or only some"
+    " aspects of it — you MUST write an answer using that information. Do not refuse just because"
+    " one detail is missing; answer what the context supports and note what it doesn't cover.\n"
+    " Only if NONE of the provided excerpts are relevant to the question at all, immediately reply"
+    " \"Tôi không thể trả lời câu hỏi này dựa trên tài liệu. / I cannot answer this based on the provided documents.\" and STOP.\n"
     " For each part of your answer, indicate which sources most support it"
     " via citation keys at the end of sentences.\n"
     " Only cite from the context above and only use the citation keys from 'Valid Keys'.\n"
@@ -287,6 +295,17 @@ class RAGService:
                 )
         return self._llm
 
+    @property
+    def grounded_llm(self):
+        """Low-temperature view of `llm` for grounding-sensitive steps (MAP
+        evidence scoring, REDUCE answer synthesis, structured citation
+        extraction) where run-to-run consistency matters more than creative
+        variation. Mirrors the synthesis pipeline's synthesis_temperature=0.0
+        convention (see config.py), which `llm_temperature`'s 0.7 default
+        never adopted for this file's grounding-heavy chains.
+        """
+        return self.llm.bind(temperature=GROUNDED_TEMPERATURE)
+
     # -----------------------------------------------------------------------
     # Helpers
     # -----------------------------------------------------------------------
@@ -351,7 +370,7 @@ class RAGService:
         """Score and summarise one chunk. Returns (citation_key, ChunkSummary).
         PaperQA2-inspired: passes paper_title to MAP prompt so LLM understands source context.
         """
-        chain = MAP_PROMPT | self.llm | StrOutputParser()
+        chain = MAP_PROMPT | self.grounded_llm | StrOutputParser()
         raw = await chain.ainvoke({
             "citation_key": citation_key,
             "source_name": source_name,
@@ -459,7 +478,7 @@ class RAGService:
         # PaperQA2 CONTEXT_OUTER_PROMPT pattern: context_str + "Valid Keys: key1, key2..."
         valid_keys = ", ".join(f"[{ckey}]" for ckey, _ in scored)
 
-        reduce_chain = REDUCE_PROMPT | self.llm | StrOutputParser()
+        reduce_chain = REDUCE_PROMPT | self.grounded_llm | StrOutputParser()
         answer = await reduce_chain.ainvoke({
             "context": context_str,
             "valid_keys": valid_keys,
@@ -581,7 +600,7 @@ class RAGService:
         context_str = "\n\n".join(context_lines)
         valid_keys = ", ".join(f"[{ckey}]" for ckey, _ in scored)
 
-        reduce_chain = REDUCE_PROMPT | self.llm | StrOutputParser()
+        reduce_chain = REDUCE_PROMPT | self.grounded_llm | StrOutputParser()
         answer = await reduce_chain.ainvoke({
             "context": context_str,
             "valid_keys": valid_keys,
@@ -668,7 +687,7 @@ class RAGService:
             ),
             input_variables=["context", "question"],
         )
-        chain = structured_prompt | self.llm | StrOutputParser()
+        chain = structured_prompt | self.grounded_llm | StrOutputParser()
         raw = await chain.ainvoke({"context": context_str, "question": query})
         cleaned = raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
         try:
