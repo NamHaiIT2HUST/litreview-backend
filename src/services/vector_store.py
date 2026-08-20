@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from typing import List
 
 from langchain_chroma import Chroma
@@ -54,27 +55,58 @@ class LightweightHashEmbeddings(Embeddings):
         return [value / norm for value in vector]
 
 
+class ResilientEmbeddings(Embeddings):
+    """Wrapper that catches primary embedding provider errors and falls back safely."""
+
+    def __init__(self, primary: Embeddings, fallback: Embeddings | None = None):
+        self.primary = primary
+        self.fallback = fallback or LightweightHashEmbeddings()
+        self._failed = False
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        if self._failed:
+            return self.fallback.embed_documents(texts)
+        try:
+            return self.primary.embed_documents(texts)
+        except Exception as exc:
+            logging.getLogger(__name__).warning("Primary embedding provider failed; falling back to local hash embeddings: %s", exc)
+            self._failed = True
+            return self.fallback.embed_documents(texts)
+
+    def embed_query(self, text: str) -> list[float]:
+        if self._failed:
+            return self.fallback.embed_query(text)
+        try:
+            return self.primary.embed_query(text)
+        except Exception as exc:
+            logging.getLogger(__name__).warning("Primary embedding query failed; falling back to local hash embeddings: %s", exc)
+            self._failed = True
+            return self.fallback.embed_query(text)
+
+
 class VectorStoreService:
     def __init__(self):
         settings = get_settings()
-        gemini_key = getattr(settings, "gemini_api_key", "") or getattr(
-            settings, "google_api_key", ""
-        )
+        gemini_key = settings.effective_gemini_api_key
 
         # Pick the embedding provider the caller configured. If its key is
-        # missing, keep the app bootable with a lightweight offline fallback
-        # so local smoke tests still work.
+        # missing or throws error, keep the app robust with a lightweight fallback.
         if should_use_gemini_embeddings(settings):
-            self.embeddings = GoogleGenerativeAIEmbeddings(
-                model=settings.embedding_model,
+            model_name = settings.embedding_model
+            if model_name.startswith("models/"):
+                model_name = model_name.replace("models/", "")
+            primary = GoogleGenerativeAIEmbeddings(
+                model=model_name,
                 google_api_key=gemini_key,
             )
+            self.embeddings = ResilientEmbeddings(primary)
         elif should_use_openai_embeddings(settings):
-            self.embeddings = OpenAIEmbeddings(
+            primary = OpenAIEmbeddings(
                 model=settings.embedding_model,
                 api_key=settings.openai_api_key,
                 base_url=settings.get_api_base or None,
             )
+            self.embeddings = ResilientEmbeddings(primary)
         else:
             self.embeddings = LightweightHashEmbeddings()
 
@@ -82,8 +114,9 @@ class VectorStoreService:
         if "persist_directory" in chroma_kwargs and not chroma_kwargs["persist_directory"]:
             chroma_kwargs["persist_directory"] = CHROMA_PERSIST_DIR
 
+        provider_suffix = (getattr(settings, "embedding_provider", "local") or "local").lower()
         self.vector_store = Chroma(
-            collection_name="litreview_papers_v2",
+            collection_name=f"litreview_papers_{provider_suffix}_v3",
             embedding_function=self.embeddings,
             **chroma_kwargs,
         )

@@ -109,7 +109,7 @@ export default function ChatPanel({
                       a: ({node, href, children, ...props}) => {
                         if (href?.startsWith('#cite-')) {
                           const citeId = href.replace('#cite-', '');
-                          const citeObj = msg.citations?.find(c => c.key === citeId) || msg.context_used?.find(c => c.key === citeId);
+                          const citeObj = msg.citations?.find(c => String(c.key) === String(citeId)) || msg.context_used?.find(c => String(c.key) === String(citeId));
                           return (
                               <CitationChip
                                 key={citeId}
@@ -139,7 +139,19 @@ export default function ChatPanel({
                       }
                     }}
                   >
-                    {msg.text.replace(/\[(\d+)\]/g, '[[$1]](#cite-$1)')}
+                    {(() => {
+                      if (!msg.text) return '';
+                      // 1. Expand multi-citations like [1, 2] or [1,2, 3] -> [1][2][3]
+                      let formatted = msg.text.replace(/\[([\d\s,]+)\]/g, (match, inner) => {
+                        const nums = inner.split(',').map(n => n.trim()).filter(n => /^\d+$/.test(n));
+                        if (nums.length > 1) {
+                          return nums.map(n => `[${n}]`).join('');
+                        }
+                        return match;
+                      });
+                      // 2. Linkify [1] -> [[1]](#cite-1)
+                      return formatted.replace(/\[(\d+)\]/g, '[[$1]](#cite-$1)');
+                    })()}
                   </ReactMarkdown>
                 )}
               </div>

@@ -40,6 +40,8 @@ paper-qa-2026.08.12/
 *.db
 *.sqlite3
 CHANGE_REQUEST/
+asta-plugins-main/
+agent-baselines-main/
 
 # Logs
 logs/

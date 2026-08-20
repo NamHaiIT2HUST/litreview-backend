@@ -3,7 +3,7 @@ import ChatPanel from './ChatPanel';
 import VerificationPanel from './VerificationPanel';
 import { persistedDirectUploadSources } from '../../utils/workspaceSources';
 import SynthesisPanel from './SynthesisPanel';
-import StudioPanel from './StudioPanel';
+import DataAnalysisPanel from './DataAnalysisPanel';
 import { reconcileSelectedPaperIds, selectedPapersFromIds } from '../../utils/workspaceScope';
 import { useLanguage } from '../../contexts/LanguageContext';
 import {
@@ -20,6 +20,8 @@ import {
   PanelLeftClose,
   PanelLeft,
   Plus,
+  BarChart2,
+  MessageSquare,
 } from 'lucide-react';
 
 import { API_BASE } from '../../utils/apiConfig';
@@ -248,13 +250,21 @@ export default function WorkspaceTab({
   }, [papers, selectedPapers, workspacePapers]);
 
   React.useEffect(() => {
-    setSelectedPaperIds((current) => reconcileSelectedPaperIds(current, allSources, false));
+    setSelectedPaperIds((current) => {
+      if (!current || current.length === 0) {
+        return allSources.map((p) => p.id);
+      }
+      return reconcileSelectedPaperIds(current, allSources, false);
+    });
   }, [allSources]);
 
-  const scopedPapers = React.useMemo(
-    () => selectedPapersFromIds(allSources, selectedPaperIds),
-    [allSources, selectedPaperIds],
-  );
+  const scopedPapers = React.useMemo(() => {
+    if (!selectedPaperIds || selectedPaperIds.length === 0) {
+      return allSources;
+    }
+    const selected = selectedPapersFromIds(allSources, selectedPaperIds);
+    return selected.length > 0 ? selected : allSources;
+  }, [allSources, selectedPaperIds]);
 
   // Upload Logic
   const uploadFiles = async (files) => {
@@ -467,12 +477,14 @@ export default function WorkspaceTab({
       </div>
 
       {/* ── RIGHT: Active Workspace Panel ── */}
-      <div className={`flex-1 flex gap-5 h-full min-h-0 overflow-hidden`}>
-        {/* Main Content Area (Chat/Synthesis) */}
+      <div className="flex-1 flex gap-5 h-full min-h-0 overflow-hidden relative">
+        {/* Main Content Area (Chat/Synthesis) — chiếm toàn bộ chiều rộng */}
         <div className={`flex-1 rounded-3xl border flex flex-col overflow-hidden shadow-sm transition-all ${
             darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
           }`}>
+            {/* ── Tab Header: 3 tabs (Asta-style underline) ── */}
             <div className={`flex items-center justify-between px-5 h-[56px] border-b shrink-0 ${darkMode ? 'border-slate-800' : 'border-slate-100'}`}>
+              {/* Left: title + clear-chat button */}
               <div className="flex items-center gap-3">
                 <span className="text-[14px] font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
                   <Sparkles className="w-4 h-4 text-blue-500" />
@@ -501,20 +513,33 @@ export default function WorkspaceTab({
                   </button>
                 )}
               </div>
-              <div className={`flex rounded-xl p-1 shadow-inner ${darkMode ? 'bg-slate-950' : 'bg-slate-100'}`}>
+
+              {/* Right: 3-tab switcher (underline style, inspired by Asta) */}
+              <div className="flex items-stretch h-full gap-1">
                 {[
-                  ['chat', t('workspace.chat_title'), Bot, t('workspace.chat_desc')],
-                  ['synthesis', t('workspace.synthesis_title'), Sparkles, t('workspace.synthesis_desc')],
-                ].map(([id, label, Icon, title]) => (
-                  <button key={id} type="button" title={title} onClick={() => setActiveWorkspaceTab(id)} className={`px-4 py-1.5 rounded-lg text-[13px] font-bold flex items-center gap-2 transition-all ${activeWorkspaceTab === id ? 'bg-white text-blue-600 shadow dark:bg-slate-800 dark:text-blue-400' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
-                    <Icon className="w-4 h-4" />{label}
+                  { id: 'chat',     label: 'Chat với nguồn',        Icon: MessageSquare },
+                  { id: 'synthesis', label: 'Tổng quan tài liệu',     Icon: BookOpen     },
+                  { id: 'analyze',  label: 'Phân tích dữ liệu',     Icon: BarChart2     },
+                ].map(({ id, label, Icon }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setActiveWorkspaceTab(id)}
+                    className={`relative px-3.5 py-1 text-[13px] font-semibold flex items-center gap-1.5 transition-colors border-b-2 ${
+                      activeWorkspaceTab === id
+                        ? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'
+                        : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">{label}</span>
                   </button>
                 ))}
               </div>
             </div>
             
             <div className="flex-1 min-h-0 flex flex-col">
-              {activeWorkspaceTab === 'chat' ? (
+              {activeWorkspaceTab === 'chat' && (
                 <ChatPanel
                   workspacePapers={scopedPapers}
                   chatMessages={chatMessages}
@@ -523,18 +548,24 @@ export default function WorkspaceTab({
                   setActiveCitation={setActiveCitation}
                   darkMode={darkMode}
                 />
-              ) : (
+              )}
+              {activeWorkspaceTab === 'synthesis' && (
                 <SynthesisPanel
                   workspacePapers={scopedPapers}
                   setActiveCitation={setActiveCitation}
                   darkMode={darkMode}
                 />
               )}
+              {activeWorkspaceTab === 'analyze' && (
+                <DataAnalysisPanel
+                  darkMode={darkMode}
+                />
+              )}
             </div>
           </div>
 
-        {/* Verification Sidebar OR Studio Panel */}
-        {activeCitation ? (
+        {/* Citation Verification Panel — slide-in overlay từ phải khi user click citation */}
+        {activeCitation && (
           <div className="w-[380px] shrink-0 h-full overflow-hidden rounded-3xl border shadow-sm bg-white dark:bg-slate-900 dark:border-slate-800 border-slate-200 transition-all animate-in slide-in-from-right-4 duration-300">
             <VerificationPanel
               activeCitation={activeCitation}
@@ -542,11 +573,6 @@ export default function WorkspaceTab({
               onClose={() => setActiveCitation(null)}
             />
           </div>
-        ) : (
-          <StudioPanel 
-            workspacePapers={scopedPapers}
-            darkMode={darkMode}
-          />
         )}
       </div>
       </div>

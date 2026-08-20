@@ -23,6 +23,7 @@ import uuid
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query, UploadFile, File, Form
+from pydantic import BaseModel, Field
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -820,50 +821,95 @@ async def test_vector_search(query: str = Query(...)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/workspace/chat", response_model=WorkspaceChatResponse)
-async def workspace_chat(request: WorkspaceChatRequest) -> WorkspaceChatResponse:
+async def workspace_chat(
+    request: WorkspaceChatRequest,
+    db: AsyncSession = Depends(get_db),
+) -> WorkspaceChatResponse:
     """
     Chat với trợ lý AI về các bài báo đã tải lên (RAG chuẩn NotebookLM).
     """
     try:
 
         # --- LUỒNG RAG TRUYỀN THỐNG (SUPER FAST) ---
-        # Bước 1: Tìm kiếm tài liệu liên quan trong ChromaDB với fallback tự động
+        # Bước 1: Xác định danh sách paper_ids mục tiêu
         target_pids = request.paper_ids if getattr(request, "paper_ids", None) else ([request.paper_id] if getattr(request, "paper_id", None) else [])
         
+        # Nếu frontend không truyền paper_ids (hoặc rỗng), tự động lấy tất cả paper trong workspace
+        if not target_pids:
+            try:
+                all_papers_result = await db.execute(
+                    select(Paper.id).where(
+                        (Paper.screening_decision.in_(["keep", "maybe"])) | (Paper.source == "direct_upload")
+                    )
+                )
+                target_pids = [str(r[0]) for r in all_papers_result.fetchall()]
+            except Exception:
+                target_pids = []
+
         chunks = []
+        from sqlalchemy import String
+        from langchain_core.documents import Document
+
         if target_pids:
-            from sqlalchemy import String
             for pid in target_pids:
                 pid_str = str(pid).strip()
-                res_chunks = await vector_store_service.search_similar_documents(
-                    request.message, top_k=8, filters={"paper_id": pid_str}
-                )
-                if res_chunks:
-                    chunks.extend(res_chunks)
-                else:
+                try:
+                    res_chunks = await vector_store_service.search_similar_documents(
+                        request.message, top_k=8, filters={"paper_id": pid_str}
+                    )
+                    if res_chunks:
+                        chunks.extend(res_chunks)
+                except Exception:
+                    pass
+
+                # Fallback 1: Trực tiếp lấy PDFChunks từ database nếu vector store chưa có hoặc lỗi
+                if not any(str(c.metadata.get("paper_id")) == pid_str for c in chunks):
+                    try:
+                        from src.models.db_models import PDFChunk, PageText
+                        stmt_db_chunks = (
+                            select(PDFChunk, PageText.page_number, Paper.file_path, Paper.title)
+                            .join(PageText, PDFChunk.page_text_id == PageText.id)
+                            .join(Paper, PDFChunk.paper_id == Paper.id)
+                            .where((Paper.id.cast(String) == pid_str) | (Paper.title.ilike(f"%{pid_str}%")))
+                            .order_by(PDFChunk.chunk_index)
+                            .limit(10)
+                        )
+                        db_rows = (await db.execute(stmt_db_chunks)).fetchall()
+                        for chunk_row, page_num, file_path, title in db_rows:
+                            doc = Document(
+                                page_content=chunk_row.chunk_text,
+                                metadata={
+                                    "paper_id": pid_str,
+                                    "page_text_id": str(chunk_row.page_text_id),
+                                    "chunk_id": str(chunk_row.id),
+                                    "ingestion_id": str(chunk_row.ingestion_id),
+                                    "page": page_num,
+                                    "chunk_index": chunk_row.chunk_index,
+                                    "page_char_start": chunk_row.page_char_start,
+                                    "page_char_end": chunk_row.page_char_end,
+                                    "source": str(file_path) if file_path else f"paper_{pid_str}.pdf",
+                                    "paper_title": str(title) if title else "Unknown Title"
+                                }
+                            )
+                            chunks.append(doc)
+                    except Exception:
+                        pass
+
+                # Fallback 2: Lấy metadata và Abstract của paper từ DB
+                if not any(str(c.metadata.get("paper_id")) == pid_str for c in chunks):
                     stmt = select(Paper).where(
                         (Paper.id.cast(String) == pid_str) | (Paper.title.ilike(f"%{pid_str}%")) | (Paper.dedup_key.ilike(f"%{pid_str}%"))
                     )
                     paper = (await db.execute(stmt)).scalars().first()
                     if paper:
-                        if paper.active_ingestion_id is None:
-                            try:
-                                from src.services.ingestion_service import ensure_paper_ingested
-                                await ensure_paper_ingested(db, paper)
-                            except Exception:
-                                pass
-                        res_chunks = await vector_store_service.search_similar_documents(
-                            request.message, top_k=8, filters={"paper_id": str(paper.id)}
-                        )
-                        if res_chunks:
-                            chunks.extend(res_chunks)
-                        else:
-                            from langchain_core.documents import Document
-                            text = f"Title: {paper.title}\nAuthors: {paper.authors}\nJournal: {paper.journal or 'N/A'} ({paper.year or 'N/A'})\nAbstract: {paper.abstract or 'No abstract'}"
-                            doc = Document(page_content=text, metadata={"paper_id": str(paper.id), "paper_title": paper.title})
-                            chunks.append(doc)
+                        text = f"Title: {paper.title}\nAuthors: {paper.authors}\nJournal: {paper.journal or 'N/A'} ({paper.year or 'N/A'})\nAbstract: {paper.abstract or 'No abstract available'}"
+                        doc = Document(page_content=text, metadata={"paper_id": str(paper.id), "paper_title": paper.title, "page": 1, "source": paper.file_path or f"paper_{paper.id}.pdf"})
+                        chunks.append(doc)
         else:
-            chunks = await vector_store_service.search_similar_documents(request.message, top_k=8, filters=None)
+            try:
+                chunks = await vector_store_service.search_similar_documents(request.message, top_k=8, filters=None)
+            except Exception:
+                chunks = []
 
         # Bước 2: Sinh câu trả lời dựa trên context (có structured citation metadata)
         result = await rag_service.generate_answer_with_citations(request.message, chunks)
@@ -878,6 +924,95 @@ async def workspace_chat(request: WorkspaceChatRequest) -> WorkspaceChatResponse
         import logging
         logging.getLogger(__name__).exception("Error in workspace_chat")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Tab "Phân tích dữ liệu" — Data Analysis endpoint
+# ──────────────────────────────────────────────────────────────────────────────
+
+class DataAnalysisRequest(BaseModel):
+    question: str
+    csv_text: str = ""
+    filename: str = ""
+
+class DataAnalysisResponse(BaseModel):
+    answer: str
+
+@router.post("/workspace/analyze-data", response_model=DataAnalysisResponse)
+async def workspace_analyze_data(request: DataAnalysisRequest) -> DataAnalysisResponse:
+    """
+    Tab 'Phân tích dữ liệu': nhận câu hỏi + nội dung CSV/TSV (tuỳ chọn),
+    trả về phân tích bằng LLM. Không yêu cầu RAG hay vector store.
+    """
+    import os, logging
+    logger = logging.getLogger(__name__)
+
+    question = request.question.strip()
+    if not question:
+        raise HTTPException(status_code=422, detail="Câu hỏi không được để trống.")
+
+    # Xây dựng prompt
+    if request.csv_text.strip():
+        # Giới hạn kích thước để không vượt context window
+        preview = request.csv_text.strip()[:12000]
+        truncated = len(request.csv_text) > 12000
+        truncation_note = "\n[Dữ liệu đã được cắt bớt do quá dài — chỉ hiển thị 12.000 ký tự đầu tiên]" if truncated else ""
+        fname = f" (tệp: {request.filename})" if request.filename else ""
+        prompt = (
+            f"Bạn là chuyên gia phân tích dữ liệu nghiên cứu học thuật.\n"
+            f"Người dùng đã cung cấp tập dữ liệu{fname} với nội dung sau:\n\n"
+            f"```\n{preview}{truncation_note}\n```\n\n"
+            f"Câu hỏi của người dùng: {question}\n\n"
+            f"Hãy trả lời chi tiết, chính xác, dùng Markdown (bảng, bullet, code nếu cần). "
+            f"Nếu dữ liệu thiếu thông tin để trả lời, hãy giải thích cụ thể phần nào còn thiếu."
+        )
+    else:
+        prompt = (
+            f"Bạn là chuyên gia phân tích dữ liệu nghiên cứu học thuật.\n"
+            f"Câu hỏi: {question}\n\n"
+            f"Trả lời chi tiết, dùng Markdown (bảng, bullet, công thức nếu cần). "
+            f"Nếu câu hỏi cần dữ liệu cụ thể, hãy hướng dẫn người dùng upload tệp CSV/TSV bằng biểu tượng kẹp giấy."
+        )
+
+    try:
+        from src.config import get_settings
+        settings = get_settings()
+        api_key = (
+            getattr(settings, "effective_gemini_api_key", "")
+            or getattr(settings, "gemini_api_key", "")
+            or os.getenv("GEMINI_API_KEY", "")
+        )
+
+        if api_key:
+            from google import genai
+            from google.genai import types
+            client = genai.Client(api_key=api_key)
+            config = types.GenerateContentConfig(
+                thinking_config=types.ThinkingConfig(thinking_budget=0)
+            )
+            for model in ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-flash-latest"]:
+                try:
+                    res = await client.aio.models.generate_content(
+                        model=model, contents=prompt, config=config
+                    )
+                    if res and res.text:
+                        return DataAnalysisResponse(answer=res.text.strip())
+                except Exception:
+                    continue
+
+        # Fallback: synthesis_llm_service
+        from src.services.synthesis_llm_service import synthesis_llm_service
+        llm = synthesis_llm_service._get_llm()
+        msg = await llm.ainvoke([("human", prompt)])
+        content = msg.content if hasattr(msg, "content") else str(msg)
+        if isinstance(content, list):
+            content = "".join(part.get("text", "") for part in content if isinstance(part, dict))
+        return DataAnalysisResponse(answer=str(content).strip() or "Không có kết quả.")
+
+    except Exception as exc:
+        logger.exception("Error in workspace_analyze_data")
+        raise HTTPException(status_code=500, detail=str(exc))
+
 
 @router.post("/workspace/evidence-coords", response_model=EvidenceCoordsResponse)
 async def get_evidence_coords(

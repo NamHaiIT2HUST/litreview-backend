@@ -39,12 +39,15 @@ class Settings(BaseSettings):
 
     @property
     def effective_gemini_api_key(self) -> str:
+        import random
         raw = self.gemini_api_key or self.google_api_key or os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEYS") or ""
         tokens = [t.strip() for t in raw.split(",") if t.strip()]
-        for token in tokens:
-            if token.startswith("AIzaSy"):
-                return token
-        return tokens[0] if tokens else ""
+        if not tokens:
+            return ""
+        aiza_tokens = [t for t in tokens if t.startswith("AIzaSy")]
+        if aiza_tokens:
+            return random.choice(aiza_tokens)
+        return random.choice(tokens)
 
     @property
     def get_api_base(self) -> str:

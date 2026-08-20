@@ -89,7 +89,10 @@ async def run_review(payload: SLRRunRequest) -> SLRRunResponse:
         error=state.get("error", ""),
     )
 
-# ----------------- DECOUPLED ENDPOINTS (NEW) -----------------
+# ----------------- STUDIO PANEL ENDPOINTS (DISABLED) -----------------
+# Các endpoint sau đây phục vụ panel "AI Studio (Agent 2-5)" đã bị xóa khỏi UI.
+# Giữ lại schemas và code để dễ rollback. Route trả 410 Gone.
+
 class SetupRequest(BaseModel):
     idea: str
     research_field: str = ""
@@ -104,25 +107,10 @@ class SetupResponse(BaseModel):
     trace: list[dict] = []
     error: str = ""
 
-@router.post("/step1-setup", response_model=SetupResponse)
-async def step1_setup(payload: SetupRequest) -> SetupResponse:
-    deps = build_default_deps(use_real_llm=_is_real())
-    corpus_records = [PaperRecord(**c) for c in payload.corpus] if payload.corpus else []
-    state = await run_gap_finder({
-        "idea": payload.idea,
-        "research_field": payload.research_field,
-        "criteria_include": payload.criteria_include,
-        "criteria_exclude": payload.criteria_exclude,
-        "corpus": corpus_records,
-        "warnings": []
-    }, deps)
-    return SetupResponse(
-        pico=_dump(state.get("pico")),
-        gap_map=_dump(state.get("gap_map")),
-        warnings=state.get("warnings", []),
-        trace=state.get("trace", []),
-        error=state.get("error", "")
-    )
+@router.post("/step1-setup", include_in_schema=False)
+async def step1_setup(payload: SetupRequest):
+    """[DISABLED] Gap Map — AI Studio panel removed from UI."""
+    raise HTTPException(status_code=410, detail="AI Studio panel đã bị xóa khỏi giao diện.")
 
 class ScopeRequest(BaseModel):
     idea: str
@@ -146,7 +134,7 @@ async def generate_criteria(payload: CriteriaRequest) -> CriteriaGenerationResul
 class SearchRequest(BaseModel):
     idea: str
     pico: dict
-    corpus: list[dict] = Field(default_factory=list) # Add existing corpus so Snowball can expand it!
+    corpus: list[dict] = Field(default_factory=list)
 
 class SearchResponse(BaseModel):
     corpus: list[dict] = []
@@ -155,23 +143,10 @@ class SearchResponse(BaseModel):
     trace: list[dict] = []
     error: str = ""
 
-@router.post("/step2-search", response_model=SearchResponse)
-async def step2_search(payload: SearchRequest) -> SearchResponse:
-    deps = build_default_deps(use_real_llm=_is_real())
-    pico = PICOFrame(**payload.pico) if payload.pico else None
-    
-    # If the user already provided a corpus (from manual search), we feed it into state so Agent 2 can expand it.
-    initial_corpus = [PaperRecord(**c) for c in payload.corpus] if payload.corpus else []
-    
-    state = await run_snowball({"idea": payload.idea, "pico": pico, "corpus": initial_corpus, "warnings": []}, deps)
-    corpus_dicts = [_dump(p) for p in state.get("corpus", [])]
-    return SearchResponse(
-        corpus=corpus_dicts,
-        seed_ids=state.get("seed_ids", []),
-        warnings=state.get("warnings", []),
-        trace=state.get("trace", []),
-        error=state.get("error", "")
-    )
+@router.post("/step2-search", include_in_schema=False)
+async def step2_search(payload: SearchRequest):
+    """[DISABLED] Snowballing — AI Studio panel removed from UI."""
+    raise HTTPException(status_code=410, detail="AI Studio panel đã bị xóa khỏi giao diện.")
 
 class DraftRequest(BaseModel):
     idea: str
@@ -192,65 +167,20 @@ class DraftResponse(BaseModel):
     trace: list[dict] = []
     error: str = ""
 
-@router.post("/step3-draft", response_model=DraftResponse)
-async def step3_draft(payload: DraftRequest) -> DraftResponse:
-    deps = build_default_deps(use_real_llm=_is_real())
-    pico = PICOFrame(**payload.pico) if payload.pico else None
-    corpus = [PaperRecord(**c) for c in payload.corpus]
-    
-    state = {
-        "idea": payload.idea,
-        "pico": pico,
-        "corpus": corpus,
-        "inclusion_criteria": payload.inclusion_criteria,
-        "exclusion_criteria": payload.exclusion_criteria,
-        "warnings": [],
-        "started_at": time.monotonic()
-    }
-    
-    state = await run_peer_screener(state, deps)
-    if state.get("error"):
-        return DraftResponse(error=state["error"])
-        
-    state = await run_prisma_drafter(state, deps)
-    if state.get("error"):
-        return DraftResponse(error=state["error"])
-        
-    kpi = compute_kpi(state, deps)
-    draft = state.get("draft")
-    
-    return DraftResponse(
-        included_ids=state.get("included_ids", []),
-        grounding_precision=state.get("grounding_precision", 0.0),
-        prisma_rows=[row.model_dump() for row in state.get("prisma_rows", [])],
-        latex=draft.latex if draft else "",
-        bibtex=draft.bibtex if draft else "",
-        kpi=kpi,
-        cost_saved_usd=estimated_cost_saved(kpi) if kpi else 0.0,
-        warnings=state.get("warnings", []),
-        trace=state.get("trace", [])
-    )
+@router.post("/step3-draft", include_in_schema=False)
+async def step3_draft(payload: DraftRequest):
+    """[DISABLED] PRISMA + LaTeX drafter — AI Studio panel removed from UI."""
+    raise HTTPException(status_code=410, detail="AI Studio panel đã bị xóa khỏi giao diện.")
 
-# ----------------- DATA ANALYSIS (Agent 5) -----------------
+# ----------------- DATA ANALYSIS (Agent 5 — DISABLED) -----------------
 class DataAnalysisRequest(BaseModel):
     csv_text: str = Field(min_length=1)
     goal: str = ""
 
-@router.post("/analyze")
-async def run_analysis(payload: DataAnalysisRequest) -> dict:
-    """Luồng 2 — profile dữ liệu, gợi ý phương pháp và sinh code phân tích."""
-    deps = build_default_deps(use_real_llm=_is_real())
-    state = await run_data_analysis(payload.csv_text, payload.goal, deps)
-
-    if state.get("error"):
-        raise HTTPException(status_code=422, detail=state["error"])
-
-    return {
-        "profile": _dump(state.get("profile")),
-        "plan": _dump(state.get("plan")),
-        "warnings": state.get("warnings", []),
-        "trace": state.get("trace", []),
-    }
+@router.post("/analyze", include_in_schema=False)
+async def run_analysis(payload: DataAnalysisRequest):
+    """[DISABLED] CSV Data Copilot (Agent 5) — AI Studio panel removed from UI."""
+    raise HTTPException(status_code=410, detail="AI Studio panel đã bị xóa khỏi giao diện.")
 
 
 # ----------------- CITATION GENEALOGY (Agent 1: Smart Snowballing) -----------------

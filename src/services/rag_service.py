@@ -259,7 +259,7 @@ class RAGService:
 
         if (provider == "gemini" or not openai_key) and gemini_key:
             from langchain_google_genai import ChatGoogleGenerativeAI
-            model_name = settings.model_name if settings.model_name.startswith("gemini-") else "gemini-3.6-flash"
+            model_name = settings.model_name if settings.model_name.startswith("gemini-") else "gemini-flash-latest"
             return ChatGoogleGenerativeAI(
                 model=model_name,
                 google_api_key=gemini_key,
@@ -279,12 +279,9 @@ class RAGService:
             )
         elif gemini_key:
             from langchain_google_genai import ChatGoogleGenerativeAI
+            model_name = settings.model_name if settings.model_name.startswith("gemini-") else "gemini-flash-latest"
             return ChatGoogleGenerativeAI(
-                model=(
-                    settings.model_name
-                    if settings.model_name.startswith("gemini-")
-                    else "gemini-3.6-flash"
-                ),
+                model=model_name,
                 google_api_key=gemini_key,
                 temperature=settings.llm_temperature,
             )
@@ -566,6 +563,27 @@ class RAGService:
         scored.sort(key=lambda x: x[1].relevance_score, reverse=True)
         scored = scored[:MAX_CONTEXT_CHUNKS]
 
+        # Resilience Fallback: Nếu câu hỏi mang tính tổng quan (e.g. "tổng quan tài liệu", "tóm tắt")
+        # hoặc MAP bị lọc quá gắt, tự động dùng các chunk hàng đầu làm ngữ cảnh thay vì từ chối trả lời.
+        if not scored and chunks:
+            for i, doc in enumerate(chunks[:MAX_CONTEXT_CHUNKS]):
+                ckey = self.make_citation_key(doc, i)
+                if ckey not in key_to_meta:
+                    source = doc.metadata.get("source", "unknown")
+                    page = str(doc.metadata.get("page", "1"))
+                    paper_title = self._get_paper_title(doc)
+                    key_to_meta[ckey] = {
+                        "source": source,
+                        "page": page,
+                        "paper_title": paper_title,
+                        "paper_id": str(doc.metadata.get("paper_id", "")),
+                        "filename": os.path.basename(str(source)),
+                        "page_char_start": doc.metadata.get("page_char_start"),
+                        "page_char_end": doc.metadata.get("page_char_end"),
+                        "raw_text": doc.page_content,
+                    }
+                scored.append((ckey, ChunkSummary(summary=doc.page_content[:800], relevance_score=5)))
+
         if not scored:
             return {
                 "answer": (
@@ -584,7 +602,7 @@ class RAGService:
         for idx, (old_ckey, cs) in enumerate(scored, start=1):
             new_ckey = str(idx)
             numeric_scored.append((new_ckey, cs))
-            numeric_key_to_meta[new_ckey] = key_to_meta[old_ckey]
+            numeric_key_to_meta[new_ckey] = key_to_meta.get(old_ckey, {})
             
         scored = numeric_scored
         key_to_meta = numeric_key_to_meta

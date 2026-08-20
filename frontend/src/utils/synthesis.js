@@ -1,9 +1,10 @@
 export const DEFAULT_PROJECT_ID = '00000000-0000-0000-0000-000000000001';
 
-export function buildSynthesisRequest(workspacePapers, projectId = DEFAULT_PROJECT_ID) {
+export function buildSynthesisRequest(workspacePapers, projectId = DEFAULT_PROJECT_ID, researchQuestion = null) {
   return {
     project_id: projectId,
     paper_ids: workspacePapers.map((paper) => paper.id),
+    research_question: (researchQuestion && researchQuestion.trim()) ? researchQuestion.trim() : undefined,
   };
 }
 

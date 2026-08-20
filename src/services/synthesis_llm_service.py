@@ -98,8 +98,8 @@ def create_synthesis_llm(settings, *, gemini_cls=None, groq_cls=None, openai_cls
             gemini_cls = ChatGoogleGenerativeAI
             
         model_name = settings.synthesis_model
-        if "gpt-" in model_name or "claude-" in model_name or "llama-" in model_name or "1.5" in model_name or "2.5" in model_name:
-            model_name = "gemini-3.6-flash"
+        if not model_name.startswith("gemini-"):
+            model_name = "gemini-1.5-flash"
             
         return gemini_cls(
             model=model_name,
@@ -427,20 +427,20 @@ class SynthesisLLMService:
         return await self._invoke_structured(
             SynthesisOutlineOutput,
             system=(
-                "Build a coherent academic literature-review outline from verified synthesis claims. "
-                "Select ONLY claims directly relevant to the research question; omit unrelated claims "
-                "even when they are supported by their source. Use only supplied claim IDs and assign "
-                "each selected claim to at most one section. Choose section titles and count dynamically "
-                "from the actual themes in the verified claims; do not force a fixed four-part template. "
-                "When studies are too heterogeneous for meaningful cross-paper themes, organize them into "
-                "honest per-paper or small thematic clusters. Every paper with a supported relevant claim "
-                "must appear in at least one section. Prefer grouping verified multi-paper claims into "
-                "thematic comparative sections when their evidence supports a defensible comparison. "
-                "Do not force unrelated claims together or invent themes or background facts."
-                " Respect the supplied evidence dimensions when assigning sections: claims backed "
-                "by limitations evidence belong in a limitations/gaps section, and claims backed by "
-                "future_work evidence belong in a future-directions section. If a claim has both, "
-                "assign it once to the role most explicit in its wording."
+                "You are an expert scientific literature review synthesizer. "
+                "Build a comprehensive, multi-perspective academic literature-review outline from verified synthesis claims. "
+                "Organize sections across the 4 core academic perspectives whenever supported by claims:\n"
+                "1. Theoretical Foundations & Problem Formulation (Bối cảnh lý thuyết, mục tiêu và định nghĩa bài toán)\n"
+                "2. Methodological Approaches & Technical Innovations (Phân tích đối chiếu phương pháp, giải thuật, kỹ thuật tiếp cận)\n"
+                "3. Empirical Validation & Comparative Findings (Đánh giá thực nghiệm, tập dữ liệu, kết quả và phát hiện cốt lõi)\n"
+                "4. Critical Analysis, Research Gaps & Future Directions (Phân tích phê phán, giới hạn chưa giải quyết và hướng mở)\n\n"
+                "Rules:\n"
+                "- Select ONLY claims directly relevant to the research question.\n"
+                "- Use only supplied claim IDs and assign each selected claim to at most one section.\n"
+                "- Assign descriptive, highly academic Vietnamese section titles (e.g., '1. Cơ sở Lý thuyết & Tổng quan Bài toán', '2. Phân tích Đối chiếu Phương pháp luận & Đột phá Kỹ thuật', '3. Đánh giá Thực nghiệm & Phát hiện Cốt lõi', '4. Phân tích Phê phán & Khoảng trống Nghiên cứu').\n"
+                "- Every paper with a supported relevant claim must appear in at least one section.\n"
+                "- Group multi-paper claims into thematic comparative sections when their evidence supports a cross-paper comparison.\n"
+                "- Claims backed by limitations/gaps belong in the Critical Gaps section, and future_work in Future Directions."
             ),
             human=f"Research question:\n{research_question}\n\nVerified claims:\n{claims_context}",
         )
@@ -451,23 +451,19 @@ class SynthesisLLMService:
         research_question: str,
         section_title: str,
         claims_context: str,
-        suggested_length: str = "250-500 words",
+        suggested_length: str = "300-600 words",
     ) -> SectionDraftOutput:
         return await self._invoke_structured(
             SectionDraftOutput,
             system=(
-                "Write an academic literature-review section using only the verified claims "
-                "and evidence supplied. Return sentence-level structured output. Classify "
-                "each sentence as claim or discourse. Claim sentences state scientific facts "
-                "and must be directly entailed by their claim_ids. Discourse sentences may "
-                "connect, introduce, or summarize supplied claims, but must not add new facts; "
-                "they still list the claim_ids they derive from. Do not create citation markers."
-                " Expand each verified claim: state the synthesized claim, compare or contrast "
-                "supporting papers where possible, explain what the evidence demonstrates, and "
-                "connect the claims at section level. Aim for the suggested section length of "
-                f"{suggested_length} when the supplied evidence supports it; sparse sections may "
-                "remain shorter and must never be padded. Every factual statement must remain "
-                "grounded in the verified claims."
+                "Write an academic literature-review section in professional Vietnamese using only the verified claims "
+                "and evidence supplied. Return sentence-level structured output.\n"
+                "- Classify each sentence as claim or discourse.\n"
+                "- Claim sentences state scientific facts and must be directly entailed by their claim_ids.\n"
+                "- Discourse sentences may connect, introduce, or summarize supplied claims, but must not add new facts.\n"
+                "- Do not create citation markers (they will be injected automatically).\n"
+                "- Write in deep comparative & synthesis-oriented prose: contrast mechanisms, compare outcomes, and explain the significance of findings.\n"
+                "- Every factual statement must remain strictly grounded in the verified claims."
             ),
             human=(
                 f"Research question:\n{research_question}\n\n"

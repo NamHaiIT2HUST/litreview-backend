@@ -3,15 +3,26 @@ import { Quote, FileText, ChevronRight } from 'lucide-react';
 
 export default function CitationChip({ citeId, citeObj, onClick, darkMode, children }) {
   const [showTooltip, setShowTooltip] = useState(false);
-  const [tooltipPos, setTooltipPos] = useState('top');
+  const [placement, setPlacement] = useState({ vertical: 'bottom', horizontal: 'center' });
 
   const handleMouseEnter = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    if (rect.top < 250) {
-      setTooltipPos('bottom');
-    } else {
-      setTooltipPos('top');
+    const spaceAbove = rect.top;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceRight = window.innerWidth - rect.right;
+
+    // Prefer 'bottom' if space above is less than 300px, or if space below is larger
+    const vertical = (spaceAbove > 300 && spaceBelow < 280) ? 'top' : 'bottom';
+
+    // Prevent horizontal overflowing
+    let horizontal = 'center';
+    if (rect.left < 160) {
+      horizontal = 'left';
+    } else if (spaceRight < 160) {
+      horizontal = 'right';
     }
+
+    setPlacement({ vertical, horizontal });
     setShowTooltip(true);
   };
 
@@ -23,13 +34,34 @@ export default function CitationChip({ citeId, citeObj, onClick, darkMode, child
         onClick={onClick}
         className="inline-flex items-center justify-center px-1.5 mx-0.5 rounded text-[11px] font-bold bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/60 dark:text-blue-300 dark:hover:bg-blue-800 transition-colors shadow-sm"
       >
-        {children}
+        {children || `[${citeId}]`}
       </button>
     );
   }
 
   const title = citeObj.paper_title || 'Unknown Paper';
   const snippet = citeObj.snippet || 'Không có đoạn trích dẫn cụ thể.';
+
+  // Position classes
+  const vClass = placement.vertical === 'top' 
+    ? 'bottom-full mb-2 slide-in-from-bottom-2' 
+    : 'top-full mt-2 slide-in-from-top-2';
+
+  const hClass = placement.horizontal === 'left'
+    ? 'left-0 translate-x-0'
+    : placement.horizontal === 'right'
+    ? 'right-0 left-auto translate-x-0'
+    : 'left-1/2 -translate-x-1/2';
+
+  const arrowHClass = placement.horizontal === 'left'
+    ? 'left-4 translate-x-0'
+    : placement.horizontal === 'right'
+    ? 'right-4 left-auto translate-x-0'
+    : 'left-1/2 -translate-x-1/2';
+
+  const arrowVClass = placement.vertical === 'top'
+    ? '-bottom-1.5 border-b border-r'
+    : '-top-1.5 border-t border-l';
 
   return (
     <div 
@@ -40,29 +72,23 @@ export default function CitationChip({ citeId, citeObj, onClick, darkMode, child
       <button
         type="button"
         onClick={onClick}
-        className="inline-flex items-center gap-1 px-2 mx-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-800/60 dark:hover:bg-blue-800/60 transition-all shadow-sm active:scale-95 whitespace-nowrap"
+        className="inline-flex items-center justify-center px-1.5 py-0.5 mx-0.5 rounded text-[11px] font-bold bg-blue-100/90 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/60 dark:text-blue-300 dark:hover:bg-blue-800 border border-blue-200/80 dark:border-blue-800/60 transition-all shadow-xs active:scale-95 cursor-pointer align-baseline select-none"
+        title={title}
       >
-        <span className="bg-blue-600 text-white dark:bg-blue-500 w-4 h-4 rounded-full flex items-center justify-center text-[9px] -ml-1 shadow-sm shrink-0">
-          {citeId}
-        </span>
-        <span className="truncate max-w-[150px] leading-tight py-0.5 shrink-0">{title}</span>
+        [{citeId}]
       </button>
 
       {/* Popover / Tooltip */}
       {showTooltip && (
         <div 
-          className={`absolute z-50 left-1/2 -translate-x-1/2 w-[320px] animate-in fade-in zoom-in-95 duration-200 ease-out cursor-default text-left whitespace-normal ${
-            tooltipPos === 'top' 
-              ? 'bottom-full mb-2 slide-in-from-bottom-2' 
-              : 'top-full mt-2 slide-in-from-top-2'
-          }`}
+          className={`absolute z-50 w-[320px] max-w-[85vw] animate-in fade-in zoom-in-95 duration-150 ease-out cursor-default text-left whitespace-normal ${vClass} ${hClass}`}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Premium Container matching theme */}
-          <div className={`relative p-3.5 rounded-xl shadow-xl overflow-hidden border ${
+          {/* Container matching theme */}
+          <div className={`relative p-3.5 rounded-xl shadow-2xl overflow-hidden border ${
             darkMode 
-              ? 'bg-slate-900 border-slate-700 shadow-black/60' 
-              : 'bg-white border-slate-200 shadow-slate-300/60'
+              ? 'bg-slate-900 border-slate-700 shadow-black/80' 
+              : 'bg-white border-slate-200 shadow-slate-400/50'
           }`}>
             {/* Title */}
             <h4 className={`font-bold text-[13px] leading-snug line-clamp-2 mb-2 ${
@@ -97,14 +123,10 @@ export default function CitationChip({ citeId, citeObj, onClick, darkMode, child
           </div>
           
           {/* Tooltip Arrow/Triangle */}
-          <div className={`absolute left-1/2 -translate-x-1/2 w-3 h-3 rotate-45 transform -z-10 ${
-            tooltipPos === 'top' 
-              ? '-bottom-1.5 border-b border-r' 
-              : '-top-1.5 border-t border-l'
-            }`}
+          <div className={`absolute w-3 h-3 rotate-45 transform -z-10 ${arrowHClass} ${arrowVClass}`}
              style={{
-               backgroundColor: darkMode ? '#0f172a' : '#ffffff', // slate-900 or white
-               borderColor: darkMode ? '#334155' : '#e2e8f0'      // slate-700 or slate-200
+               backgroundColor: darkMode ? '#0f172a' : '#ffffff',
+               borderColor: darkMode ? '#334155' : '#e2e8f0'
              }}
           />
         </div>

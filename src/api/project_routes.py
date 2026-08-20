@@ -209,9 +209,7 @@ Example: ["ECG classification 1D CNN", "one-dimensional convolutional neural net
     gemini_key = x_gemini_key if isinstance(x_gemini_key, str) else ""
     gemini_key = gemini_key.strip()
     if not gemini_key:
-        gemini_key = settings.gemini_api_key.strip() if settings.gemini_api_key else ""
-    if not gemini_key:
-        gemini_key = settings.google_api_key.strip() if settings.google_api_key else ""
+        gemini_key = settings.effective_gemini_api_key
 
     keywords: list[str] = []
 
