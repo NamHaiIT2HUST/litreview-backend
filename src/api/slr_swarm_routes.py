@@ -358,22 +358,13 @@ Return ONLY a valid JSON object with EXACTLY these keys:
 }}
 """
     try:
-        from google import genai
-        from google.genai import types
         import json
-        
-        client = genai.Client(api_key=API_KEY)
-        config = types.GenerateContentConfig(
-            thinking_config=types.ThinkingConfig(thinking_budget=0)
-        )
-        # Ưu tiên dùng model thông minh nhất để phân tích sâu
-        res = await client.aio.models.generate_content(
-            model="gemini-3.5-flash",
-            contents=prompt,
-            config=config
-        )
-        
-        raw_text = res.text
+        from src.services.synthesis_llm_service import synthesis_llm_service
+        llm = synthesis_llm_service._get_llm()
+        msg = await llm.ainvoke([("human", prompt)])
+        raw_text = msg.content if hasattr(msg, "content") else str(msg)
+        if isinstance(raw_text, list):
+            raw_text = "".join(part.get("text", "") for part in raw_text if isinstance(part, dict))
         # Làm sạch JSON (loại bỏ markdown block nếu có)
         raw_text = raw_text.strip()
         if raw_text.startswith("```json"):

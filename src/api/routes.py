@@ -975,34 +975,8 @@ async def workspace_analyze_data(request: DataAnalysisRequest) -> DataAnalysisRe
         )
 
     try:
-        from src.config import get_settings
-        settings = get_settings()
-        api_key = (
-            getattr(settings, "effective_gemini_api_key", "")
-            or getattr(settings, "gemini_api_key", "")
-            or os.getenv("GEMINI_API_KEY", "")
-        )
-
-        if api_key:
-            from google import genai
-            from google.genai import types
-            client = genai.Client(api_key=api_key)
-            config = types.GenerateContentConfig(
-                thinking_config=types.ThinkingConfig(thinking_budget=0)
-            )
-            for model in ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-flash-latest"]:
-                try:
-                    res = await client.aio.models.generate_content(
-                        model=model, contents=prompt, config=config
-                    )
-                    if res and res.text:
-                        return DataAnalysisResponse(answer=res.text.strip())
-                except Exception:
-                    continue
-
-        # Fallback: synthesis_llm_service
-        from src.services.synthesis_llm_service import synthesis_llm_service
-        llm = synthesis_llm_service._get_llm()
+        from src.services.rag_service import rag_service
+        llm = rag_service.grounded_llm
         msg = await llm.ainvoke([("human", prompt)])
         content = msg.content if hasattr(msg, "content") else str(msg)
         if isinstance(content, list):

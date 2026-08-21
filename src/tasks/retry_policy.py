@@ -7,7 +7,13 @@ from __future__ import annotations
 
 
 def is_transient_synthesis_error(exc: BaseException) -> bool:
-    return isinstance(exc, (ConnectionError, TimeoutError))
+    if isinstance(exc, (ConnectionError, TimeoutError)):
+        return True
+    msg = str(exc).lower()
+    return any(term in msg for term in (
+        "409", "429", "timeout", "connection", "rate limit", "ratelimit",
+        "duplicate request", "already being processed", "resource_exhausted", "quota"
+    ))
 
 
 def should_retry_synthesis(

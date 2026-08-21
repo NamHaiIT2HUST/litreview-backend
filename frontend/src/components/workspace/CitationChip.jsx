@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Quote, FileText, ChevronRight } from 'lucide-react';
+import { Quote, FileText, ChevronRight, Calendar, BookOpen, ExternalLink, Sparkles } from 'lucide-react';
 
 export default function CitationChip({ citeId, citeObj, onClick, darkMode, children }) {
   const [showTooltip, setShowTooltip] = useState(false);
@@ -12,13 +12,13 @@ export default function CitationChip({ citeId, citeObj, onClick, darkMode, child
     const spaceRight = window.innerWidth - rect.right;
 
     // Prefer 'bottom' if space above is less than 300px, or if space below is larger
-    const vertical = (spaceAbove > 300 && spaceBelow < 280) ? 'top' : 'bottom';
+    const vertical = (spaceAbove > 320 && spaceBelow < 300) ? 'top' : 'bottom';
 
     // Prevent horizontal overflowing
     let horizontal = 'center';
-    if (rect.left < 160) {
+    if (rect.left < 180) {
       horizontal = 'left';
-    } else if (spaceRight < 160) {
+    } else if (spaceRight < 180) {
       horizontal = 'right';
     }
 
@@ -26,26 +26,30 @@ export default function CitationChip({ citeId, citeObj, onClick, darkMode, child
     setShowTooltip(true);
   };
 
-  // If we couldn't find the citation object, just render a fallback button
+  // If we couldn't find the citation object, render a fallback badge
   if (!citeObj) {
     return (
       <button
         type="button"
         onClick={onClick}
-        className="inline-flex items-center justify-center px-1.5 mx-0.5 rounded text-[11px] font-bold bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/60 dark:text-blue-300 dark:hover:bg-blue-800 transition-colors shadow-sm"
+        className="inline-flex items-center justify-center px-1.5 py-0.5 mx-0.5 rounded text-[11px] font-bold bg-blue-100/90 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/60 dark:text-blue-300 dark:hover:bg-blue-800 transition-all shadow-xs"
       >
         {children || `[${citeId}]`}
       </button>
     );
   }
 
-  const title = citeObj.paper_title || 'Unknown Paper';
-  const snippet = citeObj.snippet || 'Không có đoạn trích dẫn cụ thể.';
+  const title = citeObj.paper_title || citeObj.title || 'Tài liệu nghiên cứu';
+  const snippet = citeObj.snippet || citeObj.quoted_snippet || citeObj.quote || 'Đoạn trích dẫn được bóc tách từ bài báo.';
+  const authors = citeObj.authors || citeObj.author || '';
+  const year = citeObj.year || '';
+  const venue = citeObj.journal || citeObj.venue || '';
+  const page = citeObj.page_number || citeObj.page || '';
 
   // Position classes
   const vClass = placement.vertical === 'top' 
-    ? 'bottom-full mb-2 slide-in-from-bottom-2' 
-    : 'top-full mt-2 slide-in-from-top-2';
+    ? 'bottom-full mb-2.5 slide-in-from-bottom-2' 
+    : 'top-full mt-2.5 slide-in-from-top-2';
 
   const hClass = placement.horizontal === 'left'
     ? 'left-0 translate-x-0'
@@ -64,65 +68,105 @@ export default function CitationChip({ citeId, citeObj, onClick, darkMode, child
     : '-top-1.5 border-t border-l';
 
   return (
-    <div 
-      className="inline-block relative group align-middle"
+    <span 
+      className="inline-block relative group align-baseline"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={() => setShowTooltip(false)}
     >
       <button
         type="button"
         onClick={onClick}
-        className="inline-flex items-center justify-center px-1.5 py-0.5 mx-0.5 rounded text-[11px] font-bold bg-blue-100/90 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/60 dark:text-blue-300 dark:hover:bg-blue-800 border border-blue-200/80 dark:border-blue-800/60 transition-all shadow-xs active:scale-95 cursor-pointer align-baseline select-none"
+        className="inline-flex items-center justify-center px-1.5 py-0.5 mx-0.5 rounded-md text-[11px] font-semibold tracking-tight bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white dark:bg-blue-950/80 dark:text-blue-300 dark:hover:bg-blue-600 dark:hover:text-white border border-blue-200/80 dark:border-blue-800/70 transition-all duration-150 shadow-2xs hover:shadow-xs active:scale-95 cursor-pointer align-baseline select-none"
         title={title}
       >
-        [{citeId}]
+        <span className="opacity-70 font-mono text-[10px] mr-0.5">#</span>
+        <span>{citeId}</span>
       </button>
 
       {/* Popover / Tooltip */}
       {showTooltip && (
         <div 
-          className={`absolute z-50 w-[320px] max-w-[85vw] animate-in fade-in zoom-in-95 duration-150 ease-out cursor-default text-left whitespace-normal ${vClass} ${hClass}`}
+          className={`absolute z-50 w-[350px] max-w-[88vw] animate-in fade-in zoom-in-95 duration-150 ease-out cursor-default text-left whitespace-normal ${vClass} ${hClass}`}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Container matching theme */}
-          <div className={`relative p-3.5 rounded-xl shadow-2xl overflow-hidden border ${
+          <div className={`relative p-3.5 rounded-xl shadow-2xl overflow-hidden border backdrop-blur-md ${
             darkMode 
-              ? 'bg-slate-900 border-slate-700 shadow-black/80' 
-              : 'bg-white border-slate-200 shadow-slate-400/50'
+              ? 'bg-slate-900/95 border-slate-700/80 shadow-black/80 text-slate-100' 
+              : 'bg-white/95 border-slate-200/90 shadow-slate-400/40 text-slate-800'
           }`}>
-            {/* Title */}
-            <h4 className={`font-bold text-[13px] leading-snug line-clamp-2 mb-2 ${
-              darkMode ? 'text-white' : 'text-slate-800'
+            {/* Header: Badge ID + Metadata */}
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                darkMode ? 'bg-blue-900/80 text-blue-300 border border-blue-700/50' : 'bg-blue-100 text-blue-800 border border-blue-200'
+              }`}>
+                <Quote className="w-2.5 h-2.5" />
+                Trích dẫn #{citeId}
+              </span>
+              {year && (
+                <span className={`inline-flex items-center gap-1 text-[11px] font-medium ${
+                  darkMode ? 'text-slate-400' : 'text-slate-500'
+                }`}>
+                  <Calendar className="w-3 h-3" />
+                  {year}
+                </span>
+              )}
+            </div>
+
+            {/* Paper Title */}
+            <h4 className={`font-semibold text-[13px] leading-snug line-clamp-2 mb-1.5 ${
+              darkMode ? 'text-white' : 'text-slate-900'
             }`} title={title}>
               {title}
             </h4>
-            
-            {/* Snippet Content */}
-            <div className={`pl-3 border-l-2 py-0.5 ${
-              darkMode ? 'border-blue-500' : 'border-blue-400'
-            }`}>
-              <p className={`text-[12px] leading-relaxed italic line-clamp-4 ${
-                darkMode ? 'text-slate-300' : 'text-slate-600'
+
+            {/* Authors & Venue */}
+            {(authors || venue) && (
+              <p className={`text-[11px] line-clamp-1 mb-2.5 ${
+                darkMode ? 'text-slate-400' : 'text-slate-500'
               }`}>
-                "{snippet}"
+                {authors && <span>{authors}</span>}
+                {authors && venue && <span> • </span>}
+                {venue && <span className="italic">{venue}</span>}
               </p>
+            )}
+            
+            {/* Verbatim Snippet Box */}
+            <div className={`relative p-2.5 rounded-lg border text-[11.5px] leading-relaxed mb-3 ${
+              darkMode 
+                ? 'bg-slate-800/80 border-slate-700 text-slate-300' 
+                : 'bg-amber-50/70 border-amber-200/80 text-slate-700'
+            }`}>
+              <div className="flex items-start gap-1.5">
+                <Quote className={`w-3 h-3 shrink-0 mt-0.5 ${
+                  darkMode ? 'text-amber-400' : 'text-amber-600'
+                }`} />
+                <p className="italic line-clamp-4 font-serif">
+                  "{snippet}"
+                </p>
+              </div>
+              {page && (
+                <div className="text-right mt-1 text-[10px] opacity-75 font-mono">
+                  Trang {page}
+                </div>
+              )}
             </div>
             
             {/* Action Button */}
             <button
               onClick={onClick}
-              className={`w-full mt-3 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 shadow-sm ${
+              className={`w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-semibold transition-all duration-150 shadow-xs ${
                 darkMode 
                   ? 'bg-blue-600 hover:bg-blue-500 text-white' 
-                  : 'bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200/50'
+                  : 'bg-blue-600 hover:bg-blue-700 text-white'
               }`}
             >
-              <span>Xem chi tiết PDF</span>
-              <ChevronRight className="w-3 h-3" />
+              <FileText className="w-3.5 h-3.5" />
+              <span>Đối chiếu đoạn trích trong PDF</span>
+              <ChevronRight className="w-3 h-3 ml-auto opacity-80" />
             </button>
           </div>
           
-          {/* Tooltip Arrow/Triangle */}
+          {/* Tooltip Arrow */}
           <div className={`absolute w-3 h-3 rotate-45 transform -z-10 ${arrowHClass} ${arrowVClass}`}
              style={{
                backgroundColor: darkMode ? '#0f172a' : '#ffffff',
@@ -131,6 +175,6 @@ export default function CitationChip({ citeId, citeObj, onClick, darkMode, child
           />
         </div>
       )}
-    </div>
+    </span>
   );
 }

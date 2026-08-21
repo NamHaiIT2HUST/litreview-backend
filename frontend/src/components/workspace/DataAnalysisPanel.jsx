@@ -1,22 +1,32 @@
 import React, { useRef, useState } from 'react';
-import { Send, Paperclip, X, BarChart2, Copy, Check } from 'lucide-react';
+import { Send, Paperclip, X, BarChart2, Copy, Check, Sparkles, FileSpreadsheet } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { API_BASE } from '../../utils/apiConfig';
 
-const WELCOME_MSG = {
-  sender: 'ai',
-  text: 'T\u1ea3i l\u00ean t\u1eadp d\u1eef li\u1ec7u (**CSV/TSV**), m\u00f4 t\u1ea3 c\u00e1c c\u1ed9t ch\u00ednh v\u00e0 \u0111\u1eb7t c\u00e2u h\u1ecfi ph\u00e2n t\u00edch. V\u00ed d\u1ee5: *Ph\u00e2n ph\u1ed1i n\u0103m xu\u1ea5t b\u1ea3n c\u00f3 l\u1ec7ch kh\u00f4ng? T\u00ecm c\u00e1c c\u1ed9t t\u01b0\u01a1ng quan cao v\u1edbi s\u1ed1 l\u01b0\u1ee3t tr\u00edch d\u1eabn.*',
-};
+export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSendToChat }) {
+  const { t } = useLanguage();
 
-export default function DataAnalysisPanel({ darkMode }) {
-  const [messages, setMessages] = useState([WELCOME_MSG]);
+  const [messages, setMessages] = useState(() => [
+    {
+      sender: 'ai',
+      text: t('data_analysis.welcome_msg'),
+    }
+  ]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [attachedFile, setAttachedFile] = useState(null);
   const [copiedIndex, setCopiedIndex] = useState(null);
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
+
+  const suggestedQuestions = [
+    t('data_analysis.q1'),
+    t('data_analysis.q2'),
+    t('data_analysis.q3'),
+    t('data_analysis.q4')
+  ];
 
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
 
@@ -29,13 +39,34 @@ export default function DataAnalysisPanel({ darkMode }) {
     e.target.value = null;
   };
 
-  const handleSend = async (e) => {
-    e.preventDefault();
-    const question = input.trim();
+  // Convert current workspace papers into CSV for immediate analysis
+  const handleUseCurrentPapersAsCSV = () => {
+    if (!workspacePapers || workspacePapers.length === 0) return;
+    const headers = ['id', 'title', 'authors', 'year', 'journal', 'scopus_quartile', 'citation_count'];
+    const escapeCsv = (str) => `"${(str || '').toString().replace(/"/g, '""')}"`;
+    const rows = workspacePapers.map(p => [
+      escapeCsv(p.id),
+      escapeCsv(p.title),
+      escapeCsv(p.authors),
+      escapeCsv(p.year),
+      escapeCsv(p.journal || p.venue),
+      escapeCsv(p.scopus_quartile || 'N/A'),
+      escapeCsv(p.citation_count || 0)
+    ]);
+    const csvContent = [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    setAttachedFile({
+      name: `workspace_papers_${workspacePapers.length}_items.csv`,
+      content: csvContent
+    });
+  };
+
+  const handleSend = async (e, customText = null) => {
+    if (e) e.preventDefault();
+    const question = (customText || input).trim();
     if (!question) return;
     const userMsg = { sender: 'user', text: question, attachment: attachedFile ? attachedFile.name : null };
     setMessages((prev) => [...prev, userMsg]);
-    setInput('');
+    if (!customText) setInput('');
     const fileSnapshot = attachedFile;
     setAttachedFile(null);
     setIsTyping(true);
@@ -48,9 +79,9 @@ export default function DataAnalysisPanel({ darkMode }) {
       });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
-      setMessages((prev) => [...prev, { sender: 'ai', text: data.answer ?? data.detail ?? 'Kh\u00f4ng c\u00f3 k\u1ebft qu\u1ea3.' }]);
+      setMessages((prev) => [...prev, { sender: 'ai', text: data.answer ?? data.detail ?? 'Không có kết quả.' }]);
     } catch (err) {
-      setMessages((prev) => [...prev, { sender: 'ai', text: '\u274c L\u1ed7i k\u1ebft n\u1ed1i: ' + err.message }]);
+      setMessages((prev) => [...prev, { sender: 'ai', text: '❌ ' + err.message }]);
     } finally {
       setIsTyping(false);
       setTimeout(scrollToBottom, 50);
@@ -67,6 +98,25 @@ export default function DataAnalysisPanel({ darkMode }) {
 
   return (
     <div className="flex-1 min-h-0 flex flex-col relative bg-transparent">
+      {/* Top Helper Banner */}
+      {workspacePapers.length > 0 && (
+        <div className={`shrink-0 px-6 py-2.5 border-b flex items-center justify-between gap-3 text-xs ${
+          dm ? 'bg-slate-900/60 border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'
+        }`}>
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-3.5 h-3.5 text-blue-500" />
+            <span>{t('data_analysis.papers_ready_banner', { count: workspacePapers.length })}</span>
+          </div>
+          <button
+            onClick={handleUseCurrentPapersAsCSV}
+            className="px-2.5 py-1 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-semibold hover:bg-blue-100 dark:hover:bg-blue-900/60 flex items-center gap-1.5 transition-all cursor-pointer"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5" />
+            <span>{t('data_analysis.use_papers_csv')}</span>
+          </button>
+        </div>
+      )}
+
       <div className="flex-1 overflow-y-auto custom-scrollbar">
         <div className="w-full max-w-4xl mx-auto space-y-8 py-6 px-4 md:px-8">
           {messages.map((msg, idx) => (
@@ -121,6 +171,34 @@ export default function DataAnalysisPanel({ darkMode }) {
               </div>
             </div>
           )}
+
+          {/* Suggested Analytical Prompt Chips */}
+          {messages.length === 1 && (
+            <div className="pt-2 space-y-2">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                {t('data_analysis.suggested_title')}
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {suggestedQuestions.map((q, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => {
+                      if (!attachedFile && workspacePapers.length > 0) {
+                        handleUseCurrentPapersAsCSV();
+                      }
+                      setInput(q);
+                    }}
+                    className={`p-3 rounded-xl border text-left text-xs transition-all cursor-pointer ${
+                      dm ? 'bg-slate-900 border-slate-800 hover:border-blue-700 text-slate-300' : 'bg-white border-slate-200 hover:border-blue-400 text-slate-700 shadow-xs'
+                    }`}
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div ref={messagesEndRef} />
         </div>
       </div>
@@ -144,8 +222,8 @@ export default function DataAnalysisPanel({ darkMode }) {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            title="\u0110\u00ednh k\u00e8m t\u1eadp d\u1eef li\u1ec7u (CSV, TSV)"
-            className={`absolute left-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-colors ${
+            title="Đính kèm tập dữ liệu (CSV, TSV, JSON)"
+            className={`absolute left-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-colors cursor-pointer ${
               attachedFile ? 'text-blue-500' : dm ? 'text-slate-500 hover:text-slate-300' : 'text-slate-400 hover:text-slate-600'
             }`}
           >
@@ -156,7 +234,7 @@ export default function DataAnalysisPanel({ darkMode }) {
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="T\u1ea3i l\u00ean d\u1eef li\u1ec7u, m\u00f4 t\u1ea3 c\u00e1c c\u1ed9t ch\u00ednh, v\u00e0 \u0111\u1eb7t c\u00e2u h\u1ecfi..."
+            placeholder={t('data_analysis.input_placeholder')}
             className={`w-full pl-11 pr-32 py-4 border rounded-[2rem] text-[14px] font-medium focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 shadow-sm transition-all ${
               dm ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400'
             }`}
@@ -165,9 +243,9 @@ export default function DataAnalysisPanel({ darkMode }) {
           <button
             type="submit"
             disabled={!input.trim() && !attachedFile}
-            className="absolute right-2 top-1/2 -translate-y-1/2 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white px-5 py-2.5 rounded-[1.5rem] text-sm font-bold transition-transform active:scale-95 flex items-center gap-1.5 shadow-md"
+            className="absolute right-2 top-1/2 -translate-y-1/2 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white px-5 py-2.5 rounded-[1.5rem] text-sm font-bold transition-transform active:scale-95 flex items-center gap-1.5 shadow-md cursor-pointer"
           >
-            <span>G\u1eedi</span><Send className="w-4 h-4" />
+            <span>{t('data_analysis.send')}</span><Send className="w-4 h-4" />
           </button>
         </form>
       </div>

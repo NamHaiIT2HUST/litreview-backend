@@ -110,40 +110,14 @@ Tóm tắt (Abstract): {abstract}
 """
     
     try:
-        from google import genai
-        from google.genai import types
-        from src.config import get_settings
-        import os
+        from src.services.synthesis_llm_service import synthesis_llm_service
+        llm = synthesis_llm_service._get_llm()
+        msg = await llm.ainvoke([("human", prompt)])
+        content = msg.content if hasattr(msg, "content") else str(msg)
+        if isinstance(content, list):
+            content = "".join(part.get("text", "") for part in content if isinstance(part, dict))
+        content = str(content).strip()
 
-        st = get_settings()
-        key = (st.effective_gemini_api_key or os.getenv("GEMINI_API_KEY") or "").strip()
-        client = genai.Client(api_key=key)
-
-        config = types.GenerateContentConfig(
-            temperature=0.1,
-            thinking_config=types.ThinkingConfig(thinking_budget=0),
-        )
-
-        models_to_try = ["gemini-3.1-flash-lite", "gemini-3.5-flash", "gemini-3.1-pro-preview", "gemini-flash-latest"]
-        response = None
-        for m in models_to_try:
-            try:
-                response = await client.aio.models.generate_content(
-                    model=m,
-                    contents=prompt,
-                    config=config
-                )
-                if response and response.text:
-                    break
-            except Exception as ex:
-                logger.warning(f"Model {m} failed ({ex}), trying next...")
-                continue
-
-        if not response or not response.text:
-            raise RuntimeError("All Gemini model fallbacks failed due to provider traffic.")
-
-        content = (response.text or "").strip()
-        
         if "```json" in content:
             content = content.split("```json")[1].split("```")[0].strip()
         elif "```" in content:

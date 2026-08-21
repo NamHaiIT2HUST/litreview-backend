@@ -253,44 +253,88 @@ class RAGService:
     @property
     def llm(self):
         settings = get_settings()
-        openai_key = settings.openai_api_key
+        openai_key = settings.effective_openai_api_key
         gemini_key = settings.effective_gemini_api_key
-        provider = (os.getenv("LLM_PROVIDER") or os.getenv("SYNTHESIS_LLM_PROVIDER") or "").lower()
+        groq_key = settings.groq_api_key or os.getenv("GROQ_API_KEY") or ""
+        provider = (
+            getattr(settings, "llm_provider", "")
+            or os.getenv("LLM_PROVIDER")
+            or getattr(settings, "synthesis_llm_provider", "")
+            or os.getenv("SYNTHESIS_LLM_PROVIDER")
+            or ""
+        ).lower().strip()
 
-        if (provider == "gemini" or not openai_key) and gemini_key:
-            from langchain_google_genai import ChatGoogleGenerativeAI
-            model_name = settings.model_name if settings.model_name.startswith("gemini-") else "gemini-flash-latest"
-            return ChatGoogleGenerativeAI(
-                model=model_name,
-                google_api_key=gemini_key,
-                temperature=settings.llm_temperature,
-            )
-        elif openai_key:
-            from langchain_openai import ChatOpenAI
-            return ChatOpenAI(
-                model=(
-                    settings.model_name
-                    if settings.model_name.startswith("gpt-")
-                    else "gpt-4o-mini"
-                ),
-                api_key=openai_key,
-                base_url=settings.get_api_base or None,
-                temperature=settings.llm_temperature,
-            )
-        elif gemini_key:
-            from langchain_google_genai import ChatGoogleGenerativeAI
-            model_name = settings.model_name if settings.model_name.startswith("gemini-") else "gemini-flash-latest"
-            return ChatGoogleGenerativeAI(
-                model=model_name,
-                google_api_key=gemini_key,
-                temperature=settings.llm_temperature,
-            )
-        else:
-            raise RuntimeError(
-                "API key required. Set OPENAI_API_KEY, GEMINI_API_KEY, "
-                    "or GOOGLE_API_KEY in .env."
+        model_name = settings.effective_model_name
+
+        # Auto-detect provider if unspecified
+        if not provider or provider == "auto":
+            if model_name.startswith("gemini-") or model_name.startswith("models/gemini"):
+                provider = "gemini"
+            elif model_name.startswith("groq/") or ("llama-" in model_name and groq_key and not openai_key):
+                provider = "groq"
+            elif openai_key:
+                provider = "openai"
+            elif gemini_key:
+                provider = "gemini"
+            elif groq_key:
+                provider = "groq"
+            else:
+                provider = "openai"
+
+        # 1. Gemini
+        if provider == "gemini":
+            if not gemini_key:
+                if openai_key:
+                    # Graceful fallback to OpenAI-compatible
+                    provider = "openai"
+                else:
+                    raise RuntimeError("Gemini API key required. Set GEMINI_API_KEY or GOOGLE_API_KEY in .env.")
+            else:
+                from langchain_google_genai import ChatGoogleGenerativeAI
+                g_model = model_name if model_name.startswith("gemini-") else "gemini-2.0-flash"
+                return ChatGoogleGenerativeAI(
+                    model=g_model,
+                    google_api_key=gemini_key,
+                    temperature=settings.llm_temperature,
                 )
-        return self._llm
+
+        # 2. Groq
+        if provider == "groq":
+            if not groq_key:
+                if openai_key:
+                    provider = "openai"
+                else:
+                    raise RuntimeError("Groq synthesis requires GROQ_API_KEY in .env.")
+            else:
+                from langchain_groq import ChatGroq
+                return ChatGroq(
+                    model=model_name if model_name else "llama-3.3-70b-versatile",
+                    api_key=groq_key,
+                    temperature=settings.llm_temperature,
+                )
+
+        # 3. OpenAI-compatible (DeepSeek, OpenRouter, xkiro, SiliconFlow, OpenAI, vLLM, custom proxy)
+        if not openai_key:
+            if gemini_key:
+                from langchain_google_genai import ChatGoogleGenerativeAI
+                return ChatGoogleGenerativeAI(
+                    model="gemini-2.0-flash",
+                    google_api_key=gemini_key,
+                    temperature=settings.llm_temperature,
+                )
+            raise RuntimeError(
+                "API key required. Set OPENAI_API_KEY, LLM_API_KEY, DEEPSEEK_API_KEY, "
+                "or GEMINI_API_KEY in .env."
+            )
+
+        from langchain_openai import ChatOpenAI
+        base_url = settings.get_api_base or None
+        return ChatOpenAI(
+            model=model_name or "gpt-4o-mini",
+            api_key=openai_key,
+            base_url=base_url,
+            temperature=settings.llm_temperature,
+        )
 
     @property
     def grounded_llm(self):

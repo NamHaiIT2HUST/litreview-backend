@@ -6,6 +6,7 @@ import InsightsTab from './components/insights/InsightsTab';
 import HomeTab from './components/home/HomeTab';
 import ResearchSetupTab from './components/setup/ResearchSetupTab';
 import { LanguageProvider } from './contexts/LanguageContext';
+import ErrorBoundary from './components/ErrorBoundary';
 
 import ExportTab from './components/export/ExportTab';
 export default function App() {
@@ -137,59 +138,61 @@ export default function App() {
 
         {/* Main Multi-Step Navigation Content Area */}
         <main className={`mx-auto transition-all ${activeTab === 'synthesis' ? 'p-0 max-w-[1920px] w-full' : 'p-4 md:p-8'} ${activeTab === 'search' ? 'max-w-[1920px] w-full' : activeTab === 'synthesis' ? '' : 'max-w-7xl'}`}>
-          {activeTab === 'overview' && (
-            <HomeTab setActiveTab={setActiveTab} darkMode={darkMode} />
-          )}
+          <ErrorBoundary>
+            {activeTab === 'overview' && (
+              <HomeTab setActiveTab={setActiveTab} darkMode={darkMode} />
+            )}
 
-          {activeTab === 'setup' && (
-            <ResearchSetupTab setActiveTab={setActiveTab} darkMode={darkMode} />
-          )}
+            {activeTab === 'setup' && (
+              <ResearchSetupTab setActiveTab={setActiveTab} darkMode={darkMode} />
+            )}
 
-          {activeTab === 'search' && (
-            <SearchTab
-              papers={papers}
-              setPapers={setPapers}
-              searchResults={searchResults}
-              setSearchResults={setSearchResults}
-              searchMeta={searchMeta}
-              setSearchMeta={setSearchMeta}
-              selectedPaperIds={selectedPaperIds}
-              toggleSelectPaper={toggleSelectPaper}
-              clearSelectedPapers={clearSelectedPapers}
-              selectedPapers={selectedPapers}
+            {activeTab === 'search' && (
+              <SearchTab
+                papers={papers}
+                setPapers={setPapers}
+                searchResults={searchResults}
+                setSearchResults={setSearchResults}
+                searchMeta={searchMeta}
+                setSearchMeta={setSearchMeta}
+                selectedPaperIds={selectedPaperIds}
+                toggleSelectPaper={toggleSelectPaper}
+                clearSelectedPapers={clearSelectedPapers}
+                selectedPapers={selectedPapers}
 
-              workspacePapers={workspacePapers}
-              setWorkspacePapers={setWorkspacePapers}
-              setActiveTab={setActiveTab}
-              darkMode={darkMode}
-            />
-          )}
+                workspacePapers={workspacePapers}
+                setWorkspacePapers={setWorkspacePapers}
+                setActiveTab={setActiveTab}
+                darkMode={darkMode}
+              />
+            )}
 
-          {activeTab === 'synthesis' && (
-            <WorkspaceTab
-              papers={papers}
-              setPapers={setPapers}
-              selectedPapers={selectedPapers}
-              setSelectedPapers={setSelectedPapers}
-              setSelectedPaperIds={setSelectedPaperIds}
-              workspacePapers={workspacePapers}
-              setWorkspacePapers={setWorkspacePapers}
-              chatMessages={chatMessages}
-              setChatMessages={setChatMessages}
-              activeCitation={activeCitation}
-              setActiveCitation={setActiveCitation}
-              darkMode={darkMode}
-            />
-          )}
+            {activeTab === 'synthesis' && (
+              <WorkspaceTab
+                papers={papers}
+                setPapers={setPapers}
+                selectedPapers={selectedPapers}
+                setSelectedPapers={setSelectedPapers}
+                setSelectedPaperIds={setSelectedPaperIds}
+                workspacePapers={workspacePapers}
+                setWorkspacePapers={setWorkspacePapers}
+                chatMessages={chatMessages}
+                setChatMessages={setChatMessages}
+                activeCitation={activeCitation}
+                setActiveCitation={setActiveCitation}
+                darkMode={darkMode}
+              />
+            )}
 
-          {activeTab === 'export' && (
-            <ExportTab
-              papers={papers}
-              selectedPapers={selectedPapers}
-              workspacePapers={workspacePapers}
-              darkMode={darkMode}
-            />
-          )}
+            {activeTab === 'export' && (
+              <ExportTab
+                papers={papers}
+                selectedPapers={selectedPapers}
+                workspacePapers={workspacePapers}
+                darkMode={darkMode}
+              />
+            )}
+          </ErrorBoundary>
         </main>
       </div>
     </LanguageProvider>

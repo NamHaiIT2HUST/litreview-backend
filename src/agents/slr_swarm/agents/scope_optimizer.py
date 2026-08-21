@@ -71,40 +71,24 @@ async def run_scope_optimizer(idea: str, research_field: str = "") -> ScopeAnaly
     prompt = SCOPE_PROMPT.format(idea=idea.strip(), research_field=research_field.strip() or "Khoa học máy tính / AI")
 
     try:
-        from google import genai
-        from google.genai import types
-
-        client = genai.Client(api_key=api_key)
-        config = types.GenerateContentConfig(
-            temperature=0.2,
-            thinking_config=types.ThinkingConfig(thinking_budget=0),
+        from src.services.synthesis_llm_service import synthesis_llm_service
+        llm = synthesis_llm_service._get_llm()
+        msg = await llm.ainvoke([("human", prompt)])
+        content = msg.content if hasattr(msg, "content") else str(msg)
+        if isinstance(content, list):
+            content = "".join(part.get("text", "") for part in content if isinstance(part, dict))
+        content = str(content).strip()
+        if "```json" in content:
+            content = content.split("```json")[1].split("```")[0].strip()
+        elif "```" in content:
+            content = content.split("```")[1].split("```")[0].strip()
+        data = json.loads(content)
+        return ScopeAnalysisResult(
+            status=data.get("status", "optimal"),
+            score=int(data.get("score", 80)),
+            feedback=data.get("feedback", "Phạm vi nghiên cứu hợp lý."),
+            suggested_topics=data.get("suggested_topics", [])
         )
-
-        models_to_try = ["gemini-3.1-flash-lite", "gemini-3.5-flash", "gemini-flash-latest"]
-        for m in models_to_try:
-            try:
-                res = await client.aio.models.generate_content(
-                    model=m,
-                    contents=prompt,
-                    config=config,
-                )
-                if res and res.text:
-                    content = res.text.strip()
-                    if "```json" in content:
-                        content = content.split("```json")[1].split("```")[0].strip()
-                    elif "```" in content:
-                        content = content.split("```")[1].split("```")[0].strip()
-                    
-                    data = json.loads(content)
-                    return ScopeAnalysisResult(
-                        status=data.get("status", "optimal"),
-                        score=int(data.get("score", 80)),
-                        feedback=data.get("feedback", "Phạm vi nghiên cứu hợp lý."),
-                        suggested_topics=data.get("suggested_topics", [])
-                    )
-            except Exception as ex:
-                logger.warning(f"Scope optimizer with model {m} failed: {ex}")
-                continue
     except Exception as e:
         logger.error(f"Error running scope optimizer: {e}")
 

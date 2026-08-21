@@ -331,6 +331,35 @@ export default function WorkspaceTab({
     }
   };
 
+  const handleSendToChat = async (questionText) => {
+    setActiveWorkspaceTab('chat');
+    if (!questionText) return;
+    const userMsg = { sender: 'user', text: questionText };
+    setChatMessages((prev) => [...prev, userMsg]);
+    
+    try {
+      const paperIds = scopedPapers.map((p) => p.id);
+      const response = await fetch(`${API_BASE}/workspace/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: questionText, paper_ids: paperIds }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setChatMessages((prev) => [
+          ...prev,
+          {
+            sender: 'ai',
+            text: data.reply || data.text,
+            citations: data.citations || [],
+          },
+        ]);
+      }
+    } catch (err) {
+      console.error('Failed to trigger chat response from synthesis prompt:', err);
+    }
+  };
+
   return (
     <div 
       className={`flex flex-col gap-4 h-[calc(100vh-75px)] p-4 lg:p-5 ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}
@@ -385,7 +414,7 @@ export default function WorkspaceTab({
                     className="flex items-center gap-2 cursor-pointer group"
                   >
                     <span className={`text-[12px] font-medium transition-colors ${darkMode ? 'text-slate-400 group-hover:text-slate-200' : 'text-slate-500 group-hover:text-slate-800'}`}>
-                      Chọn tất cả
+                      {t('workspace.select_all')}
                     </span>
                     <div className={`shrink-0 w-4 h-4 rounded-[4px] flex items-center justify-center transition-all ${
                       selectedPaperIds.length === allSources.length && allSources.length > 0
@@ -478,11 +507,11 @@ export default function WorkspaceTab({
 
       {/* ── RIGHT: Active Workspace Panel ── */}
       <div className="flex-1 flex gap-5 h-full min-h-0 overflow-hidden relative">
-        {/* Main Content Area (Chat/Synthesis) — chiếm toàn bộ chiều rộng */}
+        {/* Main Content Area (Chat/Synthesis/Data) */}
         <div className={`flex-1 rounded-3xl border flex flex-col overflow-hidden shadow-sm transition-all ${
             darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
           }`}>
-            {/* ── Tab Header: 3 tabs (Asta-style underline) ── */}
+            {/* ── Tab Header: 3 tabs ── */}
             <div className={`flex items-center justify-between px-5 h-[56px] border-b shrink-0 ${darkMode ? 'border-slate-800' : 'border-slate-100'}`}>
               {/* Left: title + clear-chat button */}
               <div className="flex items-center gap-3">
@@ -493,7 +522,7 @@ export default function WorkspaceTab({
                 {activeWorkspaceTab === 'chat' && chatMessages && chatMessages.length > 1 && (
                   <button
                     onClick={() => {
-                      if (window.confirm("Bạn có chắc chắn muốn xóa lịch sử trò chuyện này không?")) {
+                      if (window.confirm(t('workspace.clear_chat_confirm'))) {
                         setChatMessages([
                           {
                             sender: 'ai',
@@ -509,17 +538,17 @@ export default function WorkspaceTab({
                     }`}
                   >
                     <Trash2 className="w-3 h-3" />
-                    <span>Xóa lịch sử</span>
+                    <span>{t('workspace.clear_chat')}</span>
                   </button>
                 )}
               </div>
 
-              {/* Right: 3-tab switcher (underline style, inspired by Asta) */}
+              {/* Right: 3-tab switcher */}
               <div className="flex items-stretch h-full gap-1">
                 {[
-                  { id: 'chat',     label: 'Chat với nguồn',        Icon: MessageSquare },
-                  { id: 'synthesis', label: 'Tổng quan tài liệu',     Icon: BookOpen     },
-                  { id: 'analyze',  label: 'Phân tích dữ liệu',     Icon: BarChart2     },
+                  { id: 'chat',     label: t('workspace.tab_chat'),        Icon: MessageSquare },
+                  { id: 'synthesis', label: t('workspace.tab_synthesis'),     Icon: BookOpen     },
+                  { id: 'analyze',  label: t('workspace.tab_analyze'),     Icon: BarChart2     },
                 ].map(({ id, label, Icon }) => (
                   <button
                     key={id}
@@ -554,11 +583,14 @@ export default function WorkspaceTab({
                   workspacePapers={scopedPapers}
                   setActiveCitation={setActiveCitation}
                   darkMode={darkMode}
+                  onSendToChat={handleSendToChat}
                 />
               )}
               {activeWorkspaceTab === 'analyze' && (
                 <DataAnalysisPanel
+                  workspacePapers={scopedPapers}
                   darkMode={darkMode}
+                  onSendToChat={handleSendToChat}
                 />
               )}
             </div>

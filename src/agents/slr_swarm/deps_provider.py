@@ -67,34 +67,6 @@ class RealLLMAdapter(LLMPort):
         if schema:
             prompt += f"\n\nOutput MUST be valid JSON matching this schema:\n{json.dumps(schema)}"
 
-        # Sử dụng client Google GenAI chính thống (rất nhanh, không bị timeout do reasoning/thinking)
-        if api_key:
-            try:
-                from google import genai
-                from google.genai import types
-                
-                client = genai.Client(api_key=api_key)
-                
-                config = types.GenerateContentConfig(
-                    thinking_config=types.ThinkingConfig(thinking_budget=0)
-                )
-                
-                models_to_try = ["gemini-3.1-flash-lite", "gemini-3.5-flash", "gemini-3.1-pro-preview", "gemini-flash-latest"]
-                for m in models_to_try:
-                    try:
-                        res = await client.aio.models.generate_content(
-                            model=m,
-                            contents=prompt,
-                            config=config
-                        )
-                        if res and res.text:
-                            return res.text
-                    except Exception:
-                        continue
-            except Exception:
-                pass
-
-        # Fallback qua synthesis_llm_service
         try:
             from src.services.synthesis_llm_service import synthesis_llm_service
             llm = synthesis_llm_service._get_llm()
