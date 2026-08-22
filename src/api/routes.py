@@ -960,7 +960,7 @@ class KPISpec(BaseModel):
 
 class DataAnalysisResponse(BaseModel):
     answer: str
-    chart: Optional[ChartSpec] = None
+    charts: Optional[List[ChartSpec]] = None
     kpis: Optional[List[KPISpec]] = None
     dataset_profile: Optional[DatasetProfile] = None
 
@@ -1064,7 +1064,7 @@ async def workspace_analyze_data(request: DataAnalysisRequest) -> DataAnalysisRe
     fname = f" (tệp: {request.filename})" if request.filename else ""
 
     prompt_parts = [
-        "Bạn là chuyên gia phân tích dữ liệu nghiên cứu học thuật và khoa học dữ liệu (Data Science & Meta-Analysis Expert).",
+        "Bạn là chuyên gia phân tích dữ liệu nghiên cứu khoa học và thống kê (Data Science Expert).",
         f"Câu hỏi hoặc yêu cầu phân tích của người dùng: \"{question}\"\n"
     ]
 
@@ -1075,28 +1075,28 @@ async def workspace_analyze_data(request: DataAnalysisRequest) -> DataAnalysisRe
 
     prompt_parts.append(
         "HƯỚNG DẪN TRẢ LỜI:\n"
-        "1. Trả lời chi tiết, chính xác, khách quan theo phong cách bài báo học thuật chuẩn quốc tế (dùng Markdown, in đậm các số liệu mấu chốt, lập bảng nếu cần).\n"
-        "2. Nếu câu hỏi liên quan đến xu hướng, so sánh, phân bố, hoặc xếp hạng, bạn HÃY TỰ ĐỘNG SINH KHỐI BIỂU ĐỒ TRỰC QUAN dạng JSON trong thẻ ```json_chart ... ``` với cấu trúc:\n"
+        "1. Trả lời chi tiết, chính xác, khách quan theo phong cách Exploratory Data Analysis (EDA) chuẩn mực.\n"
+        "2. ĐỂ HIỂN THỊ BIỂU ĐỒ TRÊN GIAO DIỆN: Bạn CÓ THỂ SINH NHIỀU KHỐI BIỂU ĐỒ TRỰC QUAN (đặc biệt khi người dùng yêu cầu Auto-EDA toàn diện). Mỗi biểu đồ nằm trong một thẻ ```json_chart ... ``` riêng biệt. LƯU Ý QUAN TRỌNG: Bạn PHẢI tự tổng hợp/gom nhóm dữ liệu trước khi đưa vào JSON.\n"
         "```json_chart\n"
         "{\n"
-        "  \"type\": \"bar\", // Chọn một trong: \"bar\" (so sánh), \"line\" (xu hướng theo năm/thời gian), \"donut\" (tỷ lệ phần trăm)\n"
+        "  \"type\": \"bar\", // Chọn: \"bar\" (so sánh), \"line\" (xu hướng), \"donut\" (tỷ lệ phần trăm)\n"
         "  \"title\": \"Tiêu đề biểu đồ ngắn gọn\",\n"
         "  \"data\": [\n"
-        "    {\"name\": \"Nhãn 1\", \"value\": 15},\n"
-        "    {\"name\": \"Nhãn 2\", \"value\": 28}\n"
+        "    {\"name\": \"Nhóm A\", \"value\": 15},\n"
+        "    {\"name\": \"Nhóm B\", \"value\": 28}\n"
         "  ],\n"
-        "  \"x_label\": \"Tên trục hoành\",\n"
-        "  \"y_label\": \"Tên trục tung/Số lượng\"\n"
+        "  \"x_label\": \"Trục hoành\",\n"
+        "  \"y_label\": \"Trục tung\"\n"
         "}\n"
         "```\n"
-        "3. Nếu có các chỉ số tổng kết quan trọng (ví dụ Tổng bài báo, Tỷ lệ Q1, Năm trung bình), hãy sinh khối JSON trong thẻ ```json_kpis ... ```:\n"
+        "3. ĐỂ NGƯỜI DÙNG XUẤT CODE: Bạn PHẢI luôn sinh ra mã Python (pandas, matplotlib, seaborn) tương ứng để vẽ biểu đồ phức tạp hơn cho câu hỏi này. Đặt mã Python vào thẻ ```python ... ```.\n"
+        "4. Nếu có các chỉ số tổng kết quan trọng, hãy sinh khối JSON trong thẻ ```json_kpis ... ```:\n"
         "```json_kpis\n"
         "[\n"
-        "  {\"label\": \"Tổng tài liệu\", \"value\": 10, \"subtext\": \"100% đã xác minh\"},\n"
-        "  {\"label\": \"Tỷ lệ Q1 Scopus\", \"value\": \"70%\", \"subtext\": \"Chất lượng cao\"}\n"
+        "  {\"label\": \"Tổng số bản ghi\", \"value\": 10, \"subtext\": \"Dữ liệu hợp lệ\"}\n"
         "]\n"
         "```\n"
-        "4. Hãy viết nội dung phân tích thuyết minh trước, các khối ```json_chart``` và ```json_kpis``` đặt ở cuối câu trả lời."
+        "5. Hãy viết nội dung phân tích thuyết minh trước, các khối ```json_chart```, ```python``` và ```json_kpis``` đặt ở vị trí phù hợp hoặc cuối câu trả lời."
     )
 
     full_prompt = "\n".join(prompt_parts)
@@ -1111,19 +1111,20 @@ async def workspace_analyze_data(request: DataAnalysisRequest) -> DataAnalysisRe
         raw_text = str(content).strip()
 
         # 4. Trích xuất json_chart và json_kpis
-        chart_match = re.search(r'```(?:json_chart|json)\s*(\{[\s\S]*?"type"[\s\S]*?\})\s*```', raw_text, re.IGNORECASE)
-        if chart_match:
+        chart_matches = re.finditer(r'```(?:json_chart|json)\s*(\{[\s\S]*?"type"[\s\S]*?\})\s*```', raw_text, re.IGNORECASE)
+        charts_list = []
+        for match in chart_matches:
             try:
-                chart_data = json.loads(chart_match.group(1))
+                chart_data = json.loads(match.group(1))
                 if isinstance(chart_data, dict) and "type" in chart_data and "data" in chart_data:
-                    chart_spec = ChartSpec(
+                    charts_list.append(ChartSpec(
                         type=chart_data.get("type", "bar").lower(),
                         title=chart_data.get("title", "Biểu đồ phân tích dữ liệu"),
                         data=chart_data.get("data", []),
                         x_label=chart_data.get("x_label"),
                         y_label=chart_data.get("y_label"),
                         unit=chart_data.get("unit"),
-                    )
+                    ))
             except Exception as e:
                 logger.warning(f"Could not parse chart json: {e}")
 
@@ -1149,8 +1150,8 @@ async def workspace_analyze_data(request: DataAnalysisRequest) -> DataAnalysisRe
 
         return DataAnalysisResponse(
             answer=cleaned_answer or "Hoàn tất phân tích dữ liệu.",
-            chart=chart_spec,
-            kpis=kpis_list,
+            charts=charts_list if charts_list else None,
+            kpis=kpis_list if kpis_list else None,
             dataset_profile=dataset_profile,
         )
 
@@ -1162,6 +1163,7 @@ async def workspace_analyze_data(request: DataAnalysisRequest) -> DataAnalysisRe
         lines.append("### 📊 Báo Cáo Phân Tích Thống Kê & Dữ Liệu Thực Nghiệm (DataVoyager Engine)")
         lines.append(f"**Yêu cầu:** *{question}*\n")
 
+        single_chart = None
         if dataset_profile:
             lines.append("#### 1. Tổng Quan Cấu Trúc & Độ Hoàn Thiện Dữ Liệu")
             lines.append(f"- **Kích thước tập dữ liệu:** `{dataset_profile.row_count}` dòng quan sát × `{dataset_profile.column_count}` biến số.")
@@ -1182,8 +1184,7 @@ async def workspace_analyze_data(request: DataAnalysisRequest) -> DataAnalysisRe
                     lines.append(f"| **{col_name}** | {s_min} | {s_med} | {s_avg} | {s_max} | {s_std} |")
                 lines.append("")
 
-            # Tự động sinh chart_spec và KPIs từ dữ liệu thống kê nếu chưa có
-            if not chart_spec and 'df' in locals() and df is not None and len(df) > 0:
+            if 'df' in locals() and df is not None and len(df) > 0:
                 try:
                     cat_cols = df.select_dtypes(exclude=[np.number]).columns.tolist()
                     num_cols = df.select_dtypes(include=[np.number]).columns.tolist()
@@ -1192,7 +1193,7 @@ async def workspace_analyze_data(request: DataAnalysisRequest) -> DataAnalysisRe
                         group_col = cat_cols[0]
                         val_col = num_cols[0]
                         grouped = df.groupby(group_col)[val_col].mean().round(2).head(10).to_dict()
-                        chart_spec = ChartSpec(
+                        single_chart = ChartSpec(
                             type="bar" if len(grouped) <= 6 else "line",
                             title=f"Phân bố trung bình {val_col} theo {group_col}",
                             data=[{"name": str(k), "value": float(v)} for k, v in grouped.items()],
@@ -1201,7 +1202,7 @@ async def workspace_analyze_data(request: DataAnalysisRequest) -> DataAnalysisRe
                         )
                     elif num_cols:
                         val_col = num_cols[0]
-                        chart_spec = ChartSpec(
+                        single_chart = ChartSpec(
                             type="line",
                             title=f"Tiến trình biến thiên {val_col} qua các quan sát",
                             data=[{"name": f"Dòng {i+1}", "value": float(v)} for i, v in enumerate(df[val_col].head(12))],
@@ -1224,7 +1225,7 @@ async def workspace_analyze_data(request: DataAnalysisRequest) -> DataAnalysisRe
 
         return DataAnalysisResponse(
             answer="\n".join(lines),
-            chart=chart_spec,
+            charts=[single_chart] if single_chart else None,
             kpis=kpis_list,
             dataset_profile=dataset_profile,
         )

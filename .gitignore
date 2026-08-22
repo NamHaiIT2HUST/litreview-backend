@@ -43,6 +43,7 @@ CHANGE_REQUEST/
 asta-plugins-main/
 agent-baselines-main/
 asta-autodiscovery-main/
+asta-bench-main/
 
 # Logs
 logs/

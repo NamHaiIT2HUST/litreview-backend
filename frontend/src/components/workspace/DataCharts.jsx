@@ -393,7 +393,7 @@ export function KPICardsGrid({ kpis = [], darkMode = false }) {
 /**
  * Dataset Health & Profiling Card
  */
-export function DatasetHealthCard({ profile, filename, darkMode = false, onRunMetaAnalysis }) {
+export function DatasetHealthCard({ profile, filename, darkMode = false, onRunAutoEDA }) {
   if (!profile) return null;
 
   return (
@@ -406,25 +406,30 @@ export function DatasetHealthCard({ profile, filename, darkMode = false, onRunMe
             <Database className="w-4 h-4" />
           </div>
           <div>
-            <h4 className="font-extrabold text-xs text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
-              <span>{filename || 'Tập dữ liệu nghiên cứu'}</span>
-              <span className="text-[9.5px] px-1.5 py-0.2 rounded font-mono font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+            <div className="flex items-center gap-1.5 mb-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                Cấu trúc Dataset (Data Profile)
+              </span>
+              <span className="text-[9px] px-1.5 py-0.5 rounded font-mono font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 leading-none">
                 Pandas Verified
               </span>
+            </div>
+            <h4 className="font-extrabold text-xs text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
+              <span>{filename || 'Tập dữ liệu nghiên cứu'}</span>
             </h4>
-            <p className="text-[10.5px] text-slate-400 mt-0.5">
-              {profile.row_count} dòng · {profile.column_count} cột dữ liệu · Tỷ lệ thiếu dữ liệu: {profile.missing_rate_pct}%
+            <p className="text-[10.5px] text-slate-500 mt-0.5 font-medium">
+              Kích thước: {profile.row_count} dòng · {profile.column_count} cột | Tỷ lệ thiếu dữ liệu: {profile.missing_rate_pct}%
             </p>
           </div>
         </div>
 
-        {onRunMetaAnalysis && (
+        {onRunAutoEDA && (
           <button
-            onClick={onRunMetaAnalysis}
+            onClick={onRunAutoEDA}
             className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm active:scale-95 transition-all cursor-pointer shrink-0"
           >
             <Sparkles className="w-3.5 h-3.5" />
-            <span>Chạy Meta-Analysis toàn bộ</span>
+            <span>Auto-EDA (Phân tích tự động)</span>
           </button>
         )}
       </div>

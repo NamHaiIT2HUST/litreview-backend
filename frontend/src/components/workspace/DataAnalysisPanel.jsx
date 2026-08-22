@@ -93,8 +93,8 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
     {
       sender: 'ai',
       text: isEn
-        ? "Welcome to DataVoyager Analytics! Upload an Excel/CSV dataset or use workspace literature to perform in-depth statistical synthesis, hypothesis testing, and interactive chart visualization."
-        : "Chào mừng bạn đến với DataVoyager Analytics! Bạn có thể tải lên tệp Excel/CSV hoặc dùng bài báo trong Workspace để chạy phân tích thống kê định lượng, kiểm định giả thuyết và vẽ biểu đồ trực quan.",
+        ? "Welcome to DataVoyager Analytics! Upload an Excel/CSV dataset to perform in-depth statistical synthesis, hypothesis testing, and exploratory data analysis (EDA)."
+        : "Chào mừng bạn đến với DataVoyager Analytics! Tải lên tệp Excel/CSV để chạy phân tích thống kê định lượng, kiểm định giả thuyết và phân tích dữ liệu khám phá (EDA).",
       chart: null,
       kpis: null,
     }
@@ -105,6 +105,71 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
   const [datasetProfile, setDatasetProfile] = useState(null);
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [showExampleQueries, setShowExampleQueries] = useState(true);
+  
+  // History State
+  const [sessions, setSessions] = useState(() => {
+    try {
+      const saved = localStorage.getItem('workspace_eda_sessions');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [activeSessionId, setActiveSessionId] = useState(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  React.useEffect(() => {
+    if (messages.length <= 1) return;
+    
+    setSessions(prev => {
+      let newSessions = [...prev];
+      const existingIdx = newSessions.findIndex(s => s.id === activeSessionId);
+      
+      const sessionData = {
+        id: activeSessionId || Date.now().toString(),
+        timestamp: Date.now(),
+        title: attachedFile?.name || datasetProfile?.filename || messages[1]?.text?.slice(0, 30) || 'Phân tích mới',
+        messages: messages,
+        profile: datasetProfile
+      };
+
+      if (existingIdx >= 0) {
+        newSessions[existingIdx] = sessionData;
+      } else {
+        newSessions = [sessionData, ...newSessions];
+        if (!activeSessionId) {
+          setTimeout(() => setActiveSessionId(sessionData.id), 0);
+        }
+      }
+      
+      localStorage.setItem('workspace_eda_sessions', JSON.stringify(newSessions));
+      return newSessions;
+    });
+  }, [messages, datasetProfile, activeSessionId, attachedFile]);
+
+  const handleNewSession = () => {
+    setActiveSessionId(null);
+    setDatasetProfile(null);
+    setAttachedFile(null);
+    setMessages([{
+      sender: 'ai',
+      text: isEn
+        ? "Welcome to DataVoyager Analytics! Upload an Excel/CSV dataset to perform in-depth statistical synthesis, hypothesis testing, and exploratory data analysis (EDA)."
+        : "Chào mừng bạn đến với DataVoyager Analytics! Tải lên tệp Excel/CSV để chạy phân tích thống kê định lượng, kiểm định giả thuyết và phân tích dữ liệu khám phá (EDA).",
+      chart: null,
+      kpis: null,
+    }]);
+    setIsSidebarOpen(false);
+  };
+
+  const loadSession = (session) => {
+    setActiveSessionId(session.id);
+    setMessages(session.messages || []);
+    setDatasetProfile(session.profile || null);
+    setAttachedFile(null);
+    setIsSidebarOpen(false);
+  };
+
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
 
@@ -151,57 +216,15 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
           ? "Who was most likely to survive the Titanic, and why? Please calculate percentages and visualize the results." 
           : "Nhóm hành khách nào có xác suất sống sót cao nhất và tại sao? Hãy tính tỉ lệ % và trực quan hóa kết quả."
       ]
-    },
-    {
-      icon: <BarChart2 className="w-4 h-4 text-violet-500" />,
-      title: isEn ? "Generate Visualizations & Literature Meta-Analysis" : "Sinh Biểu Đồ Trực Quan & Meta-Analysis Học Thuật",
-      subtitle: isEn ? "Synthesize publication trends, Scopus quartiles, and citation impacts across papers." : "Tổng hợp xu hướng xuất bản theo năm, phân bố Scopus Q1-Q4 và trích dẫn.",
-      datasetKey: 'workspace',
-      queries: [
-        isEn 
-          ? "Perform a comprehensive Meta-Analysis on this workspace collection: evaluate publication timeline trends, Scopus quartile distribution, citations, and core methodologies." 
-          : "Hãy thực hiện Meta-Analysis toàn diện trên kho tài liệu này: đánh giá xu hướng xuất bản theo năm, phân bố xếp hạng Scopus (Q1-Q4), thống kê trích dẫn và phương pháp luận cốt lõi.",
-        isEn 
-          ? "Plot publication distribution across years and compare citation velocities." 
-          : "Vẽ biểu đồ phân bố bài báo theo năm và so sánh tốc độ trích dẫn trung bình."
-      ]
     }
   ];
 
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
 
-  // Convert current workspace papers into CSV for immediate analysis
-  const buildWorkspaceCSV = () => {
-    if (!workspacePapers || workspacePapers.length === 0) return null;
-    const headers = ['id', 'title', 'authors', 'year', 'journal', 'scopus_quartile', 'citation_count', 'methodology'];
-    const escapeCsv = (str) => `"${(str || '').toString().replace(/"/g, '""').replace(/\r?\n/g, ' ')}"`;
-    const rows = workspacePapers.map(p => [
-      escapeCsv(p.id),
-      escapeCsv(p.title),
-      escapeCsv(p.authors),
-      escapeCsv(p.year || '2023'),
-      escapeCsv(p.journal || p.venue || 'Academic Journal'),
-      escapeCsv(p.scopus_quartile || (p.journal ? 'Q1' : 'Q2')),
-      escapeCsv(p.citation_count || Math.floor(Math.random() * 45 + 5)),
-      escapeCsv(p.methodology || 'Deep Learning / Empirical Evaluation')
-    ]);
-    return [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-  };
 
-  const handleUseCurrentPapersAsCSV = () => {
-    const csvContent = buildWorkspaceCSV();
-    if (!csvContent) return;
-    const filename = `workspace_papers_${workspacePapers.length}_items.csv`;
-    setAttachedFile({
-      name: filename,
-      content: csvContent
-    });
-  };
 
   const handleSelectDemoDataset = (key) => {
-    if (key === 'workspace') {
-      handleUseCurrentPapersAsCSV();
-    } else if (DEMO_DATASETS[key]) {
+    if (DEMO_DATASETS[key]) {
       setAttachedFile({
         name: DEMO_DATASETS[key].name,
         content: DEMO_DATASETS[key].content
@@ -289,7 +312,7 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
         { 
           sender: 'ai', 
           text: data.answer ?? data.detail ?? 'Hoàn tất phân tích dữ liệu.',
-          chart: data.chart ?? null,
+          charts: data.charts ?? (data.chart ? [data.chart] : null),
           kpis: data.kpis ?? null,
           profile: data.dataset_profile ?? null,
         }
@@ -308,17 +331,13 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
     }
   };
 
-  const handleRunMetaAnalysis = () => {
-    const csvContent = buildWorkspaceCSV();
-    if (!csvContent) return;
+  const handleAutoEDA = () => {
+    if (!attachedFile) return;
     const promptText = isEn
-      ? "Perform a comprehensive Meta-Analysis on this workspace collection: evaluate publication timeline trends, Scopus quartile distribution, citations, and core methodologies. Generate visual charts and key KPIs."
-      : "Hãy thực hiện Meta-Analysis toàn diện trên kho tài liệu này: đánh giá xu hướng xuất bản theo năm, phân bố xếp hạng Scopus (Q1-Q4), thống kê trích dẫn và các phương pháp luận cốt lõi. Hãy sinh biểu đồ trực quan và các chỉ số KPIs quan trọng.";
+      ? "Perform a comprehensive Exploratory Data Analysis (EDA) on this dataset: evaluate descriptive statistics, data distribution, identify key trends, correlations, and outliers. Generate visual charts and key KPIs."
+      : "Hãy thực hiện Phân tích Dữ liệu Khám phá (EDA) toàn diện trên tập dữ liệu này: thống kê mô tả, phân bố dữ liệu, tìm ra các xu hướng nổi bật, mối tương quan và các điểm ngoại lai. Hãy sinh biểu đồ trực quan và các chỉ số KPIs quan trọng.";
     
-    handleSend(null, promptText, {
-      name: `workspace_meta_analysis_${workspacePapers.length}_papers.csv`,
-      content: csvContent
-    });
+    handleSend(null, promptText, attachedFile);
   };
 
   const handleCopy = (text, idx) => {
@@ -330,43 +349,84 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
   const dm = darkMode;
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col relative bg-transparent">
+    <div className="flex-1 min-h-0 flex relative bg-transparent overflow-hidden">
       
-      {/* Top Helper & Meta-Analysis Launch Banner */}
-      {workspacePapers.length > 0 && (
-        <div className={`shrink-0 px-6 py-2.5 border-b flex flex-wrap items-center justify-between gap-3 text-xs ${
-          dm ? 'bg-slate-900/80 border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'
-        }`}>
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-3.5 h-3.5 text-blue-500" />
-            <span className="font-medium">
-              {isEn 
-                ? `${workspacePapers.length} papers loaded in Workspace ready for Quantitative Analytics` 
-                : `${workspacePapers.length} tài liệu trong Workspace sẵn sàng để Phân tích Số liệu & Thống kê`}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleUseCurrentPapersAsCSV}
-              className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
-              title="Xuất các tài liệu hiện có thành bảng CSV để phân tích"
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-500" />
-              <span>{isEn ? 'Attach Workspace CSV' : 'Đính kèm CSV Workspace'}</span>
-            </button>
-
-            <button
-              onClick={handleRunMetaAnalysis}
-              className="px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-95"
-              title="1-click chạy phân tích tổng quan Meta-Analysis cho toàn bộ tài liệu"
-            >
-              <Zap className="w-3.5 h-3.5 text-amber-300 fill-amber-300" />
-              <span>{isEn ? '1-Click Meta-Analysis' : 'Meta-Analysis 1-Click'}</span>
-            </button>
-          </div>
-        </div>
+      {/* Sidebar Backdrop Overlay */}
+      {isSidebarOpen && (
+        <div 
+          className="absolute inset-0 bg-slate-900/20 backdrop-blur-sm z-40 transition-opacity"
+          onClick={() => setIsSidebarOpen(false)}
+        />
       )}
+
+      {/* History Sidebar */}
+      <div className={`absolute top-0 left-0 h-full w-72 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 z-50 transform transition-transform duration-300 shadow-xl flex flex-col ${
+        isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+      }`}>
+        <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Layers className="w-4 h-4 text-blue-500" />
+            <h3 className="font-bold text-sm text-slate-800 dark:text-slate-200">
+              {isEn ? 'Analysis History' : 'Lịch sử phân tích'}
+            </h3>
+          </div>
+          <button 
+            onClick={() => setIsSidebarOpen(false)}
+            className="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition-colors cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        
+        <div className="p-3 border-b border-slate-200 dark:border-slate-800 shrink-0">
+          <button
+            onClick={handleNewSession}
+            className="w-full py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>{isEn ? 'New Analysis' : 'Phiên phân tích mới'}</span>
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
+          {sessions.length === 0 ? (
+            <div className="text-center p-4 text-xs text-slate-500">
+              {isEn ? 'No history yet.' : 'Chưa có lịch sử phân tích.'}
+            </div>
+          ) : (
+            sessions.map(s => (
+              <button
+                key={s.id}
+                onClick={() => loadSession(s)}
+                className={`w-full text-left p-3 rounded-xl transition-all flex flex-col gap-1 cursor-pointer ${
+                  activeSessionId === s.id 
+                    ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800/50 border shadow-sm' 
+                    : 'hover:bg-slate-50 dark:hover:bg-slate-800/50 border border-transparent'
+                }`}
+              >
+                <div className="text-xs font-semibold text-slate-700 dark:text-slate-300 truncate">
+                  {s.title}
+                </div>
+                <div className="text-[10px] text-slate-400">
+                  {new Date(s.timestamp).toLocaleString(isEn ? 'en-US' : 'vi-VN')}
+                </div>
+              </button>
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col relative w-full h-full">
+
+      {/* Toggle Sidebar Button */}
+      <button
+        onClick={() => setIsSidebarOpen(true)}
+        className={`absolute top-4 left-4 z-40 p-2 rounded-xl border bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 shadow-sm transition-all cursor-pointer ${isSidebarOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+        title={isEn ? "History" : "Lịch sử"}
+      >
+        <FolderOpen className="w-4 h-4" />
+      </button>
 
       {/* Main Conversation & Analysis Feed */}
       <div className="flex-1 overflow-y-auto custom-scrollbar">
@@ -378,7 +438,7 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
               profile={datasetProfile} 
               filename={attachedFile?.name || 'Tập dữ liệu đã phân tích'} 
               darkMode={dm}
-              onRunMetaAnalysis={handleRunMetaAnalysis}
+              onRunAutoEDA={handleAutoEDA}
             />
           )}
 
@@ -404,22 +464,67 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
                   </div>
                 )}
 
+                {/* Markdown Narrative */}
+                <div className={msg.sender === 'user' ? 'whitespace-pre-wrap mb-3' : 'prose prose-slate dark:prose-invert max-w-none prose-p:text-[13.5px] prose-p:leading-relaxed prose-headings:font-bold prose-h1:text-[16px] prose-h2:text-[15px] prose-h3:text-[14px] prose-li:text-[13.5px] prose-pre:bg-slate-900 prose-table:text-[12.5px] mb-3'}>
+                  {msg.sender === 'user' ? msg.text : (
+                    <ReactMarkdown 
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        code({node, inline, className, children, ...props}) {
+                          const match = /language-(\w+)/.exec(className || '')
+                          const lang = match ? match[1] : ''
+                          const codeStr = String(children).replace(/\n$/, '')
+                          if (!inline && lang === 'python') {
+                            return (
+                              <div className="relative group rounded-lg overflow-hidden my-3 border border-slate-700">
+                                <div className="flex justify-between items-center bg-slate-800 px-3 py-1.5 border-b border-slate-700">
+                                  <span className="text-[11px] font-mono font-bold text-slate-300">Python Script (EDA)</span>
+                                  <button
+                                    onClick={() => {
+                                      const blob = new Blob([codeStr], { type: 'text/plain' });
+                                      const url = URL.createObjectURL(blob);
+                                      const a = document.createElement('a');
+                                      a.href = url;
+                                      a.download = 'eda_analysis.py';
+                                      a.click();
+                                      URL.revokeObjectURL(url);
+                                    }}
+                                    className="text-[10px] font-bold px-2 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors flex items-center gap-1 cursor-pointer"
+                                  >
+                                    <FileCode className="w-3 h-3" />
+                                    <span>Tải code (.py)</span>
+                                  </button>
+                                </div>
+                                <div className="max-h-32 overflow-y-auto bg-slate-900 custom-scrollbar p-3">
+                                  <code className="text-xs font-mono text-emerald-400 whitespace-pre-wrap" {...props}>
+                                    {children}
+                                  </code>
+                                </div>
+                              </div>
+                            )
+                          }
+                          return <code className={className} {...props}>{children}</code>
+                        }
+                      }}
+                    >
+                      {msg.text}
+                    </ReactMarkdown>
+                  )}
+                </div>
+
                 {/* KPI Metrics Cards */}
                 {msg.kpis && msg.kpis.length > 0 && (
                   <KPICardsGrid kpis={msg.kpis} darkMode={dm} />
                 )}
 
-                {/* Interactive Visual Chart */}
-                {msg.chart && (
-                  <DynamicDataChart chart={msg.chart} darkMode={dm} />
+                {/* Interactive Visual Charts */}
+                {msg.charts && msg.charts.length > 0 && (
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mt-4">
+                    {msg.charts.map((chartItem, cIdx) => (
+                      <DynamicDataChart key={cIdx} chart={chartItem} darkMode={dm} />
+                    ))}
+                  </div>
                 )}
-
-                {/* Markdown Narrative */}
-                <div className={msg.sender === 'user' ? 'whitespace-pre-wrap' : 'prose prose-slate dark:prose-invert max-w-none prose-p:text-[13.5px] prose-p:leading-relaxed prose-headings:font-bold prose-h1:text-[16px] prose-h2:text-[15px] prose-h3:text-[14px] prose-li:text-[13.5px] prose-pre:bg-slate-900 prose-table:text-[12.5px]'}>
-                  {msg.sender === 'user' ? msg.text : (
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.text}</ReactMarkdown>
-                  )}
-                </div>
 
                 {/* AI Footer Actions */}
                 {msg.sender === 'ai' && (
@@ -504,9 +609,7 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
                             key={qIdx}
                             onClick={() => {
                               handleSelectDemoDataset(cat.datasetKey);
-                              const fileObj = cat.datasetKey === 'workspace' 
-                                ? (buildWorkspaceCSV() ? { name: 'workspace_papers.csv', content: buildWorkspaceCSV() } : null)
-                                : (DEMO_DATASETS[cat.datasetKey] ? { name: DEMO_DATASETS[cat.datasetKey].name, content: DEMO_DATASETS[cat.datasetKey].content } : null);
+                              const fileObj = (DEMO_DATASETS[cat.datasetKey] ? { name: DEMO_DATASETS[cat.datasetKey].name, content: DEMO_DATASETS[cat.datasetKey].content } : null);
                               handleSend(null, q, fileObj);
                             }}
                             className="w-full text-left py-1.5 px-2.5 rounded-lg text-xs transition-colors flex items-start justify-between group text-slate-600 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-950/40 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer"
@@ -586,6 +689,7 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
             <Send className="w-3.5 h-3.5" />
           </button>
         </form>
+      </div>
       </div>
     </div>
   );
