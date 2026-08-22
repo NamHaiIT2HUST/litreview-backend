@@ -1,0 +1,2 @@
+id,type,retrieval_recall,answer_accuracy,citation_precision,llm_score,refusal_correct,total_citations,ragas_faithfulness,ragas_relevancy,error
+CONFIG,META,,,,,,,,,"MIN_RELEVANCE_SCORE=2, MAX_CONTEXT_CHUNKS=10"

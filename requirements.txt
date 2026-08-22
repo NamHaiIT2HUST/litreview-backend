@@ -37,6 +37,11 @@ langchain-chroma>=0.1.0
 celery>=5.4.0
 redis>=5.2.0
 
+# Evaluation / Benchmark
+ragas>=0.2.0
+datasets>=2.19.0
+bcrypt>=4.0.1
+
 # Dev tools
 ruff>=0.8.0
 pytest>=8.0.0

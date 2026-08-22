@@ -2,8 +2,11 @@ import os
 from functools import lru_cache
 from typing import Literal
 
+from dotenv import load_dotenv
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+load_dotenv()
 
 
 class Settings(BaseSettings):
@@ -23,11 +26,12 @@ class Settings(BaseSettings):
 
     # LLM
     openai_api_key: str = ""
+    openai_embedding_api_key: str = ""
     openai_api_base: str = ""
     gemini_api_key: str = ""
     google_api_key: str = ""
     serpapi_api_key: str = ""
-    model_name: str = "gpt-4o-mini"
+    model_name: str = ""
     llm_api_key: str = ""
     llm_model: str = ""
     llm_provider: str = ""
@@ -58,16 +62,19 @@ class Settings(BaseSettings):
     @property
     def effective_model_name(self) -> str:
         model = (
-            self.model_name
-            or self.llm_model
-            or os.getenv("MODEL_NAME", "")
+            self.llm_model
             or os.getenv("LLM_MODEL", "")
-            or "deepseek/deepseek-v3.2"
+            or self.model_name
+            or os.getenv("MODEL_NAME", "")
+            or "gpt-4o-mini"
         ).strip()
         key = self.effective_openai_api_key
         if key and key.startswith("sk-xt-"):
             if model in ["deepseek-chat", "deepseek", "deepseek-v3", "gpt-4o-mini", "gpt-4o"]:
                 return "deepseek/deepseek-v3.2"
+        if key and key.startswith("sk-or-v1-"):
+            if "/" not in model:
+                return f"openai/{model}"
         return model
 
     @property

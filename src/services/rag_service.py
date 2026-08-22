@@ -31,6 +31,8 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import BaseModel, Field
 
 from src.config import get_settings
+from src.services.map_reduce_optimizer import map_reduce_optimizer
+from src.services.rag_guardrail_service import rag_guardrail_service
 
 logger = logging.getLogger(__name__)
 
@@ -168,13 +170,7 @@ MAP_PROMPT = ChatPromptTemplate.from_messages([
     ("human", _MAP_HUMAN),
 ])
 
-# REDUCE: Answer generation  (PaperQA2: qa_prompt + default_system_prompt)
-# Key PaperQA2 principles:
-#  1. system_prompt is SHORT and direct: "Answer in a direct and concise tone."
-#  2. "Write in the style of a scientific article" → naturally concise
-#  3. "do not add any extraneous information" → no padding
-#  4. "If insufficient information reply 'I cannot answer'" → honest fallback
-#  5. answer_length target (PaperQA2 default: "about 200 words, but can be longer")
+# REDUCE: Answer generation  (PaperQA2: qa_prompt + default_system_prompt & ScholarQA)
 _CITATION_KEY_RULES = (
     "Citation rules (follow exactly):\n"
     "- Place citation keys in brackets at the end of each sentence: [1] or [1][2]\n"
@@ -183,54 +179,38 @@ _CITATION_KEY_RULES = (
     "- Valid: [1] | [1][2]. Invalid: [1 and 2] | (1) | Author et al. (2023)"
 )
 
-# PaperQA2's default_system_prompt: short, expert-focused
+# PaperQA2 & ScholarQA grounded system prompt: expert, zero-hallucination, strict attribution
 _REDUCE_SYSTEM = (
-    "You are a highly advanced academic AI research assistant (similar to NotebookLM)."
-    " Your goal is to synthesize the provided excerpts into an extremely detailed, highly structured, comprehensive, and textbook-quality academic answer.\n\n"
-    "STRICT GROUNDING RULE — MANDATORY:\n"
-    "- You MUST NOT use any external knowledge. All claims MUST be grounded in the provided context.\n"
-    "- You MUST ONLY use the information explicitly stated in the provided excerpts.\n"
+    "You are a highly precise, grounded academic AI research assistant (inspired by PaperQA2 and ScholarQA).\n"
+    "Your mission is to synthesize the provided excerpts into a clear, accurate, and completely faithful scientific answer.\n\n"
+    "STRICT GROUNDING RULE — MANDATORY (ZERO-HALLUCINATION POLICY):\n"
+    "- You MUST NOT use any external knowledge. All claims, equations, numbers, and facts MUST be strictly derived from and supported by the provided excerpts.\n"
+    "- Do NOT extrapolate, speculate, or introduce general background topics (e.g. historical context, unrelated applications, broad taxonomies) unless they are explicitly present in the provided excerpts.\n"
     "- Answer using whatever relevant information the excerpts DO contain, even if it only covers part of the question — do not decline just because coverage is partial.\n"
     "- Only decline entirely, and state that the information is not found in the documents, if NONE of the excerpts are relevant to the question at all.\n\n"
-    "FORMATTING RULE — MANDATORY:\n"
-    "- Use Markdown extensively to structure your answer hierarchically.\n"
-    "- ALWAYS break your answer down into clear numbered sections (e.g., 1. Định nghĩa Toán học / Mathematical Definition, 2. Ý nghĩa & Tính chất / Properties & Intuition, 3. Các dạng phổ biến / Common Forms, 4. Ứng dụng / Applications).\n"
-    "- Provide a high-level summary/overview at the very beginning before diving into the sections.\n"
-    "- Use Bullet points (-), Bold text (**), and Italic text (*) generously to organize concepts and make them scannable.\n\n"
-    "CONTENT RULE — MANDATORY:\n"
-    "- When asked 'what is' (là gì) or to explain a concept, provide a deep, academic explanation. Include the mathematical formulation, geometric or intuitive meaning, and core properties.\n"
-    "- CRITICAL: Do NOT skip, flatten, or over-summarize mathematical definitions, lemmas, properties, or proofs. These must be preserved in full detail with exact LaTeX equations.\n\n"
-    "SYNTHESIS RULE — MANDATORY:\n"
-    "- You MUST synthesize information across ALL provided sources.\n"
-    "- If multiple papers discuss the same or related topics, combine their perspectives or compare them.\n"
-    "- Do NOT just summarize one source and ignore the others. Aim to use as many provided citation keys as relevant to provide a complete picture.\n\n"
+    "CITATION RULE — MANDATORY:\n"
+    "- Every single factual sentence MUST include the appropriate citation key(s) from 'Valid Keys' at the end, e.g., 'Thuật toán A đạt độ chính xác 95% trên tập dữ liệu B [1].'\n"
+    "- Only cite citation keys that actually contain the supporting evidence.\n\n"
+    "FORMATTING & STRUCTURE RULE:\n"
+    "- Use clean Markdown (bullet points, bold text, headings) to organize the answer logically based ONLY on the evidence available.\n"
+    "- Do NOT force arbitrary boilerplate sections if the text does not contain that information.\n"
+    "- Present mathematical equations in LaTeX (Inline: $...$, Display: $$...$$). Never skip or distort equations or theorems provided in the text.\n\n"
     "LANGUAGE RULE — MANDATORY:\n"
     "- Detect the primary language of the Question.\n"
-    "- If the question contains ANY Vietnamese terms or concepts (e.g. 'Discuss Tập loại bỏ tự do', 'là gì'), answer ENTIRELY in Vietnamese.\n"
+    "- If the question contains ANY Vietnamese terms or concepts (e.g. 'Discuss Tập loại bỏ tự do', 'là gì', 'phương pháp'), answer ENTIRELY in Vietnamese.\n"
     "- Only answer in English if the question is 100% English.\n"
-    "- NEVER mix languages.\n\n"
-    "MATH RULE — MANDATORY:\n"
-    "- Use LaTeX for ALL math without exception.\n"
-    "- Inline: $\\theta \\in [0,1)$, $\\beta_k$, $\\|u_k - u_{{k-1}}\\|$.\n"
-    "- Display (own paragraph): $$\\beta_k = \\min\\left\\{{\\theta, \\frac{{\\varepsilon_k}}{{\\|u_k-u_{{k-1}}\\|}}\\right\\}}$$\n"
-    "- Never Unicode math (\u03b8 \u03b2 \u2207 \u03a3 \u03b5 \u2264 \u2208 || ||)."
-    " Subscripts: $u_k$. Norms: $\\|\\cdot\\|$. Fractions: $\\frac{{a}}{{b}}$."
+    "- NEVER mix languages."
 )
 
 _REDUCE_HUMAN = (
     "Context:\n\n{context}\n\nValid Keys: {valid_keys}\n\n---\n\n"
     "Question: {question}\n\n"
-    "Write a comprehensive, deep, and textbook-style structured answer that synthesizes information from across ALL the provided contexts."
-    " Your answer should be highly detailed (acting like a comprehensive study guide). Break it down into clear logical sections (e.g. Definition, Intuition, Properties, Forms/Applications).\n"
-    " If the context contains information that answers the question — even partially, or only some"
-    " aspects of it — you MUST write an answer using that information. Do not refuse just because"
-    " one detail is missing; answer what the context supports and note what it doesn't cover.\n"
-    " Only if NONE of the provided excerpts are relevant to the question at all, immediately reply"
-    " \"Tôi không thể trả lời câu hỏi này dựa trên tài liệu. / I cannot answer this based on the provided documents.\" and STOP.\n"
-    " For each part of your answer, indicate which sources most support it"
-    " via citation keys at the end of sentences.\n"
-    " Only cite from the context above and only use the citation keys from 'Valid Keys'.\n"
-    " Remember to use Markdown formatting (headings, lists, bolding) to make the answer highly readable and analytical.\n\n"
+    "Write an accurate, well-structured, and strictly grounded answer that synthesizes information from the provided excerpts.\n"
+    "Follow these strict constraints:\n"
+    "1. Base your answer ONLY on the context provided above. Do not hallucinate or extrapolate facts not in the context.\n"
+    "2. For each factual sentence, place the supporting citation key(s) at the end, like [1] or [1][2]. Use ONLY keys from 'Valid Keys'.\n"
+    "3. If the context contains partial information, answer what the context supports and briefly state what is not covered in the excerpts.\n"
+    "4. If NONE of the excerpts are relevant at all, reply: \"Tôi không thể trả lời câu hỏi này dựa trên tài liệu được cung cấp. / I cannot answer this based on the provided documents.\" and STOP.\n\n"
     + _CITATION_KEY_RULES + "\n\n"
     "CRITICAL LANGUAGE RULE: Look at the Question carefully. If it contains ANY Vietnamese words, your ENTIRE Answer below MUST be in Vietnamese. Do NOT use English unless the question is 100% English.\n\n"
     "Answer:"
@@ -329,11 +309,17 @@ class RAGService:
 
         from langchain_openai import ChatOpenAI
         base_url = settings.get_api_base or None
+        extra_headers = {}
+        if base_url and "openrouter" in base_url:
+            extra_headers = {"HTTP-Referer": "https://localhost", "X-Title": "LitReview Agent"}
         return ChatOpenAI(
             model=model_name or "gpt-4o-mini",
             api_key=openai_key,
             base_url=base_url,
             temperature=settings.llm_temperature,
+            timeout=30.0,
+            max_retries=2,
+            default_headers=extra_headers if extra_headers else None,
         )
 
     @property
@@ -411,22 +397,34 @@ class RAGService:
         """Score and summarise one chunk. Returns (citation_key, ChunkSummary).
         PaperQA2-inspired: passes paper_title to MAP prompt so LLM understands source context.
         """
-        chain = MAP_PROMPT | self.grounded_llm | StrOutputParser()
-        raw = await chain.ainvoke({
-            "citation_key": citation_key,
-            "source_name": source_name,
-            "paper_title": paper_title,
-            "page": page,
-            "excerpt": excerpt,
-            "question": question,
-        })
-        data = _parse_chunk_json(raw)
-        result = ChunkSummary(
-            summary=data.get("summary", ""),
-            relevance_score=data.get("relevance_score", 0),
-        )
-        logger.info("MAP [%s] score=%d  %s", citation_key, result.relevance_score, ascii(result.summary[:80]))
-        return citation_key, result
+        try:
+            chain = MAP_PROMPT | self.grounded_llm | StrOutputParser()
+            raw = await asyncio.wait_for(
+                chain.ainvoke({
+                    "citation_key": citation_key,
+                    "source_name": source_name,
+                    "paper_title": paper_title,
+                    "page": page,
+                    "excerpt": excerpt,
+                    "question": question,
+                }),
+                timeout=18.0
+            )
+            data = _parse_chunk_json(raw)
+            result = ChunkSummary(
+                summary=data.get("summary", ""),
+                relevance_score=data.get("relevance_score", 0),
+            )
+            logger.info("MAP [%s] score=%d  %s", citation_key, result.relevance_score, ascii(result.summary[:80]))
+            return citation_key, result
+        except Exception as e:
+            logger.warning("MAP error on chunk [%s]: %s", citation_key, e)
+            q_words = set(re.findall(r"\w{4,}", question.lower()))
+            chunk_words = set(re.findall(r"\w{4,}", excerpt.lower()))
+            overlap = len(q_words & chunk_words)
+            if overlap >= 2:
+                return citation_key, ChunkSummary(summary=excerpt[:400].strip(), relevance_score=max(3, min(8, overlap * 2)))
+            return citation_key, ChunkSummary(summary="", relevance_score=0)
 
     # -----------------------------------------------------------------------
     # Main Map-Reduce pipeline
@@ -519,13 +517,21 @@ class RAGService:
         # PaperQA2 CONTEXT_OUTER_PROMPT pattern: context_str + "Valid Keys: key1, key2..."
         valid_keys = ", ".join(f"[{ckey}]" for ckey, _ in scored)
 
-        reduce_chain = REDUCE_PROMPT | self.grounded_llm | StrOutputParser()
-        answer = await reduce_chain.ainvoke({
-            "context": context_str,
-            "valid_keys": valid_keys,
-            "question": query,
-        })
-        return answer
+        try:
+            reduce_chain = REDUCE_PROMPT | self.grounded_llm | StrOutputParser()
+            answer = await asyncio.wait_for(
+                reduce_chain.ainvoke({
+                    "context": context_str,
+                    "valid_keys": valid_keys,
+                    "question": query,
+                }),
+                timeout=30.0
+            )
+            return answer
+        except Exception as e:
+            logger.warning("REDUCE error in map_reduce: %s", e)
+            extracted_points = [f"- {cs.summary.strip()} [{ckey}]" for ckey, cs in scored[:4] if cs.summary.strip()]
+            return "Dựa trên các tài liệu đã cung cấp:\n" + "\n".join(extracted_points)
 
     # -----------------------------------------------------------------------
     # Public API
@@ -562,14 +568,21 @@ class RAGService:
                 "context_used": [],
             }
 
-        # ── MAP ──────────────────────────────────────────────────────────────
+        # ── MAP with Pre-Filtering & Semantic Caching ────────────────────────
+        prefiltered_tuples, tokens_saved_prefilter = map_reduce_optimizer.prefilter_chunks(query, chunks, min_word_overlap=1)
+        
         tasks = []
+        task_info = []
+        cached_results: list[tuple[str, ChunkSummary]] = []
         key_to_meta: dict[str, dict] = {}
+        tokens_saved_cache = 0
+        cache_hits = 0
+        chunks_sent_llm = 0
 
-        for i, doc in enumerate(chunks):
-            ckey = self.make_citation_key(doc, i)
+        for i, (orig_idx, doc) in enumerate(prefiltered_tuples):
+            ckey = self.make_citation_key(doc, orig_idx)
             if ckey in key_to_meta:
-                ckey = f"{ckey}_{i}"
+                ckey = f"{ckey}_{orig_idx}"
             source = doc.metadata.get("source", "unknown")
             page = str(doc.metadata.get("page", "?"))
             paper_title = self._get_paper_title(doc)
@@ -583,23 +596,41 @@ class RAGService:
                 "page_char_end": doc.metadata.get("page_char_end"),
                 "raw_text": doc.page_content,
             }
-            tasks.append(self._map_chunk(
-                ckey,
-                os.path.basename(str(source)),
-                paper_title,
-                page,
-                doc.page_content,
-                query,
-            ))
 
-        map_results = await asyncio.gather(*tasks, return_exceptions=True)
+            # Check cache
+            cached_sum = map_reduce_optimizer.cache.get(doc.page_content, query)
+            if cached_sum is not None:
+                cached_results.append((ckey, cached_sum))
+                tokens_saved_cache += map_reduce_optimizer.estimate_tokens(doc.page_content)
+                cache_hits += 1
+            else:
+                chunks_sent_llm += 1
+                task_info.append((ckey, doc.page_content))
+                tasks.append(self._map_chunk(
+                    ckey,
+                    os.path.basename(str(source)),
+                    paper_title,
+                    page,
+                    doc.page_content,
+                    query,
+                ))
+
+        map_results = []
+        if tasks:
+            async_res = await asyncio.gather(*tasks, return_exceptions=True)
+            for (ckey, content), item in zip(task_info, async_res):
+                if isinstance(item, Exception):
+                    logger.warning("Map task exception: %s", item)
+                    continue
+                map_results.append(item)
+                # Store in cache
+                map_reduce_optimizer.cache.set(content, query, item[1])
+
+        map_results.extend(cached_results)
 
         # ── FILTER & SORT ────────────────────────────────────────────────────
         scored: list[tuple[str, ChunkSummary]] = []
         for item in map_results:
-            if isinstance(item, Exception):
-                logger.warning("Map task exception: %s", item)
-                continue
             ckey, summary = item
             if summary.relevance_score >= MIN_RELEVANCE_SCORE and summary.summary.strip():
                 scored.append((ckey, summary))
@@ -607,8 +638,7 @@ class RAGService:
         scored.sort(key=lambda x: x[1].relevance_score, reverse=True)
         scored = scored[:MAX_CONTEXT_CHUNKS]
 
-        # Resilience Fallback: Nếu câu hỏi mang tính tổng quan (e.g. "tổng quan tài liệu", "tóm tắt")
-        # hoặc MAP bị lọc quá gắt, tự động dùng các chunk hàng đầu làm ngữ cảnh thay vì từ chối trả lời.
+        # Resilience Fallback: Nếu câu hỏi mang tính tổng quan hoặc MAP bị lọc quá gắt
         if not scored and chunks:
             for i, doc in enumerate(chunks[:MAX_CONTEXT_CHUNKS]):
                 ckey = self.make_citation_key(doc, i)
@@ -636,9 +666,14 @@ class RAGService:
                 ),
                 "citations": [],
                 "context_used": [],
+                "cost_report": map_reduce_optimizer.compute_cost_report(
+                    prompt_tokens=0, completion_tokens=0, tokens_saved_cache=0,
+                    tokens_saved_prefilter=tokens_saved_prefilter, cache_hits=0,
+                    total_chunks=len(chunks), chunks_sent=0
+                ).__dict__,
             }
 
-        logger.info("FILTER (with_citations): %d/%d chunks kept.", len(scored), len(chunks))
+        logger.info("FILTER (with_citations): %d/%d chunks kept (Cache hits: %d).", len(scored), len(chunks), cache_hits)
 
         # Remap to numeric citations [1], [2], ...
         numeric_scored = []
@@ -660,22 +695,41 @@ class RAGService:
                 f"[{ckey}] (Paper: {meta['paper_title']}, page {page_display}):\n{cs.summary}"
             )
         context_str = "\n\n".join(context_lines)
-        valid_keys = ", ".join(f"[{ckey}]" for ckey, _ in scored)
+        valid_keys = {f"[{ckey}]" for ckey, _ in scored}
+        valid_keys_str = ", ".join(sorted(valid_keys))
 
-        reduce_chain = REDUCE_PROMPT | self.grounded_llm | StrOutputParser()
-        answer = await reduce_chain.ainvoke({
-            "context": context_str,
-            "valid_keys": valid_keys,
-            "question": query,
-        })
+        try:
+            reduce_chain = REDUCE_PROMPT | self.grounded_llm | StrOutputParser()
+            raw_answer = await asyncio.wait_for(
+                reduce_chain.ainvoke({
+                    "context": context_str,
+                    "valid_keys": valid_keys_str,
+                    "question": query,
+                }),
+                timeout=30.0
+            )
+        except Exception as e:
+            logger.warning("REDUCE error: %s, using extractive fallback synthesis", e)
+            extracted_points = []
+            for ckey, cs in scored[:4]:
+                if cs.summary.strip():
+                    extracted_points.append(f"- {cs.summary.strip()} [{ckey}]")
+            raw_answer = "Dựa trên các tài liệu đã cung cấp:\n" + "\n".join(extracted_points)
+
+        # ── Guardrails: Sanitize Citations & Strip Hallucinated Keys ──────────
+        valid_numeric_keys = {ckey for ckey, _ in scored}
+        sanitized_answer, hallucinated_keys = rag_guardrail_service.sanitize_citations(
+            raw_answer, valid_keys=valid_numeric_keys
+        )
 
         # ── Build traceable citation metadata (PaperQA2 bib-style) ──────────
-        # Extract which keys actually appear in the answer (e.g. [1])
-        cited_keys_in_answer: set[str] = set(re.findall(r'\[([^\]]+)\]', answer))
+        cited_keys_in_answer: set[str] = set(re.findall(r'\[([^\]]+)\]', sanitized_answer))
         cited_flat: set[str] = set()
         for group in cited_keys_in_answer:
             for k in group.split(","):
-                cited_flat.add(k.strip())
+                k_str = k.strip()
+                if k_str:
+                    cited_flat.add(k_str)
 
         citations = []
         context_used = []
@@ -684,7 +738,6 @@ class RAGService:
             page_raw = meta["page"]
             page_display = int(page_raw) + 1 if str(page_raw).isdigit() else page_raw
 
-            # citation entry (for deduplicated source list)
             citations.append({
                 "key": ckey,
                 "paper_title": meta["paper_title"],
@@ -694,27 +747,43 @@ class RAGService:
                 "cited_in_answer": ckey in cited_flat,
                 "page_char_start": meta.get("page_char_start"),
                 "page_char_end": meta.get("page_char_end"),
-                "snippet": cs.summary[:300].strip(),
+                "snippet": cs.summary.strip() or (meta.get("raw_text") or "")[:400].strip(),
                 "raw_text": meta["raw_text"],
+                "summary": cs.summary.strip(),
             })
-            # context_used entry (for "sources used" panel in ChatPanel)
             context_used.append({
                 "key": ckey,
                 "paper_title": meta["paper_title"],
                 "page_display": str(page_display),
                 "paper_id": meta["paper_id"],
                 "filename": meta["filename"],
-                "snippet": cs.summary[:300].strip(),
+                "snippet": cs.summary.strip() or (meta.get("raw_text") or "")[:400].strip(),
+                "summary": cs.summary.strip(),
                 "raw_text": meta["raw_text"],
                 "score": cs.relevance_score,
                 "page_char_start": meta.get("page_char_start"),
                 "page_char_end": meta.get("page_char_end"),
             })
 
+        # Token & Cost summary computation
+        prompt_tokens_est = map_reduce_optimizer.estimate_tokens(context_str + query)
+        comp_tokens_est = map_reduce_optimizer.estimate_tokens(sanitized_answer)
+        cost_report = map_reduce_optimizer.compute_cost_report(
+            prompt_tokens=prompt_tokens_est,
+            completion_tokens=comp_tokens_est,
+            tokens_saved_cache=tokens_saved_cache,
+            tokens_saved_prefilter=tokens_saved_prefilter,
+            cache_hits=cache_hits,
+            total_chunks=len(chunks),
+            chunks_sent=chunks_sent_llm,
+        )
+
         return {
-            "answer": answer,
+            "answer": sanitized_answer,
             "citations": citations,
             "context_used": context_used,
+            "hallucinated_citations_stripped": hallucinated_keys,
+            "cost_report": cost_report.__dict__,
         }
 
     async def generate_structured_answer(self, query: str, chunks: List[Document]) -> list[dict]:

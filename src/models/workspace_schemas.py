@@ -91,6 +91,8 @@ class WorkspaceChatResponse(BaseModel):
     citations: list[dict] = []  # list[CitationEntry] — kept as dict for API compatibility
     # RAG Guardrail & Hallucination verification result
     guardrail: dict | None = None
+    # Map-Reduce Token usage & Cost Optimization report
+    cost_report: dict | None = None
 
 
 class RAGEvalRequest(BaseModel):

@@ -30,7 +30,6 @@ from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel, Field
 
 from src.config import get_settings
-from src.services.rag_service import rag_service
 
 logger = logging.getLogger(__name__)
 
@@ -69,12 +68,12 @@ class RAGGuardrailResult(BaseModel):
 # ──────────────────────────────────────────────────────────────────────────────
 
 _CLAIM_EVAL_SYSTEM = (
-    "You are an Attribution Validator and Hallucination Auditor for scientific literature RAG.\n"
-    "Your mission is to evaluate whether each sentence/claim in an AI-generated answer is genuinely supported by the provided context excerpts.\n\n"
+    "You are a rigorous Attribution Validator and Hallucination Auditor for scientific literature RAG (following ASTA-Bench and ScholarQA standards).\n"
+    "Your mission is to evaluate whether each sentence or distinct claim in an AI-generated answer is genuinely supported by the provided context excerpts.\n\n"
     "For each claim, determine one of three standard categories:\n"
-    "1. 'Attributable': The claim is directly supported and factually entailed by the reference excerpt.\n"
-    "2. 'Contradictory': The claim directly contradicts or misrepresents facts stated in the reference excerpt.\n"
-    "3. 'Extrapolatory': The claim makes factual assertions that CANNOT be inferred from the provided context (hallucination or ungrounded speculation).\n\n"
+    "1. 'Attributable': The claim is directly supported, explicitly stated, or logically entailed by the provided context (including reasonable paraphrasing, mathematical equivalents, or accurate direct translations).\n"
+    "2. 'Contradictory': The claim directly contradicts or misrepresents facts, equations, or results stated in the reference context.\n"
+    "3. 'Extrapolatory': The claim introduces new factual assertions, external background facts, or claims that CANNOT be verified from the provided context (hallucination or ungrounded speculation).\n\n"
     "Respond ONLY with a valid JSON array of objects with keys:\n"
     "- 'sentence': the exact claim sentence\n"
     "- 'status': exactly 'Attributable', 'Contradictory', or 'Extrapolatory'\n"
@@ -133,9 +132,72 @@ class RAGGuardrailService:
 
         return True, None
 
-    # ── 2. Strip Hallucinated Citation Keys (PaperQA2 Style) ───────────────
-    def sanitize_citations(self, answer: str, valid_keys: Set[str]) -> Tuple[str, List[str]]:
-        """Identify and strip citation keys that do not exist in the retrieved context."""
+    # ── 2. Strip Hallucinated Citation Keys & Ghost References (PaperQA2 Style) ──
+    def prune_redundant_citations(self, text: str) -> str:
+        """Compress and clean redundant consecutive citation keys e.g. [1][1] -> [1], [1][2] -> [1, 2]."""
+        if not text:
+            return ""
+
+        # Collapse duplicate single citations e.g. [1][1] -> [1]
+        text = re.sub(r'\[(\d+)\]\s*\[\1\]', r'[\1]', text)
+
+        # Merge adjacent bracket groups e.g. [1][2] -> [1, 2]
+        def _merge_brackets(match: re.Match) -> str:
+            k1 = match.group(1).strip()
+            k2 = match.group(2).strip()
+            all_keys = [k.strip() for k in f"{k1},{k2}".split(",") if k.strip()]
+            # deduplicate while preserving order
+            seen = set()
+            unique_keys = []
+            for k in all_keys:
+                if k not in seen:
+                    seen.add(k)
+                    unique_keys.append(k)
+            return f"[{', '.join(unique_keys)}]"
+
+        # Run merge recursively until no adjacent brackets remain
+        for _ in range(3):
+            text = re.sub(r'\[([0-9,\s]+)\]\s*\[([0-9,\s]+)\]', _merge_brackets, text)
+
+        return text
+
+    def detect_and_strip_ghost_authors(
+        self, text: str, valid_authors: Optional[Set[str]] = None, valid_years: Optional[Set[str]] = None
+    ) -> Tuple[str, List[str]]:
+        """Detect and sanitize ghost/hallucinated author-year citations not in database."""
+        if not text or not valid_authors:
+            return text, []
+
+        ghost_references: List[str] = []
+        valid_authors_lower = {a.lower() for a in valid_authors if a}
+        valid_years_set = {str(y).strip() for y in (valid_years or set()) if str(y).strip()}
+
+        # Match patterns like (Author, 2024) or (Author et al., 2024)
+        def _filter_author_year(match: re.Match) -> str:
+            full_cit = match.group(0)
+            author_part = match.group(1).strip().lower()
+            year_part = match.group(2).strip()
+
+            # Check if any valid author surname matches
+            author_matched = any(va in author_part for va in valid_authors_lower)
+            year_matched = year_part in valid_years_set if valid_years_set else True
+
+            if not author_matched:
+                ghost_references.append(full_cit)
+                return ""
+            return full_cit
+
+        sanitized = re.sub(r'\(([A-Za-z\s]+(?:et al\.?)?),?\s*(\d{4})\)', _filter_author_year, text)
+        return sanitized.strip(), ghost_references
+
+    def sanitize_citations(
+        self,
+        answer: str,
+        valid_keys: Set[str],
+        valid_authors: Optional[Set[str]] = None,
+        valid_years: Optional[Set[str]] = None,
+    ) -> Tuple[str, List[str]]:
+        """Identify and strip citation keys & ghost references that do not exist in the retrieved context."""
         found_keys: List[str] = []
         for match in re.finditer(r'\[([0-9,\s]+)\]', answer):
             for k in match.group(1).split(","):
@@ -151,8 +213,16 @@ class RAGGuardrailService:
             sanitized_answer = re.sub(rf',\s*{bad_key}\b', '', sanitized_answer)
             sanitized_answer = re.sub(rf'\b{bad_key}\s*,', '', sanitized_answer)
 
-        # Clean up empty brackets []
+        # Ghost author check
+        if valid_authors:
+            sanitized_answer, ghost_refs = self.detect_and_strip_ghost_authors(sanitized_answer, valid_authors, valid_years)
+            hallucinated_keys.extend(ghost_refs)
+
+        # Clean up and prune redundant citations
+        sanitized_answer = self.prune_redundant_citations(sanitized_answer)
         sanitized_answer = re.sub(r'\[\s*\]', '', sanitized_answer)
+        sanitized_answer = re.sub(r'\s{2,}', ' ', sanitized_answer).strip()
+
         return sanitized_answer, hallucinated_keys
 
     # ── 3. Claim Attribution & Hallucination Detection ─────────────────────
@@ -227,8 +297,10 @@ class RAGGuardrailService:
             k = str(c.get("key", idx + 1))
             title = c.get("paper_title") or c.get("filename") or "Tài liệu nguồn"
             page = c.get("page_display") or c.get("page") or 1
-            snippet = c.get("snippet") or c.get("raw_text") or ""
-            context_lines.append(f"[{k}] (Nguồn: {title}, Trang {page}):\n{snippet[:600]}")
+            # Priority: full raw_text or complete summary/snippet
+            full_text = c.get("raw_text") or c.get("summary") or c.get("snippet") or ""
+            full_text = str(full_text).strip()[:2000]
+            context_lines.append(f"[{k}] (Nguồn: {title}, Trang {page}):\n{full_text}")
             key_to_doc[k] = {
                 "title": title,
                 "page": page,
@@ -238,6 +310,7 @@ class RAGGuardrailService:
 
         # Run LLM Attribution Grader
         try:
+            from src.services.rag_service import rag_service
             chain = CLAIM_EVAL_PROMPT | rag_service.grounded_llm | StrOutputParser()
             raw_eval = await chain.ainvoke({
                 "context_str": context_str,

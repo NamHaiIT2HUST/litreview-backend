@@ -984,7 +984,8 @@ async def workspace_chat(
             answer=sanitized_answer,
             context_used=result["context_used"],
             citations=result.get("citations", []),
-            guardrail=guardrail_res.model_dump()
+            guardrail=guardrail_res.model_dump(),
+            cost_report=result.get("cost_report"),
         )
     except Exception as e:
         import logging
