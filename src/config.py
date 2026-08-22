@@ -57,13 +57,18 @@ class Settings(BaseSettings):
 
     @property
     def effective_model_name(self) -> str:
-        return (
+        model = (
             self.model_name
             or self.llm_model
             or os.getenv("MODEL_NAME", "")
             or os.getenv("LLM_MODEL", "")
-            or "gpt-4o-mini"
+            or "deepseek/deepseek-v3.2"
         ).strip()
+        key = self.effective_openai_api_key
+        if key and key.startswith("sk-xt-"):
+            if model in ["deepseek-chat", "deepseek", "deepseek-v3", "gpt-4o-mini", "gpt-4o"]:
+                return "deepseek/deepseek-v3.2"
+        return model
 
     @property
     def effective_gemini_api_key(self) -> str:

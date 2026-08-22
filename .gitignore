@@ -42,6 +42,7 @@ paper-qa-2026.08.12/
 CHANGE_REQUEST/
 asta-plugins-main/
 agent-baselines-main/
+asta-autodiscovery-main/
 
 # Logs
 logs/
