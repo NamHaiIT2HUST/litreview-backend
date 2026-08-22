@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     # LLM
     openai_api_key: str = ""
     openai_embedding_api_key: str = ""
+    openai_embedding_api_base: str = ""
     openai_api_base: str = ""
     gemini_api_key: str = ""
     google_api_key: str = ""

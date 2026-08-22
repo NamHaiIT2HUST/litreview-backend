@@ -1,9 +1,19 @@
-import React from 'react';
-import { Search, Sparkles, Sun, Moon, Home, Settings, Library, Download, Languages } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, Sparkles, Sun, Moon, Home, Settings, Library, Download, Languages, GraduationCap, ShieldCheck, ChevronDown, Check } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 
 export default function Navbar({ activeTab, setActiveTab, darkMode, setDarkMode }) {
   const { language, setLanguage, t } = useLanguage();
+  const isEn = language === 'en';
+
+  const [userRole, setUserRole] = useState(() => {
+    return localStorage.getItem('litreview_user_role') || 'researcher';
+  });
+  const [showRoleMenu, setShowRoleMenu] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem('litreview_user_role', userRole);
+  }, [userRole]);
 
   const navItems = [
     { id: 'overview', label: t('nav.overview'), icon: Home },
@@ -76,35 +86,106 @@ export default function Navbar({ activeTab, setActiveTab, darkMode, setDarkMode 
         </nav>
 
         {/* Right Controls */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
+          {/* User Role Switcher Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setShowRoleMenu(!showRoleMenu)}
+              className={`px-3 py-2 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm ${
+                userRole === 'reviewer'
+                  ? 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20'
+                  : 'bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20'
+              }`}
+              title={isEn ? "Switch User Role" : "Chuyển đổi vai trò người dùng"}
+            >
+              {userRole === 'reviewer' ? (
+                <ShieldCheck className="w-4 h-4 text-amber-500" />
+              ) : (
+                <GraduationCap className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              )}
+              <span className="hidden sm:inline">
+                {userRole === 'reviewer' 
+                  ? (isEn ? 'Role: Reviewer' : 'Vai trò: Reviewer') 
+                  : (isEn ? 'Role: Researcher' : 'Vai trò: Nghiên cứu viên')}
+              </span>
+              <ChevronDown className="w-3 h-3 opacity-60" />
+            </button>
+
+            {showRoleMenu && (
+              <div 
+                className="absolute right-0 mt-2 w-56 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl py-1.5 z-50 text-xs"
+                onClick={() => setShowRoleMenu(false)}
+              >
+                <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 dark:border-slate-800">
+                  {isEn ? "Select Active Role" : "Chọn vai trò làm việc"}
+                </div>
+                <button
+                  onClick={() => setUserRole('researcher')}
+                  className={`w-full px-3 py-2 text-left flex items-center justify-between transition-colors ${
+                    userRole === 'researcher' 
+                      ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 font-bold' 
+                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <GraduationCap className="w-4 h-4 text-blue-500" />
+                    <div>
+                      <div>{isEn ? "Lead Researcher" : "Nghiên cứu viên"}</div>
+                      <div className="text-[10px] text-slate-400 font-normal">{isEn ? "Search, Scope & Analysis" : "Tìm kiếm, PICO & Phân tích"}</div>
+                    </div>
+                  </div>
+                  {userRole === 'researcher' && <Check className="w-3.5 h-3.5 text-blue-600" />}
+                </button>
+
+                <button
+                  onClick={() => setUserRole('reviewer')}
+                  className={`w-full px-3 py-2 text-left flex items-center justify-between transition-colors ${
+                    userRole === 'reviewer' 
+                      ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 font-bold' 
+                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-amber-500" />
+                    <div>
+                      <div>{isEn ? "Scientific Reviewer" : "Reviewer / Giám định"}</div>
+                      <div className="text-[10px] text-slate-400 font-normal">{isEn ? "Screening, Audit & Approval" : "Sàng lọc, Thẩm định & Duyệt"}</div>
+                    </div>
+                  </div>
+                  {userRole === 'reviewer' && <Check className="w-3.5 h-3.5 text-amber-500" />}
+                </button>
+              </div>
+            )}
+          </div>
+
           <button
             onClick={() => setLanguage(language === 'vi' ? 'en' : 'vi')}
-            className={`p-2.5 rounded-xl border text-sm font-bold transition-all flex items-center gap-2 ${
+            className={`p-2 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 ${
               darkMode 
                 ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700' 
                 : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'
             }`}
             title={t('nav.toggle_language')}
           >
-            <Languages className={`w-4 h-4 ${language === 'vi' ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400'}`} />
-            <span className="hidden lg:inline text-xs">{language === 'vi' ? 'VI' : 'EN'}</span>
+            <Languages className={`w-3.5 h-3.5 ${language === 'vi' ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400'}`} />
+            <span className="hidden lg:inline">{language === 'vi' ? 'VI' : 'EN'}</span>
           </button>
 
           <button
             onClick={() => setDarkMode(!darkMode)}
-            className={`p-2.5 rounded-xl border text-sm font-bold transition-all flex items-center gap-2 ${
+            className={`p-2 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 ${
               darkMode 
                 ? 'bg-slate-800 border-slate-700 text-amber-300 hover:bg-slate-700' 
                 : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'
             }`}
             title={t('nav.toggle_theme')}
           >
-            {darkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-blue-600" />}
-            <span className="hidden lg:inline text-xs">{darkMode ? t('nav.light') : t('nav.dark')}</span>
+            {darkMode ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5 text-blue-600" />}
+            <span className="hidden lg:inline">{darkMode ? t('nav.light') : t('nav.dark')}</span>
           </button>
 
-          <div className="w-9 h-9 rounded-xl bg-slate-900 dark:bg-slate-700 text-white font-bold text-xs flex items-center justify-center shadow-sm">
-            NH
+          <div className="w-8 h-8 rounded-xl bg-slate-900 dark:bg-slate-700 text-white font-bold text-xs flex items-center justify-center shadow-sm">
+            {userRole === 'reviewer' ? 'REV' : 'RES'}
           </div>
         </div>
 

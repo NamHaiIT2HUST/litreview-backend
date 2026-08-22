@@ -113,32 +113,39 @@ class VectorStoreService:
                 logging.getLogger(__name__).warning("Failed to initialize Gemini embeddings: %s; falling back to LightweightHashEmbeddings", exc)
                 self.embeddings = LightweightHashEmbeddings()
         elif should_use_openai_embeddings(settings):
-            # Prefer official OpenAI key (sk-proj-...) for embeddings if present
             emb_key = (
                 getattr(settings, "openai_embedding_api_key", "")
                 or os.getenv("OPENAI_EMBEDDING_API_KEY", "")
+                or getattr(settings, "llm_api_key", "")
+                or os.getenv("LLM_API_KEY", "")
                 or settings.openai_api_key
                 or os.getenv("OPENAI_API_KEY", "")
             )
-            emb_base = settings.get_api_base or None
-            
-            real_key = getattr(settings, "llm_api_key", "") or os.getenv("LLM_API_KEY", "")
-            if (emb_key and emb_key.startswith("sk-proj-")) or os.getenv("OPENAI_EMBEDDING_API_KEY") or getattr(settings, "openai_embedding_api_key", ""):
-                # Always route to OpenAI if explicit OpenAI/embedding key is used
-                emb_base = "https://api.openai.com/v1"
-            elif real_key.startswith("sk-proj-") or (emb_key and emb_key.startswith("sk-xt-")):
-                if real_key.startswith("sk-proj-"):
-                    emb_key = real_key
-                # xkiro proxy does not support embeddings -> route to official OpenAI endpoint
-                if emb_base and "xkiro.com" in emb_base:
+            emb_base = (
+                getattr(settings, "openai_embedding_api_base", "")
+                or os.getenv("OPENAI_EMBEDDING_API_BASE", "")
+            )
+            emb_model = settings.embedding_model or "text-embedding-3-small"
+
+            if not emb_base:
+                if emb_key.startswith("sk-or-v1-"):
+                    emb_base = "https://openrouter.ai/api/v1"
+                elif emb_key.startswith("sk-proj-"):
                     emb_base = "https://api.openai.com/v1"
+                else:
+                    emb_base = settings.get_api_base or None
+                    if emb_base and "xkiro.com" in emb_base:
+                        emb_base = "https://api.openai.com/v1"
+
+            if emb_base and "openrouter.ai" in emb_base and not ("/" in emb_model):
+                emb_model = f"openai/{emb_model}"
 
             if not emb_key:
                 self.embeddings = LightweightHashEmbeddings()
             else:
                 try:
                     primary = OpenAIEmbeddings(
-                        model=settings.embedding_model or "text-embedding-3-small",
+                        model=emb_model,
                         api_key=emb_key,
                         base_url=emb_base,
                     )

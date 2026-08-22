@@ -1371,6 +1371,26 @@ async def workspace_analyze_data(request: DataAnalysisRequest) -> DataAnalysisRe
         )
 
 
+@router.post("/workspace/execute-code")
+async def workspace_execute_code(request: dict) -> dict:
+    """
+    Thực thi mã Python trực tiếp trong môi trường Isolated Code Sandbox an toàn.
+    Tự động nạp dữ liệu người dùng vào biến 'df', capture stdout/stderr và render matplotlib figures.
+    """
+    from src.services.code_sandbox_service import code_sandbox_service
+
+    code = str(request.get("code", ""))
+    csv_text = str(request.get("csv_text", ""))
+    timeout = float(request.get("timeout_seconds", 10.0))
+
+    res = await code_sandbox_service.execute_code_async(
+        code=code,
+        csv_text=csv_text,
+        timeout_seconds=timeout
+    )
+    return res.model_dump()
+
+
 @router.post("/workspace/evidence-coords", response_model=EvidenceCoordsResponse)
 async def get_evidence_coords(
     request: EvidenceCoordsRequest,

@@ -20,7 +20,21 @@ import {
   HelpCircle,
   FolderOpen,
   FileCode,
-  Layers
+  Layers,
+  Play,
+  Terminal,
+  Image,
+  AlertCircle,
+  Clock,
+  Loader2,
+  Edit3,
+  RotateCcw,
+  Download,
+  Table,
+  Search as SearchIcon,
+  Activity,
+  FileText,
+  Maximize2
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -85,6 +99,597 @@ Cell_010,Lung,Intermediate,0.48,0.53,7.2,4.5,2.9,3.8,Transitioning`
   }
 };
 
+function InteractiveTableViewer({ tables, isEn }) {
+  const [selectedTableIdx, setSelectedTableIdx] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  if (!tables || tables.length === 0) return null;
+
+  const currentTable = tables[selectedTableIdx] || tables[0];
+  const columns = currentTable.columns || [];
+  const allRows = currentTable.rows || [];
+
+  // Filter rows
+  const filteredRows = allRows.filter(row => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return Object.values(row).some(val => String(val).toLowerCase().includes(q));
+  });
+
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+  const pageRows = filteredRows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  const handleExportCSV = () => {
+    if (!columns.length || !allRows.length) return;
+    const header = columns.join(',');
+    const body = allRows.map(r => columns.map(c => `"${String(r[c] ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([`${header}\n${body}`], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${currentTable.name || 'sandbox_table'}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="space-y-3">
+      {/* Controls & Table Switcher */}
+      <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+        <div className="flex items-center gap-1.5 overflow-x-auto custom-scrollbar pb-1">
+          {tables.map((tbl, idx) => (
+            <button
+              key={idx}
+              onClick={() => { setSelectedTableIdx(idx); setCurrentPage(1); }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all flex items-center gap-1.5 ${
+                selectedTableIdx === idx
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700'
+              }`}
+            >
+              <Table className="w-3.5 h-3.5" />
+              <span>{tbl.name}</span>
+              <span className="px-1.5 py-0.2 rounded bg-black/30 text-[10px] font-normal">
+                {tbl.total_rows} × {tbl.total_cols}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-2">
+          {/* Search bar */}
+          <div className="relative">
+            <SearchIcon className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+              placeholder={isEn ? "Filter rows..." : "Tìm kiếm dữ liệu..."}
+              className="pl-8 pr-3 py-1 bg-slate-950 text-slate-200 text-xs rounded-lg border border-slate-700 focus:outline-none focus:border-blue-500 w-36 sm:w-44"
+            />
+          </div>
+
+          {/* Export CSV button */}
+          <button
+            onClick={handleExportCSV}
+            className="px-2.5 py-1 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 text-xs font-bold flex items-center gap-1 transition-colors"
+            title="Export CSV"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">CSV</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Table Container */}
+      <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/80 custom-scrollbar max-h-80">
+        <table className="w-full text-left text-xs border-collapse font-sans">
+          <thead>
+            <tr className="bg-slate-900/90 border-b border-slate-800 text-slate-300 sticky top-0 z-10">
+              <th className="py-2.5 px-3 font-mono text-[11px] text-slate-400 w-12 text-center border-r border-slate-800/60">
+                #
+              </th>
+              {columns.map((col, cIdx) => (
+                <th key={cIdx} className="py-2.5 px-3 font-mono font-semibold tracking-tight text-slate-200 whitespace-nowrap">
+                  {col}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-800/60 text-slate-300">
+            {pageRows.length > 0 ? (
+              pageRows.map((row, rIdx) => {
+                const globalIndex = (currentPage - 1) * pageSize + rIdx + 1;
+                return (
+                  <tr key={rIdx} className="hover:bg-slate-800/50 transition-colors group">
+                    <td className="py-2 px-3 font-mono text-[10px] text-slate-400 text-center border-r border-slate-800/40 bg-slate-900/30">
+                      {globalIndex}
+                    </td>
+                    {columns.map((col, cIdx) => (
+                      <td key={cIdx} className="py-2 px-3 font-mono text-[11px] whitespace-nowrap">
+                        {row[col] !== undefined && row[col] !== null ? String(row[col]) : '-'}
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })
+            ) : (
+              <tr>
+                <td colSpan={columns.length + 1} className="py-8 text-center text-slate-400 italic">
+                  {isEn ? "No matching records found." : "Không tìm thấy dòng dữ liệu phù hợp."}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pagination Footer */}
+      <div className="flex items-center justify-between text-xs text-slate-400 px-1 pt-1">
+        <div className="text-[11px]">
+          {isEn ? "Showing" : "Hiển thị"}{' '}
+          <span className="font-bold text-slate-200">
+            {filteredRows.length > 0 ? (currentPage - 1) * pageSize + 1 : 0}
+          </span>{' '}
+          -{' '}
+          <span className="font-bold text-slate-200">
+            {Math.min(currentPage * pageSize, filteredRows.length)}
+          </span>{' '}
+          / <span className="font-bold text-slate-200">{filteredRows.length}</span> {isEn ? "rows" : "dòng"}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <select
+            value={pageSize}
+            onChange={e => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
+            className="bg-slate-900 border border-slate-700 text-slate-300 text-[11px] rounded px-1.5 py-0.5 focus:outline-none"
+          >
+            <option value={10}>10 / {isEn ? "page" : "trang"}</option>
+            <option value={25}>25 / {isEn ? "page" : "trang"}</option>
+            <option value={50}>50 / {isEn ? "page" : "trang"}</option>
+          </select>
+
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage <= 1}
+              className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-300 border border-slate-700 text-[11px]"
+            >
+              {isEn ? "Prev" : "Trước"}
+            </button>
+            <span className="text-[11px] font-mono text-slate-300 px-1">
+              {currentPage}/{totalPages}
+            </span>
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage >= totalPages}
+              className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-300 border border-slate-700 text-[11px]"
+            >
+              {isEn ? "Next" : "Sau"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatisticalInsightsViewer({ insights, isEn }) {
+  if (!insights || insights.length === 0) return null;
+
+  return (
+    <div className="space-y-3">
+      <div className="text-xs text-slate-300 font-medium px-1 flex items-center justify-between">
+        <span className="flex items-center gap-1.5">
+          <Activity className="w-3.5 h-3.5 text-amber-400" />
+          {isEn ? "Automated Statistical & Data Science Insights" : "Diễn giải Thống kê Định lượng Tự động"}
+        </span>
+        <span className="text-[10px] text-slate-400 font-mono">
+          {insights.length} {isEn ? "metrics" : "chỉ số"}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+        {insights.map((item, idx) => {
+          const isCorr = item.category === 'correlation';
+          const isDist = item.category === 'distribution';
+          return (
+            <div
+              key={idx}
+              className={`p-3 rounded-xl border backdrop-blur-sm transition-all ${
+                isCorr 
+                  ? 'bg-purple-950/20 border-purple-800/40 text-purple-200' 
+                  : isDist 
+                    ? 'bg-amber-950/20 border-amber-800/40 text-amber-200' 
+                    : 'bg-slate-900/90 border-slate-800 text-slate-200'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[11px] font-medium text-slate-400 truncate max-w-[170px]">
+                  {item.metric}
+                </span>
+                <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${
+                  isCorr 
+                    ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' 
+                    : isDist 
+                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' 
+                      : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                }`}>
+                  {item.category}
+                </span>
+              </div>
+              <div className="text-base font-bold font-mono text-white tracking-tight my-0.5">
+                {item.value}
+              </div>
+              {item.subtext && (
+                <div className="text-[10px] text-slate-400 truncate mt-1">
+                  {item.subtext}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function InteractiveCodeSandboxBlock({ code, csvText, darkMode, isEn }) {
+  const [isRunning, setIsRunning] = useState(false);
+  const [result, setResult] = useState(null);
+  const [isCopied, setIsCopied] = useState(false);
+  const [activeTab, setActiveTab] = useState('code'); // 'code' | 'output' | 'figures' | 'tables' | 'insights'
+  const [editableCode, setEditableCode] = useState(code);
+  const [isEditing, setIsEditing] = useState(false);
+  const [selectedFigure, setSelectedFigure] = useState(null);
+
+  const handleRun = async () => {
+    setIsRunning(true);
+    try {
+      const res = await safeFetch('/workspace/execute-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: editableCode,
+          csv_text: csvText || '',
+          timeout_seconds: 10.0,
+        }),
+      });
+      const data = await res.json();
+      setResult(data);
+
+      // Smart tab selection based on outputs
+      if (data.figures && data.figures.length > 0) {
+        setActiveTab('figures');
+      } else if (data.tables && data.tables.length > 0) {
+        setActiveTab('tables');
+      } else if (data.insights && data.insights.length > 0) {
+        setActiveTab('insights');
+      } else {
+        setActiveTab('output');
+      }
+    } catch (err) {
+      setResult({
+        success: false,
+        error: `Lỗi kết nối Sandbox: ${err.message}`,
+        stdout: '',
+        stderr: err.message,
+        execution_time_ms: 0,
+        figures: [],
+        tables: [],
+        insights: [],
+      });
+      setActiveTab('output');
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(editableCode);
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000);
+  };
+
+  const handleDownload = () => {
+    const blob = new Blob([editableCode], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'sandbox_eda.py';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="rounded-2xl overflow-hidden my-4 border border-slate-700/80 bg-slate-900 shadow-xl backdrop-blur-md">
+      {/* Header bar */}
+      <div className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2.5 bg-slate-800/95 border-b border-slate-700/80 text-white">
+        <div className="flex items-center gap-2">
+          <div className="w-5 h-5 rounded-md bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-[10px] border border-emerald-500/30">
+            Py
+          </div>
+          <span className="text-xs font-mono font-bold text-slate-200">
+            {isEn ? "Python Analytics Sandbox" : "Python Sandbox Phân Tích Dữ Liệu"}
+          </span>
+          {csvText ? (
+            <span className="hidden sm:inline px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 text-[10px] font-mono border border-blue-500/30">
+              df loaded
+            </span>
+          ) : (
+            <span className="hidden sm:inline px-2 py-0.5 rounded-full bg-slate-700 text-slate-400 text-[10px] font-mono">
+              no dataset
+            </span>
+          )}
+        </div>
+
+        {/* Tab switchers & actions */}
+        <div className="flex items-center gap-1.5">
+          <div className="flex bg-slate-900/90 p-0.5 rounded-lg border border-slate-700 text-[11px] font-semibold">
+            {result?.figures && result.figures.length > 0 && (
+              <button
+                onClick={() => setActiveTab('figures')}
+                className={`px-2.5 py-1 rounded-md transition-colors flex items-center gap-1.5 ${activeTab === 'figures' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+              >
+                <Image className="w-3 h-3 text-sky-400" />
+                <span>Plots ({result.figures.length})</span>
+              </button>
+            )}
+
+            {result?.tables && result.tables.length > 0 && (
+              <button
+                onClick={() => setActiveTab('tables')}
+                className={`px-2.5 py-1 rounded-md transition-colors flex items-center gap-1.5 ${activeTab === 'tables' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+              >
+                <Table className="w-3 h-3 text-emerald-400" />
+                <span>Tables ({result.tables.length})</span>
+              </button>
+            )}
+
+            {result?.insights && result.insights.length > 0 && (
+              <button
+                onClick={() => setActiveTab('insights')}
+                className={`px-2.5 py-1 rounded-md transition-colors flex items-center gap-1.5 ${activeTab === 'insights' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+              >
+                <Activity className="w-3 h-3 text-amber-400" />
+                <span>Insights ({result.insights.length})</span>
+              </button>
+            )}
+
+            <button
+              onClick={() => setActiveTab('output')}
+              className={`px-2.5 py-1 rounded-md transition-colors flex items-center gap-1.5 ${activeTab === 'output' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+            >
+              <Terminal className="w-3 h-3" />
+              <span>Console</span>
+              {result && (
+                <span className={`w-1.5 h-1.5 rounded-full ${result.success ? 'bg-emerald-400' : 'bg-rose-400'}`} />
+              )}
+            </button>
+
+            <button
+              onClick={() => setActiveTab('code')}
+              className={`px-2.5 py-1 rounded-md transition-colors ${activeTab === 'code' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+            >
+              {isEn ? 'Code' : 'Mã'}
+            </button>
+          </div>
+
+          <button
+            onClick={() => setIsEditing(!isEditing)}
+            className={`p-1.5 rounded-lg border transition-colors ${isEditing ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400' : 'hover:bg-slate-700 border-slate-700 text-slate-300'}`}
+            title={isEditing ? (isEn ? "Done Editing" : "Xong") : (isEn ? "Edit Code" : "Sửa Code")}
+          >
+            {isEditing ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Edit3 className="w-3.5 h-3.5" />}
+          </button>
+
+          <button
+            onClick={handleCopy}
+            className="p-1.5 rounded-lg hover:bg-slate-700 border border-slate-700 text-slate-300 transition-colors"
+            title={isEn ? "Copy Code" : "Sao chép mã"}
+          >
+            {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+          </button>
+
+          <button
+            onClick={handleDownload}
+            className="p-1.5 rounded-lg hover:bg-slate-700 border border-slate-700 text-slate-300 transition-colors"
+            title={isEn ? "Download .py" : "Tải file .py"}
+          >
+            <Download className="w-3.5 h-3.5" />
+          </button>
+
+          <button
+            onClick={handleRun}
+            disabled={isRunning}
+            className="px-3 py-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50 text-white rounded-lg text-xs font-bold transition-all shadow-md shadow-emerald-900/40 flex items-center gap-1.5 cursor-pointer ml-1 active:scale-95"
+          >
+            {isRunning ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <span>{isEn ? 'Running...' : 'Đang chạy...'}</span>
+              </>
+            ) : (
+              <>
+                <Play className="w-3.5 h-3.5 fill-white" />
+                <span>{isEn ? 'Run in Sandbox' : 'Chạy Sandbox'}</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Body content */}
+      <div className="p-3">
+        {activeTab === 'code' && (
+          <div>
+            {isEditing ? (
+              <div className="relative">
+                <textarea
+                  value={editableCode}
+                  onChange={(e) => setEditableCode(e.target.value)}
+                  rows={8}
+                  className="w-full bg-slate-950 text-emerald-400 font-mono text-xs p-3 rounded-xl border border-slate-700 focus:outline-none focus:border-emerald-500 custom-scrollbar resize-y"
+                  placeholder="Nhập mã Python để chạy trong Sandbox..."
+                />
+                <button
+                  onClick={() => setEditableCode(code)}
+                  className="absolute right-3 top-3 text-[10px] text-slate-400 hover:text-white flex items-center gap-1 bg-slate-800 px-2 py-0.5 rounded border border-slate-700"
+                >
+                  <RotateCcw className="w-2.5 h-2.5" />
+                  <span>Reset</span>
+                </button>
+              </div>
+            ) : (
+              <div className="max-h-72 overflow-y-auto custom-scrollbar rounded-xl bg-slate-950 p-3.5 border border-slate-800">
+                <pre className="text-xs font-mono text-emerald-400 whitespace-pre-wrap">
+                  {editableCode}
+                </pre>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'output' && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-[11px] text-slate-400 px-1">
+              <span className="font-mono flex items-center gap-1.5">
+                <Terminal className="w-3.5 h-3.5 text-blue-400" />
+                Console Standard Output
+              </span>
+              {result && (
+                <span className="flex items-center gap-1 font-mono text-[10px] text-slate-400 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">
+                  <Clock className="w-3 h-3 text-slate-400" />
+                  {result.execution_time_ms}ms
+                </span>
+              )}
+            </div>
+
+            <div className="max-h-72 overflow-y-auto custom-scrollbar rounded-xl bg-slate-950 p-3.5 border border-slate-800 text-xs font-mono">
+              {!result ? (
+                <div className="text-slate-400 italic flex items-center gap-2 py-2">
+                  <span>Chưa chạy mã nguồn. Nhấn </span>
+                  <span className="text-emerald-400 font-bold">"Chạy Sandbox"</span>
+                  <span> để thực thi an toàn.</span>
+                </div>
+              ) : result.success ? (
+                <div>
+                  {result.stdout ? (
+                    <pre className="text-slate-200 whitespace-pre-wrap">{result.stdout}</pre>
+                  ) : (
+                    <div className="text-slate-400 italic">Mã nguồn chạy thành công (Không có stdout).</div>
+                  )}
+                  {result.variables_summary && Object.keys(result.variables_summary).length > 0 && (
+                    <div className="mt-3 pt-2.5 border-t border-slate-800">
+                      <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1.5">
+                        Biến số sinh ra:
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-[11px]">
+                        {Object.entries(result.variables_summary).map(([k, v]) => (
+                          <div key={k} className="bg-slate-900/90 px-2.5 py-1.5 rounded-lg border border-slate-800 flex justify-between items-center">
+                            <span className="text-sky-400 font-mono font-semibold">{k}</span>
+                            <span className="text-slate-300 truncate max-w-[150px] font-mono text-[10px]">{v}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-rose-400 space-y-1.5">
+                  <div className="font-bold flex items-center gap-1.5 text-rose-400">
+                    <AlertCircle className="w-4 h-4" />
+                    <span>Lỗi thực thi:</span>
+                  </div>
+                  <pre className="text-[11px] text-rose-300 whitespace-pre-wrap bg-rose-950/40 p-2 rounded border border-rose-900/50">{result.error || result.stderr}</pre>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'figures' && result?.figures && (
+          <div className="space-y-3">
+            <div className="text-xs text-slate-300 font-medium px-1 flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <Image className="w-3.5 h-3.5 text-sky-400" />
+                {isEn ? "Matplotlib & Seaborn High-Resolution Plots" : "Đồ thị Matplotlib / Seaborn sắc nét từ Sandbox"}
+              </span>
+              <span className="text-[10px] text-slate-400 font-mono">
+                {result.figures.length} {isEn ? "figures" : "ảnh"}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {result.figures.map((figBase64, figIdx) => (
+                <div
+                  key={figIdx}
+                  className="rounded-xl overflow-hidden border border-slate-700 bg-white p-2.5 flex flex-col items-center group relative shadow-md"
+                >
+                  <img
+                    src={figBase64}
+                    alt={`Plot ${figIdx + 1}`}
+                    className="w-full h-auto object-contain rounded-lg max-h-80 cursor-pointer hover:scale-[1.01] transition-transform"
+                    onClick={() => setSelectedFigure(figBase64)}
+                  />
+                  <div className="w-full flex justify-between items-center mt-2 px-1 text-slate-600 text-[11px]">
+                    <span className="font-bold font-mono">Figure {figIdx + 1}</span>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => setSelectedFigure(figBase64)}
+                        className="p-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
+                        title={isEn ? "Expand Image" : "Phóng to"}
+                      >
+                        <Maximize2 className="w-3 h-3" />
+                      </button>
+                      <a
+                        href={figBase64}
+                        download={`matplotlib_plot_${figIdx + 1}.png`}
+                        className="px-2.5 py-1 rounded-md bg-blue-50 hover:bg-blue-100 text-blue-700 text-[10px] font-bold flex items-center gap-1 transition-colors"
+                      >
+                        <Download className="w-3 h-3" />
+                        <span>Lưu ảnh</span>
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'tables' && result?.tables && (
+          <InteractiveTableViewer tables={result.tables} isEn={isEn} />
+        )}
+
+        {activeTab === 'insights' && result?.insights && (
+          <StatisticalInsightsViewer insights={result.insights} isEn={isEn} />
+        )}
+      </div>
+
+      {/* Modal Zoom Figure */}
+      {selectedFigure && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setSelectedFigure(null)}
+        >
+          <div className="relative max-w-5xl max-h-[92vh] bg-white p-4 rounded-2xl shadow-2xl" onClick={e => e.stopPropagation()}>
+            <button
+              onClick={() => setSelectedFigure(null)}
+              className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold shadow-lg cursor-pointer hover:bg-slate-800"
+            >
+              ✕
+            </button>
+            <img src={selectedFigure} alt="Enlarged Plot" className="max-w-full max-h-[82vh] object-contain rounded-xl" />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSendToChat }) {
   const { t, language } = useLanguage();
   const isEn = language === 'en';
@@ -102,6 +707,7 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [attachedFile, setAttachedFile] = useState(null);
+  const [activeCsvText, setActiveCsvText] = useState('');
   const [datasetProfile, setDatasetProfile] = useState(null);
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [showExampleQueries, setShowExampleQueries] = useState(true);
@@ -229,6 +835,7 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
         name: DEMO_DATASETS[key].name,
         content: DEMO_DATASETS[key].content
       });
+      setActiveCsvText(DEMO_DATASETS[key].content);
     }
   };
 
@@ -248,6 +855,7 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
           const worksheet = workbook.Sheets[firstSheetName];
           const csvText = XLSX.utils.sheet_to_csv(worksheet);
           setAttachedFile({ name: file.name, content: csvText });
+          setActiveCsvText(csvText);
         } catch (err) {
           console.error('Error parsing Excel file in browser:', err);
           alert('Không thể đọc file Excel. Vui lòng kiểm tra lại định dạng.');
@@ -259,6 +867,7 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
       const reader = new FileReader();
       reader.onload = (ev) => {
         setAttachedFile({ name: file.name, content: ev.target.result });
+        setActiveCsvText(ev.target.result);
       };
       reader.readAsText(file, 'utf-8');
     }
@@ -271,6 +880,9 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
     if (!question) return;
 
     const fileToUse = customFile || attachedFile;
+    if (fileToUse?.content) {
+      setActiveCsvText(fileToUse.content);
+    }
     const userMsg = { 
       sender: 'user', 
       text: question, 
@@ -474,33 +1086,14 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
                           const match = /language-(\w+)/.exec(className || '')
                           const lang = match ? match[1] : ''
                           const codeStr = String(children).replace(/\n$/, '')
-                          if (!inline && lang === 'python') {
+                          if (!inline && (lang === 'python' || lang === 'py')) {
                             return (
-                              <div className="relative group rounded-lg overflow-hidden my-3 border border-slate-700">
-                                <div className="flex justify-between items-center bg-slate-800 px-3 py-1.5 border-b border-slate-700">
-                                  <span className="text-[11px] font-mono font-bold text-slate-300">Python Script (EDA)</span>
-                                  <button
-                                    onClick={() => {
-                                      const blob = new Blob([codeStr], { type: 'text/plain' });
-                                      const url = URL.createObjectURL(blob);
-                                      const a = document.createElement('a');
-                                      a.href = url;
-                                      a.download = 'eda_analysis.py';
-                                      a.click();
-                                      URL.revokeObjectURL(url);
-                                    }}
-                                    className="text-[10px] font-bold px-2 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors flex items-center gap-1 cursor-pointer"
-                                  >
-                                    <FileCode className="w-3 h-3" />
-                                    <span>Tải code (.py)</span>
-                                  </button>
-                                </div>
-                                <div className="max-h-32 overflow-y-auto bg-slate-900 custom-scrollbar p-3">
-                                  <code className="text-xs font-mono text-emerald-400 whitespace-pre-wrap" {...props}>
-                                    {children}
-                                  </code>
-                                </div>
-                              </div>
+                              <InteractiveCodeSandboxBlock 
+                                code={codeStr} 
+                                csvText={activeCsvText} 
+                                darkMode={dm} 
+                                isEn={isEn} 
+                              />
                             )
                           }
                           return <code className={className} {...props}>{children}</code>
