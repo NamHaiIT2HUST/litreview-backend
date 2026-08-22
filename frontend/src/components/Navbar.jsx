@@ -1,17 +1,26 @@
 import React from 'react';
-import { Search, Sparkles, Sun, Moon, Home, Settings, Library, Download, Languages } from 'lucide-react';
+import { Search, Sparkles, Sun, Moon, Home, Settings, Library, Download, Languages, LayoutDashboard } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
 
-export default function Navbar({ activeTab, setActiveTab, darkMode, setDarkMode }) {
+export default function Navbar({ activeTab, setActiveTab, darkMode, setDarkMode, onLoginClick, onRegisterClick }) {
   const { language, setLanguage, t } = useLanguage();
+  const { user, logout } = useAuth();
 
-  const navItems = [
+  const userNavItems = [
     { id: 'overview', label: t('nav.overview'), icon: Home },
     { id: 'setup', label: t('nav.setup'), icon: Settings },
     { id: 'search', label: t('nav.search'), icon: Search },
     { id: 'synthesis', label: t('nav.workspace'), icon: Library },
     { id: 'export', label: t('nav.export'), icon: Download },
   ];
+
+  const adminNavItems = [
+    { id: 'admin', label: 'Quản Trị Hệ Thống', icon: LayoutDashboard },
+    { id: 'overview', label: t('nav.overview'), icon: Home },
+  ];
+
+  const navItems = user?.role === 'admin' ? adminNavItems : userNavItems;
 
   return (
     <header className={`sticky top-0 z-50 border-b transition-colors shadow-sm ${
@@ -45,35 +54,37 @@ export default function Navbar({ activeTab, setActiveTab, darkMode, setDarkMode 
         </div>
 
         {/* Center Navigation Tabs */}
-        <nav className={`hidden md:flex items-center gap-1 p-1 rounded-2xl border ${
-          darkMode ? 'bg-slate-900 border-slate-800' : 'bg-slate-100/80 border-slate-200'
-        }`}>
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={`flex items-center gap-2 px-4 py-2 text-xs font-display font-bold rounded-xl transition-all ${
-                  isActive
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                    : darkMode
-                      ? 'text-slate-400 hover:text-white hover:bg-slate-800/80'
-                      : 'text-slate-600 hover:text-slate-950 hover:bg-white/80'
-                }`}
-              >
-                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : ''}`} />
-                <span>{item.label}</span>
-                {item.count !== undefined && item.count > 0 && (
-                  <span className="w-4 h-4 bg-amber-400 text-slate-950 rounded-full text-[10px] flex items-center justify-center font-bold ml-1">
-                    {item.count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </nav>
+        {user && (
+          <nav className={`hidden md:flex items-center gap-1 p-1 rounded-2xl border ${
+            darkMode ? 'bg-slate-900 border-slate-800' : 'bg-slate-100/80 border-slate-200'
+          }`}>
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id)}
+                  className={`flex items-center gap-2 px-4 py-2 text-xs font-display font-bold rounded-xl transition-all ${
+                    isActive
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                      : darkMode
+                        ? 'text-slate-400 hover:text-white hover:bg-slate-800/80'
+                        : 'text-slate-600 hover:text-slate-950 hover:bg-white/80'
+                  }`}
+                >
+                  <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : ''}`} />
+                  <span>{item.label}</span>
+                  {item.count !== undefined && item.count > 0 && (
+                    <span className="w-4 h-4 bg-amber-400 text-slate-950 rounded-full text-[10px] flex items-center justify-center font-bold ml-1">
+                      {item.count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </nav>
+        )}
 
         {/* Right Controls */}
         <div className="flex items-center gap-3">
@@ -103,17 +114,35 @@ export default function Navbar({ activeTab, setActiveTab, darkMode, setDarkMode 
             <span className="hidden lg:inline text-xs">{darkMode ? t('nav.light') : t('nav.dark')}</span>
           </button>
 
-          <div className="w-9 h-9 rounded-xl bg-slate-900 dark:bg-slate-700 text-white font-bold text-xs flex items-center justify-center shadow-sm">
-            NH
-          </div>
+          {user ? (
+            <div className="flex items-center gap-3 ml-2">
+              <div className="flex flex-col items-end">
+                <span className="text-xs font-bold text-slate-900 dark:text-white leading-none">{user.username}</span>
+                <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase">{user.role}</span>
+              </div>
+              <button onClick={logout} className="text-xs font-bold text-slate-500 hover:text-red-500 transition-colors">
+                Đăng xuất
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 ml-2">
+              <button onClick={onLoginClick} className="px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
+                Đăng nhập
+              </button>
+              <button onClick={onRegisterClick} className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-colors shadow-sm">
+                Đăng ký
+              </button>
+            </div>
+          )}
         </div>
 
       </div>
 
       {/* Mobile Navigation Bar */}
-      <div className={`md:hidden border-t p-2 flex justify-around ${
-        darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-      }`}>
+      {user && (
+        <div className={`md:hidden border-t p-2 flex justify-around ${
+          darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+        }`}>
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
@@ -132,6 +161,7 @@ export default function Navbar({ activeTab, setActiveTab, darkMode, setDarkMode 
           );
         })}
       </div>
+      )}
     </header>
   );
 }

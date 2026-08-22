@@ -12,6 +12,7 @@ from src.api.project_routes import router as project_router
 from src.api.screening_routes import router as screening_router
 from src.api.export_routes import router as export_router
 from src.api.slr_swarm_routes import router as slr_swarm_router
+from src.api.auth_routes import router as auth_router
 from src.config import get_settings
 from src.database import create_all_tables, ensure_local_schema_compatibility
 
@@ -22,6 +23,10 @@ async def lifespan(app: FastAPI):
     await create_all_tables()  # Ensure all tables exist (idempotent)
     await ensure_local_schema_compatibility()
     print("Database tables ready.")
+    
+    # Ensure default admin user exists
+    await _ensure_admin_user()
+    
     # Seed the default project so synthesis & direct-upload always work
     await _ensure_default_project()
     print("Default project seeded.")
@@ -121,6 +126,27 @@ async def _ensure_default_project():
             await session.rollback()
             print(f"Warning: could not seed default project: {e}")
 
+async def _ensure_admin_user():
+    """Create default admin user if not exists"""
+    from sqlalchemy import select as _select
+    from src.database import AsyncSessionLocal
+    from src.models.db_models import User, Role
+    from src.api.auth_routes import hash_password
+    async with AsyncSessionLocal() as session:
+        try:
+            exists = await session.execute(_select(User).where(User.username == "admin123"))
+            if exists.scalar_one_or_none() is None:
+                session.add(User(
+                    username="admin123",
+                    hashed_password=hash_password("123"),
+                    role=Role.admin
+                ))
+                await session.commit()
+                print("Default admin created.")
+        except Exception as e:
+            await session.rollback()
+            print(f"Warning: could not seed default admin: {e}")
+
 app = FastAPI(
     title="AI20K Agent",
     description="AI Agent built with LangGraph",
@@ -142,6 +168,7 @@ app.include_router(root_router, prefix="/api/v1")
 app.include_router(screening_router, prefix="/api/v1")
 app.include_router(export_router, prefix="/api/v1")
 app.include_router(slr_swarm_router, prefix="/api/v1")
+app.include_router(auth_router, prefix="/api/v1")
 
 
 @app.get("/")

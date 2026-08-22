@@ -4,9 +4,11 @@ import {
   Layers, ShieldCheck, Database, Check, CheckCheck
 } from 'lucide-react';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { useAuth } from '../../contexts/AuthContext';
 
-export default function HomeTab({ setActiveTab, darkMode }) {
+export default function HomeTab({ setActiveTab, darkMode, onLoginClick, onRegisterClick }) {
   const { t } = useLanguage();
+  const { user } = useAuth();
 
   const workflowSteps = [
     {
@@ -80,21 +82,40 @@ export default function HomeTab({ setActiveTab, darkMode }) {
 
           {/* Action CTAs */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
-            <button
-              onClick={() => setActiveTab('setup')}
-              className="w-full sm:w-auto px-9 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-display font-black text-xs md:text-sm tracking-wider uppercase shadow-xl shadow-blue-600/40 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-3"
-            >
-              <span>BẮT ĐẦU CẤU HÌNH ĐỀ TÀI</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-            
-            <button
-              onClick={() => setActiveTab('search')}
-              className="w-full sm:w-auto px-8 py-4 rounded-2xl font-display font-bold text-xs md:text-sm tracking-wider uppercase transition-all bg-white/10 hover:bg-white/20 text-white border border-white/20 backdrop-blur-md flex items-center justify-center gap-2.5 hover:scale-105 active:scale-95 shadow-md"
-            >
-              <Search className="w-4 h-4 text-sky-400" />
-              <span>KHÁM PHÁ NGUỒN BÀI BÁO</span>
-            </button>
+            {!user ? (
+              <>
+                <button
+                  onClick={onLoginClick}
+                  className="w-full sm:w-auto px-9 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-display font-black text-xs md:text-sm tracking-wider uppercase shadow-xl shadow-blue-600/40 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-3"
+                >
+                  <span>ĐĂNG NHẬP ĐỂ BẮT ĐẦU</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={onRegisterClick}
+                  className="w-full sm:w-auto px-8 py-4 rounded-2xl font-display font-bold text-xs md:text-sm tracking-wider uppercase transition-all bg-white/10 hover:bg-white/20 text-white border border-white/20 backdrop-blur-md flex items-center justify-center gap-2.5 hover:scale-105 active:scale-95 shadow-md"
+                >
+                  <span>TẠO TÀI KHOẢN MỚI</span>
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => setActiveTab('setup')}
+                  className="w-full sm:w-auto px-9 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-display font-black text-xs md:text-sm tracking-wider uppercase shadow-xl shadow-blue-600/40 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-3"
+                >
+                  <span>BẮT ĐẦU CẤU HÌNH ĐỀ TÀI</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setActiveTab('search')}
+                  className="w-full sm:w-auto px-8 py-4 rounded-2xl font-display font-bold text-xs md:text-sm tracking-wider uppercase transition-all bg-white/10 hover:bg-white/20 text-white border border-white/20 backdrop-blur-md flex items-center justify-center gap-2.5 hover:scale-105 active:scale-95 shadow-md"
+                >
+                  <Search className="w-4 h-4 text-sky-400" />
+                  <span>KHÁM PHÁ NGUỒN BÀI BÁO</span>
+                </button>
+              </>
+            )}
           </div>
 
           {/* Trust Guarantees */}
@@ -234,7 +255,7 @@ export default function HomeTab({ setActiveTab, darkMode }) {
           </p>
           <div className="pt-2">
             <button
-              onClick={() => setActiveTab('synthesis')}
+              onClick={() => user ? setActiveTab('synthesis') : onLoginClick()}
               className="px-7 py-3.5 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-display font-bold text-xs uppercase tracking-wider transition-all hover:scale-105 active:scale-95 flex items-center gap-2 shadow-lg shadow-blue-600/30"
             >
               <span>XEM MA TRẬN TỔNG HỢP</span>
@@ -266,7 +287,7 @@ export default function HomeTab({ setActiveTab, darkMode }) {
             return (
               <div
                 key={idx}
-                onClick={() => setActiveTab(step.tab)}
+                onClick={() => user ? setActiveTab(step.tab) : onLoginClick()}
                 className={`p-7 rounded-3xl border transition-all cursor-pointer flex flex-col justify-between space-y-6 group relative overflow-hidden ${
                   darkMode 
                     ? 'bg-slate-900 border-slate-800 hover:border-blue-500 hover:bg-slate-850 shadow-md' 
@@ -332,7 +353,7 @@ export default function HomeTab({ setActiveTab, darkMode }) {
           </p>
           <div className="pt-2 flex justify-end">
             <button
-              onClick={() => setActiveTab('setup')}
+              onClick={() => user ? setActiveTab('setup') : onLoginClick()}
               className="px-7 py-3.5 bg-white text-slate-950 hover:bg-slate-100 rounded-2xl font-display font-bold text-xs uppercase tracking-wider transition-all hover:scale-105 active:scale-95 flex items-center gap-2 shadow-xl"
             >
               <span>BẮT ĐẦU CẤU HÌNH NGAY</span>

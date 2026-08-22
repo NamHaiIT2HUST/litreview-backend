@@ -6,19 +6,33 @@ import InsightsTab from './components/insights/InsightsTab';
 import HomeTab from './components/home/HomeTab';
 import ResearchSetupTab from './components/setup/ResearchSetupTab';
 import { LanguageProvider } from './contexts/LanguageContext';
-
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import LoginModal from './components/auth/LoginModal';
+import RegisterModal from './components/auth/RegisterModal';
+import AdminDashboard from './components/admin/AdminDashboard';
 import ExportTab from './components/export/ExportTab';
+
 export default function App() {
+  const { user } = useAuth();
+  const [showLogin, setShowLogin] = useState(false);
+  const [showRegister, setShowRegister] = useState(false);
+
   const [activeTab, setActiveTab] = useState(() => {
     const savedTab = localStorage.getItem('litreview_active_tab') || 'overview';
-    // Remove old screening tab redirect
     if (savedTab === 'home' || savedTab === 'quality' || savedTab === 'screening') return 'overview';
     return savedTab;
   });
 
   useEffect(() => {
+    if (!user && activeTab !== 'overview') {
+      setActiveTab('overview');
+    } else if (user?.role === 'admin' && activeTab !== 'admin' && activeTab !== 'overview') {
+      setActiveTab('admin');
+    } else if (user?.role === 'user' && activeTab === 'admin') {
+      setActiveTab('overview');
+    }
     localStorage.setItem('litreview_active_tab', activeTab);
-  }, [activeTab]);
+  }, [activeTab, user]);
 
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('litreview_dark_mode');
@@ -133,12 +147,26 @@ export default function App() {
           setActiveTab={setActiveTab}
           darkMode={darkMode}
           setDarkMode={setDarkMode}
+          onLoginClick={() => setShowLogin(true)}
+          onRegisterClick={() => setShowRegister(true)}
         />
+
+        {showLogin && <LoginModal onClose={() => setShowLogin(false)} onSwitchToRegister={() => {setShowLogin(false); setShowRegister(true);}} />}
+        {showRegister && <RegisterModal onClose={() => setShowRegister(false)} onSwitchToLogin={() => {setShowRegister(false); setShowLogin(true);}} />}
 
         {/* Main Multi-Step Navigation Content Area */}
         <main className={`mx-auto transition-all ${activeTab === 'synthesis' ? 'p-0 max-w-[1920px] w-full' : 'p-4 md:p-8'} ${activeTab === 'search' ? 'max-w-[1920px] w-full' : activeTab === 'synthesis' ? '' : 'max-w-7xl'}`}>
+          {activeTab === 'admin' && (
+            <AdminDashboard darkMode={darkMode} />
+          )}
+
           {activeTab === 'overview' && (
-            <HomeTab setActiveTab={setActiveTab} darkMode={darkMode} />
+            <HomeTab 
+              setActiveTab={setActiveTab} 
+              darkMode={darkMode} 
+              onLoginClick={() => setShowLogin(true)}
+              onRegisterClick={() => setShowRegister(true)}
+            />
           )}
 
           {activeTab === 'setup' && (
