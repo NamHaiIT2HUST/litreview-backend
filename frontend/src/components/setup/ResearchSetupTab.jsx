@@ -497,14 +497,18 @@ export default function ResearchSetupTab({ setActiveTab, darkMode }) {
                 <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2">
                   {t('setup.research_field')}
                 </label>
-                <input 
-                  type="text" 
+                <select
                   value={projectData.research_field}
                   onChange={e => setProjectData({...projectData, research_field: e.target.value})}
-                  placeholder={t('setup.research_field_placeholder')}
                   disabled={topicApproved}
-                  className={`w-full p-3.5 rounded-2xl border text-xs md:text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-950 disabled:opacity-75 disabled:cursor-not-allowed transition-colors ${darkMode ? 'bg-slate-800/80 border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
-                />
+                  className={`w-full p-3.5 rounded-2xl border text-xs md:text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-950 disabled:opacity-75 disabled:cursor-not-allowed transition-colors appearance-none ${darkMode ? 'bg-slate-800/80 border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
+                >
+                  <option value="">-- Chọn lĩnh vực nghiên cứu chuyên sâu --</option>
+                  <option value="Toán học & Tối ưu hóa">Toán học & Tối ưu hóa (PINNs, SGD, Machine Learning Theory)</option>
+                  <option value="Y tế & Chẩn đoán Y sinh">Y tế & Chẩn đoán Y sinh (CT/MRI, ECG, Medical Segmentation)</option>
+                  <option value="Robotics & Tự hành">Robotics & Tự hành (Deep RL, SLAM, MuJoCo/Isaac Sim)</option>
+                  <option value="Khác">Khác (General SLR)</option>
+                </select>
               </div>
               <div className="flex gap-4">
                 <div className="flex-1">
