@@ -20,7 +20,7 @@ from tqdm import tqdm
 # ==========================================
 # CẤU HÌNH API KEY CỦA BẠN Ở ĐÂY
 # ==========================================
-GEMINI_API_KEY = "ĐIỀN_API_KEY_GEMINI_CỦA_BẠN_VÀO_ĐÂY"
+GEMINI_API_KEY = "YOUR_API_KEY_HERE"
 genai.configure(api_key=GEMINI_API_KEY)
 
 # Sử dụng model Gemini 1.5 Flash (nhanh và rẻ) để sinh data
@@ -105,3 +105,5 @@ with open('dataset_agent1.jsonl', 'w', encoding='utf-8') as f:
         f.write(json.dumps(item, ensure_ascii=False) + '\n')
         
 print("Đã tạo xong file dataset_agent1.jsonl! Sẵn sàng mang lên Colab.")
+
+

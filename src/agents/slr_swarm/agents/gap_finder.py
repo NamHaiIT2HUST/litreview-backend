@@ -88,15 +88,25 @@ async def run_gap_finder(state: dict, deps: SwarmDeps) -> dict:
     if not idea:
         return {"error": "Thiếu ý tưởng nghiên cứu (idea), Agent 1 không thể bắt đầu."}
 
-    llm = deps.router.pick("planning")
-    prompt = _PROMPT.format(
-        idea=idea,
-        research_field=research_field or "Không xác định",
-        criteria_include=criteria_include,
-        criteria_exclude=criteria_exclude
-    )
-    raw = await llm.complete(prompt, schema=PICO_SCHEMA)
-    data = parse_object(raw)
+    from src.services.lora_client import call_lora_model
+    lora_instruction = "Extract PICO structure (Population, Intervention, Comparison, Outcome) and keywords in English."
+    lora_input = f"Domain: {research_field}\nTopic: {idea}\nInclude: {criteria_include}\nExclude: {criteria_exclude}"
+    
+    data = None
+    lora_result = await call_lora_model("lora_agent3_pico", lora_instruction, lora_input)
+    if lora_result:
+        data = lora_result
+    else:
+        # Fallback to general LLM
+        llm = deps.router.pick("planning")
+        prompt = _PROMPT.format(
+            idea=idea,
+            research_field=research_field or "Không xác định",
+            criteria_include=criteria_include,
+            criteria_exclude=criteria_exclude
+        )
+        raw = await llm.complete(prompt, schema=PICO_SCHEMA)
+        data = parse_object(raw)
 
     pop = str(data.get("population", "") or "")
     inte = str(data.get("intervention", "") or "")

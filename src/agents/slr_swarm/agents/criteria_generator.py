@@ -59,6 +59,19 @@ async def run_criteria_generator(idea: str, research_field: str = "") -> Criteri
         )
 
     s = get_settings()
+    from src.services.lora_client import call_lora_model
+    
+    # 1. THỬ GỌI LORA MODEL TRƯỚC (NẾU CÓ)
+    lora_instruction = "Generate rigorous PRISMA inclusion and exclusion criteria."
+    lora_input = f"Domain: {research_field}\nTopic: {idea}"
+    lora_result = await call_lora_model("lora_agent2_criteria", lora_instruction, lora_input)
+    if lora_result:
+        return CriteriaGenerationResult(
+            criteria_include=lora_result.get("include", lora_result.get("criteria_include", [])),
+            criteria_exclude=lora_result.get("exclude", lora_result.get("criteria_exclude", []))
+        )
+        
+    # 2. NẾU LORA OFF, FALLBACK SANG GEMINI
     # Ưu tiên key chuyên dụng cho Criteria Generator
     api_key = (
         os.getenv("GEMINI_KEY_CRITERIA_GENERATOR")
