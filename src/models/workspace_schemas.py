@@ -89,3 +89,17 @@ class WorkspaceChatResponse(BaseModel):
     context_used: list[dict]  # list[ContextEntry] — kept as dict for API compatibility
     # Traceable citations: one entry per unique citation key used/considered
     citations: list[dict] = []  # list[CitationEntry] — kept as dict for API compatibility
+    # RAG Guardrail & Hallucination verification result
+    guardrail: dict | None = None
+
+
+class RAGEvalRequest(BaseModel):
+    question: str
+    answer: str
+    context_chunks: list[dict] = []
+
+
+class RAGEvalRunRequest(BaseModel):
+    paper_ids: list[str] = []
+    max_questions_per_paper: int = 2
+

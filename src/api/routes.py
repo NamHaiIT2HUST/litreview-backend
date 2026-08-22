@@ -22,10 +22,12 @@ import re
 import uuid
 from typing import List, Dict, Any, Optional, Union
 from uuid import UUID
+import logging
 
+logger = logging.getLogger(__name__)
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query, UploadFile, File, Form
 from pydantic import BaseModel, Field
-from sqlalchemy import desc, select
+from sqlalchemy import desc, select, String
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.agents.graph import agent
@@ -45,7 +47,7 @@ from src.models.schemas import (
     SearchQueryRecord,
     SearchResponse,
 )
-from src.models.workspace_schemas import UploadResponse, DirectUploadResponse, WorkspaceChatRequest, WorkspaceChatResponse, EvidenceCoordsRequest, EvidenceCoordsResponse, RectCoord
+from src.models.workspace_schemas import UploadResponse, DirectUploadResponse, WorkspaceChatRequest, WorkspaceChatResponse, EvidenceCoordsRequest, EvidenceCoordsResponse, RectCoord, RAGEvalRequest, RAGEvalRunRequest
 from src.models.search_schemas import SearchExecuteRequest, SearchStrategiesResponse
 from src.models.synthesis_schemas import (
     SynthesisCitationResponse,
@@ -64,6 +66,8 @@ from src.services.paper_persistence_utils import normalize_authors_for_db
 from src.services.vector_cleanup_service import create_vector_cleanup_job
 from src.services.vector_store import vector_store_service
 from src.services.rag_service import rag_service
+from src.services.rag_guardrail_service import rag_guardrail_service
+from src.services.rag_eval_harness import rag_eval_harness
 from src.services.synthesis_response_builder import build_section_responses
 from src.services.synthesis_llm_service import synthesis_llm_service
 from src.services.synthesis_session_utils import json_paper_ids
@@ -521,12 +525,13 @@ async def delete_paper(
     from src.models.db_models import (
         Paper, PageText, PDFChunk, Extraction, ScreeningHistory,
         EvidenceRecord, EvidenceExtractionAttempt, VectorCleanupJob,
-        GenericEvidenceCache, GenericEvidenceCacheItem, RetrievalLog, Citation
+        GenericEvidenceCache, GenericEvidenceCacheItem, RetrievalLog, Citation,
+        SearchQueryPaper
     )
     
     target_uuid = None
     try:
-        target_uuid = UUID(paper_id)
+        target_uuid = UUID(str(paper_id).strip())
     except Exception:
         stmt = select(Paper).where(
             Paper.title.ilike(f"%{paper_id}%") | Paper.dedup_key.ilike(f"%{paper_id}%")
@@ -538,28 +543,42 @@ async def delete_paper(
     if not target_uuid:
         return {"message": "Paper already deleted or not stored", "id": str(paper_id)}
 
-    # Delete child rows first to avoid foreign key violations
-    from src.models.db_models import ClaimEvidenceLink
-    ev_result = await db.execute(select(EvidenceRecord.id).where(EvidenceRecord.paper_id == target_uuid))
-    ev_ids = ev_result.scalars().all()
-    if ev_ids:
-        await db.execute(sql_delete(ClaimEvidenceLink).where(ClaimEvidenceLink.evidence_id.in_(ev_ids)))
+    try:
+        # Delete child rows first to avoid foreign key violations
+        from src.models.db_models import ClaimEvidenceLink
+        ev_result = await db.execute(select(EvidenceRecord.id).where(EvidenceRecord.paper_id == target_uuid))
+        ev_ids = ev_result.scalars().all()
+        if ev_ids:
+            await db.execute(sql_delete(ClaimEvidenceLink).where(ClaimEvidenceLink.evidence_id.in_(ev_ids)))
 
-    await db.execute(sql_delete(Citation).where(Citation.paper_id == target_uuid))
-    await db.execute(sql_delete(RetrievalLog).where(RetrievalLog.paper_id == target_uuid))
-    await db.execute(sql_delete(GenericEvidenceCacheItem).where(GenericEvidenceCacheItem.paper_id == target_uuid))
-    await db.execute(sql_delete(GenericEvidenceCache).where(GenericEvidenceCache.paper_id == target_uuid))
-    await db.execute(sql_delete(VectorCleanupJob).where(VectorCleanupJob.paper_id == target_uuid))
-    await db.execute(sql_delete(EvidenceRecord).where(EvidenceRecord.paper_id == target_uuid))
-    await db.execute(sql_delete(EvidenceExtractionAttempt).where(EvidenceExtractionAttempt.paper_id == target_uuid))
-    await db.execute(sql_delete(ScreeningHistory).where(ScreeningHistory.paper_id == target_uuid))
-    await db.execute(sql_delete(Extraction).where(Extraction.paper_id == target_uuid))
-    await db.execute(sql_delete(PDFChunk).where(PDFChunk.paper_id == target_uuid))
-    await db.execute(sql_delete(PageText).where(PageText.paper_id == target_uuid))
-    
-    result = await db.execute(sql_delete(Paper).where(Paper.id == target_uuid))
-    await db.commit()
-    return {"message": "Paper deleted successfully", "id": str(paper_id)}
+        await db.execute(sql_delete(SearchQueryPaper).where(SearchQueryPaper.paper_id == target_uuid))
+        await db.execute(sql_delete(Citation).where(Citation.paper_id == target_uuid))
+        await db.execute(sql_delete(RetrievalLog).where(RetrievalLog.paper_id == target_uuid))
+        await db.execute(sql_delete(GenericEvidenceCacheItem).where(GenericEvidenceCacheItem.paper_id == target_uuid))
+        await db.execute(sql_delete(GenericEvidenceCache).where(GenericEvidenceCache.paper_id == target_uuid))
+        await db.execute(sql_delete(VectorCleanupJob).where(VectorCleanupJob.paper_id == target_uuid))
+        await db.execute(sql_delete(EvidenceRecord).where(EvidenceRecord.paper_id == target_uuid))
+        await db.execute(sql_delete(EvidenceExtractionAttempt).where(EvidenceExtractionAttempt.paper_id == target_uuid))
+        await db.execute(sql_delete(ScreeningHistory).where(ScreeningHistory.paper_id == target_uuid))
+        await db.execute(sql_delete(Extraction).where(Extraction.paper_id == target_uuid))
+        await db.execute(sql_delete(PDFChunk).where(PDFChunk.paper_id == target_uuid))
+        await db.execute(sql_delete(PageText).where(PageText.paper_id == target_uuid))
+        
+        await db.execute(sql_delete(Paper).where(Paper.id == target_uuid))
+        await db.commit()
+
+        # Delete vector chunks if present
+        try:
+            from src.services.vector_store import vector_store_service
+            await vector_store_service.delete_documents_by_paper(str(target_uuid))
+        except Exception:
+            pass
+
+        return {"message": "Paper deleted successfully", "id": str(paper_id)}
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Failed to delete paper {paper_id}: {e}")
+        return {"message": f"Deleted with warning: {str(e)}", "id": str(paper_id)}
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Quality Verification endpoint (Module 4)
@@ -831,6 +850,29 @@ async def workspace_chat(
     """
     try:
 
+        # Bước 0: Input Guardrail Validation
+        is_valid, err_msg = rag_guardrail_service.validate_input_query(request.message)
+        if not is_valid:
+            return WorkspaceChatResponse(
+                answer=f"🛡️ **Input Guardrail:** {err_msg}",
+                context_used=[],
+                citations=[],
+                guardrail={
+                    "is_safe": False,
+                    "safety_verdict": "INPUT_GUARDRAIL_BLOCKED",
+                    "faithfulness_score": 0.0,
+                    "hallucination_rate": 0.0,
+                    "citation_precision": 0.0,
+                    "total_claims": 0,
+                    "attributable_claims_count": 0,
+                    "extrapolatory_claims_count": 0,
+                    "contradictory_claims_count": 0,
+                    "hallucinated_citations": [],
+                    "claims": [],
+                    "summary_verdict": err_msg or "Truy vấn bị từ chối bởi Input Guardrail.",
+                }
+            )
+
         # --- LUỒNG RAG TRUYỀN THỐNG (SUPER FAST) ---
         # Bước 1: Xác định danh sách paper_ids mục tiêu
         target_pids = request.paper_ids if getattr(request, "paper_ids", None) else ([request.paper_id] if getattr(request, "paper_id", None) else [])
@@ -838,11 +880,13 @@ async def workspace_chat(
         # Nếu frontend không truyền paper_ids (hoặc rỗng), tự động lấy tất cả paper trong workspace
         if not target_pids:
             try:
-                all_papers_result = await db.execute(
-                    select(Paper.id).where(
-                        (Paper.screening_decision.in_(["keep", "maybe"])) | (Paper.source == "direct_upload")
-                    )
+                from src.models.db_models import ScreeningHistory
+                stmt = select(Paper.id).outerjoin(
+                    ScreeningHistory, Paper.id == ScreeningHistory.paper_id
+                ).where(
+                    (ScreeningHistory.decision.in_(["keep", "maybe"])) | (Paper.source == "direct_upload")
                 )
+                all_papers_result = await db.execute(stmt)
                 target_pids = [str(r[0]) for r in all_papers_result.fetchall()]
             except Exception:
                 target_pids = []
@@ -915,15 +959,100 @@ async def workspace_chat(
         # Bước 2: Sinh câu trả lời dựa trên context (có structured citation metadata)
         result = await rag_service.generate_answer_with_citations(request.message, chunks)
         
-        # Bước 3: Đóng gói phản hồi
+        # Bước 3: RAG Output Guardrail & ASTA-Bench Claim Attribution
+        valid_keys = {str(c.get("key", idx + 1)) for idx, c in enumerate(result.get("context_used", []))}
+        sanitized_answer, hallucinated_keys = rag_guardrail_service.sanitize_citations(result["answer"], valid_keys)
+        
+        guardrail_res = await rag_guardrail_service.verify_answer_groundedness(
+            request.message, sanitized_answer, result.get("context_used", [])
+        )
+        if hallucinated_keys:
+            guardrail_res.hallucinated_citations = list(set(guardrail_res.hallucinated_citations + hallucinated_keys))
+
+        # Bước 4: Đóng gói phản hồi
         return WorkspaceChatResponse(
-            answer=result["answer"],
+            answer=sanitized_answer,
             context_used=result["context_used"],
-            citations=result.get("citations", [])
+            citations=result.get("citations", []),
+            guardrail=guardrail_res.model_dump()
         )
     except Exception as e:
         import logging
         logging.getLogger(__name__).exception("Error in workspace_chat")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/workspace/evaluate-rag")
+async def evaluate_rag_endpoint(request: RAGEvalRequest):
+    """
+    On-demand evaluation của một câu trả lời RAG cụ thể.
+    Trả về điểm số Faithfulness %, Hallucination Rate %, chi tiết từng Claim.
+    """
+    try:
+        guardrail_res = await rag_guardrail_service.verify_answer_groundedness(
+            request.question, request.answer, request.context_chunks
+        )
+        return guardrail_res.model_dump()
+    except Exception as e:
+        logger.exception("Error in evaluate_rag_endpoint")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/workspace/run-eval-harness")
+async def run_eval_harness_endpoint(request: RAGEvalRunRequest, db: AsyncSession = Depends(get_db)):
+    """
+    Chạy bộ kiểm thử tự động RAG Benchmark Harness trên các tài liệu đã chọn trong Workspace.
+    """
+    try:
+        papers_to_eval = []
+        if request.paper_ids:
+            for pid in request.paper_ids:
+                stmt = select(Paper).where(Paper.id.cast(String) == str(pid))
+                p = (await db.execute(stmt)).scalars().first()
+                if p:
+                    papers_to_eval.append({
+                        "id": str(p.id),
+                        "title": p.title,
+                        "filename": p.file_path,
+                        "abstract": p.abstract or "",
+                    })
+        else:
+            # Lấy tất cả papers trong workspace
+            from src.models.db_models import ScreeningHistory
+            stmt = select(Paper).outerjoin(
+                ScreeningHistory, Paper.id == ScreeningHistory.paper_id
+            ).where(
+                (ScreeningHistory.decision.in_(["keep", "maybe"])) | (Paper.source == "direct_upload")
+            ).limit(10)
+            rows = (await db.execute(stmt)).scalars().all()
+            for p in rows:
+                papers_to_eval.append({
+                    "id": str(p.id),
+                    "title": p.title,
+                    "filename": p.file_path,
+                    "abstract": p.abstract or "",
+                })
+
+        if not papers_to_eval:
+            raise HTTPException(status_code=400, detail="Không tìm thấy tài liệu nào trong Workspace để chạy kiểm thử.")
+
+        report = await rag_eval_harness.run_benchmark(papers_to_eval)
+        return report.model_dump()
+    except Exception as e:
+        logger.exception("Error in run_eval_harness_endpoint")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/workspace/eval-reports")
+async def get_eval_reports_endpoint():
+    """
+    Lấy danh sách các báo cáo Benchmark RAG đã thực thi gần đây.
+    """
+    try:
+        reports = rag_eval_harness.get_recent_reports()
+        return [r.model_dump() for r in reports]
+    except Exception as e:
+        logger.exception("Error in get_eval_reports_endpoint")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -941,13 +1070,13 @@ class DatasetProfile(BaseModel):
     row_count: int = 0
     column_count: int = 0
     missing_rate_pct: float = 0.0
-    columns: List[Dict[str, Any]] = []
-    summary_stats: Dict[str, Any] = {}
+    columns: List[Dict[str, Any]] = Field(default_factory=list)
+    summary_stats: Dict[str, Any] = Field(default_factory=dict)
 
 class ChartSpec(BaseModel):
     type: str = "bar"  # "bar" | "line" | "donut"
     title: str = ""
-    data: List[Dict[str, Any]] = []
+    data: List[Dict[str, Any]] = Field(default_factory=list)
     x_label: Optional[str] = None
     y_label: Optional[str] = None
     unit: Optional[str] = None

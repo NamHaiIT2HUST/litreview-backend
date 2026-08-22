@@ -560,14 +560,14 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
             </div>
           )}
 
-          {/* ASTA Style Example Queries Matrix Hub */}
+          {/* Scientific Query Library Hub */}
           {messages.length === 1 && (
             <div className="pt-2 space-y-3">
               <div className="flex items-center justify-between border-b pb-2 dark:border-slate-800 border-slate-200">
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-emerald-500" />
                   <span className="text-xs font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-300">
-                    {isEn ? 'ASTA Scientific Query Library' : 'Thư viện Câu hỏi & Bộ Dữ liệu Mẫu (ASTA Style)'}
+                    {isEn ? 'Scientific Query & Dataset Library' : 'Thư viện Câu hỏi & Dữ liệu Phân tích Mẫu'}
                   </span>
                 </div>
 

@@ -99,14 +99,18 @@ class VectorStoreService:
                 model=model_name,
                 google_api_key=gemini_key,
             )
-            self.embeddings = ResilientEmbeddings(primary)
+            fallback = LightweightHashEmbeddings()
+            fallback.dimension = 768
+            self.embeddings = ResilientEmbeddings(primary, fallback=fallback)
         elif should_use_openai_embeddings(settings):
             primary = OpenAIEmbeddings(
                 model=settings.embedding_model,
                 api_key=settings.openai_api_key,
                 base_url=settings.get_api_base or None,
             )
-            self.embeddings = ResilientEmbeddings(primary)
+            fallback = LightweightHashEmbeddings()
+            fallback.dimension = 1536
+            self.embeddings = ResilientEmbeddings(primary, fallback=fallback)
         else:
             self.embeddings = LightweightHashEmbeddings()
 
@@ -126,8 +130,12 @@ class VectorStoreService:
         if not documents:
             return 0
 
-        await asyncio.to_thread(self.vector_store.add_documents, documents=documents)
-        return len(documents)
+        try:
+            await asyncio.to_thread(self.vector_store.add_documents, documents=documents)
+            return len(documents)
+        except Exception as exc:
+            logging.getLogger(__name__).error("Vector store add_documents failed: %s", exc)
+            return 0
 
     async def stage_documents_for_paper(
         self, paper_id: str, documents: List[Document]
@@ -147,7 +155,11 @@ class VectorStoreService:
             where={"paper_id": str(paper_id)},
         )
         old_ids = list(existing.get("ids", []) or [])
-        await asyncio.to_thread(self.vector_store.add_documents, documents=documents)
+        try:
+            await asyncio.to_thread(self.vector_store.add_documents, documents=documents)
+        except Exception as exc:
+            logging.getLogger(__name__).error("Vector store stage_documents_for_paper failed: %s", exc)
+            return []
         return old_ids
 
     async def delete_document_ids(self, ids: list[str]) -> int:

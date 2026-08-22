@@ -4,6 +4,7 @@ import VerificationPanel from './VerificationPanel';
 import { persistedDirectUploadSources } from '../../utils/workspaceSources';
 import SynthesisPanel from './SynthesisPanel';
 import DataAnalysisPanel from './DataAnalysisPanel';
+import RAGEvalHarnessModal from './RAGEvalHarnessModal';
 import { reconcileSelectedPaperIds, selectedPapersFromIds } from '../../utils/workspaceScope';
 import { useLanguage } from '../../contexts/LanguageContext';
 import {
@@ -22,6 +23,7 @@ import {
   Plus,
   BarChart2,
   MessageSquare,
+  ShieldCheck,
 } from 'lucide-react';
 
 import { API_BASE } from '../../utils/apiConfig';
@@ -56,11 +58,16 @@ function SourceCard({ paper, isChecked, onToggle, onRemove, darkMode }) {
 
       <div className="flex items-center gap-2 shrink-0">
         <button
-          onClick={(e) => { e.stopPropagation(); onRemove(paper.id); }}
-          className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/50 transition-all"
+          type="button"
+          onClick={(e) => { 
+            e.preventDefault();
+            e.stopPropagation(); 
+            onRemove(paper.id); 
+          }}
+          className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/50 transition-all cursor-pointer"
           title={t('workspace.delete_doc')}
         >
-          <Trash2 className="w-3.5 h-3.5" />
+          <Trash2 className="w-3.5 h-3.5 pointer-events-none" />
         </button>
 
         {/* Checkbox */}
@@ -168,8 +175,10 @@ export default function WorkspaceTab({
   const [uploadQueue, setUploadQueue] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const [selectedPaperIds, setSelectedPaperIds] = useState([]);
+  const [deletedPaperIds, setDeletedPaperIds] = useState(new Set());
   const [activeWorkspaceTab, setActiveWorkspaceTab] = useState('chat');
   const [isSourcesOpen, setIsSourcesOpen] = useState(true);
+  const [isHarnessOpen, setIsHarnessOpen] = useState(false);
   
   // Resizable Sidebar States
   const [sidebarWidth, setSidebarWidth] = useState(360);
@@ -211,15 +220,7 @@ export default function WorkspaceTab({
         if (!response.ok) return;
         const persisted = persistedDirectUploadSources(await response.json());
         if (cancelled) return;
-        // Drop papers restored from an older database state. Without this,
-        // resetting PostgreSQL leaves stale UUIDs in localStorage and a new
-        // synthesis request sends papers that the API can no longer find.
-        const persistedIds = new Set(persisted.map((paper) => paper.id));
-        setPapers?.((current) => current.filter((paper) => persistedIds.has(String(paper.id))));
-        setSelectedPapers?.((current) => current.filter((paper) => persistedIds.has(String(paper.id))));
-        // The API is the source of truth after a database reset. Do not merge
-        // stale localStorage entries back into the workspace.
-        setWorkspacePapers(persisted);
+        setWorkspacePapers?.(persisted);
       } catch (error) {
         console.error('Unable to restore uploaded workspace papers:', error);
       }
@@ -230,24 +231,25 @@ export default function WorkspaceTab({
 
   // Lọc và gộp danh sách nguồn tài liệu
   const allSources = React.useMemo(() => {
-    const keepPapers = [...papers, ...selectedPapers].filter((p) => {
+    const keepPapers = [...(papers || []), ...(selectedPapers || [])].filter((p) => {
+      if (deletedPaperIds.has(String(p.id))) return false;
       const d = p.screening_decision || p.screeningDecision;
-      return d === 'keep' || d === 'maybe' || selectedPapers.some((sp) => sp.id === p.id);
+      return d === 'keep' || d === 'maybe' || (selectedPapers || []).some((sp) => String(sp.id) === String(p.id));
     });
-    const keepIds = new Set(keepPapers.map((p) => p.id));
-    const wsPapers = workspacePapers.filter((w) => !keepIds.has(w.id) || w.source === 'direct_upload');
+    const keepIds = new Set(keepPapers.map((p) => String(p.id)));
+    const wsPapers = (workspacePapers || []).filter((w) => !deletedPaperIds.has(String(w.id)) && (!keepIds.has(String(w.id)) || w.source === 'direct_upload'));
 
     const merged = new Map();
     keepPapers.forEach((p) => {
-      const wp = workspacePapers.find((w) => w.id === p.id);
-      merged.set(p.id, { ...p, ...(wp || {}), source: p.source || 'library' });
+      const wp = (workspacePapers || []).find((w) => String(w.id) === String(p.id));
+      merged.set(String(p.id), { ...p, ...(wp || {}), source: p.source || 'library' });
     });
     wsPapers.forEach((w) => {
-      if (!merged.has(w.id)) merged.set(w.id, w);
+      if (!merged.has(String(w.id))) merged.set(String(w.id), w);
     });
 
     return Array.from(merged.values());
-  }, [papers, selectedPapers, workspacePapers]);
+  }, [papers, selectedPapers, workspacePapers, deletedPaperIds]);
 
   React.useEffect(() => {
     setSelectedPaperIds((current) => {
@@ -300,9 +302,9 @@ export default function WorkspaceTab({
             source: 'direct_upload',
             screening_decision: 'keep',
           },
-          ...prev.filter((p) => p.id !== data.paper_id),
+          ...(prev || []).filter((p) => String(p.id) !== String(data.paper_id)),
         ]);
-        setSelectedPaperIds((prev) => prev.includes(data.paper_id) ? prev : [...prev, data.paper_id]);
+        setSelectedPaperIds((prev) => (prev || []).includes(data.paper_id) ? prev : [...(prev || []), data.paper_id]);
       } catch (err) {
         items[i] = { ...item, status: 'error', error: err.message };
         setUploadQueue([...items]);
@@ -313,15 +315,31 @@ export default function WorkspaceTab({
   };
 
   const removeSource = async (id) => {
+    const strId = String(id);
+    setDeletedPaperIds((prev) => new Set([...prev, strId]));
+
+    try {
+      const savedWs = JSON.parse(localStorage.getItem('litreview_workspace_papers') || '[]');
+      const filteredWs = savedWs.filter((p) => String(p.id) !== strId);
+      localStorage.setItem('litreview_workspace_papers', JSON.stringify(filteredWs));
+
+      const savedPapers = JSON.parse(localStorage.getItem('litreview_papers') || '[]');
+      const filteredPapers = savedPapers.filter((p) => String(p.id) !== strId);
+      localStorage.setItem('litreview_papers', JSON.stringify(filteredPapers));
+    } catch (e) {
+      console.error('LocalStorage sync error:', e);
+    }
+
     try {
       await fetch(`${API_BASE}/papers/${id}`, { method: 'DELETE' });
     } catch (err) {
       console.error('Failed to delete paper from backend:', err);
     }
-    setWorkspacePapers((prev) => prev.filter((p) => p.id !== id));
-    if (setPapers) setPapers((prev) => prev.filter((p) => p.id !== id));
-    if (setSelectedPapers) setSelectedPapers((prev) => prev.filter((p) => p.id !== id));
-    setSelectedPaperIds((prev) => prev.filter((paperId) => paperId !== id));
+
+    setWorkspacePapers((prev) => (prev || []).filter((p) => String(p.id) !== strId));
+    if (setPapers) setPapers((prev) => (prev || []).filter((p) => String(p.id) !== strId));
+    if (setSelectedPapers) setSelectedPapers((prev) => (prev || []).filter((p) => String(p.id) !== strId));
+    setSelectedPaperIds((prev) => (prev || []).filter((paperId) => String(paperId) !== strId));
   };
   const handleSelectAll = () => {
     if (selectedPaperIds.length === allSources.length) {
@@ -447,6 +465,25 @@ export default function WorkspaceTab({
                 </div>
               </div>
             </div>
+
+            {/* Sidebar Footer Action: RAG Benchmark & Guardrails */}
+            {allSources.length > 0 && (
+              <div className={`p-3 border-t shrink-0 ${darkMode ? 'border-slate-800 bg-slate-900/50' : 'border-slate-100 bg-slate-50/50'}`}>
+                <button
+                  type="button"
+                  onClick={() => setIsHarnessOpen(true)}
+                  className={`w-full py-2 px-3 rounded-xl border text-[11.5px] font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                    darkMode 
+                      ? 'border-blue-900/50 bg-blue-950/30 text-blue-400 hover:bg-blue-900/50' 
+                      : 'border-blue-200 bg-blue-50/80 text-blue-700 hover:bg-blue-100'
+                  }`}
+                  title="Đánh giá độ chính xác & kiểm định ảo giác trên các tài liệu đã nạp"
+                >
+                  <ShieldCheck className="w-4 h-4 text-blue-500" />
+                  <span>Kiểm định RAG trên tài liệu</span>
+                </button>
+              </div>
+            )}
           </>
         ) : (
           <>
@@ -489,6 +526,18 @@ export default function WorkspaceTab({
                   </div>
                 ))}
               </div>
+
+              {allSources.length > 0 && (
+                <button
+                  onClick={() => setIsHarnessOpen(true)}
+                  className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-all cursor-pointer ${
+                    darkMode ? 'border-blue-900/50 bg-blue-950/40 text-blue-400 hover:bg-blue-900/50' : 'border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100'
+                  }`}
+                  title="Kiểm định RAG trên tài liệu"
+                >
+                  <ShieldCheck className="w-4 h-4 text-blue-500" />
+                </button>
+              )}
             </div>
           </>
         )}
@@ -511,14 +560,46 @@ export default function WorkspaceTab({
         <div className={`flex-1 rounded-3xl border flex flex-col overflow-hidden shadow-sm transition-all ${
             darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
           }`}>
-            {/* ── Tab Header: 3 tabs ── */}
-            <div className={`flex items-center justify-between px-5 h-[56px] border-b shrink-0 ${darkMode ? 'border-slate-800' : 'border-slate-100'}`}>
-              {/* Left: title + clear-chat button */}
-              <div className="flex items-center gap-3">
-                <span className="text-[14px] font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
-                  <Sparkles className="w-4 h-4 text-blue-500" />
+            {/* ── Workspace Header ── */}
+            <div className={`flex items-center justify-between px-5 h-[60px] border-b shrink-0 gap-4 ${darkMode ? 'border-slate-800' : 'border-slate-100'}`}>
+              
+              {/* Left: Brand / Title */}
+              <div className="flex items-center gap-2.5 shrink-0">
+                <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-sm shadow-xs">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <span className="text-[14px] font-bold text-slate-800 dark:text-slate-100 hidden sm:inline">
                   {t('workspace.ai_assistant')}
                 </span>
+              </div>
+
+              {/* Center / Right: The 3 Main Workspace Navigation Tabs */}
+              <div className="flex items-center gap-3">
+                <div className="flex items-center bg-slate-100/90 dark:bg-slate-800/90 p-1 rounded-2xl border dark:border-slate-700/60 border-slate-200/80 shadow-xs">
+                  {[
+                    { id: 'chat', label: t('workspace.tab_chat'), Icon: MessageSquare },
+                    { id: 'synthesis', label: t('workspace.tab_synthesis'), Icon: BookOpen },
+                    { id: 'analyze', label: t('workspace.tab_analyze'), Icon: BarChart2 },
+                  ].map(({ id, label, Icon }) => {
+                    const isActive = activeWorkspaceTab === id;
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => setActiveWorkspaceTab(id)}
+                        className={`px-3.5 py-1.5 rounded-xl text-[12.5px] font-bold flex items-center gap-1.5 transition-all select-none cursor-pointer ${
+                          isActive
+                            ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                            : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                        }`}
+                      >
+                        <Icon className="w-3.5 h-3.5" />
+                        <span className="hidden md:inline">{label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
                 {activeWorkspaceTab === 'chat' && chatMessages && chatMessages.length > 1 && (
                   <button
                     onClick={() => {
@@ -531,39 +612,16 @@ export default function WorkspaceTab({
                         ]);
                       }
                     }}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-colors flex items-center gap-1 ${
+                    className={`p-2 rounded-xl border transition-colors flex items-center justify-center cursor-pointer ${
                       darkMode
                         ? 'border-slate-800 text-slate-400 hover:text-red-400 hover:bg-red-950/20'
                         : 'border-slate-200 text-slate-500 hover:text-red-600 hover:bg-red-50'
                     }`}
+                    title={t('workspace.clear_chat')}
                   >
-                    <Trash2 className="w-3 h-3" />
-                    <span>{t('workspace.clear_chat')}</span>
+                    <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 )}
-              </div>
-
-              {/* Right: 3-tab switcher */}
-              <div className="flex items-stretch h-full gap-1">
-                {[
-                  { id: 'chat',     label: t('workspace.tab_chat'),        Icon: MessageSquare },
-                  { id: 'synthesis', label: t('workspace.tab_synthesis'),     Icon: BookOpen     },
-                  { id: 'analyze',  label: t('workspace.tab_analyze'),     Icon: BarChart2     },
-                ].map(({ id, label, Icon }) => (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => setActiveWorkspaceTab(id)}
-                    className={`relative px-3.5 py-1 text-[13px] font-semibold flex items-center gap-1.5 transition-colors border-b-2 ${
-                      activeWorkspaceTab === id
-                        ? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'
-                        : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-                    }`}
-                  >
-                    <Icon className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">{label}</span>
-                  </button>
-                ))}
               </div>
             </div>
             
@@ -575,6 +633,7 @@ export default function WorkspaceTab({
                   setChatMessages={setChatMessages}
                   activeCitation={activeCitation}
                   setActiveCitation={setActiveCitation}
+                  onOpenHarness={() => setIsHarnessOpen(true)}
                   darkMode={darkMode}
                 />
               )}
@@ -608,6 +667,14 @@ export default function WorkspaceTab({
         )}
       </div>
       </div>
+
+      {/* RAG Evaluation Benchmark Harness Modal */}
+      <RAGEvalHarnessModal
+        isOpen={isHarnessOpen}
+        onClose={() => setIsHarnessOpen(false)}
+        workspacePapers={allSources}
+        darkMode={darkMode}
+      />
 
       {/* Disclaimer Text (Centered at the very bottom of the entire layout) */}
       <div className="shrink-0 pb-1 text-center -mt-2">

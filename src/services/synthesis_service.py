@@ -648,7 +648,7 @@ class SynthesisService:
         page_images = {}
         if getattr(paper, "file_path", None) and os.path.exists(paper.file_path):
             try:
-                import fitz
+                import pymupdf as fitz
                 doc = fitz.open(paper.file_path)
                 for page_num in page_numbers_to_render:
                     if 0 <= page_num < len(doc):

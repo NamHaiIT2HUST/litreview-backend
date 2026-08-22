@@ -117,7 +117,7 @@ class DocumentProcessor:
 
         pages = []
         try:
-            import fitz
+            import pymupdf as fitz
             doc = fitz.open(file_path)
             for i, page in enumerate(doc):
                 pages.append(
