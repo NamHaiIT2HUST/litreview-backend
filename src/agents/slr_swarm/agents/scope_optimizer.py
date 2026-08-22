@@ -60,6 +60,21 @@ async def run_scope_optimizer(idea: str, research_field: str = "") -> ScopeAnaly
         )
 
     s = get_settings()
+    from src.services.lora_client import call_lora_model
+    
+    # 1. THỬ GỌI LORA MODEL TRƯỚC (NẾU CÓ)
+    lora_instruction = "Evaluate the research scope and suggest refinements."
+    lora_input = f"Domain: {research_field}\nTopic: {idea}"
+    lora_result = await call_lora_model("lora_agent1_scope", lora_instruction, lora_input)
+    if lora_result:
+        return ScopeAnalysisResult(
+            status=lora_result.get("status", "optimal"),
+            score=lora_result.get("score", 85),
+            feedback=lora_result.get("feedback", "Đã phân tích phạm vi bằng mô hình LoRA chuyên dụng."),
+            suggested_topics=lora_result.get("suggested_topics", [])
+        )
+        
+    # 2. NẾU LORA OFF, FALLBACK SANG GEMINI
     # Ưu tiên key chuyên dụng cho Scope Optimizer
     api_key = (
         os.getenv("GEMINI_KEY_SCOPE_OPTIMIZER")

@@ -79,3 +79,12 @@ tmp-*/
 dummy.pdf
 *.log
 .worktrees/
+
+# Model weights
+models/temp_*/
+models/*.safetensors
+models/*.bin
+models/*.pt
+checkpoints/
+models/lora_*/
+models/lora_agent*/

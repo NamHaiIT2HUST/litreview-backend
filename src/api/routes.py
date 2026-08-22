@@ -271,6 +271,16 @@ async def search_papers(
                 duplicates=0,
             )
 
+        # ÁP DỤNG FINE-TUNED RERANKER (Tự động tái xếp hạng theo ngữ nghĩa 3 lĩnh vực)
+        try:
+            from src.services.reranker_service import reranker_service
+            papers_dict = [{"id": str(i), "title": p.title or "", "abstract": p.abstract or "", "obj": p} for i, p in enumerate(papers)]
+            reranked_dicts = reranker_service.rerank_papers(request.query_string, papers_dict)
+            papers = [d["obj"] for d in reranked_dicts]
+            print(f"[Reranker] Successfully auto-reranked {len(papers)} candidate papers for query: '{request.query_string}'", flush=True)
+        except Exception as e:
+            print(f"[Reranker] Warning: Auto-reranking failed, falling back to original order: {e}", flush=True)
+
         confirmed_scopus_papers = []
         for p in papers:
             temp_paper = Paper(
@@ -1804,3 +1814,20 @@ async def get_pdf_file(
         raise HTTPException(status_code=404, detail="File not found")
             
     return FileResponse(file_path, media_type="application/pdf")
+
+
+# ==============================================================================
+# RERANKER ENDPOINT (FINE-TUNED 3-DOMAIN CROSS-ENCODER)
+# ==============================================================================
+from src.models.search_schemas import RerankRequest, RerankResponse
+from src.services.reranker_service import reranker_service
+
+@router.post("/slr-swarm/rerank-papers", response_model=RerankResponse, tags=["AI Search"])
+async def api_rerank_papers(req: RerankRequest):
+    """Tái xếp hạng danh sách bài báo dựa trên độ khớp ngữ nghĩa chuyên sâu với Query."""
+    try:
+        papers_list = [p.model_dump() if hasattr(p, "model_dump") else p.dict() for p in req.papers]
+        reranked = reranker_service.rerank_papers(req.query, papers_list)
+        return RerankResponse(results=reranked)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Reranking failed: {str(e)}")
