@@ -385,6 +385,85 @@ def test_grounding_service_reports_structural_provenance_not_semantic_grounding(
     assert len(grounded.validated_claims) == 1
 
 
+def test_grounding_diagnostics_preserve_manifest_and_nested_validation_failures():
+    unit = _unit(
+        paper_id=PAPER_A,
+        title="A",
+        text="Exact source quote.",
+        facet="formulation",
+    )
+    manifest = _manifest(
+        ClaimStatement(
+            claim_text="Generated claim with native citation [9].",
+            paper_id=PAPER_B,
+            supports=(
+                ClaimSupport(
+                    evidence_id="ev-missing",
+                    support_quote="Missing source quote.",
+                ),
+                ClaimSupport(
+                    evidence_id=unit.evidence_id,
+                    support_quote=unit.text,
+                ),
+                ClaimSupport(
+                    evidence_id=unit.evidence_id,
+                    support_quote=unit.text,
+                ),
+            ),
+        )
+    )
+
+    grounded = StructuredClaimManifestGroundingService().evaluate(
+        draft=_draft_with_manifest(manifest),
+        evidence_bank=_bank(unit),
+    )
+
+    assert grounded.diagnostics["parsed_claim_manifest"] == manifest.to_dict()
+    assert grounded.diagnostics["claim_validation"] == [
+        {
+            "claim_index": 0,
+            "facet": "formulation",
+            "is_comparative": False,
+            "statement_count": 1,
+            "status": "dropped",
+            "drop_reasons": [
+                "native_citation_marker",
+                "duplicate_evidence_support",
+                "unknown_evidence_id",
+                "wrong_paper",
+            ],
+            "statements": [
+                {
+                    "statement_index": 0,
+                    "paper_id": str(PAPER_B),
+                    "support_count": 3,
+                    "failures": [
+                        "native_citation_marker",
+                        "duplicate_evidence_support",
+                    ],
+                    "supports": [
+                        {
+                            "support_index": 0,
+                            "evidence_id": "ev-missing",
+                            "failures": ["unknown_evidence_id"],
+                        },
+                        {
+                            "support_index": 1,
+                            "evidence_id": unit.evidence_id,
+                            "failures": ["wrong_paper"],
+                        },
+                        {
+                            "support_index": 2,
+                            "evidence_id": unit.evidence_id,
+                            "failures": ["wrong_paper"],
+                        },
+                    ],
+                }
+            ],
+        }
+    ]
+
+
 def test_grounding_service_fails_closed_when_manifest_is_missing():
     unit = _unit(paper_id=PAPER_A, title="A", text="Exact source quote.", facet="formulation")
     draft = GeneratedDraft(text="free prose [0]", model_name="fake", prompt_version="old")

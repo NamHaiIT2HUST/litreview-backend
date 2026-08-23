@@ -226,6 +226,7 @@ class FastSynthesisV2Pipeline:
                 "generation_network_ms": draft.generation_ms,
                 "input_tokens": draft.input_tokens,
                 "output_tokens": draft.output_tokens,
+                **grounded.diagnostics,
                 **finalized.diagnostics,
             },
         )

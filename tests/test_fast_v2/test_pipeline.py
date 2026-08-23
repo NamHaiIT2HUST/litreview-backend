@@ -4,6 +4,7 @@ The headline assertion is :func:`test_fast_v2_makes_zero_extraction_llm_calls`.
 """
 from __future__ import annotations
 
+import json
 import uuid
 
 import pytest
@@ -277,6 +278,22 @@ async def test_timings_are_numeric_and_non_negative(pipeline):
 @pytest.mark.asyncio
 async def test_generation_calls_is_reported(pipeline):
     assert (await _run(pipeline)).timings["generation_calls"] == 1
+
+
+@pytest.mark.asyncio
+async def test_scratch_diagnostics_expose_manifest_validation_without_secrets(pipeline):
+    pipeline.generator.api_key = "test-api-key-must-not-leak"
+
+    diagnostics = (await _run(pipeline)).diagnostics
+
+    assert diagnostics["parsed_claim_manifest"]["claims"]
+    assert diagnostics["claim_validation"][0]["status"] == "dropped"
+    assert diagnostics["claim_validation"][0]["drop_reasons"] == [
+        "native_citation_marker"
+    ]
+    serialized = json.dumps(diagnostics)
+    assert "test-api-key-must-not-leak" not in serialized
+    assert "Authorization" not in serialized
 
 
 # --------------------------------------------------------------------------

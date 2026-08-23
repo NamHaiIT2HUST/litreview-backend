@@ -156,5 +156,7 @@ class StructuredClaimManifestGroundingService:
                 "evidence_count": len(evidence_bank.evidence),
                 "valid_claims": len(validation.valid_claims),
                 "dropped_claims": len(validation.dropped_claims),
+                "parsed_claim_manifest": draft.claim_manifest.to_dict(),
+                "claim_validation": list(validation.claim_validation),
             },
         )

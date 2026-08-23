@@ -197,6 +197,7 @@ class DroppedClaim:
 class ManifestValidationResult:
     valid_claims: tuple[ValidatedClaim, ...]
     dropped_claims: tuple[DroppedClaim, ...]
+    claim_validation: tuple[dict[str, Any], ...] = ()
     structured_provenance_validation: str = "passed"
     semantic_entailment: str = "unvalidated"
 
@@ -215,9 +216,11 @@ class StructuredClaimManifestGuard:
         }
         valid_claims: list[ValidatedClaim] = []
         dropped_claims: list[DroppedClaim] = []
+        claim_validation: list[dict[str, Any]] = []
 
         for claim_index, claim in enumerate(manifest.claims):
             reasons: list[str] = []
+            statement_validation: list[dict[str, Any]] = []
 
             def reject(reason: str) -> None:
                 if reason not in reasons:
@@ -232,29 +235,65 @@ class StructuredClaimManifestGuard:
                 reject("invalid_single_paper_shape")
 
             statements: list[ValidatedStatement] = []
-            for statement in claim.statements:
+            for statement_index, statement in enumerate(claim.statements):
+                statement_failures: list[str] = []
+
+                def reject_statement(reason: str) -> None:
+                    if reason not in statement_failures:
+                        statement_failures.append(reason)
+                    reject(reason)
+
                 if not statement.claim_text.strip():
-                    reject("empty_claim_text")
+                    reject_statement("empty_claim_text")
                 if re.search(r"\[\d{1,3}\]", statement.claim_text):
-                    reject("native_citation_marker")
+                    reject_statement("native_citation_marker")
                 if not statement.supports:
-                    reject("missing_support")
+                    reject_statement("missing_support")
 
                 evidence_ids = [support.evidence_id for support in statement.supports]
                 if len(evidence_ids) != len(set(evidence_ids)):
-                    reject("duplicate_evidence_support")
+                    reject_statement("duplicate_evidence_support")
 
                 supports: list[ValidatedSupport] = []
-                for support in statement.supports:
+                support_validation: list[dict[str, Any]] = []
+                for support_index, support in enumerate(statement.supports):
+                    support_failures: list[str] = []
+
+                    def reject_support(reason: str) -> None:
+                        if reason not in support_failures:
+                            support_failures.append(reason)
+                        reject(reason)
+
                     unit = evidence_by_id.get(support.evidence_id)
                     if unit is None:
-                        reject("unknown_evidence_id")
+                        reject_support("unknown_evidence_id")
+                        support_validation.append(
+                            {
+                                "support_index": support_index,
+                                "evidence_id": support.evidence_id,
+                                "failures": support_failures,
+                            }
+                        )
                         continue
                     if unit.paper_id != statement.paper_id:
-                        reject("wrong_paper")
+                        reject_support("wrong_paper")
+                        support_validation.append(
+                            {
+                                "support_index": support_index,
+                                "evidence_id": support.evidence_id,
+                                "failures": support_failures,
+                            }
+                        )
                         continue
                     if not support.support_quote:
-                        reject("missing_support_quote")
+                        reject_support("missing_support_quote")
+                        support_validation.append(
+                            {
+                                "support_index": support_index,
+                                "evidence_id": support.evidence_id,
+                                "failures": support_failures,
+                            }
+                        )
                         continue
 
                     quote_starts: list[int] = []
@@ -266,10 +305,24 @@ class StructuredClaimManifestGuard:
                         quote_starts.append(found)
                         search_from = found + 1
                     if not quote_starts:
-                        reject("support_quote_not_found")
+                        reject_support("support_quote_not_found")
+                        support_validation.append(
+                            {
+                                "support_index": support_index,
+                                "evidence_id": support.evidence_id,
+                                "failures": support_failures,
+                            }
+                        )
                         continue
                     if len(quote_starts) > 1:
-                        reject("ambiguous_support_quote")
+                        reject_support("ambiguous_support_quote")
+                        support_validation.append(
+                            {
+                                "support_index": support_index,
+                                "evidence_id": support.evidence_id,
+                                "failures": support_failures,
+                            }
+                        )
                         continue
 
                     quote_start = quote_starts[0]
@@ -291,6 +344,13 @@ class StructuredClaimManifestGuard:
                             ),
                         )
                     )
+                    support_validation.append(
+                        {
+                            "support_index": support_index,
+                            "evidence_id": support.evidence_id,
+                            "failures": support_failures,
+                        }
+                    )
                 statements.append(
                     ValidatedStatement(
                         claim_text=statement.claim_text,
@@ -298,6 +358,26 @@ class StructuredClaimManifestGuard:
                         supports=tuple(supports),
                     )
                 )
+                statement_validation.append(
+                    {
+                        "statement_index": statement_index,
+                        "paper_id": str(statement.paper_id),
+                        "support_count": len(statement.supports),
+                        "failures": statement_failures,
+                        "supports": support_validation,
+                    }
+                )
+            claim_validation.append(
+                {
+                    "claim_index": claim_index,
+                    "facet": claim.facet,
+                    "is_comparative": claim.is_comparative,
+                    "statement_count": len(claim.statements),
+                    "status": "dropped" if reasons else "validated",
+                    "drop_reasons": list(reasons),
+                    "statements": statement_validation,
+                }
+            )
             if reasons:
                 dropped_claims.append(
                     DroppedClaim(claim_index=claim_index, reasons=tuple(reasons))
@@ -314,4 +394,5 @@ class StructuredClaimManifestGuard:
         return ManifestValidationResult(
             valid_claims=tuple(valid_claims),
             dropped_claims=tuple(dropped_claims),
+            claim_validation=tuple(claim_validation),
         )
