@@ -1,0 +1,251 @@
+{
+  "source": "evidence_hygiene spike rq1/rq2_before_after.json",
+  "scored_signals": [
+    {
+      "signals": {
+        "reference_entry_lines": 10,
+        "reference_entry_ratio": 0.526,
+        "year_count": 10,
+        "bibliographic_term_count": 8,
+        "sequential_reference_count": 9,
+        "reference_heading_present": false,
+        "boilerplate_hits": 0
+      },
+      "expected_score": 87.0,
+      "expected_class": "reference_like"
+    },
+    {
+      "signals": {
+        "reference_entry_lines": 13,
+        "reference_entry_ratio": 0.481,
+        "year_count": 13,
+        "bibliographic_term_count": 6,
+        "sequential_reference_count": 12,
+        "reference_heading_present": false,
+        "boilerplate_hits": 0
+      },
+      "expected_score": 96.5,
+      "expected_class": "reference_like"
+    },
+    {
+      "signals": {
+        "reference_entry_lines": 7,
+        "reference_entry_ratio": 0.438,
+        "year_count": 7,
+        "bibliographic_term_count": 5,
+        "sequential_reference_count": 6,
+        "reference_heading_present": false,
+        "boilerplate_hits": 0
+      },
+      "expected_score": 63.5,
+      "expected_class": "reference_like"
+    },
+    {
+      "signals": {
+        "reference_entry_lines": 13,
+        "reference_entry_ratio": 0.52,
+        "year_count": 12,
+        "bibliographic_term_count": 7,
+        "sequential_reference_count": 12,
+        "reference_heading_present": false,
+        "boilerplate_hits": 0
+      },
+      "expected_score": 97.0,
+      "expected_class": "reference_like"
+    },
+    {
+      "signals": {
+        "reference_entry_lines": 3,
+        "reference_entry_ratio": 0.375,
+        "year_count": 2,
+        "bibliographic_term_count": 3,
+        "sequential_reference_count": 2,
+        "reference_heading_present": false,
+        "boilerplate_hits": 0
+      },
+      "expected_score": 24.0,
+      "expected_class": "reference_like"
+    },
+    {
+      "signals": {
+        "reference_entry_lines": 12,
+        "reference_entry_ratio": 0.462,
+        "year_count": 13,
+        "bibliographic_term_count": 6,
+        "sequential_reference_count": 11,
+        "reference_heading_present": false,
+        "boilerplate_hits": 0
+      },
+      "expected_score": 93.5,
+      "expected_class": "reference_like"
+    },
+    {
+      "signals": {
+        "reference_entry_lines": 0,
+        "reference_entry_ratio": 0.0,
+        "year_count": 1,
+        "bibliographic_term_count": 1,
+        "sequential_reference_count": 0,
+        "reference_heading_present": false,
+        "boilerplate_hits": 5
+      },
+      "expected_score": 5.0,
+      "expected_class": "boilerplate"
+    },
+    {
+      "signals": {
+        "reference_entry_lines": 12,
+        "reference_entry_ratio": 0.48,
+        "year_count": 13,
+        "bibliographic_term_count": 6,
+        "sequential_reference_count": 11,
+        "reference_heading_present": false,
+        "boilerplate_hits": 0
+      },
+      "expected_score": 93.5,
+      "expected_class": "reference_like"
+    },
+    {
+      "signals": {
+        "reference_entry_lines": 13,
+        "reference_entry_ratio": 0.5,
+        "year_count": 13,
+        "bibliographic_term_count": 6,
+        "sequential_reference_count": 11,
+        "reference_heading_present": false,
+        "boilerplate_hits": 0
+      },
+      "expected_score": 93.5,
+      "expected_class": "reference_like"
+    }
+  ],
+  "excluded_texts": [
+    {
+      "paper": "Xu 2010 Study",
+      "page": 17,
+      "expected_class": "reference_like",
+      "text": "regularization IEEE Trans. Signal Process. 46 2345–52\n[20] Sch¨opfer F, Schuster T and Louis A K 2008 An iterative regularization method for the solution of the split\nfeasibility problem in Banach spaces Inverse Problems 24 055008 (20 pp)\n[21] Sezan M I and Stark H 1987 Applications of convex projec"
+    },
+    {
+      "paper": "Xu 2018 Study",
+      "page": 31,
+      "expected_class": "reference_like",
+      "text": "J. Xu et al.\n8. Byrne, C.L.: Iterative projection onto convex sets using multiple Bregman distances. Inverse Probl.\n15(5), 1295 (1999)\n9. Byrne, C.L.: Iterative oblique projection onto convex sets and the split feasibility problem. Inverse\nProbl. 18(2), 441–453 (2002)\n10. Byrne, C.L.: Sequential unc"
+    },
+    {
+      "paper": "Xu 2018 Study",
+      "page": 33,
+      "expected_class": "reference_like",
+      "text": "J. Xu et al.\n66. Wright, S.J., Nowak, R.D., Figueiredo, M.A.T.: Sparse reconstruction by separable approximation.\nIEEE Trans. Signal Process. 57(7), 2479–2493 (2009)\n67. Xu, H.-K.: A variable Krasnosel’skii Mann algorithm and the multiple-set split feasibility problem.\nInverse Probl. 22(6), 2021–203"
+    },
+    {
+      "paper": "Xu 2018 Study",
+      "page": 32,
+      "expected_class": "reference_like",
+      "text": "A majorization–minimization algorithm for split…\n36. Gibali, A., Küfer, K., Süss, P.: Successive linear programing approach for solving the nonlinear split\nfeasibility problem. J. Nonlinear Convex Anal. 15(2), 345–353 (2014)\n37. Gibali, A., Küfer, K.-H., Reem, D., Süss, P.: A generalized projection-"
+    },
+    {
+      "paper": "Xu 2010 Study",
+      "page": 16,
+      "expected_class": "reference_like",
+      "text": "Algorithms 8 221–39\n[5] Censor Y, Bortfeld T, Martin B and Troﬁmov A 2006 A uniﬁed approach for inversion problems in intensity-\nmodulated radiation therapy Phys. Med. Biol. 51 2353–65\n[6] Censor Y, Elfving T, Kopf N and Bortfeld T 2005 The multiple-sets split feasibility problem and its application"
+    },
+    {
+      "paper": "Xu 2018 Study",
+      "page": 31,
+      "expected_class": "reference_like",
+      "text": "applications for inverse problems. Inverse Probl. 21(6), 2071–2084 (2005)\n19. Censor, Y., Gibali, A., Reich, S.: Algorithms for the split variational inequality problem. Numer.\nAlgorithms 59(2), 301–323 (2012)\n20. Censor, Y., Motova, A., Segal, A.: Perturbed projections and subgradient projections f"
+    },
+    {
+      "paper": "Xu 2010 Study",
+      "page": 0,
+      "expected_class": "boilerplate",
+      "text": "Iterative methods for the split feasibility problem in infinite-dimensional Hilbert spaces\nThis article has been downloaded from IOPscience. Please scroll down to see the full text article.\n2010 Inverse Problems 26 105018\n(http://iopscience.iop.org/0266-5611/26/10/105018)\nDownload details:\nIP Addres"
+    },
+    {
+      "paper": "Xu 2018 Study",
+      "page": 32,
+      "expected_class": "reference_like",
+      "text": "feasibility problem. Inverse Probl. Sci. Eng. 21(1), 155–170 (2013)\n47. Llacer, J., Deasy, J.O., Bortfeld, T.R., Solberg, T.D., Promberger, C.: Absence of multiple local minima\neffects in intensity modulated optimization with dose-volume constraints. Phys. Med. Biol. 48(2), 183\n(2003)\n48. Lorenz, D."
+    },
+    {
+      "paper": "Xu 2018 Study",
+      "page": 31,
+      "expected_class": "reference_like",
+      "text": "29. Davenport, M.A., Duarte, M.F., Eldar, Y.C., Kutyniok, G.: Chapter 1. Introduction to compressed\nsensing. Compressed Sensing: Theory and Applications. Cambridge University Press, Cambridge\n(2012)\n30. Dempster, A.P., Laird, N.M., Rubin, D.B.: Maximum likelihood from incomplete data via the EM\nalgo"
+    },
+    {
+      "paper": "Xu 2010 Study",
+      "page": 17,
+      "expected_class": "reference_like",
+      "text": "Inverse Problems 26 (2010) 105018\nH-K Xu\n[8] Censor Y and Segal A 2008 Iterative projection methods in biomedical inverse problems Mathematical Methods\nin Biomedical Imaging and Intensity-Modulated Radiation Therapy (IMRT)\ned Y Censor, M Jiang\nand A K Louis (Edizioni della Normale, Pisa, Italy) pp 6"
+    }
+  ],
+  "kept_texts": [
+    {
+      "paper": "Xu 2018 Study",
+      "page": 1,
+      "text": "J. Xu et al.\n1 Introduction\nIn the split feasibility problem, one is given a smooth function h(x) : Rn \u0002→Rp and\ntwo closed convex sets C ⊂Rn and Q ⊂Rp [17]. One then seeks a point x ∈Rn\nsimultaneously satisfying x ∈C and h(x) ∈Q. Instances of the split feasibility\nproblem abound. The classical linea"
+    },
+    {
+      "paper": "Xu 2018 Study",
+      "page": 25,
+      "text": "imations. Under weak assumptions, we prove that limit points of the algorithm are\nnecessarily stationary points of the proximity function. A variety of examples that fall\nunder the non-linear split feasibility framework are included, some of which involve\nnon-convex constraint sets. Nonetheless, our"
+    },
+    {
+      "paper": "Xu 2018 Study",
+      "page": 0,
+      "text": "Computational Optimization and Applications\nhttps://doi.org/10.1007/s10589-018-0025-z\nA majorization–minimization algorithm for split feasibility\nproblems\nJason Xu1\n· Eric C. Chi2\n· Meng Yang2 · Kenneth Lange3\nReceived: 10 August 2017\n© Springer Science+Business Media, LLC, part of Springer Nature 2"
+    },
+    {
+      "paper": "Xu 2018 Study",
+      "page": 1,
+      "text": "eration schemes. Such attempts at the non-linear problem include a projected gradient\ntrust-region method [36] that converges to local optima. This approach constitutes a\nsequential linearization of the problem, and is equivalent to the CQ algorithm in the\ncase that h is linear. An adaptive projecti"
+    },
+    {
+      "paper": "Xu 2018 Study",
+      "page": 2,
+      "text": "A majorization–minimization algorithm for split…\ngiven by both C and Q even when the constraints cannot be satisﬁed simultaneously.\nIndeed,whentherearenoconstraintsonh(x),theproblemofminimizingtheproximity\nfunction is closely related to the generalized Heron problem [22,52–54] of ﬁnding a\npoint that"
+    },
+    {
+      "paper": "Xu 2010 Study",
+      "page": 1,
+      "text": "IOP PUBLISHING\nINVERSE PROBLEMS\nInverse Problems 26 (2010) 105018 (17pp)\ndoi:10.1088/0266-5611/26/10/105018\nIterative methods for the split feasibility problem\nin inﬁnite-dimensional Hilbert spaces\nHong-Kun Xu\nDepartment of Applied Mathematics, National Sun Yat-sen University, Kaohsiung,\nTaiwan\nE-ma"
+    },
+    {
+      "paper": "Xu 2018 Study",
+      "page": 25,
+      "text": "J. Xu et al.\ndata, reaching an objective value on the order of 0.002. The difference in runtime is\nsigniﬁcant, and makes clear that a naïve R implementation is already competitive with\na highly optimized library. This speaks to the strength of our algorithm, which offers\nlarge computational gains ov"
+    },
+    {
+      "paper": "Xu 2018 Study",
+      "page": 24,
+      "text": "A majorization–minimization algorithm for split…\nTable 1 Comparison of runtimes and voxel-by-voxel objective values in the linear, linear with direct solve, non-linear, and Bregman formulations of the split feasibility\nproblem applied to liver and prostate IMRT data\nModel\nLinear\nLinear, direct\nNon-l"
+    },
+    {
+      "paper": "Xu 2018 Study",
+      "page": 20,
+      "text": "using the weights w j.\nThese problems typically involve 1000–5000 beamlets and up to 100,000 voxels\n[1,40,47,70]. This results in a linear split feasibility problem with a large number\nof equations and constraints. We will see that casting the problem non-linearly can\ndrastically reduce the size of "
+    },
+    {
+      "paper": "Xu 2018 Study",
+      "page": 6,
+      "text": "A majorization–minimization algorithm for split…\nMM\nMM (Accelerated)\n−1.0\n−0.5\n0.0\n0.5\n1.0\n−1.0\n−0.5\n0.0\n0.5\n1.0\n−1.0\n−0.5\n0.0\n0.5\n1.0\nx1\nx2\nFig. 2 The MM iterate sequence for a non-linear split feasibility problem initialized at six different points.\nOn the left is the unaccelerated MM sequence. On"
+    },
+    {
+      "paper": "Xu 2018 Study",
+      "page": 3,
+      "text": "J. Xu et al.\nReturning our attention to the split feasibility problem, we propose majorizing the\nproximity function f (x) given in (1) by the following surrogate function\ng(x | xk) = 1\n2\n\u0002\ni\nvi∥x −PCi (xk)∥2\n2 + 1\n2\n\u0002\nj\nw j∥h(x) −PQ j [h(xk)]∥2\n2 ,\n(3)\nwhichisconstructedfromtheEuclideanprojectionsPC"
+    },
+    {
+      "paper": "Xu 2018 Study",
+      "page": 19,
+      "text": "J. Xu et al.\nPDi (ui, vi) =\n⎧\n⎪⎪⎪⎨\n⎪⎪⎪⎩\n(ui, 0)\nui > vi ≥0\n(0, vi)\nvi > ui ≥0\n(ui, 0) or (0, vi)\nui = vi ≥0\n\u0012\nmax{ui, 0}, max{vi, 0}\n\u0013\notherwise .\n(20)\nThe relevant gradient is now ∇h(x) = [In, ∇u(x)]. As before, second derivatives are\nunnecessary in ﬁnding a split feasible point.\nNotice the well-st"
+    },
+    {
+      "paper": "Xu 2018 Study",
+      "page": 16,
+      "text": "A majorization–minimization algorithm for split…\nInstead, we may directly incorporate the sparsity constraint using the split feasibility\nframework by deﬁning a domain constraint as the sparsity set\nC =\n\u0006\nz ∈Rn : ∥z∥0 ≤k\n\u0007\n.\nInstead of seeking a solution to (15) by way of solving (16), we now attemp"
+    }
+  ]
+}

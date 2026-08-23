@@ -15,33 +15,13 @@ from src.services.vector_store_config import build_chroma_connection_kwargs
 CHROMA_PERSIST_DIR = ".chroma_db"
 
 
-def should_use_gemini_embeddings(settings) -> bool:
-    return (
-        getattr(settings, "embedding_provider", "local") == "gemini"
-        and bool(
-            getattr(settings, "gemini_api_key", "")
-            or getattr(settings, "google_api_key", "")
-        )
-    )
-
-
-def should_use_openai_embeddings(settings) -> bool:
-    key = (
-        getattr(settings, "openai_embedding_api_key", "")
-        or getattr(settings, "openai_api_key", "")
-        or getattr(settings, "llm_api_key", "")
-        or os.getenv("OPENAI_EMBEDDING_API_KEY", "")
-        or os.getenv("OPENAI_API_KEY", "")
-    )
-    return getattr(settings, "embedding_provider", "local") == "openai" and bool(key)
-
-
 class LightweightHashEmbeddings(Embeddings):
-    """Small offline fallback embeddings for local/Docker runs without OpenAI.
+    """Non-semantic word-hash embedding. Explicit opt-in only
+    (embedding_provider="hash-debug") -- NOT a fallback for any other provider.
 
-    This keeps the app bootable without downloading sentence-transformers/torch.
-    It is sufficient for smoke tests and local demos; production-quality semantic
-    search should use OpenAI embeddings or another real embedding provider.
+    Bag-of-words character-hash buckets, no learned representation. Sufficient
+    only for wiring smoke tests; retrieval quality on this backend is not
+    representative of production semantic search.
     """
 
     dimension = 128
@@ -61,102 +41,124 @@ class LightweightHashEmbeddings(Embeddings):
         return [value / norm for value in vector]
 
 
-class ResilientEmbeddings(Embeddings):
-    """Wrapper that catches primary embedding provider errors and falls back safely."""
+def build_embeddings(
+    settings,
+    *,
+    gemini_cls=None,
+    openai_cls=None,
+    huggingface_cls=None,
+    hash_cls=None,
+):
+    """Construct the configured embedding backend without silent fallback.
 
-    def __init__(self, primary: Embeddings, fallback: Embeddings | None = None):
-        self.primary = primary
-        self.fallback = fallback or LightweightHashEmbeddings()
-        self._failed = False
+    Real providers either initialize successfully or raise. The non-semantic
+    hash backend is available only through EMBEDDING_PROVIDER=hash-debug.
+    """
+    provider = getattr(settings, "embedding_provider", "local")
 
-    def embed_documents(self, texts: list[str]) -> list[list[float]]:
-        if self._failed:
-            return self.fallback.embed_documents(texts)
-        try:
-            return self.primary.embed_documents(texts)
-        except Exception as exc:
-            logging.getLogger(__name__).warning("Primary embedding provider failed; falling back to local hash embeddings: %s", exc)
-            self._failed = True
-            return self.fallback.embed_documents(texts)
+    if provider == "gemini":
+        gemini_key = (
+            getattr(settings, "effective_gemini_api_key", "")
+            or getattr(settings, "gemini_api_key", "")
+            or getattr(settings, "google_api_key", "")
+        )
+        if not gemini_key:
+            raise RuntimeError(
+                "EMBEDDING_PROVIDER=gemini requires GEMINI_API_KEY or GOOGLE_API_KEY."
+            )
 
-    def embed_query(self, text: str) -> list[float]:
-        if self._failed:
-            return self.fallback.embed_query(text)
-        try:
-            return self.primary.embed_query(text)
-        except Exception as exc:
-            logging.getLogger(__name__).warning("Primary embedding query failed; falling back to local hash embeddings: %s", exc)
-            self._failed = True
-            return self.fallback.embed_query(text)
+        model_name = settings.embedding_model
+        if model_name.startswith("models/"):
+            model_name = model_name.replace("models/", "", 1)
 
+        gemini_cls = gemini_cls or GoogleGenerativeAIEmbeddings
+        return gemini_cls(
+            model=model_name,
+            google_api_key=gemini_key,
+        )
+
+    if provider == "openai":
+        embedding_key = (
+            getattr(settings, "openai_embedding_api_key", "")
+            or getattr(settings, "effective_openai_api_key", "")
+            or getattr(settings, "openai_api_key", "")
+        )
+        if not embedding_key:
+            raise RuntimeError(
+                "EMBEDDING_PROVIDER=openai requires "
+                "OPENAI_EMBEDDING_API_KEY or an effective OpenAI-compatible API key."
+            )
+
+        embedding_model = settings.embedding_model or "text-embedding-3-small"
+        explicit_embedding_base = getattr(
+            settings, "openai_embedding_api_base", ""
+        )
+
+        embedding_base = (
+            explicit_embedding_base
+            or getattr(settings, "get_api_base", "")
+            or None
+        )
+
+        # Avoid accidentally sending embeddings to an unrelated LLM proxy.
+        if (
+            not explicit_embedding_base
+            and embedding_base
+            and "xkiro.com" in embedding_base
+        ):
+            embedding_base = "https://api.openai.com/v1"
+
+        if not embedding_base:
+            if embedding_key.startswith("sk-or-v1-"):
+                embedding_base = "https://openrouter.ai/api/v1"
+            elif embedding_key.startswith("sk-proj-"):
+                embedding_base = "https://api.openai.com/v1"
+
+        if (
+            embedding_base
+            and "openrouter.ai" in embedding_base
+            and "/" not in embedding_model
+        ):
+            embedding_model = f"openai/{embedding_model}"
+
+        openai_cls = openai_cls or OpenAIEmbeddings
+        return openai_cls(
+            model=embedding_model,
+            api_key=embedding_key,
+            base_url=embedding_base,
+        )
+
+    if provider == "local":
+        if huggingface_cls is None:
+            try:
+                from langchain_huggingface import (
+                    HuggingFaceEmbeddings as huggingface_cls,
+                )
+            except ImportError as exc:
+                raise RuntimeError(
+                    "EMBEDDING_PROVIDER=local requires the "
+                    "'sentence-transformers' and 'langchain-huggingface' "
+                    "packages (see requirements.txt). Install them, or set "
+                    "EMBEDDING_PROVIDER=hash-debug to explicitly opt into "
+                    "the non-semantic hash backend."
+                ) from exc
+
+        return huggingface_cls(
+            model_name=settings.local_embedding_model
+        )
+
+    if provider == "hash-debug":
+        hash_cls = hash_cls or LightweightHashEmbeddings
+        return hash_cls()
+
+    raise RuntimeError(
+        f"Unsupported EMBEDDING_PROVIDER={provider!r}."
+    )
 
 class VectorStoreService:
     def __init__(self):
         settings = get_settings()
-        gemini_key = settings.effective_gemini_api_key
-
-        # Pick the embedding provider the caller configured. If its key is
-        # missing or throws error, keep the app robust with a lightweight fallback.
-        if should_use_gemini_embeddings(settings):
-            try:
-                model_name = settings.embedding_model
-                if model_name.startswith("models/"):
-                    model_name = model_name.replace("models/", "")
-                primary = GoogleGenerativeAIEmbeddings(
-                    model=model_name,
-                    google_api_key=gemini_key,
-                )
-                fallback = LightweightHashEmbeddings()
-                fallback.dimension = 768
-                self.embeddings = ResilientEmbeddings(primary, fallback=fallback)
-            except Exception as exc:
-                logging.getLogger(__name__).warning("Failed to initialize Gemini embeddings: %s; falling back to LightweightHashEmbeddings", exc)
-                self.embeddings = LightweightHashEmbeddings()
-        elif should_use_openai_embeddings(settings):
-            emb_key = (
-                getattr(settings, "openai_embedding_api_key", "")
-                or os.getenv("OPENAI_EMBEDDING_API_KEY", "")
-                or getattr(settings, "llm_api_key", "")
-                or os.getenv("LLM_API_KEY", "")
-                or settings.openai_api_key
-                or os.getenv("OPENAI_API_KEY", "")
-            )
-            emb_base = (
-                getattr(settings, "openai_embedding_api_base", "")
-                or os.getenv("OPENAI_EMBEDDING_API_BASE", "")
-            )
-            emb_model = settings.embedding_model or "text-embedding-3-small"
-
-            if not emb_base:
-                if emb_key.startswith("sk-or-v1-"):
-                    emb_base = "https://openrouter.ai/api/v1"
-                elif emb_key.startswith("sk-proj-"):
-                    emb_base = "https://api.openai.com/v1"
-                else:
-                    emb_base = settings.get_api_base or None
-                    if emb_base and "xkiro.com" in emb_base:
-                        emb_base = "https://api.openai.com/v1"
-
-            if emb_base and "openrouter.ai" in emb_base and not ("/" in emb_model):
-                emb_model = f"openai/{emb_model}"
-
-            if not emb_key:
-                self.embeddings = LightweightHashEmbeddings()
-            else:
-                try:
-                    primary = OpenAIEmbeddings(
-                        model=emb_model,
-                        api_key=emb_key,
-                        base_url=emb_base,
-                    )
-                    fallback = LightweightHashEmbeddings()
-                    fallback.dimension = 1536
-                    self.embeddings = ResilientEmbeddings(primary, fallback=fallback)
-                except Exception as exc:
-                    logging.getLogger(__name__).warning("Failed to initialize OpenAIEmbeddings: %s; falling back to LightweightHashEmbeddings", exc)
-                    self.embeddings = LightweightHashEmbeddings()
-        else:
-            self.embeddings = LightweightHashEmbeddings()
+        self.embeddings = build_embeddings(settings)
 
         chroma_kwargs = build_chroma_connection_kwargs(settings)
         if "persist_directory" in chroma_kwargs and not chroma_kwargs["persist_directory"]:

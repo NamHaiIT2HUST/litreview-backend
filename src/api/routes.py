@@ -28,8 +28,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query, UploadFile, File, Form
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import desc, select, String
+from sqlalchemy import String, desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.agents.graph import agent
@@ -94,13 +95,13 @@ def _compute_dedup_key(doi: str, title: str, authors: list[str] | str, year: int
     if doi and doi.strip() and doi.strip().upper() not in ("N/A", ""):
         return doi.strip().lower()
     title_norm = re.sub(r"\s+", " ", title.lower()).strip()
-    
+
     first_author = ""
     if isinstance(authors, list) and len(authors) > 0:
         first_author = authors[0].strip()
     elif isinstance(authors, str) and authors:
         first_author = authors.split(",")[0].strip()
-        
+
     return f"{title_norm}|{first_author}|{year}"
 
 async def _persist_search(
@@ -225,7 +226,7 @@ async def get_search_strategies(
         raise HTTPException(status_code=404, detail="Project not found")
 
     if not x_api_key:
-        # Lấy từ env 
+        # Lấy từ env
         import os
         x_api_key = os.getenv("SERPAPI_KEY", "")
 
@@ -325,13 +326,13 @@ async def search_papers(
 
         try:
             sq_id, duplicate_count = await _persist_search(
-                db, 
-                query_string=request.query_string, 
-                papers_pydantic=target_papers, 
+                db,
+                query_string=request.query_string,
+                papers_pydantic=target_papers,
                 project_id=project_id,
                 strategy_label=request.strategy_label
             )
-            
+
             if sq_id:
                 project_uuid = uuid.UUID(str(project_id))
                 keys = [_compute_dedup_key(p.doi, p.title, p.authors, p.year) for p in target_papers]
@@ -340,7 +341,7 @@ async def search_papers(
                 )
                 db_papers = result.scalars().all()
                 dedup_to_paper = {p.dedup_key: p for p in db_papers}
-                
+
                 for p in target_papers:
                     key = _compute_dedup_key(p.doi, p.title, p.authors, p.year)
                     db_paper = dedup_to_paper.get(key)
@@ -348,7 +349,7 @@ async def search_papers(
                         p.id = str(db_paper.id)
                         p.abstract = db_paper.abstract
                         p.doi = db_paper.doi
-                
+
         except Exception as exc:
             import logging
             logging.getLogger(__name__).error("Failed to persist search: %s", exc)
@@ -438,7 +439,7 @@ async def get_papers_for_query(
         raise HTTPException(status_code=404, detail=f"Search query '{query_id}' not found")
 
     from src.models.db_models import ScopusStatus, SearchQueryPaper
-    
+
     # Try querying via the new association table first
     assoc_result = await db.execute(
         select(Paper)
@@ -449,7 +450,7 @@ async def get_papers_for_query(
         )
     )
     papers = assoc_result.scalars().all()
-    
+
     # Fallback to old behavior for legacy queries without associations
     if not papers:
         legacy_result = await db.execute(
@@ -540,7 +541,7 @@ async def delete_paper(
         GenericEvidenceCache, GenericEvidenceCacheItem, RetrievalLog, Citation,
         SearchQueryPaper
     )
-    
+
     target_uuid = None
     try:
         target_uuid = UUID(str(paper_id).strip())
@@ -575,7 +576,7 @@ async def delete_paper(
         await db.execute(sql_delete(Extraction).where(Extraction.paper_id == target_uuid))
         await db.execute(sql_delete(PDFChunk).where(PDFChunk.paper_id == target_uuid))
         await db.execute(sql_delete(PageText).where(PageText.paper_id == target_uuid))
-        
+
         await db.execute(sql_delete(Paper).where(Paper.id == target_uuid))
         await db.commit()
 
@@ -749,7 +750,7 @@ async def upload_paper_pdf(
         paper = paper_result.scalar_one_or_none()
         if paper is None:
             raise HTTPException(status_code=404, detail=f"Paper '{paper_id}' not found")
-        
+
         file_path = await processor.save_upload_file(file, project_id=str(paper.project_id))
         paper.file_path = file_path
         db.add(paper)
@@ -888,7 +889,7 @@ async def workspace_chat(
         # --- LUỒNG RAG TRUYỀN THỐNG (SUPER FAST) ---
         # Bước 1: Xác định danh sách paper_ids mục tiêu
         target_pids = request.paper_ids if getattr(request, "paper_ids", None) else ([request.paper_id] if getattr(request, "paper_id", None) else [])
-        
+
         # Nếu frontend không truyền paper_ids (hoặc rỗng), tự động lấy tất cả paper trong workspace
         if not target_pids:
             try:
@@ -918,7 +919,7 @@ async def workspace_chat(
             for res in search_results:
                 if isinstance(res, list) and res:
                     chunks.extend(res)
-            
+
             for pid in target_pids:
                 pid_str = str(pid).strip()
 
@@ -974,11 +975,11 @@ async def workspace_chat(
 
         # Bước 2: Sinh câu trả lời dựa trên context (có structured citation metadata)
         result = await rag_service.generate_answer_with_citations(request.message, chunks)
-        
+
         # Bước 3: RAG Output Guardrail & ASTA-Bench Claim Attribution
         valid_keys = {str(c.get("key", idx + 1)) for idx, c in enumerate(result.get("context_used", []))}
         sanitized_answer, hallucinated_keys = rag_guardrail_service.sanitize_citations(result["answer"], valid_keys)
-        
+
         guardrail_res = await rag_guardrail_service.verify_answer_groundedness(
             request.message, sanitized_answer, result.get("context_used", [])
         )
@@ -1150,14 +1151,14 @@ async def workspace_analyze_data(request: DataAnalysisRequest) -> DataAnalysisRe
         try:
             first_line = request.csv_text.strip().split('\n')[0]
             sep = '\t' if '\t' in first_line and first_line.count('\t') > first_line.count(',') else (';' if ';' in first_line and first_line.count(';') > first_line.count(',') else ',')
-            
+
             try:
                 df = pd.read_csv(io.StringIO(request.csv_text.strip()), sep=sep, on_bad_lines='skip')
             except Exception:
                 df = pd.read_csv(io.StringIO(request.csv_text.strip()), on_bad_lines='skip')
 
             comp_profile = eda_profiling_service.profile_dataframe(df, filename=request.filename)
-            
+
             # Format summary stats for JSON response
             numeric_cols = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c]) and c not in comp_profile.completely_empty_cols and c not in comp_profile.constant_cols]
             desc_stats = {}
@@ -1182,7 +1183,7 @@ async def workspace_analyze_data(request: DataAnalysisRequest) -> DataAnalysisRe
             )
 
             scientific_summary_text = comp_profile.llm_context_summary
-            
+
         except Exception as e:
             logger.warning(f"Failed to profile dataset with eda_profiling_service: {e}")
             scientific_summary_text = f"Dữ liệu bảng có {len(request.csv_text.splitlines())} dòng thô."
@@ -1364,7 +1365,7 @@ async def workspace_analyze_data(request: DataAnalysisRequest) -> DataAnalysisRe
             if not has_section_7 and comp_profile:
                 drop_md = "\n".join([f"- **`{d['column']}`**: {d['reason']}" for d in comp_profile.columns_to_drop])
                 impute_md = "\n".join([f"- **`{m['column']}`**: {m['strategy']}" for m in comp_profile.imputation_strategy])
-                
+
                 section_7_supplement = f"""
 
 ### 7. Kết Luận & Kế Hoạch Hành Động Tiền Xử Lý (Action Plan)
@@ -1387,12 +1388,12 @@ async def workspace_analyze_data(request: DataAnalysisRequest) -> DataAnalysisRe
         py_matches = list(re.finditer(r'```(?:python|py)\s*(.*?)\s*```', cleaned_answer, re.DOTALL | re.IGNORECASE))
         extracted_python = ""
         block_outputs = []
-        
+
         if py_matches:
             from src.services.code_sandbox_service import smart_repair_python_code
             blocks = [smart_repair_python_code(m.group(1)) for m in py_matches if m.group(1).strip()]
             extracted_python = "\n\n".join(blocks)
-            
+
             # Execute all blocks sequentially in sandbox to get outputs for each block
             if request.csv_text.strip():
                 try:
@@ -1416,7 +1417,7 @@ async def workspace_analyze_data(request: DataAnalysisRequest) -> DataAnalysisRe
 
     except Exception as exc:
         logger.warning(f"LLM call encountered an error ({exc}). Generating deterministic Pandas scientific analysis fallback.")
-        
+
         # Fallback phân tích thống kê định lượng mạnh mẽ bằng Pandas theo đúng Khung 7 Phần
         lines = []
         lines.append("### 📊 Báo Cáo Phân Tích Thống Kê Khám Phá Dữ Liệu (DataVoyager Engine)")
@@ -1516,7 +1517,7 @@ async def get_evidence_coords(
     """Find text coordinates in PDF for highlighting."""
     import os
     import logging
-    
+
     base_dir = os.path.join("uploads", "papers")
     file_path = os.path.join(base_dir, request.filename)
     if not os.path.exists(file_path):
@@ -1527,7 +1528,7 @@ async def get_evidence_coords(
                 break
         else:
             return EvidenceCoordsResponse(rects=[])
-    
+
     try:
         try:
             try:
@@ -1545,15 +1546,15 @@ async def get_evidence_coords(
         page_index = max(0, request.page - 1)
         if page_index >= len(doc):
             return EvidenceCoordsResponse(rects=[])
-            
+
         page = doc[page_index]
         page_rect = page.rect
         page_width = page_rect.width
         page_height = page_rect.height
-        
+
         search_text = request.snippet.strip()
         rects = []
-        
+
         # Robust word-level matching
         import re
         def clean_word(w):
@@ -1561,14 +1562,14 @@ async def get_evidence_coords(
 
         search_words = [clean_word(w) for w in search_text.split() if clean_word(w)]
         page_words = page.get_text("words")
-        
+
         if search_words and page_words:
             best_start = 0
             best_end = 0
             max_matches = -1
-            
+
             window_size = min(len(search_words) + 15, len(page_words))
-            
+
             for i in range(len(page_words) - window_size + 1):
                 p_ptr = i
                 s_ptr = 0
@@ -1578,7 +1579,7 @@ async def get_evidence_coords(
                     if not cw:
                         p_ptr += 1
                         continue
-                        
+
                     # look ahead in search_words
                     for lookahead in range(4):
                         if s_ptr + lookahead < len(search_words) and cw == search_words[s_ptr + lookahead]:
@@ -1586,7 +1587,7 @@ async def get_evidence_coords(
                             s_ptr += lookahead + 1
                             break
                     p_ptr += 1
-                
+
                 if matches > max_matches:
                     max_matches = matches
                     best_start = i
@@ -1606,7 +1607,7 @@ async def get_evidence_coords(
                         width=(w[2] - w[0]) / page_width,
                         height=(w[3] - w[1]) / page_height
                     ))
-                    
+
                 return EvidenceCoordsResponse(rects=rects)
 
             # Fallback for PDFs whose line wrapping/OCR tokenization prevents
@@ -1627,7 +1628,7 @@ async def get_evidence_coords(
                 return EvidenceCoordsResponse(rects=fallback_rects)
 
 
-            
+
         return EvidenceCoordsResponse(rects=rects)
     except Exception as e:
         logging.getLogger(__name__).error("Error finding coords: %s", e)
@@ -1717,6 +1718,24 @@ async def create_synthesis_session(
             + ", ".join(str(item) for item in foreign_project),
         )
 
+    # Fast v2 (EXPERIMENTAL, opt-in via SYNTHESIS_MODE=fast_v2_experimental):
+    # runs synchronously in-request through the real composition root and
+    # returns the result directly, bypassing the Legacy session/graph/DB
+    # path entirely. Legacy path below is completely unchanged when this
+    # flag is off (the default).
+    if get_settings().fast_v2_enabled:
+        if not request.research_question or not request.research_question.strip():
+            raise HTTPException(
+                status_code=422,
+                detail="research_question is required for fast_v2_experimental synthesis",
+            )
+        from src.synthesis.fast_v2.runtime import run_fast_v2_synthesis
+
+        fast_v2_result = await run_fast_v2_synthesis(
+            paper_ids=paper_ids, research_question=request.research_question
+        )
+        return JSONResponse(status_code=200, content=fast_v2_result.to_dict())
+
     # Auto-ingest any papers missing active_ingestion_id
     from src.services.ingestion_service import ensure_paper_ingested
     for paper in papers:
@@ -1779,7 +1798,7 @@ async def list_synthesis_sessions(
         .order_by(desc(SynthesisSession.created_at))
     )
     sessions = result.scalars().all()
-    
+
     return [
         SynthesisSessionSummary(
             id=session.id,
@@ -1876,13 +1895,13 @@ async def delete_synthesis_session(
         SynthesisSession, Citation, EvidenceExtractionAttempt, EvidenceRecord,
         SynthesisClaim, SynthesisSection, RetrievalLog, LLMCallLog, SynthesisMetrics
     )
-    
+
     # Check existence
     result = await db.execute(select(SynthesisSession).where(SynthesisSession.id == session_id))
     session = result.scalar_one_or_none()
     if session is None:
         raise HTTPException(status_code=404, detail="Synthesis session not found")
-        
+
     # Delete child records
     await db.execute(sql_delete(RetrievalLog).where(RetrievalLog.session_id == session_id))
     await db.execute(sql_delete(LLMCallLog).where(LLMCallLog.session_id == session_id))
@@ -1892,11 +1911,11 @@ async def delete_synthesis_session(
     await db.execute(sql_delete(EvidenceRecord).where(EvidenceRecord.synthesis_session_id == session_id))
     await db.execute(sql_delete(SynthesisClaim).where(SynthesisClaim.synthesis_session_id == session_id))
     await db.execute(sql_delete(SynthesisSection).where(SynthesisSection.synthesis_session_id == session_id))
-    
+
     # Delete the main session
     await db.execute(sql_delete(SynthesisSession).where(SynthesisSession.id == session_id))
     await db.commit()
-    
+
     return {"message": "Synthesis session deleted successfully", "id": str(session_id)}
 
 
@@ -1909,11 +1928,11 @@ async def get_pdf_file(
     from fastapi.responses import FileResponse
     import os
     import httpx
-    
+
     base_dir = os.path.join("uploads", "papers")
     os.makedirs(base_dir, exist_ok=True)
     file_path = os.path.join(base_dir, filename)
-    
+
     # Try finding locally
     found = os.path.exists(file_path)
     if not found:
@@ -1923,7 +1942,7 @@ async def get_pdf_file(
                 file_path = os.path.join(root, filename)
                 found = True
                 break
-                
+
     if not found:
         # Ephemeral disk reset fallback: find online url from DB
         try:
@@ -1932,7 +1951,7 @@ async def get_pdf_file(
                 select(Paper).where(Paper.file_path.like(f"%{filename}%"))
             )
             paper = result.scalar_one_or_none()
-            
+
             # If not found by file_path, try querying papers with similar title/filename match
             if not paper:
                 clean_title = filename.rsplit(".", 1)[0].replace("-", " ")
@@ -1940,7 +1959,7 @@ async def get_pdf_file(
                     select(Paper).where(Paper.title.like(f"%{clean_title[:30]}%"))
                 )
                 paper = result.scalar_one_or_none()
-                
+
             if paper and paper.url and paper.url.lower().endswith(".pdf"):
                 print(f"[pdf-serve] Local file missing. Re-downloading PDF from {paper.url}...", flush=True)
                 async with httpx.AsyncClient(timeout=30.0) as client:
@@ -1955,7 +1974,7 @@ async def get_pdf_file(
 
     if not found or not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File not found")
-            
+
     return FileResponse(file_path, media_type="application/pdf")
 
 

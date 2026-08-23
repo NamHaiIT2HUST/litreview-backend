@@ -1,0 +1,121 @@
+{
+  "source": "ORIGINAL Dimension-Aware v1 RQ2 (validated), recovered read-only reference. Used as a frozen generator-benchmark fixture only -- not re-derived from retrieval.",
+  "question": "How do Xu2010 and Xu2018 differ in their formulations of the split feasibility problem, algorithmic strategies, assumptions, and convergence guarantees?",
+  "evidence": [
+    {
+      "evidence_id": "chunk-f8fd9500-bbb0-495f-b04e-51defc2fd73c",
+      "paper_id": "52c06c26-1dd1-486a-8c4f-202779ed5c7f",
+      "title": "Xu 2010 Study",
+      "page": 3,
+      "text": "Inverse Problems 26 (2010) 105018\nH-K Xu\nHilbert spaces. Due to the lack of inner products in Banach spaces, the convergence theory\nof iterative methods for the SFP is much less fruitful in Banach spaces than that in Hilbert\nspaces. It is therefore nontrivial to ﬁnd Banach space counterparts of the Hilbert space results\non iterative methods for the SFP. We however also note that the results obtained in this paper\ncannot be derived from [20] (see remark 4.2 in section 4).\n2. Tools: nonlinear operators\nProjections are an important tool for our work in this paper. Let H be a real Hilbert space\nwith inner product ⟨·, ·⟩and norm ∥· ∥, respectively, and let K be a nonempty closed convex\nsubset of H. Recall that the (nearest point or metric) projection from H onto K, denoted PK,\nis deﬁned in such a way that, for each x ∈H, PKx is the unique point in K with the property\n∥x −PKx∥= min{∥x −y∥: y ∈K}.\nThe following is a useful characterization of projections.\nProposition 2.1. Given x ∈H and z ∈K. Then z = PKx if and only if\n⟨x −z, y −z⟩⩽0\nfor all\ny ∈K.\nWe also need other sorts of nonlinear operators which are introduced below.\nLet T, A : H →H be the nonlinear operators.\n• T is nonexpansive if ∥T x −T y∥⩽∥x −y∥for all x, y ∈H.\n• T is ﬁrmly nonexpansive if 2T −I is nonexpansive. Equivalently, T = (I + S)/2,\nwhere S : H →H is nonexpansive. Alternatively, T is ﬁrmly nonexpansive if and\nonly if\n⟨x −y, T x −T y⟩⩾∥T x −T y∥2,\nx, y ∈H.\n• T is averaged if T = (1−α)I +αS, where α ∈(0, 1) and S : H →H is nonexpansive.\nIn this case, we also say that T is α-averaged. A ﬁrmly nonexpansive mapping is\n1\n2-averaged. (Averaged mappings have received many investigations, see [1, 3, 9, 25,\n26].)\n• A is monotone if ⟨Ax −Ay, x −y⟩⩾0 for x, y ∈H.\n• A is β-strongly monotone, with β > 0, if\n⟨x −y, Ax −Ay⟩⩾β∥x −y∥2,\nx, y ∈H.\n• A is ν-inverse strongly monotone (ν-ism), with ν > 0, if\n⟨x −y, Ax −Ay⟩⩾ν∥Ax −Ay∥2,\nx, y ∈H.\nIt is well known that both PK and I −PK are ﬁrmly nonexpansive and 1\n2-ism.",
+      "page_char_start": 0,
+      "page_char_end": 1990,
+      "selected_for_dimensions": [
+        "D1"
+      ],
+      "dimension_scores": {
+        "D1": 4.6384429931640625
+      }
+    },
+    {
+      "evidence_id": "70602981-a7eb-4f64-9b8e-7507280c34d8",
+      "paper_id": "0373c7b5-3a9e-437d-a59a-a1baa9a708cc",
+      "title": "Xu 2018 Study",
+      "page": 0,
+      "text": "Computational Optimization and Applications\nhttps://doi.org/10.1007/s10589-018-0025-z\nA majorization–minimization algorithm for split feasibility\nproblems\nJason Xu1\n· Eric C. Chi2\n· Meng Yang2 · Kenneth Lange3\nReceived: 10 August 2017\n© Springer Science+Business Media, LLC, part of Springer Nature 2018\nAbstract\nThe classical multi-set split feasibility problem seeks a point in the intersection of\nﬁnitely many closed convex domain constraints, whose image under a linear mapping\nalso lies in the intersection of ﬁnitely many closed convex range constraints. Split\nfeasibility generalizes important inverse problems including convex feasibility, lin-\near complementarity, and regression with constraint sets. When a feasible point does\nnot exist, solution methods that proceed by minimizing a proximity function can be\nused to obtain optimal approximate solutions to the problem. We present an exten-\nsion of the proximity function approach that generalizes the linear split feasibility\nproblem to allow for non-linear mappings. Our algorithm is based on the principle\nof majorization–minimization, is amenable to quasi-Newton acceleration, and comes\ncompletewithconvergenceguarantees under mildassumptions. Furthermore, weshow\nthat the Euclidean norm appearing in the proximity function of the non-linear split fea-\nsibility problem can be replaced by arbitrary Bregman divergences. We explore several\nexamples illustrating the merits of non-linear formulations over the linear case, with\na focus on optimization for intensity-modulated radiation therapy.\nKeywords Majorize–minimize · Nonlinear split feasibility · Intensity modulated\nradiation therapy · Proximity function minimization · Constrained regression\nJason Xu was partially supported by NSF MSPRF Grant DMS-1606177. Kenneth Lange was partially\nsupported by NIH Grant HG006139.\nB Jason Xu\njason.q.xu@duke.edu\n1\nDepartment of Statistical Science, Duke University, Durham, NC, USA\n2",
+      "page_char_start": 0,
+      "page_char_end": 1943,
+      "selected_for_dimensions": [
+        "D1",
+        "D2",
+        "D3"
+      ],
+      "dimension_scores": {
+        "D1": 4.466426849365234,
+        "D2": 5.259467124938965,
+        "D3": 4.946972370147705
+      }
+    },
+    {
+      "evidence_id": "a31e963f-1a64-46de-a8df-9129547e8c4b",
+      "paper_id": "52c06c26-1dd1-486a-8c4f-202779ed5c7f",
+      "title": "Xu 2010 Study",
+      "page": 2,
+      "text": "Inverse Problems 26 (2010) 105018\nH-K Xu\nwhere C and Q are the nonempty closed convex subsets of the inﬁnite-dimensional real Hilbert\nspaces H1 and H2, respectively, and A ∈B(H1, H2) (i.e. A is a bounded linear operator from\nH1 to H2). Some work in the ﬁnite-dimensional setting can be found in [2, 3, 6, 18, 24, 27, 30]\n(see also [21, 28, 29] for relevant projection methods for solving image recovery problems).\nA special case of the SFP (1.1) is the convexly constrained linear inverse problem\nx ∈C\nand\nAx = b\n(1.2)\nwhich has extensively been investigated in the literature ([11]) using the projected Landweber\niterative method [14]. Comparatively, the SFP (1.1) has however received much less attention\nso far, due partially to the complexity resulted from the set Q. Therefore, whether various\nversions of the projected Landweber iterative method can be extended to solve the SFP (1.1)\nremains an interesting topic (e.g. it is yet not clear if the dual approach to (1.2) of [17] (see\nalso [19]) can be extended to the SFP (1.1)).\nThe original algorithm introduced in [4] involves the computation of the inverse A−1\n(assuming the existence of the inverse of A) and thus does not become popular. A more\npopular algorithm that solves the SFP (1.1) seems to be the CQ algorithm of Byrne [2, 3]\nwhich is found to be a gradient-projection method (GPM) in convex minimization (it is also a\nspecial case of the proximal forward–backward splitting method [10]).\nThe CQ algorithm only involves the computations of the projections PC and PQ onto the\nsets C and Q, respectively, and is therefore implementable in the case where PC and PQ have\nclosed-form expressions (e.g. C and Q are the closed balls or half-spaces). It remains however\na challenge how to implement the CQ algorithm in the case where the projections PC and/or\nPQ fail to have closed-form expressions though theoretically we can prove (weak) convergence\nof the algorithm.",
+      "page_char_start": 0,
+      "page_char_end": 1931,
+      "selected_for_dimensions": [
+        "D1"
+      ],
+      "dimension_scores": {
+        "D1": 4.2736663818359375
+      }
+    },
+    {
+      "evidence_id": "9e9194a4-0dda-4eb3-81c6-bd68f39c43dd",
+      "paper_id": "52c06c26-1dd1-486a-8c4f-202779ed5c7f",
+      "title": "Xu 2010 Study",
+      "page": 1,
+      "text": "IOP PUBLISHING\nINVERSE PROBLEMS\nInverse Problems 26 (2010) 105018 (17pp)\ndoi:10.1088/0266-5611/26/10/105018\nIterative methods for the split feasibility problem\nin inﬁnite-dimensional Hilbert spaces\nHong-Kun Xu\nDepartment of Applied Mathematics, National Sun Yat-sen University, Kaohsiung,\nTaiwan\nE-mail: xuhk@math.nsysu.edu.tw\nReceived 5 August 2010, in ﬁnal form 17 August 2010\nPublished 9 September 2010\nOnline at stacks.iop.org/IP/26/105018\nAbstract\nThe split feasibility problem (SFP) (Censor and Elfving 1994 Numer.\nAlgorithms 8 221–39) is to ﬁnd a point x∗with the property that x∗∈C\nand Ax∗∈Q, where C and Q are the nonempty closed convex subsets of\nthe real Hilbert spaces H1 and H2, respectively, and A is a bounded linear\noperator from H1 to H2. The SFP models inverse problems arising from phase\nretrieval problems (Censor and Elfving 1994 Numer. Algorithms 8 221–39) and\nthe intensity-modulated radiation therapy (Censor et al 2005 Inverse Problems\n21 2071–84). In this paper we discuss iterative methods for solving the SFP\nin the setting of inﬁnite-dimensional Hilbert spaces. The CQ algorithm of\nByrne (2002 Inverse Problems 18 441–53, 2004 Inverse Problems 20 103–\n20) is indeed a special case of the gradient-projection algorithm in convex\nminimization and has weak convergence in general in inﬁnite-dimensional\nsetting.\nWe will mainly use ﬁxed point algorithms to study the SFP. A\nrelaxed CQ algorithm is introduced which only involves projections onto\nhalf-spaces so that the algorithm is implementable. Both regularization and\niterative algorithms are also introduced to ﬁnd the minimum-norm solution of\nthe SFP.\n1. Introduction\nThe split feasibility problem (SFP) in ﬁnite-dimensional Hilbert spaces was ﬁrst introduced\nby Censor and Elfving [4] for modeling inverse problems which arise from phase retrievals\nand in medical image reconstruction [2]. Recently, it has been found that the SFP can also be\nused to model the intensity-modulated radiation therapy [5–8].",
+      "page_char_start": 0,
+      "page_char_end": 1987,
+      "selected_for_dimensions": [
+        "D2"
+      ],
+      "dimension_scores": {
+        "D2": 5.016912460327148
+      }
+    },
+    {
+      "evidence_id": "583d9805-1d8f-4f23-98bc-a3c0d8917ce8",
+      "paper_id": "0373c7b5-3a9e-437d-a59a-a1baa9a708cc",
+      "title": "Xu 2018 Study",
+      "page": 1,
+      "text": "J. Xu et al.\n1 Introduction\nIn the split feasibility problem, one is given a smooth function h(x) : Rn \u0002→Rp and\ntwo closed convex sets C ⊂Rn and Q ⊂Rp [17]. One then seeks a point x ∈Rn\nsimultaneously satisfying x ∈C and h(x) ∈Q. Instances of the split feasibility\nproblem abound. The classical linear version of the split feasibility problem takes\nh(x) = Ax for some m × n matrix A [17]. Other typical examples of the split\nfeasibility problem include constrained problems such as ﬁnding x ∈C subject to\nh(x) = b, ∥h(x)−b∥≤r, or c ≤h(x)−b ≤d. The multi-set version of the problem\nrepresents C = ∩iCi and Q = ∩j Q j as the intersections of closed convex sets Ci and\nQ j. A variety of algorithms have been proposed for solving the linear split feasibility\nproblem, notably those in image reconstruction and intensity-modulated radiation\ntherapy (IMRT) [9,16,18,20,67]. The split feasibility problem has been studied in\nmore general settings, for example in inﬁnite dimensions [13,31,50,56,65,68] and\nwithin the broader context of split inverse problems [19].\nHere we generalize a previously discovered algorithm [17,27] for the case when\nh is linear to the case when h is non-linear, using the majorization–minimization\n(MM) principle from computational statistics [42,43]. Like the popular CQ algorithm\nfor solving the split feasibility algorithm [9], the primary computations are projec-\ntions onto the sets Ci and Q j. In contrast to previous attempts, our MM approach\ncomes with global convergence guarantees under very mild assumptions and includes\na ﬁrst-order approximation to the Hessian that lends the algorithm to powerful accel-\neration schemes. Such attempts at the non-linear problem include a projected gradient\ntrust-region method [36] that converges to local optima. This approach constitutes a\nsequential linearization of the problem, and is equivalent to the CQ algorithm in the\ncase that h is linear. An adaptive projection-type algorithm based on modifying the",
+      "page_char_start": 0,
+      "page_char_end": 1979,
+      "selected_for_dimensions": [
+        "D2",
+        "D3",
+        "D4"
+      ],
+      "dimension_scores": {
+        "D2": 4.806538105010986,
+        "D3": 3.831726312637329,
+        "D4": 1.7161766290664673
+      }
+    },
+    {
+      "evidence_id": "5d3abb7e-6455-4210-8699-c49108ed218e",
+      "paper_id": "0373c7b5-3a9e-437d-a59a-a1baa9a708cc",
+      "title": "Xu 2018 Study",
+      "page": 25,
+      "text": "imations. Under weak assumptions, we prove that limit points of the algorithm are\nnecessarily stationary points of the proximity function. A variety of examples that fall\nunder the non-linear split feasibility framework are included, some of which involve\nnon-convex constraint sets. Nonetheless, our algorithm is capable of ﬁnding valid\nsolutions in such settings, demonstrating that its practical use extends beyond nicely\nbehaved convex settings where stationary points are guaranteed to be global minimiz-\ners.\nA variety of statistical applications and inverse problems arising in scientiﬁc dis-\nciplines can be studied within the split feasibility frameworks. The generalization\nto non-linear maps and arbitrary Bregman divergences further widens this scope,\nas illustrated with an application to sparse regression with set-based constraints for\ngeneralized linear models. We see that such applications can often be formulated as\npenalized or constrained minimization of an objective, or as feasibility-seeking prob-\nlems. As proximity function approaches occupy a middle ground, it will be natural\nto further investigate connections to the superiorization methodology [15], where an\nalgorithm driven by feasibility is steered toward perturbations. These perturbations\ncan encode, for instance, an objective function to be optimized [37], and revisiting\nour approach within the context of superiorization may lead to improved algorithms\nas well as new insights.\nWe focus on an application to optimization for intensity-modulated radiation ther-\napy data, an historical application of linear split feasibility. The MM algorithms\npresented here consistently outpace classical linear algorithms, adaptive ﬁrst order\n123",
+      "page_char_start": 1643,
+      "page_char_end": 3364,
+      "selected_for_dimensions": [
+        "D3",
+        "D4"
+      ],
+      "dimension_scores": {
+        "D3": 3.8554930686950684,
+        "D4": 1.259371280670166
+      }
+    },
+    {
+      "evidence_id": "bb5c7728-49a3-40c2-ae5a-bd1d0664961a",
+      "paper_id": "0373c7b5-3a9e-437d-a59a-a1baa9a708cc",
+      "title": "Xu 2018 Study",
+      "page": 14,
+      "text": "A majorization–minimization algorithm for split…\nThe inequality above implies that ∥∇f (xk)∥converges to 0. Therefore, all the limit\npoints of the sequence xk are stationary points of f (x). Taking norms of the update\nproduces\n∥xk+1 −xk∥= σ sk∥H(xk)−1∇f (xk)∥\n≤σ ska−1∥∇f (xk)∥.\nThus, we have a bounded sequence xk with ∥xk+1 −xk∥tending to 0. According to\nPropositions 12.4.2 and 12.4.3 in [43], the set of limit points is compact and connected.\n⊓⊔\nNote that in the linear case h(x) = Ax, the gradient ∇f (x) is L-Lipschitz con-\ntinuous with Lipschitz constant L = \u0003\ni vi + ρ(At A) \u0003\nj w j, denoting the spectral\nradius ρ(At A). Finally, note that we do not assume convexity of the proximity func-\ntion. Whenever the proximity function is convex, stationary points are necessarily\nglobal minimizers, and therefore all limit points of the iterate sequence are global\nminimizers.\nBefore leaving our discussion on convergence, we address convergence of the\naccelerated version of our algorithm. In practice, we observe that the accelerated\nalgorithm converges to valid solutions, but the fact that its iterates may temporarily\nincrease our objective complicates convergence analysis. Nonetheless, convergence\nof the acceleration scheme can be guaranteed with the following slight modiﬁcation:\neach quasi-Newton step requires two ordinary MM iterations [71]. If the quasi-Newton\nupdate fails to reduce the objective function, then we revert to the second iterate\nψ ◦ψ(xk). This modiﬁed scheme comes with convergence guarantees described in\nthe following proposition and proved in the “Appendix”.\nProposition 3 Let ϕ denote the algorithm map corresponding to the modiﬁed quasi-\nNewton method. Generate the iterate sequence xk+1 = ϕ(xk). Then the limit points\nof this sequence are stationary points of f (x).\n5 Applications\n5.1 Regression with constraints\nProximity function optimization offers a very general framework encompassing sta-",
+      "page_char_start": 0,
+      "page_char_end": 1932,
+      "selected_for_dimensions": [
+        "D4"
+      ],
+      "dimension_scores": {
+        "D4": 0.8561508059501648
+      }
+    }
+  ]
+}

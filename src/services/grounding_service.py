@@ -258,18 +258,16 @@ class GroundingService:
             candidate.quote,
         )
         if located is None:
-            # Fallback: if quote matching fails, still accept the evidence but ground it 
-            # to the entire source chunk to prevent dropping author-stated evidence.
-            relative_start = 0
-            relative_end = len(window.text)
-        else:
-            relative_start, relative_end = located
+            return GroundingOutcome(None, "quote_not_found")
+
+        relative_start, relative_end = located
 
         raw_start = window.raw_start + relative_start
         raw_end = window.raw_start + relative_end
         return GroundingOutcome(
             GroundedEvidence(
-                **candidate.model_dump(),
+                **candidate.model_dump(exclude={"quote"}),
+                quote=window.text[relative_start:relative_end],
                 page_text_id=window.page_text_id,
                 page_number=window.page_number,
                 page_char_start=raw_start,

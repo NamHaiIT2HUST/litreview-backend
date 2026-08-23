@@ -45,7 +45,12 @@ class Settings(BaseSettings):
     synthesis_llm_max_concurrency: int = Field(default=1, ge=1, le=10)
     groq_api_key: str = ""
     embedding_model: str = "text-embedding-3-small"
-    embedding_provider: Literal["local", "gemini", "openai"] = "openai"
+    embedding_provider: Literal["local", "gemini", "openai", "hash-debug"] = "openai"
+    # Used only when embedding_provider="local". "local" means a real local semantic
+    # model (sentence-transformers via langchain-huggingface), not a fallback -- use
+    # embedding_provider="hash-debug" to explicitly opt into the non-semantic hash
+    # embedding (smoke-test/demo only, no downloads required).
+    local_embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
 
     @property
     def effective_openai_api_key(self) -> str:
@@ -122,6 +127,57 @@ class Settings(BaseSettings):
         if prov == "groq":
             return "https://api.groq.com/openai/v1"
         return ""
+
+    # Synthesis pipeline selection.
+    # "legacy" is the ONLY supported production path and MUST stay the default.
+    # "fast_v2_experimental" opts into the Evidence-First / Hygiene /
+    # Dimension-Aware / OpenScholar pipeline documented in
+    # docs/architecture/FAST_SYNTHESIS_V2.md. That path is EXPERIMENTAL: its
+    # generation latency is validated but its claim-level factual grounding is
+    # NOT. Never make it the default without the promotion criteria in that doc.
+    synthesis_mode: Literal["legacy", "fast_v2_experimental"] = "legacy"
+
+    @property
+    def fast_v2_enabled(self) -> bool:
+        """True only when fast_v2 was explicitly and exactly selected."""
+        return self.synthesis_mode == "fast_v2_experimental"
+
+    # Fast v2 experimental knobs (inert while synthesis_mode="legacy").
+    fast_v2_generator_model: str = "NeuML/Llama-3.1_OpenScholar-8B-AWQ"
+    fast_v2_max_evidence_per_dimension: int = Field(default=3, ge=1, le=20)
+    # NOT a calibrated production threshold -- frozen experimental default only.
+    # See docs/architecture/FAST_SYNTHESIS_V2.md section L.
+    fast_v2_relevance_threshold: float = 0.0
+    fast_v2_candidates_per_dimension: int = Field(default=40, ge=1, le=200)
+
+    # Reranker selection. "identity" performs NO reranking -- it is the safe,
+    # deterministic default so importing/running fast_v2 (and CI) never
+    # downloads a checkpoint. "cross_encoder" is the reranker the validated
+    # Evidence-First / Dimension-Aware v1 experiments actually used
+    # (cross-encoder/ms-marco-MiniLM-L-6-v2, see
+    # src/synthesis/fast_v2/selection/cross_encoder.py for the provenance
+    # citations). It must be opted into explicitly; a typo fails loudly rather
+    # than silently changing which evidence reaches the bank.
+    fast_v2_reranker: Literal["identity", "cross_encoder"] = "identity"
+    fast_v2_reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+
+    # Generator selection. "fake" loads nothing and calls nothing -- the safe,
+    # deterministic default so importing/running fast_v2 (and CI) never needs a
+    # GPU or a network call. "remote_openscholar" talks HTTP to a warm GPU
+    # service (see scripts/fast_v2_openscholar_gpu_service.py) and must never
+    # be loaded in-process in the CPU backend. "local_vllm" is the in-process
+    # vLLM adapter for when the backend itself runs on the GPU box. Must be
+    # opted into explicitly; a typo fails loudly rather than silently
+    # changing latency/cost.
+    fast_v2_generator: Literal["fake", "local_vllm", "remote_openscholar", "hosted_api"] = "fake"
+    # Required only when fast_v2_generator="remote_openscholar".
+    fast_v2_openscholar_base_url: str = ""
+    # Required only when fast_v2_generator="hosted_api". Generic OpenAI-
+    # compatible chat-completions endpoint (base_url/api_key/model), so this
+    # is provider-agnostic -- no single vendor is hardcoded.
+    fast_v2_hosted_api_base_url: str = ""
+    fast_v2_hosted_api_key: str = ""
+    fast_v2_hosted_api_model: str = ""
 
     # Database
     database_url: str = "sqlite:///./data/app.db"
