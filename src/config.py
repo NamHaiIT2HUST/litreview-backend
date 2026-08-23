@@ -62,6 +62,28 @@ class Settings(BaseSettings):
             return "https://openrouter.ai/api/v1"
         return ""
 
+    # Synthesis pipeline selection.
+    # "legacy" is the ONLY supported production path and MUST stay the default.
+    # "fast_v2_experimental" opts into the Evidence-First / Hygiene /
+    # Dimension-Aware / OpenScholar pipeline documented in
+    # docs/architecture/FAST_SYNTHESIS_V2.md. That path is EXPERIMENTAL: its
+    # generation latency is validated but its claim-level factual grounding is
+    # NOT. Never make it the default without the promotion criteria in that doc.
+    synthesis_mode: Literal["legacy", "fast_v2_experimental"] = "legacy"
+
+    @property
+    def fast_v2_enabled(self) -> bool:
+        """True only when fast_v2 was explicitly and exactly selected."""
+        return self.synthesis_mode == "fast_v2_experimental"
+
+    # Fast v2 experimental knobs (inert while synthesis_mode="legacy").
+    fast_v2_generator_model: str = "NeuML/Llama-3.1_OpenScholar-8B-AWQ"
+    fast_v2_max_evidence_per_dimension: int = Field(default=3, ge=1, le=20)
+    # NOT a calibrated production threshold -- frozen experimental default only.
+    # See docs/architecture/FAST_SYNTHESIS_V2.md section L.
+    fast_v2_relevance_threshold: float = 0.0
+    fast_v2_candidates_per_dimension: int = Field(default=40, ge=1, le=200)
+
     # Database
     database_url: str = "sqlite:///./data/app.db"
 
