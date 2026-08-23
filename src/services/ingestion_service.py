@@ -120,9 +120,11 @@ async def ensure_paper_ingested(db: AsyncSession, paper: Paper) -> uuid.UUID:
         return paper.active_ingestion_id
 
     import os
-    from src.services.document_processor import processor
+    from src.services.document_processor import DocumentProcessor
     from src.services.vector_store import vector_store_service
     from langchain_core.documents import Document
+
+    processor = DocumentProcessor()
 
     if paper.file_path and os.path.exists(paper.file_path):
         try:

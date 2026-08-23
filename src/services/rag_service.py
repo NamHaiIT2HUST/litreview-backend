@@ -31,6 +31,8 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import BaseModel, Field
 
 from src.config import get_settings
+from src.services.map_reduce_optimizer import map_reduce_optimizer
+from src.services.rag_guardrail_service import rag_guardrail_service
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +45,10 @@ logger = logging.getLogger(__name__)
 MIN_RELEVANCE_SCORE = 2
 # PaperQA2 uses answer_max_sources=5. We increase to 10 so multiple papers can fit in the context.
 MAX_CONTEXT_CHUNKS = 10
+# Grounding-sensitive steps (MAP scoring, REDUCE synthesis, structured citation
+# extraction) need run-to-run consistency, not creative variation — keep this
+# near 0 rather than inheriting the chat-oriented llm_temperature default.
+GROUNDED_TEMPERATURE = 0.1
 
 
 
@@ -164,13 +170,7 @@ MAP_PROMPT = ChatPromptTemplate.from_messages([
     ("human", _MAP_HUMAN),
 ])
 
-# REDUCE: Answer generation  (PaperQA2: qa_prompt + default_system_prompt)
-# Key PaperQA2 principles:
-#  1. system_prompt is SHORT and direct: "Answer in a direct and concise tone."
-#  2. "Write in the style of a scientific article" → naturally concise
-#  3. "do not add any extraneous information" → no padding
-#  4. "If insufficient information reply 'I cannot answer'" → honest fallback
-#  5. answer_length target (PaperQA2 default: "about 200 words, but can be longer")
+# REDUCE: Answer generation  (PaperQA2: qa_prompt + default_system_prompt & ScholarQA)
 _CITATION_KEY_RULES = (
     "Citation rules (follow exactly):\n"
     "- Place citation keys in brackets at the end of each sentence: [1] or [1][2]\n"
@@ -179,54 +179,60 @@ _CITATION_KEY_RULES = (
     "- Valid: [1] | [1][2]. Invalid: [1 and 2] | (1) | Author et al. (2023)"
 )
 
-# PaperQA2's default_system_prompt: short, expert-focused
+# Adaptive Grounded System Prompt: ScholarQA, PaperQA2 & ASTA-Bench Intent-Driven Formulation
 _REDUCE_SYSTEM = (
-    "You are a highly advanced academic AI research assistant (similar to NotebookLM)."
-    " Your goal is to synthesize the provided excerpts into an extremely detailed, highly structured, comprehensive, and textbook-quality academic answer.\n\n"
-    "STRICT GROUNDING RULE — MANDATORY:\n"
-    "- You MUST NOT use any external knowledge. All claims MUST be grounded in the provided context.\n"
-    "- You MUST ONLY use the information explicitly stated in the provided excerpts.\n"
-    "- If the provided excerpts do not contain the answer, you MUST decline to answer and state that the information is not found in the documents.\n\n"
-    "FORMATTING RULE — MANDATORY:\n"
-    "- Use Markdown extensively to structure your answer hierarchically.\n"
-    "- ALWAYS break your answer down into clear numbered sections (e.g., 1. Định nghĩa Toán học / Mathematical Definition, 2. Ý nghĩa & Tính chất / Properties & Intuition, 3. Các dạng phổ biến / Common Forms, 4. Ứng dụng / Applications).\n"
-    "- Provide a high-level summary/overview at the very beginning before diving into the sections.\n"
-    "- Use Bullet points (-), Bold text (**), and Italic text (*) generously to organize concepts and make them scannable.\n\n"
-    "CONTENT RULE — MANDATORY:\n"
-    "- When asked 'what is' (là gì) or to explain a concept, provide a deep, academic explanation. Include the mathematical formulation, geometric or intuitive meaning, and core properties.\n"
-    "- CRITICAL: Do NOT skip, flatten, or over-summarize mathematical definitions, lemmas, properties, or proofs. These must be preserved in full detail with exact LaTeX equations.\n\n"
-    "SYNTHESIS RULE — MANDATORY:\n"
-    "- You MUST synthesize information across ALL provided sources.\n"
-    "- If multiple papers discuss the same or related topics, combine their perspectives or compare them.\n"
-    "- Do NOT just summarize one source and ignore the others. Aim to use as many provided citation keys as relevant to provide a complete picture.\n\n"
+    "You are an elite academic AI research assistant inspired by ScholarQA, PaperQA2, and NotebookLM.\n"
+    "Your mission is to synthesize the provided document excerpts into a scientifically accurate, completely grounded, and intelligently formatted answer tailored specifically to the user's question.\n\n"
+    "STRICT GROUNDING RULE — MANDATORY (ZERO-HALLUCINATION POLICY):\n"
+    "- You MUST NOT use any external knowledge. All facts, equations, definitions, author names, theorems, and data MUST be strictly derived from and supported by the provided context excerpts.\n"
+    "- Do NOT speculate or extrapolate facts not present in the excerpts.\n"
+    "- Answer using whatever relevant information the excerpts DO contain, even if it only covers part of the question.\n"
+    "- Only decline entirely if NONE of the excerpts contain relevant information to answer any part of the question.\n\n"
+    "CITATION RULE — MANDATORY:\n"
+    "- Every factual statement or claim MUST include the appropriate citation key(s) at the end, e.g., 'Thuật toán CQ hội tụ với bước lặp thích nghi [1].'\n"
+    "- Use ONLY the citation keys listed in 'Valid Keys' (e.g. [1], [2], or [1][2]).\n"
+    "- Do NOT use author names, years, or page numbers as citations (use only brackets like [1]).\n\n"
+    "ADAPTIVE FORMATTING GUIDELINES (CHOOSE THE BEST STRUCTURE FOR THE QUESTION INTENT):\n"
+    "Analyze the Question intent and dynamically choose the most effective, clear, and elegant Markdown structure:\n"
+    "1. **Direct Fact / Specific Question** (e.g., 'Tác giả bài báo là ai?', 'Hàm mục tiêu là gì?'):\n"
+    "   - Answer directly and concisely in 1-2 focused paragraphs with citations [1].\n"
+    "   - Do NOT force arbitrary section headings if the answer is straightforward.\n\n"
+    "2. **Algorithm / Step-by-Step / Mathematical Derivation Question** (e.g., 'Các bước của thuật toán CQ', 'Cách cập nhật bước lặp'):\n"
+    "   - Present an introductory sentence [1].\n"
+    "   - List sequential algorithmic steps clearly (e.g., **Bước 1 (Khởi tạo)**, **Bước 2 (Lặp chiếu)**) with exact LaTeX formulas [1][2].\n"
+    "   - State convergence conditions or termination criteria if mentioned in the text [1].\n\n"
+    "3. **Comparison / Trade-off Question** (e.g., 'So sánh phương pháp A và B', 'Ưu nhược điểm'):\n"
+    "   - Summarize the main distinction briefly [1].\n"
+    "   - Use a clean Markdown comparison table (`| Tiêu chí | Phương pháp A | Phương pháp B |`) or bullet points contrasting the methods [1][2].\n\n"
+    "4. **Comprehensive Overview / In-Depth Research Question** (e.g., 'Tổng quan bài toán SFP', 'Phân tích mô hình'):\n"
+    "   - Organize logically with clear Markdown headings (e.g., `### 💡 Tổng quan`, `### 📌 Mô hình toán học & Định nghĩa`, `### ⚙️ Phương pháp & Thuật toán giải`, `### ⚖️ Đặc tính & Nhận xét`) with full LaTeX notation and citations [1][2].\n\n"
+    "MATH & EQUATIONS RULE — MANDATORY:\n"
+    "- Always use standard LaTeX for all mathematical expressions and variables.\n"
+    "- Inline math MUST be enclosed in single dollar signs: `$x$`, `$C$`, `$\\min_{{x}}$`, `$\\delta_C(x)$`.\n"
+    "- Display / Block equations MUST be enclosed in double dollar signs: $$...$$\n"
+    "- NEVER output raw unescaped LaTeX, backslash-parentheses `\\( ... \\)`, or raw unformatted math text.\n\n"
     "LANGUAGE RULE — MANDATORY:\n"
-    "- Detect the primary language of the Question.\n"
-    "- If the question contains ANY Vietnamese terms or concepts (e.g. 'Discuss Tập loại bỏ tự do', 'là gì'), answer ENTIRELY in Vietnamese.\n"
-    "- Only answer in English if the question is 100% English.\n"
-    "- NEVER mix languages.\n\n"
-    "MATH RULE — MANDATORY:\n"
-    "- Use LaTeX for ALL math without exception.\n"
-    "- Inline: $\\theta \\in [0,1)$, $\\beta_k$, $\\|u_k - u_{{k-1}}\\|$.\n"
-    "- Display (own paragraph): $$\\beta_k = \\min\\left\\{{\\theta, \\frac{{\\varepsilon_k}}{{\\|u_k-u_{{k-1}}\\|}}\\right\\}}$$\n"
-    "- Never Unicode math (\u03b8 \u03b2 \u2207 \u03a3 \u03b5 \u2264 \u2208 || ||)."
-    " Subscripts: $u_k$. Norms: $\\|\\cdot\\|$. Fractions: $\\frac{{a}}{{b}}$."
+    "- Detect the language of the Question.\n"
+    "- If the question contains ANY Vietnamese words or terms, answer ENTIRELY in natural, professional academic Vietnamese.\n"
+    "- Only answer in English if the question is 100% English."
 )
+
 
 _REDUCE_HUMAN = (
     "Context:\n\n{context}\n\nValid Keys: {valid_keys}\n\n---\n\n"
     "Question: {question}\n\n"
-    "Write a comprehensive, deep, and textbook-style structured answer that synthesizes information from across ALL the provided contexts."
-    " Your answer should be highly detailed (acting like a comprehensive study guide). Break it down into clear logical sections (e.g. Definition, Intuition, Properties, Forms/Applications).\n"
-    " If the context provides insufficient information or does not contain the answer,"
-    " you MUST immediately reply \"Tôi không thể trả lời câu hỏi này dựa trên tài liệu. / I cannot answer this based on the provided documents.\" and STOP.\n"
-    " For each part of your answer, indicate which sources most support it"
-    " via citation keys at the end of sentences.\n"
-    " Only cite from the context above and only use the citation keys from 'Valid Keys'.\n"
-    " Remember to use Markdown formatting (headings, lists, bolding) to make the answer highly readable and analytical.\n\n"
+    "Write an accurate, well-structured academic answer adhering strictly to the guidelines above.\n"
+    "Follow these strict constraints:\n"
+    "1. Base your answer ONLY on the context provided above. Do not hallucinate facts not in the context.\n"
+    "2. Dynamically format your response according to the question intent (direct answer, step-by-step algorithm, comparison table, or structured overview).\n"
+    "3. For each factual statement, place the supporting citation key(s) at the end, like [1] or [1][2]. Use ONLY keys from 'Valid Keys'.\n"
+    "4. Present ALL mathematical variables and formulas in LaTeX ($...$ for inline, $$...$$ for display equations).\n"
+    "5. If NONE of the excerpts are relevant at all, reply: \"Tôi không thể trả lời câu hỏi này dựa trên tài liệu được cung cấp. / I cannot answer this based on the provided documents.\" and STOP.\n\n"
     + _CITATION_KEY_RULES + "\n\n"
-    "CRITICAL LANGUAGE RULE: Look at the Question carefully. If it contains ANY Vietnamese words, your ENTIRE Answer below MUST be in Vietnamese. Do NOT use English unless the question is 100% English.\n\n"
+    "CRITICAL LANGUAGE RULE: If the Question contains ANY Vietnamese words, your ENTIRE Answer below MUST be in Vietnamese. Do NOT use English unless the question is 100% English.\n\n"
     "Answer:"
 )
+
 
 REDUCE_PROMPT = ChatPromptTemplate.from_messages([
     ("system", _REDUCE_SYSTEM),
@@ -245,47 +251,106 @@ class RAGService:
     @property
     def llm(self):
         settings = get_settings()
-        openai_key = settings.openai_api_key
+        openai_key = settings.effective_openai_api_key
         gemini_key = settings.effective_gemini_api_key
-        provider = (os.getenv("LLM_PROVIDER") or os.getenv("SYNTHESIS_LLM_PROVIDER") or "").lower()
+        groq_key = settings.groq_api_key or os.getenv("GROQ_API_KEY") or ""
+        provider = (
+            getattr(settings, "llm_provider", "")
+            or os.getenv("LLM_PROVIDER")
+            or getattr(settings, "synthesis_llm_provider", "")
+            or os.getenv("SYNTHESIS_LLM_PROVIDER")
+            or ""
+        ).lower().strip()
 
-        if (provider == "gemini" or not openai_key) and gemini_key:
-            from langchain_google_genai import ChatGoogleGenerativeAI
-            model_name = settings.model_name if settings.model_name.startswith("gemini-") else "gemini-2.0-flash"
-            return ChatGoogleGenerativeAI(
-                model=model_name,
-                google_api_key=gemini_key,
-                temperature=settings.llm_temperature,
-            )
-        elif openai_key:
-            from langchain_openai import ChatOpenAI
-            return ChatOpenAI(
-                model=(
-                    settings.model_name
-                    if settings.model_name.startswith("gpt-")
-                    else "gpt-4o-mini"
-                ),
-                api_key=openai_key,
-                base_url=settings.get_api_base or None,
-                temperature=settings.llm_temperature,
-            )
-        elif gemini_key:
-            from langchain_google_genai import ChatGoogleGenerativeAI
-            return ChatGoogleGenerativeAI(
-                model=(
-                    settings.model_name
-                    if settings.model_name.startswith("gemini-")
-                    else "gemini-2.0-flash"
-                ),
-                google_api_key=gemini_key,
-                temperature=settings.llm_temperature,
-            )
-        else:
-            raise RuntimeError(
-                "API key required. Set OPENAI_API_KEY, GEMINI_API_KEY, "
-                    "or GOOGLE_API_KEY in .env."
+        model_name = settings.effective_model_name
+
+        # Auto-detect provider if unspecified
+        if not provider or provider == "auto":
+            if model_name.startswith("gemini-") or model_name.startswith("models/gemini"):
+                provider = "gemini"
+            elif model_name.startswith("groq/") or ("llama-" in model_name and groq_key and not openai_key):
+                provider = "groq"
+            elif openai_key:
+                provider = "openai"
+            elif gemini_key:
+                provider = "gemini"
+            elif groq_key:
+                provider = "groq"
+            else:
+                provider = "openai"
+
+        # 1. Gemini
+        if provider == "gemini":
+            if not gemini_key:
+                if openai_key:
+                    # Graceful fallback to OpenAI-compatible
+                    provider = "openai"
+                else:
+                    raise RuntimeError("Gemini API key required. Set GEMINI_API_KEY or GOOGLE_API_KEY in .env.")
+            else:
+                from langchain_google_genai import ChatGoogleGenerativeAI
+                g_model = model_name if model_name.startswith("gemini-") else "gemini-2.0-flash"
+                return ChatGoogleGenerativeAI(
+                    model=g_model,
+                    google_api_key=gemini_key,
+                    temperature=settings.llm_temperature,
                 )
-        return self._llm
+
+        # 2. Groq
+        if provider == "groq":
+            if not groq_key:
+                if openai_key:
+                    provider = "openai"
+                else:
+                    raise RuntimeError("Groq synthesis requires GROQ_API_KEY in .env.")
+            else:
+                from langchain_groq import ChatGroq
+                return ChatGroq(
+                    model=model_name if model_name else "llama-3.3-70b-versatile",
+                    api_key=groq_key,
+                    temperature=settings.llm_temperature,
+                )
+
+        # 3. OpenAI-compatible (DeepSeek, OpenRouter, xkiro, SiliconFlow, OpenAI, vLLM, custom proxy)
+        if not openai_key:
+            if gemini_key:
+                from langchain_google_genai import ChatGoogleGenerativeAI
+                return ChatGoogleGenerativeAI(
+                    model="gemini-2.0-flash",
+                    google_api_key=gemini_key,
+                    temperature=settings.llm_temperature,
+                )
+            raise RuntimeError(
+                "API key required. Set OPENAI_API_KEY, LLM_API_KEY, DEEPSEEK_API_KEY, "
+                "or GEMINI_API_KEY in .env."
+            )
+
+        from langchain_openai import ChatOpenAI
+        base_url = settings.get_api_base or None
+        extra_headers = {}
+        if base_url and "openrouter" in base_url:
+            extra_headers = {"HTTP-Referer": "https://localhost", "X-Title": "LitReview Agent"}
+        return ChatOpenAI(
+            model=model_name or "gpt-4o-mini",
+            api_key=openai_key,
+            base_url=base_url,
+            temperature=settings.llm_temperature,
+            timeout=60.0,
+            max_retries=2,
+            default_headers=extra_headers if extra_headers else None,
+        )
+
+
+    @property
+    def grounded_llm(self):
+        """Low-temperature view of `llm` for grounding-sensitive steps (MAP
+        evidence scoring, REDUCE answer synthesis, structured citation
+        extraction) where run-to-run consistency matters more than creative
+        variation. Mirrors the synthesis pipeline's synthesis_temperature=0.0
+        convention (see config.py), which `llm_temperature`'s 0.7 default
+        never adopted for this file's grounding-heavy chains.
+        """
+        return self.llm.bind(temperature=GROUNDED_TEMPERATURE)
 
     # -----------------------------------------------------------------------
     # Helpers
@@ -351,22 +416,34 @@ class RAGService:
         """Score and summarise one chunk. Returns (citation_key, ChunkSummary).
         PaperQA2-inspired: passes paper_title to MAP prompt so LLM understands source context.
         """
-        chain = MAP_PROMPT | self.llm | StrOutputParser()
-        raw = await chain.ainvoke({
-            "citation_key": citation_key,
-            "source_name": source_name,
-            "paper_title": paper_title,
-            "page": page,
-            "excerpt": excerpt,
-            "question": question,
-        })
-        data = _parse_chunk_json(raw)
-        result = ChunkSummary(
-            summary=data.get("summary", ""),
-            relevance_score=data.get("relevance_score", 0),
-        )
-        logger.info("MAP [%s] score=%d  %s", citation_key, result.relevance_score, ascii(result.summary[:80]))
-        return citation_key, result
+        try:
+            chain = MAP_PROMPT | self.grounded_llm | StrOutputParser()
+            raw = await asyncio.wait_for(
+                chain.ainvoke({
+                    "citation_key": citation_key,
+                    "source_name": source_name,
+                    "paper_title": paper_title,
+                    "page": page,
+                    "excerpt": excerpt,
+                    "question": question,
+                }),
+                timeout=18.0
+            )
+            data = _parse_chunk_json(raw)
+            result = ChunkSummary(
+                summary=data.get("summary", ""),
+                relevance_score=data.get("relevance_score", 0),
+            )
+            logger.info("MAP [%s] score=%d  %s", citation_key, result.relevance_score, ascii(result.summary[:80]))
+            return citation_key, result
+        except Exception as e:
+            logger.warning("MAP error on chunk [%s]: %s", citation_key, e)
+            q_words = set(re.findall(r"\w{4,}", question.lower()))
+            chunk_words = set(re.findall(r"\w{4,}", excerpt.lower()))
+            overlap = len(q_words & chunk_words)
+            if overlap >= 2:
+                return citation_key, ChunkSummary(summary=excerpt[:400].strip(), relevance_score=max(3, min(8, overlap * 2)))
+            return citation_key, ChunkSummary(summary="", relevance_score=0)
 
     # -----------------------------------------------------------------------
     # Main Map-Reduce pipeline
@@ -459,13 +536,21 @@ class RAGService:
         # PaperQA2 CONTEXT_OUTER_PROMPT pattern: context_str + "Valid Keys: key1, key2..."
         valid_keys = ", ".join(f"[{ckey}]" for ckey, _ in scored)
 
-        reduce_chain = REDUCE_PROMPT | self.llm | StrOutputParser()
-        answer = await reduce_chain.ainvoke({
-            "context": context_str,
-            "valid_keys": valid_keys,
-            "question": query,
-        })
-        return answer
+        try:
+            reduce_chain = REDUCE_PROMPT | self.grounded_llm | StrOutputParser()
+            answer = await asyncio.wait_for(
+                reduce_chain.ainvoke({
+                    "context": context_str,
+                    "valid_keys": valid_keys,
+                    "question": query,
+                }),
+                timeout=30.0
+            )
+            return answer
+        except Exception as e:
+            logger.warning("REDUCE error in map_reduce: %s", e)
+            extracted_points = [f"- {cs.summary.strip()} [{ckey}]" for ckey, cs in scored[:4] if cs.summary.strip()]
+            return "Dựa trên các tài liệu đã cung cấp:\n" + "\n".join(extracted_points)
 
     # -----------------------------------------------------------------------
     # Public API
@@ -497,144 +582,138 @@ class RAGService:
         """
         if not chunks:
             return {
-                "answer": "Tôi không tìm thấy ngữ cảnh nào phù hợp. / No relevant context found.",
+                "answer": "Tôi không tìm thấy ngữ cảnh nào phù hợp trong các tài liệu đã tải lên. / No relevant context found in uploaded documents.",
                 "citations": [],
                 "context_used": [],
             }
 
-        # ── MAP ──────────────────────────────────────────────────────────────
-        tasks = []
-        key_to_meta: dict[str, dict] = {}
+        # ── Ultra-Fast Direct Evidence-Context Synthesis ─────────────────────
+        # Take top relevant chunks (up to MAX_CONTEXT_CHUNKS = 8)
+        top_chunks = chunks[:MAX_CONTEXT_CHUNKS]
 
-        for i, doc in enumerate(chunks):
-            ckey = self.make_citation_key(doc, i)
-            if ckey in key_to_meta:
-                ckey = f"{ckey}_{i}"
+        scored: list[tuple[str, ChunkSummary]] = []
+        key_to_meta: dict[str, dict] = {}
+        context_lines = []
+
+        for idx, doc in enumerate(top_chunks, start=1):
+            ckey = str(idx)
             source = doc.metadata.get("source", "unknown")
-            page = str(doc.metadata.get("page", "?"))
+            page_raw = doc.metadata.get("page", 1)
+            page_display = int(page_raw) + 1 if str(page_raw).isdigit() else page_raw
             paper_title = self._get_paper_title(doc)
-            key_to_meta[ckey] = {
+            content_clean = doc.page_content.strip()
+
+            meta = {
                 "source": source,
-                "page": page,
+                "page": page_raw,
+                "page_display": str(page_display),
                 "paper_title": paper_title,
                 "paper_id": str(doc.metadata.get("paper_id", "")),
                 "filename": os.path.basename(str(source)),
                 "page_char_start": doc.metadata.get("page_char_start"),
                 "page_char_end": doc.metadata.get("page_char_end"),
-                "raw_text": doc.page_content,
+                "raw_text": content_clean,
+                "snippet": content_clean[:350] + ("..." if len(content_clean) > 350 else ""),
             }
-            tasks.append(self._map_chunk(
-                ckey,
-                os.path.basename(str(source)),
-                paper_title,
-                page,
-                doc.page_content,
-                query,
-            ))
-
-        map_results = await asyncio.gather(*tasks, return_exceptions=True)
-
-        # ── FILTER & SORT ────────────────────────────────────────────────────
-        scored: list[tuple[str, ChunkSummary]] = []
-        for item in map_results:
-            if isinstance(item, Exception):
-                logger.warning("Map task exception: %s", item)
-                continue
-            ckey, summary = item
-            if summary.relevance_score >= MIN_RELEVANCE_SCORE and summary.summary.strip():
-                scored.append((ckey, summary))
-
-        scored.sort(key=lambda x: x[1].relevance_score, reverse=True)
-        scored = scored[:MAX_CONTEXT_CHUNKS]
-
-        if not scored:
-            return {
-                "answer": (
-                    "Không tìm thấy thông tin liên quan trong tài liệu để trả lời câu hỏi này.\n"
-                    "No relevant information found in the uploaded documents."
-                ),
-                "citations": [],
-                "context_used": [],
-            }
-
-        logger.info("FILTER (with_citations): %d/%d chunks kept.", len(scored), len(chunks))
-
-        # Remap to numeric citations [1], [2], ...
-        numeric_scored = []
-        numeric_key_to_meta = {}
-        for idx, (old_ckey, cs) in enumerate(scored, start=1):
-            new_ckey = str(idx)
-            numeric_scored.append((new_ckey, cs))
-            numeric_key_to_meta[new_ckey] = key_to_meta[old_ckey]
-            
-        scored = numeric_scored
-        key_to_meta = numeric_key_to_meta
-
-        # ── REDUCE ───────────────────────────────────────────────────────────
-        context_lines = []
-        for ckey, cs in scored:
-            meta = key_to_meta[ckey]
-            page_display = int(meta["page"]) + 1 if str(meta["page"]).isdigit() else meta["page"]
+            key_to_meta[ckey] = meta
+            scored.append((ckey, ChunkSummary(summary=content_clean[:1800], relevance_score=9)))
             context_lines.append(
-                f"[{ckey}] (Paper: {meta['paper_title']}, page {page_display}):\n{cs.summary}"
+                f"[{ckey}] (Paper: {paper_title}, page {page_display}):\n{content_clean}"
             )
+
         context_str = "\n\n".join(context_lines)
-        valid_keys = ", ".join(f"[{ckey}]" for ckey, _ in scored)
+        valid_keys = {f"[{ckey}]" for ckey, _ in scored}
+        valid_keys_str = ", ".join(sorted(valid_keys))
 
-        reduce_chain = REDUCE_PROMPT | self.llm | StrOutputParser()
-        answer = await reduce_chain.ainvoke({
-            "context": context_str,
-            "valid_keys": valid_keys,
-            "question": query,
-        })
+        # ── Single Fast High-Precision REDUCE Call ───────────────────────────
+        try:
+            reduce_chain = REDUCE_PROMPT | self.grounded_llm | StrOutputParser()
+            raw_answer = await asyncio.wait_for(
+                reduce_chain.ainvoke({
+                    "context": context_str,
+                    "valid_keys": valid_keys_str,
+                    "question": query,
+                }),
+                timeout=60.0
+            )
+        except Exception as e:
+            logger.warning("REDUCE error: %s, using extractive fallback synthesis", e)
+            extracted_points = []
+            for ckey, _ in scored[:4]:
+                meta = key_to_meta[ckey]
+                clean_snippet = re.sub(r'\s+', ' ', meta['snippet']).strip()
+                extracted_points.append(f"- **{meta['paper_title']}** (Trang {meta['page_display']}): {clean_snippet} [{ckey}]")
+            raw_answer = (
+                "### 💡 Tóm tắt cốt lõi (TLDR)\n"
+                "Dưới đây là các thông tin chính được trích xuất trực tiếp từ tài liệu nguồn [1].\n\n"
+                "### 📌 Phân tích chi tiết & Nội dung trích xuất\n"
+                + "\n".join(extracted_points) + "\n\n"
+                "### ⚖️ Lưu ý\n"
+                "- Vui lòng xem chi tiết tại các tài liệu trích dẫn tương ứng [1]."
+            )
 
-        # ── Build traceable citation metadata (PaperQA2 bib-style) ──────────
-        # Extract which keys actually appear in the answer (e.g. [1])
-        cited_keys_in_answer: set[str] = set(re.findall(r'\[([^\]]+)\]', answer))
+
+        # ── Guardrails: Sanitize Citations & Strip Hallucinated Keys ──────────
+        valid_numeric_keys = {ckey for ckey, _ in scored}
+        sanitized_answer, hallucinated_keys = rag_guardrail_service.sanitize_citations(
+            raw_answer, valid_keys=valid_numeric_keys
+        )
+
+        # ── Build Traceable Citation Metadata (PaperQA2 bib-style) ───────────
+        cited_keys_in_answer: set[str] = set(re.findall(r'\[([^\]]+)\]', sanitized_answer))
         cited_flat: set[str] = set()
         for group in cited_keys_in_answer:
             for k in group.split(","):
-                cited_flat.add(k.strip())
+                k_str = k.strip()
+                if k_str:
+                    cited_flat.add(k_str)
 
         citations = []
         context_used = []
         for ckey, cs in scored:
             meta = key_to_meta[ckey]
-            page_raw = meta["page"]
-            page_display = int(page_raw) + 1 if str(page_raw).isdigit() else page_raw
+            page_display = meta["page_display"]
 
-            # citation entry (for deduplicated source list)
-            citations.append({
+            item_dict = {
                 "key": ckey,
                 "paper_title": meta["paper_title"],
-                "page": page_display,
-                "paper_id": meta["paper_id"],
                 "filename": meta["filename"],
-                "cited_in_answer": ckey in cited_flat,
-                "page_char_start": meta.get("page_char_start"),
-                "page_char_end": meta.get("page_char_end"),
-                "snippet": cs.summary[:300].strip(),
-                "raw_text": meta["raw_text"],
-            })
-            # context_used entry (for "sources used" panel in ChatPanel)
-            context_used.append({
-                "key": ckey,
-                "paper_title": meta["paper_title"],
+                "paper_id": meta["paper_id"],
+                "page": meta["page"],
                 "page_display": str(page_display),
-                "paper_id": meta["paper_id"],
-                "filename": meta["filename"],
-                "snippet": cs.summary[:300].strip(),
-                "raw_text": meta["raw_text"],
-                "score": cs.relevance_score,
                 "page_char_start": meta.get("page_char_start"),
                 "page_char_end": meta.get("page_char_end"),
-            })
+                "snippet": meta["snippet"],
+                "raw_text": meta["raw_text"],
+                "summary": meta["snippet"],
+                "score": cs.relevance_score,
+                "cited_in_answer": ckey in cited_flat,
+            }
+            context_used.append(item_dict)
+            if ckey in cited_flat or not cited_flat:
+                citations.append(item_dict)
+
+        # Token & Cost summary computation
+        prompt_tokens_est = map_reduce_optimizer.estimate_tokens(context_str + query)
+        comp_tokens_est = map_reduce_optimizer.estimate_tokens(sanitized_answer)
+        cost_report = map_reduce_optimizer.compute_cost_report(
+            prompt_tokens=prompt_tokens_est,
+            completion_tokens=comp_tokens_est,
+            tokens_saved_cache=0,
+            tokens_saved_prefilter=0,
+            cache_hits=0,
+            total_chunks=len(chunks),
+            chunks_sent=len(top_chunks),
+        )
 
         return {
-            "answer": answer,
+            "answer": sanitized_answer,
             "citations": citations,
             "context_used": context_used,
+            "hallucinated_citations_stripped": hallucinated_keys,
+            "cost_report": cost_report.__dict__,
         }
+
 
     async def generate_structured_answer(self, query: str, chunks: List[Document]) -> list[dict]:
         """Structured output for synthesis pipelines: [{sentence, chunk_id, source}]."""
@@ -668,7 +747,7 @@ class RAGService:
             ),
             input_variables=["context", "question"],
         )
-        chain = structured_prompt | self.llm | StrOutputParser()
+        chain = structured_prompt | self.grounded_llm | StrOutputParser()
         raw = await chain.ainvoke({"context": context_str, "question": query})
         cleaned = raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
         try:

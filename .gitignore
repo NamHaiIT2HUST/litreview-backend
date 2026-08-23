@@ -40,6 +40,11 @@ paper-qa-2026.08.12/
 *.db
 *.sqlite3
 CHANGE_REQUEST/
+asta-plugins-main/
+agent-baselines-main/
+asta-autodiscovery-main/
+asta-bench-main/
+EDA_KT.ipynb
 
 # Logs
 logs/
@@ -66,3 +71,21 @@ out/
 # AI logs — tracked structure, ignored content
 .ai-log/*.jsonl
 .ai-log/archive/
+
+# Temporary test folders & files
+.tmp/
+.tmp-*/
+tmp/
+tmp-*/
+dummy.pdf
+*.log
+.worktrees/
+
+# Model weights
+models/temp_*/
+models/*.safetensors
+models/*.bin
+models/*.pt
+checkpoints/
+models/lora_*/
+models/lora_agent*/

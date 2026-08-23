@@ -1,0 +1,29 @@
+[
+  {
+    "id": "u001",
+    "question": "According to Xu et al. (2018), what convergence rate does the MM algorithm achieve when applied to a lung cancer radiotherapy case study?",
+    "note": "False premise: the paper's case study covers liver and prostate cancer only, not lung cancer. A correct system should decline to answer or flag the missing premise instead of fabricating a rate.",
+    "expected_answer_contains": [],
+    "expected_source_file": null,
+    "expected_source_page": null,
+    "type": "unanswerable"
+  },
+  {
+    "id": "u002",
+    "question": "What CPU runtime does Byrne (2002) report for solving the SFP using a quantum computing approach?",
+    "note": "Byrne (2002) predates and never discusses quantum computing at all. A correct system should say the paper does not cover this, not invent a number.",
+    "expected_answer_contains": [],
+    "expected_source_file": null,
+    "expected_source_page": null,
+    "type": "unanswerable"
+  },
+  {
+    "id": "u003",
+    "question": "Theo cac tai lieu, ai la nguoi dau tien de xuat thuat toan CQ khong loi (non-convex) su dung deep learning?",
+    "note": "None of the 3 papers (2002/2010/2018, all classical convex-optimization literature) mention deep learning. Tests whether the system hallucinates an author/paper instead of declining.",
+    "expected_answer_contains": [],
+    "expected_source_file": null,
+    "expected_source_page": null,
+    "type": "unanswerable"
+  }
+]

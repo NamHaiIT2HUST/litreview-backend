@@ -2,8 +2,11 @@ import os
 from functools import lru_cache
 from typing import Literal
 
+from dotenv import load_dotenv
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+load_dotenv()
 
 
 class Settings(BaseSettings):
@@ -23,11 +26,18 @@ class Settings(BaseSettings):
 
     # LLM
     openai_api_key: str = ""
+    openai_embedding_api_key: str = ""
+    openai_embedding_api_base: str = ""
     openai_api_base: str = ""
     gemini_api_key: str = ""
     google_api_key: str = ""
     serpapi_api_key: str = ""
-    model_name: str = "gpt-4o-mini"
+    model_name: str = ""
+    llm_api_key: str = ""
+    llm_model: str = ""
+    llm_provider: str = ""
+    deepseek_api_key: str = ""
+    openrouter_api_key: str = ""
     llm_temperature: float = Field(default=0.7, ge=0.0, le=2.0)
     synthesis_temperature: float = Field(default=0.0, ge=0.0, le=1.0)
     synthesis_llm_provider: Literal["gemini", "groq", "openai"] = "openai"
@@ -43,23 +53,79 @@ class Settings(BaseSettings):
     local_embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
 
     @property
+    def effective_openai_api_key(self) -> str:
+        return (
+            self.openai_api_key
+            or self.llm_api_key
+            or self.deepseek_api_key
+            or self.openrouter_api_key
+            or os.getenv("OPENAI_API_KEY", "")
+            or os.getenv("LLM_API_KEY", "")
+            or os.getenv("DEEPSEEK_API_KEY", "")
+            or os.getenv("OPENROUTER_API_KEY", "")
+        ).strip()
+
+    @property
+    def effective_model_name(self) -> str:
+        model = (
+            self.llm_model
+            or os.getenv("LLM_MODEL", "")
+            or self.model_name
+            or os.getenv("MODEL_NAME", "")
+            or "gpt-4o-mini"
+        ).strip()
+        key = self.effective_openai_api_key
+        if key and key.startswith("sk-xt-"):
+            if model in ["deepseek-chat", "deepseek", "deepseek-v3", "gpt-4o-mini", "gpt-4o"]:
+                return "deepseek/deepseek-v3.2"
+        if key and key.startswith("sk-or-v1-"):
+            if "/" not in model:
+                return f"openai/{model}"
+        return model
+
+    @property
     def effective_gemini_api_key(self) -> str:
+        import random
+        tokens = self.all_gemini_api_keys
+        if not tokens:
+            return ""
+        aiza_tokens = [t for t in tokens if t.startswith("AIzaSy")]
+        if aiza_tokens:
+            return random.choice(aiza_tokens)
+        return ""
+
+    @property
+    def all_gemini_api_keys(self) -> list[str]:
         raw = self.gemini_api_key or self.google_api_key or os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEYS") or ""
-        tokens = [t.strip() for t in raw.split(",") if t.strip()]
-        for token in tokens:
-            if token.startswith("AIzaSy"):
-                return token
-        return tokens[0] if tokens else ""
+        return [t.strip() for t in raw.split(",") if t.strip()]
 
     @property
     def get_api_base(self) -> str:
         if self.openai_api_base:
             return self.openai_api_base
-        env_base = os.getenv("OPENAI_API_BASE") or os.getenv("OPENAI_BASE_URL")
+        env_base = (
+            os.getenv("OPENAI_API_BASE")
+            or os.getenv("OPENAI_BASE_URL")
+            or os.getenv("LLM_API_BASE")
+            or os.getenv("DEEPSEEK_API_BASE")
+        )
         if env_base:
             return env_base
-        if self.openai_api_key and self.openai_api_key.startswith("sk-or-v1-"):
+        key = self.effective_openai_api_key
+        if key:
+            if key.startswith("sk-or-v1-"):
+                return "https://openrouter.ai/api/v1"
+            if key.startswith("sk-xt-"):
+                return "https://api.xkiro.com/v1"
+        prov = (self.llm_provider or os.getenv("LLM_PROVIDER") or "").lower().strip()
+        if prov == "deepseek":
+            return "https://api.deepseek.com/v1"
+        if prov == "openrouter":
             return "https://openrouter.ai/api/v1"
+        if prov == "xkiro":
+            return "https://api.xkiro.com/v1"
+        if prov == "groq":
+            return "https://api.groq.com/openai/v1"
         return ""
 
     # Synthesis pipeline selection.

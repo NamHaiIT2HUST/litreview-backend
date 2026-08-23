@@ -1,5 +1,7 @@
 import json
 import datetime
+import asyncio
+import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from fastapi import HTTPException
@@ -7,8 +9,9 @@ from src.database import get_db
 from src.models.db_models import Paper, ScreeningHistory, ScreeningDecision, RelevanceBucket
 from src.services.rag_service import rag_service
 from src.models.screening_schemas import ScreenResponse
-
 import uuid
+
+logger = logging.getLogger(__name__)
 
 async def recompute_priority(paper_id: str | uuid.UUID, db: AsyncSession):
     """Tính lại Priority Score (0-1) theo công thức ở Module 3."""
@@ -107,12 +110,14 @@ Tóm tắt (Abstract): {abstract}
 """
     
     try:
-        response = await rag_service.llm.ainvoke(prompt)
-        content = response.content
+        from src.services.synthesis_llm_service import synthesis_llm_service
+        llm = synthesis_llm_service._get_llm()
+        msg = await llm.ainvoke([("human", prompt)])
+        content = msg.content if hasattr(msg, "content") else str(msg)
         if isinstance(content, list):
-            content = content[0].get("text", "")
-        content = content.strip()
-        
+            content = "".join(part.get("text", "") for part in content if isinstance(part, dict))
+        content = str(content).strip()
+
         if "```json" in content:
             content = content.split("```json")[1].split("```")[0].strip()
         elif "```" in content:
@@ -128,8 +133,7 @@ Tóm tắt (Abstract): {abstract}
             reason=data.get("reason", {"matches": [f"Bài báo '{paper.title}' phù hợp với hướng nghiên cứu."], "mismatches": ["Không phát hiện vi phạm tiêu chí loại trừ."]})
         )
     except Exception as e:
-        import logging
-        logging.getLogger(__name__).error(f"Error screening paper with AI: {e}")
+        logger.error(f"Error screening paper with AI: {e}")
         return ScreenResponse(
             relevance_bucket="insufficient_info",
             reason={

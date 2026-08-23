@@ -41,90 +41,99 @@ def llm_trace(db, session_id: UUID, step_name: str):
         _TRACE_CONTEXT.reset(token)
 
 
-def create_synthesis_llm(settings, *, gemini_cls=None, groq_cls=None, openai_cls=None):
-    """Create the configured synthesis chat model without making a network call."""
-    provider = settings.synthesis_llm_provider.lower().strip()
-    
-    # Auto-detect and fallback based on available keys to prevent configuration crashes
-    openai_key = getattr(settings, "openai_api_key", "")
-    gemini_key = getattr(settings, "effective_gemini_api_key", "") or getattr(settings, "gemini_api_key", "") or getattr(settings, "google_api_key", "")
-    
-    if provider == "openai" and not openai_key and gemini_key:
-        provider = "gemini"
-    elif provider == "gemini" and not gemini_key and openai_key:
-        provider = "openai"
+def create_synthesis_llm(
+    settings,
+    *,
+    model_override: str | None = None,
+    key_override: str | None = None,
+    provider_override: str | None = None,
+    gemini_cls=None,
+    groq_cls=None,
+    openai_cls=None,
+):
+    """Create the configured synthesis chat model universally across any provider."""
+    openai_key = key_override or getattr(settings, "effective_openai_api_key", "") or getattr(settings, "openai_api_key", "")
+    gemini_key = key_override or getattr(settings, "effective_gemini_api_key", "")
+    groq_key = key_override or getattr(settings, "groq_api_key", "")
 
-    if provider == "groq":
-        if not settings.groq_api_key:
-            raise RuntimeError("Groq synthesis requires GROQ_API_KEY in .env.")
+    provider = (provider_override or getattr(settings, "synthesis_llm_provider", "") or getattr(settings, "llm_provider", "") or "openai").lower().strip()
+
+    # Dynamic auto-detection based on keys and model names
+    model_name = model_override or getattr(settings, "synthesis_model", "") or getattr(settings, "effective_model_name", "gpt-4o-mini")
+    
+    if provider == "gemini" and not gemini_key:
+        provider = "openai" if openai_key else ("groq" if groq_key else "openai")
+    elif provider == "groq" and not groq_key:
+        provider = "openai" if openai_key else "gemini"
+
+    # 1. Groq
+    if provider == "groq" and groq_key:
         if groq_cls is None:
             from langchain_groq import ChatGroq  # type: ignore
-
             groq_cls = ChatGroq
+        g_model = model_name if model_name and not model_name.startswith("gpt-") else "llama-3.3-70b-versatile"
         return groq_cls(
-            model=settings.synthesis_model,
-            api_key=settings.groq_api_key,
+            model=g_model,
+            api_key=groq_key,
             temperature=settings.synthesis_temperature,
             max_tokens=8192,
         )
 
-    if provider == "openai":
-        if not openai_key:
-            raise RuntimeError("OpenAI synthesis requires OPENAI_API_KEY in .env.")
-        if openai_cls is None:
-            from langchain_openai import ChatOpenAI
-
-            openai_cls = ChatOpenAI
-            
-        model_name = settings.synthesis_model
-        if "gemini-" in model_name or "llama-" in model_name:
-            model_name = "gpt-4o-mini"
-            
-        return openai_cls(
-            model=model_name,
-            api_key=openai_key,
-            temperature=settings.synthesis_temperature,
-            max_tokens=4096,
-        )
-
-    if provider == "gemini":
-        if not gemini_key:
-            raise RuntimeError(
-                "Gemini synthesis requires GEMINI_API_KEY or GOOGLE_API_KEY in .env."
-            )
+    # 2. Gemini (chỉ dùng khi có key AIzaSy hợp lệ)
+    if provider == "gemini" and gemini_key and gemini_key.startswith("AIzaSy"):
         if gemini_cls is None:
             from langchain_google_genai import ChatGoogleGenerativeAI
-
             gemini_cls = ChatGoogleGenerativeAI
-            
-        model_name = settings.synthesis_model
-        if "gpt-" in model_name or "claude-" in model_name or "llama-" in model_name:
-            model_name = "gemini-1.5-flash"
-            
+        g_model = model_name if model_name.startswith("gemini-") else "gemini-2.0-flash"
         return gemini_cls(
-            model=model_name,
+            model=g_model,
             google_api_key=gemini_key,
             temperature=settings.synthesis_temperature,
+            max_output_tokens=8192,
         )
 
-    raise RuntimeError("SYNTHESIS_LLM_PROVIDER must be 'gemini', 'groq', or 'openai'.")
+    # 3. OpenAI / OpenAI-compatible (DeepSeek, OpenRouter, xkiro, vLLM, OpenAI, Ollama, etc.)
+    if openai_cls is None:
+        from langchain_openai import ChatOpenAI
+        openai_cls = ChatOpenAI
+
+    kwargs = {
+        "model": model_name or "gpt-4o-mini",
+        "api_key": openai_key or "sk-placeholder",
+        "temperature": settings.synthesis_temperature,
+        "max_tokens": 8192,
+    }
+    api_base = settings.get_api_base
+    if api_base:
+        kwargs["base_url"] = api_base
+
+    return openai_cls(**kwargs)
 
 
 def _is_transient_provider_error(exc: BaseException) -> bool:
     status_code = getattr(exc, "status_code", None)
-    if status_code == 429 or (isinstance(status_code, int) and status_code >= 500):
+    if status_code in (400, 401, 403, 404, 409, 422, 429) or (isinstance(status_code, int) and status_code >= 500):
         return True
     name = type(exc).__name__.lower()
     message = str(exc).lower()
     return (
-        any(token in name for token in ("timeout", "connection", "ratelimit"))
+        any(token in name for token in ("timeout", "connection", "ratelimit", "notfound", "conflict", "badrequest", "auth"))
+        or "duplicate request" in message
+        or "already being processed" in message
+        or "please try again" in message
+        or "try again" in message
         or "503 unavailable" in message
         or "high demand" in message
         or "resource_exhausted" in message
+        or "quota exceeded" in message
+        or "rate limit" in message
         or "429" in message
-        # Providers occasionally return malformed structured JSON (often
-        # caused by OCR/control characters in long quotes). A fresh attempt
-        # with the same schema can produce a valid response.
+        or "409" in message
+        or "404" in message
+        or "400" in message
+        or "not_found" in message
+        or "no longer available" in message
+        or "not found" in message
         or "failed to parse" in message
         or "outputparser" in name
         or "validationerror" in name
@@ -132,7 +141,7 @@ def _is_transient_provider_error(exc: BaseException) -> bool:
 
 
 class SynthesisLLMService:
-    def __init__(self, llm=None, *, max_concurrency=None, retry_delays=(2.0, 5.0, 10.0, 20.0)):
+    def __init__(self, llm=None, *, max_concurrency=None, retry_delays=(1.5, 3.5, 7.0, 15.0)):
         self._llm = llm
         settings = get_settings()
         self._max_concurrency = max_concurrency or settings.synthesis_llm_max_concurrency
@@ -167,50 +176,119 @@ class SynthesisLLMService:
     def validate_configuration(self) -> None:
         self._get_llm()
 
+    def _get_runner_candidates(self, schema):
+        settings = get_settings()
+        candidates = []
+        
+        # 1. Primary configured LLM
+        primary = self._get_llm()
+        m_name = getattr(primary, "model", getattr(primary, "model_name", "primary"))
+        try:
+            candidates.append((m_name, primary.with_structured_output(schema)))
+        except Exception:
+            try:
+                candidates.append((m_name, primary.with_structured_output(schema, method="function_calling")))
+            except Exception:
+                pass
+
+        # 2. Fallback candidate for OpenAI / GPT-4o-mini (nếu primary khác gpt-4o-mini)
+        oai_key = settings.effective_openai_api_key
+        if oai_key and m_name != "gpt-4o-mini":
+            try:
+                from langchain_openai import ChatOpenAI
+                llm_oai = ChatOpenAI(
+                    model="gpt-4o-mini",
+                    api_key=oai_key,
+                    base_url=settings.get_api_base or None,
+                    temperature=settings.synthesis_temperature
+                )
+                candidates.append(("gpt-4o-mini", llm_oai.with_structured_output(schema)))
+            except Exception:
+                pass
+
+        # 3. Fallback candidate for Groq (nếu có key)
+        if settings.groq_api_key and m_name != "llama-3.3-70b-versatile":
+            try:
+                from langchain_groq import ChatGroq
+                llm_groq = ChatGroq(
+                    model="llama-3.3-70b-versatile",
+                    api_key=settings.groq_api_key,
+                    temperature=settings.synthesis_temperature
+                )
+                candidates.append(("llama-3.3-70b-versatile", llm_groq.with_structured_output(schema)))
+            except Exception:
+                pass
+
+        # 4. Fallback candidate for Gemini (CHỈ KHI có key AIzaSy thực sự)
+        gemini_key = settings.effective_gemini_api_key
+        if gemini_key and gemini_key.startswith("AIzaSy") and m_name != "gemini-2.0-flash":
+            try:
+                from langchain_google_genai import ChatGoogleGenerativeAI
+                llm_gem = ChatGoogleGenerativeAI(
+                    model="gemini-2.0-flash",
+                    google_api_key=gemini_key,
+                    temperature=settings.synthesis_temperature
+                )
+                candidates.append(("gemini-2.0-flash", llm_gem.with_structured_output(schema)))
+            except Exception:
+                pass
+
+        return candidates
+
     async def _invoke_structured(self, schema, *, system: str, human: str | list):
-        llm = self._get_llm()
-        if getattr(llm, "_llm_type", None) == "openai-chat" or type(llm).__name__ == "ChatOpenAI":
-            runner = llm.with_structured_output(schema, method="json_schema", strict=True)
-        else:
-            runner = llm.with_structured_output(schema)
+        import random
+        candidates = self._get_runner_candidates(schema)
         messages = [("system", system), ("human", human)]
+        
+        last_exception = None
         for attempt in range(len(self._retry_delays) + 1):
             started = time.perf_counter()
-            try:
-                async with self._get_semaphore():
-                    self._active_invocations += 1
-                    self._max_active_invocations = max(
-                        self._max_active_invocations, self._active_invocations
-                    )
-                    try:
-                        response = await runner.ainvoke(messages)
-                    finally:
-                        self._active_invocations -= 1
-                trace = _TRACE_CONTEXT.get()
-                if trace:
-                    db, session_id, step_name = trace
-                    db.add(LLMCallLog(
-                        session_id=session_id, step_name=step_name,
-                        model_name=get_settings().model_name, attempt=attempt + 1,
-                        duration_ms=int((time.perf_counter() - started) * 1000), status="success",
-                        prompt_json={"system": system, "human": human},
-                        response_json=response.model_dump(mode="json") if hasattr(response, "model_dump") else {"value": str(response)},
-                    ))
-                return response
-            except Exception as exc:
-                trace = _TRACE_CONTEXT.get()
-                if trace:
-                    db, session_id, step_name = trace
-                    db.add(LLMCallLog(
-                        session_id=session_id, step_name=step_name,
-                        model_name=get_settings().model_name, attempt=attempt + 1,
-                        duration_ms=int((time.perf_counter() - started) * 1000), status="error",
-                        prompt_json={"system": system, "human": human}, error=str(exc)[:4000],
-                    ))
-                if attempt >= len(self._retry_delays) or not _is_transient_provider_error(exc):
-                    raise
-                await asyncio.sleep(self._retry_delays[attempt])
-        raise RuntimeError("unreachable")
+            for model_tag, runner in candidates:
+                try:
+                    async with self._get_semaphore():
+                        self._active_invocations += 1
+                        self._max_active_invocations = max(
+                            self._max_active_invocations, self._active_invocations
+                        )
+                        try:
+                            response = await runner.ainvoke(messages)
+                        finally:
+                            self._active_invocations -= 1
+                    trace = _TRACE_CONTEXT.get()
+                    if trace:
+                        db, session_id, step_name = trace
+                        db.add(LLMCallLog(
+                            session_id=session_id, step_name=step_name,
+                            model_name=model_tag, attempt=attempt + 1,
+                            duration_ms=int((time.perf_counter() - started) * 1000), status="success",
+                            prompt_json={"system": system, "human": human},
+                            response_json=response.model_dump(mode="json") if hasattr(response, "model_dump") else {"value": str(response)},
+                        ))
+                    return response
+                except Exception as exc:
+                    last_exception = exc
+                    trace = _TRACE_CONTEXT.get()
+                    if trace:
+                        db, session_id, step_name = trace
+                        db.add(LLMCallLog(
+                            session_id=session_id, step_name=step_name,
+                            model_name=model_tag, attempt=attempt + 1,
+                            duration_ms=int((time.perf_counter() - started) * 1000), status="error",
+                            prompt_json={"system": system, "human": human}, error=str(exc)[:4000],
+                        ))
+                    if _is_transient_provider_error(exc):
+                        # Switch to the next candidate model/key immediately
+                        continue
+                    else:
+                        raise exc
+
+            if attempt < len(self._retry_delays):
+                jitter = random.uniform(0.3, 1.2)
+                await asyncio.sleep(self._retry_delays[attempt] + jitter)
+
+        if last_exception:
+            raise last_exception
+        raise RuntimeError("Synthesis LLM call failed after all retries and fallback models.")
 
     async def extract_evidence(
         self,
@@ -427,20 +505,20 @@ class SynthesisLLMService:
         return await self._invoke_structured(
             SynthesisOutlineOutput,
             system=(
-                "Build a coherent academic literature-review outline from verified synthesis claims. "
-                "Select ONLY claims directly relevant to the research question; omit unrelated claims "
-                "even when they are supported by their source. Use only supplied claim IDs and assign "
-                "each selected claim to at most one section. Choose section titles and count dynamically "
-                "from the actual themes in the verified claims; do not force a fixed four-part template. "
-                "When studies are too heterogeneous for meaningful cross-paper themes, organize them into "
-                "honest per-paper or small thematic clusters. Every paper with a supported relevant claim "
-                "must appear in at least one section. Prefer grouping verified multi-paper claims into "
-                "thematic comparative sections when their evidence supports a defensible comparison. "
-                "Do not force unrelated claims together or invent themes or background facts."
-                " Respect the supplied evidence dimensions when assigning sections: claims backed "
-                "by limitations evidence belong in a limitations/gaps section, and claims backed by "
-                "future_work evidence belong in a future-directions section. If a claim has both, "
-                "assign it once to the role most explicit in its wording."
+                "You are an expert scientific literature review synthesizer. "
+                "Build a comprehensive, multi-perspective academic literature-review outline from verified synthesis claims. "
+                "Organize sections across the 4 core academic perspectives whenever supported by claims:\n"
+                "1. Theoretical Foundations & Problem Formulation (Bối cảnh lý thuyết, mục tiêu và định nghĩa bài toán)\n"
+                "2. Methodological Approaches & Technical Innovations (Phân tích đối chiếu phương pháp, giải thuật, kỹ thuật tiếp cận)\n"
+                "3. Empirical Validation & Comparative Findings (Đánh giá thực nghiệm, tập dữ liệu, kết quả và phát hiện cốt lõi)\n"
+                "4. Critical Analysis, Research Gaps & Future Directions (Phân tích phê phán, giới hạn chưa giải quyết và hướng mở)\n\n"
+                "Rules:\n"
+                "- Select ONLY claims directly relevant to the research question.\n"
+                "- Use only supplied claim IDs and assign each selected claim to at most one section.\n"
+                "- Assign descriptive, highly academic Vietnamese section titles (e.g., '1. Cơ sở Lý thuyết & Tổng quan Bài toán', '2. Phân tích Đối chiếu Phương pháp luận & Đột phá Kỹ thuật', '3. Đánh giá Thực nghiệm & Phát hiện Cốt lõi', '4. Phân tích Phê phán & Khoảng trống Nghiên cứu').\n"
+                "- Every paper with a supported relevant claim must appear in at least one section.\n"
+                "- Group multi-paper claims into thematic comparative sections when their evidence supports a cross-paper comparison.\n"
+                "- Claims backed by limitations/gaps belong in the Critical Gaps section, and future_work in Future Directions."
             ),
             human=f"Research question:\n{research_question}\n\nVerified claims:\n{claims_context}",
         )
@@ -451,23 +529,19 @@ class SynthesisLLMService:
         research_question: str,
         section_title: str,
         claims_context: str,
-        suggested_length: str = "250-500 words",
+        suggested_length: str = "300-600 words",
     ) -> SectionDraftOutput:
         return await self._invoke_structured(
             SectionDraftOutput,
             system=(
-                "Write an academic literature-review section using only the verified claims "
-                "and evidence supplied. Return sentence-level structured output. Classify "
-                "each sentence as claim or discourse. Claim sentences state scientific facts "
-                "and must be directly entailed by their claim_ids. Discourse sentences may "
-                "connect, introduce, or summarize supplied claims, but must not add new facts; "
-                "they still list the claim_ids they derive from. Do not create citation markers."
-                " Expand each verified claim: state the synthesized claim, compare or contrast "
-                "supporting papers where possible, explain what the evidence demonstrates, and "
-                "connect the claims at section level. Aim for the suggested section length of "
-                f"{suggested_length} when the supplied evidence supports it; sparse sections may "
-                "remain shorter and must never be padded. Every factual statement must remain "
-                "grounded in the verified claims."
+                "Write an academic literature-review section in professional Vietnamese using only the verified claims "
+                "and evidence supplied. Return sentence-level structured output.\n"
+                "- Classify each sentence as claim or discourse.\n"
+                "- Claim sentences state scientific facts and must be directly entailed by their claim_ids.\n"
+                "- Discourse sentences may connect, introduce, or summarize supplied claims, but must not add new facts.\n"
+                "- Do not create citation markers (they will be injected automatically).\n"
+                "- Write in deep comparative & synthesis-oriented prose: contrast mechanisms, compare outcomes, and explain the significance of findings.\n"
+                "- Every factual statement must remain strictly grounded in the verified claims."
             ),
             human=(
                 f"Research question:\n{research_question}\n\n"

@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { Layers, Bot, Send, Copy, ThumbsUp, ThumbsDown, Check } from 'lucide-react';
+import { Layers, Bot, Send, Copy, ThumbsUp, ThumbsDown, Check, ShieldCheck, Sparkles } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import remarkGfm from 'remark-gfm';
 import rehypeKatex from 'rehype-katex';
 import CitationChip from './CitationChip';
 import { useLanguage } from '../../contexts/LanguageContext';
-
+import { formatMathAndMarkdown } from '../../utils/mathUtils';
 import { API_BASE } from '../../utils/apiConfig';
+
+
 
 export default function ChatPanel({ 
   workspacePapers,
@@ -16,6 +18,7 @@ export default function ChatPanel({
   setChatMessages, 
   activeCitation, 
   setActiveCitation,
+  onOpenHarness,
   darkMode
 }) {
   const { t } = useLanguage();
@@ -60,7 +63,8 @@ export default function ChatPanel({
         sender: 'ai',
         text: data.answer,
         context_used: data.context_used,
-        citations: data.citations
+        citations: data.citations,
+        guardrail: data.guardrail
       };
       setChatMessages(prev => [...prev, aiReply]);
     } catch (error) {
@@ -109,7 +113,7 @@ export default function ChatPanel({
                       a: ({node, href, children, ...props}) => {
                         if (href?.startsWith('#cite-')) {
                           const citeId = href.replace('#cite-', '');
-                          const citeObj = msg.citations?.find(c => c.key === citeId) || msg.context_used?.find(c => c.key === citeId);
+                          const citeObj = msg.citations?.find(c => String(c.key) === String(citeId)) || msg.context_used?.find(c => String(c.key) === String(citeId));
                           return (
                               <CitationChip
                                 key={citeId}
@@ -139,8 +143,9 @@ export default function ChatPanel({
                       }
                     }}
                   >
-                    {msg.text.replace(/\[(\d+)\]/g, '[[$1]](#cite-$1)')}
+                    {formatMathAndMarkdown(msg.text)}
                   </ReactMarkdown>
+
                 )}
               </div>
               {/* Render Unified Context Used if available */}
@@ -181,33 +186,36 @@ export default function ChatPanel({
               )}
 
               {/* Action Buttons */}
+
               {msg.sender === 'ai' && (
-                <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-slate-200 dark:border-slate-700/60">
-                  <button 
-                    onClick={() => handleCopy(msg.text, idx)}
-                    className={`p-1.5 rounded-md transition-colors flex items-center justify-center group relative ${
-                      copiedIndex === idx 
-                        ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/30' 
-                        : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800'
-                    }`}
-                  >
-                    {copiedIndex === idx ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                    <span className="absolute -top-8 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                      {copiedIndex === idx ? t('chat.copied') : t('chat.copy')}
-                    </span>
-                  </button>
-                  <button 
-                    className="p-1.5 text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-md transition-colors flex items-center justify-center group relative"
-                  >
-                    <ThumbsUp className="w-4 h-4" />
-                    <span className="absolute -top-8 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">{t('chat.good_response')}</span>
-                  </button>
-                  <button 
-                    className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-md transition-colors flex items-center justify-center group relative"
-                  >
-                    <ThumbsDown className="w-4 h-4" />
-                    <span className="absolute -top-8 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">{t('chat.bad_response')}</span>
-                  </button>
+                <div className="flex items-center justify-between gap-1.5 mt-3 pt-3 border-t border-slate-200 dark:border-slate-700/60">
+                  <div className="flex items-center gap-1.5">
+                    <button 
+                      onClick={() => handleCopy(msg.text, idx)}
+                      className={`p-1.5 rounded-md transition-colors flex items-center justify-center group relative ${
+                        copiedIndex === idx 
+                          ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/30' 
+                          : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800'
+                      }`}
+                    >
+                      {copiedIndex === idx ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                      <span className="absolute -top-8 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                        {copiedIndex === idx ? t('chat.copied') : t('chat.copy')}
+                      </span>
+                    </button>
+                    <button 
+                      className="p-1.5 text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-md transition-colors flex items-center justify-center group relative"
+                    >
+                      <ThumbsUp className="w-4 h-4" />
+                      <span className="absolute -top-8 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">{t('chat.good_response')}</span>
+                    </button>
+                    <button 
+                      className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-md transition-colors flex items-center justify-center group relative"
+                    >
+                      <ThumbsDown className="w-4 h-4" />
+                      <span className="absolute -top-8 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">{t('chat.bad_response')}</span>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

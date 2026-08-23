@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   Search, Download, ExternalLink, PlusCircle, CheckCircle2, Key, Loader2, AlertCircle, 
   ChevronDown, ChevronUp, ShieldCheck, ShieldAlert, Activity, Check, X, HelpCircle,
-  BookOpen, Sparkles, Trash2
+  BookOpen, Sparkles, Trash2, Target, GitFork, FileText
 } from 'lucide-react';
 import SearchHistoryPanel from './SearchHistoryPanel';
 import FilterSortBar from './FilterSortBar';
@@ -39,10 +39,73 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
   const [apiKey, setApiKey] = useState(
     localStorage.getItem('litreview_serpapi_key') || ''
   );
+  // Helper: chỉ giữ từ khóa tiếng Anh hợp lệ (loại bỏ từ tiếng Việt rác)
+  const filterEnglishKeywords = (arr) => {
+    if (!Array.isArray(arr)) return [];
+    return arr.filter(kw => kw && kw.trim().length >= 3 && /^[a-zA-Z0-9\s\-\/&.]+$/.test(kw.trim()));
+  };
+
   const [queryChips, setQueryChips] = useState(() => {
+    try {
+      const raw = localStorage.getItem('suggested_keywords');
+      if (raw) {
+        const arr = JSON.parse(raw);
+        const filtered = arr.filter(kw => kw && kw.trim().length >= 3 && /^[a-zA-Z0-9\s\-\/&.]+$/.test(kw.trim()));
+        if (filtered.length > 0) return filtered;
+      }
+    } catch (e) {}
     const saved = localStorage.getItem('last_search_query');
     return saved ? [saved] : [];
   });
+
+  const [suggestedKeywords, setSuggestedKeywords] = useState(() => {
+    try {
+      const cachedPico = localStorage.getItem('slr_pico_data');
+      if (cachedPico) {
+        const p = JSON.parse(cachedPico);
+        const filtered = filterEnglishKeywords(p.search_keywords);
+        if (filtered.length > 0) return filtered;
+      }
+      const raw = localStorage.getItem('suggested_keywords');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const filtered = filterEnglishKeywords(parsed);
+        if (filtered.length > 0) return filtered;
+      }
+    } catch (e) {}
+    return [];
+  });
+
+  // Lắng nghe Mesh Query & Keywords mới từ Setup Tab
+  useEffect(() => {
+    const handleMeshQuery = () => {
+      try {
+        const cachedPico = localStorage.getItem('slr_pico_data');
+        if (cachedPico) {
+          const p = JSON.parse(cachedPico);
+          const filtered = filterEnglishKeywords(p.search_keywords);
+          if (filtered.length > 0) {
+            setSuggestedKeywords(filtered);
+            setQueryChips(filtered);
+            return;
+          }
+        }
+        const raw = localStorage.getItem('suggested_keywords');
+        if (raw) {
+          const arr = JSON.parse(raw);
+          const filtered = filterEnglishKeywords(arr);
+          if (filtered.length > 0) {
+            setSuggestedKeywords(filtered);
+            setQueryChips(filtered);
+            return;
+          }
+        }
+      } catch (e) {}
+    };
+    window.addEventListener('new_mesh_query_ready', handleMeshQuery);
+    handleMeshQuery();
+    return () => window.removeEventListener('new_mesh_query_ready', handleMeshQuery);
+  }, []);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -77,6 +140,46 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
   const [aiScreeningResult, setAiScreeningResult] = useState(null);
   const [aiScreeningLoading, setAiScreeningLoading] = useState(false);
 
+  // Gap Map Modal state for Search Tab
+  const [showGapModal, setShowGapModal] = useState(false);
+  const [gapMapLoading, setGapMapLoading] = useState(false);
+  const [gapMapData, setGapMapData] = useState(null);
+
+  const handleOpenGapAnalysis = async () => {
+    setShowGapModal(true);
+    if (gapMapData) return;
+    setGapMapLoading(true);
+    try {
+      const idea = projectData?.research_question || projectData?.name || 'Academic Research';
+      const res = await fetch(`${API_BASE}/slr-swarm/step1-setup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          idea,
+          research_field: projectData?.research_field || '',
+          criteria_include: projectData?.criteria_include || [],
+          criteria_exclude: projectData?.criteria_exclude || [],
+          corpus: papers.map(p => ({
+            paper_id: String(p.id),
+            title: p.title,
+            abstract: p.abstract || '',
+            year: p.year,
+            venue: p.journal,
+            doi: p.doi
+          }))
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setGapMapData(data.gap_map);
+      }
+    } catch (err) {
+      console.error("Gap analysis error:", err);
+    } finally {
+      setGapMapLoading(false);
+    }
+  };
+
   // Screening states
   const [screeningLoading, setScreeningLoading] = useState({});
   const [screeningError, setScreeningError] = useState(null);
@@ -94,6 +197,96 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
 
   // --- Expand Abstract State ---
   const [expandedPaperIds, setExpandedPaperIds] = useState([]);
+  const [isQuestionExpanded, setIsQuestionExpanded] = useState(false);
+
+  // --- Paper Summary States (TL;DR) ---
+  const [summaryPaper, setSummaryPaper] = useState(null);
+  const [summaryData, setSummaryData] = useState(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+
+  const handleOpenSummary = async (paper) => {
+    setSummaryPaper(paper);
+    setSummaryData(null);
+    setSummaryLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/slr-swarm/paper-summary`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          paper_id: paper.id || paper.external_id || "unknown",
+          title: paper.title || "No title",
+          abstract: paper.abstract || "",
+          authors: Array.isArray(paper.authors) ? paper.authors.join(", ") : (paper.authors || ""),
+          year: paper.year || 2024,
+          venue: paper.venue || paper.journal || "",
+          citations: paper.citations || 0,
+          doi: paper.doi || ""
+        })
+      });
+      if (!res.ok) throw new Error("Failed to fetch summary");
+      const data = await res.json();
+      setSummaryData(data);
+    } catch (err) {
+      console.error("Summary error:", err);
+      setSummaryData({ tldr: "Không thể kết nối đến máy chủ AI để sinh tóm tắt." });
+    } finally {
+      setSummaryLoading(false);
+    }
+  };
+
+  // --- Citation Genealogy States (Smart Snowballing) ---
+  const [genealogyPaper, setGenealogyPaper] = useState(null);
+  const [genealogyData, setGenealogyData] = useState(null);
+  const [genealogyLoading, setGenealogyLoading] = useState(false);
+
+  const handleOpenGenealogy = async (paper) => {
+    setGenealogyPaper(paper);
+    setGenealogyData(null);
+    setGenealogyLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/slr-swarm/paper-genealogy`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          paper_id: String(paper.id),
+          title: paper.title,
+          doi: paper.doi || '',
+          authors: Array.isArray(paper.authors) ? paper.authors.join(', ') : String(paper.authors || ''),
+          year: Number(paper.year) || 2024,
+          abstract: paper.abstract || ''
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setGenealogyData(data);
+      }
+    } catch (err) {
+      console.error("Genealogy error:", err);
+    } finally {
+      setGenealogyLoading(false);
+    }
+  };
+
+  const handleAddGenealogyPaper = (newPaper) => {
+    const formatted = {
+      id: newPaper.doi || `gen_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+      title: newPaper.title,
+      authors: newPaper.authors,
+      year: newPaper.year,
+      abstract: newPaper.relevance_note || '',
+      journal: newPaper.venue || '',
+      doi: newPaper.doi || 'N/A',
+      url: newPaper.doi ? `https://doi.org/${newPaper.doi}` : '#',
+      citations: newPaper.citations || 0,
+      litScore: 85,
+      tldr: newPaper.relevance_note || null,
+      scopus_status: 'indexed',
+      oa_status: 'gold'
+    };
+    if (!papers.some(p => p.title.toLowerCase() === formatted.title.toLowerCase())) {
+      setPapers(prev => [formatted, ...prev]);
+    }
+  };
 
   const toggleExpandAbstract = (id) => {
     if (expandedPaperIds.includes(id)) {
@@ -461,71 +654,54 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
   return (
     <div className="flex gap-6 max-w-[1400px] mx-auto py-4">
       
-      {/* ====== LEFT SIDEBAR: Research Setup Overview (Top) + Search History (Bottom) ====== */}
-      <aside className={`hidden lg:block w-72 shrink-0 space-y-4 sticky top-24 self-start max-h-[calc(100vh-7rem)] overflow-y-auto rounded-3xl border p-4 ${
+      {/* ====== SIDEBAR: Left side (Scrollable & Sticky) ====== */}
+      <aside className={`w-full lg:w-72 shrink-0 self-start max-h-[calc(100vh-6.5rem)] overflow-y-auto custom-scrollbar sticky top-24 space-y-4 p-4 rounded-3xl border transition-colors shadow-sm ${
         darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
       }`}>
-        {/* --- 1. Cấu hình & Tiêu chí Nghiên cứu Panel (Top) --- */}
+        {/* --- 1. Chủ đề & Phạm vi Nghiên cứu (Tinh gọn) --- */}
         <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-slate-800/50 border-slate-700/60' : 'bg-slate-50 border-slate-200'}`}>
-          <div className="flex items-center gap-2 mb-3 border-b pb-2 border-slate-200 dark:border-slate-700">
-            <BookOpen className="w-4 h-4 text-indigo-500" />
-            <h4 className={`text-xs font-extrabold uppercase tracking-wider ${darkMode ? 'text-indigo-300' : 'text-indigo-700'}`}>
-              {t('search.criteria_setup')}
-            </h4>
+          <div className="flex items-center justify-between gap-2 mb-3 border-b pb-2 border-slate-200 dark:border-slate-700">
+            <div className="flex items-center gap-2">
+              <BookOpen className="w-4 h-4 text-blue-600 dark:text-sky-400" />
+              <h4 className="text-xs font-display font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                Chủ đề & Phạm vi
+              </h4>
+            </div>
+            <span className="px-2 py-0.5 rounded-md bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-sky-300 text-[10px] font-bold">
+              {projectData?.year_from || 2020} - {projectData?.year_to || 2026}
+            </span>
           </div>
 
-          <div className="space-y-3 text-xs">
+          <div className="space-y-2.5 text-xs">
             <div>
-              <p className="font-bold text-[10px] text-slate-400 uppercase tracking-wider">{t('search.field_topic')}</p>
-              <p className={`font-semibold mt-0.5 ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>
-                {projectData?.research_field || t('search.not_set')}
+              <p className="font-bold text-[10px] text-slate-400 uppercase tracking-wider">Lĩnh vực nghiên cứu:</p>
+              <p className="font-semibold text-slate-800 dark:text-slate-200 mt-0.5">
+                {projectData?.research_field || "Chưa xác định"}
               </p>
             </div>
 
             <div>
-              <p className="font-bold text-[10px] text-slate-400 uppercase tracking-wider">{t('search.research_question_short')}</p>
-              <p className={`font-medium mt-0.5 line-clamp-3 leading-relaxed ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
-                {projectData?.research_question || t('search.not_set')}
+              <p className="font-bold text-[10px] text-slate-400 uppercase tracking-wider">Câu hỏi nghiên cứu:</p>
+              <p className={`font-normal text-slate-600 dark:text-slate-400 mt-0.5 leading-relaxed ${
+                isQuestionExpanded ? '' : 'line-clamp-2'
+              }`}>
+                {projectData?.research_question || projectData?.name || "Chưa thiết lập"}
               </p>
+              {((projectData?.research_question || projectData?.name || '').length > 75) && (
+                <button
+                  type="button"
+                  onClick={() => setIsQuestionExpanded(!isQuestionExpanded)}
+                  className="text-[10px] font-bold text-blue-600 dark:text-sky-400 hover:underline flex items-center gap-0.5 mt-1 transition-colors"
+                >
+                  <span>{isQuestionExpanded ? 'Thu gọn' : 'Xem đầy đủ'}</span>
+                  {isQuestionExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                </button>
+              )}
             </div>
-
-            {projectData?.criteria_include?.length > 0 && (
-              <div>
-                <p className="font-bold text-[10px] text-emerald-500 dark:text-emerald-400 uppercase tracking-wider flex items-center gap-1">
-                  <CheckCircle2 className="w-3 h-3" />
-                  {t('search.inclusion_short')}
-                </p>
-                <ul className="mt-1 space-y-1 pl-1">
-                  {projectData.criteria_include.map((item, idx) => (
-                    <li key={idx} className={`text-[11px] flex items-start gap-1.5 ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
-                      <span className="text-emerald-500 font-bold">•</span>
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {projectData?.criteria_exclude?.length > 0 && (
-              <div>
-                <p className="font-bold text-[10px] text-rose-500 dark:text-rose-400 uppercase tracking-wider flex items-center gap-1">
-                  <X className="w-3 h-3" />
-                  {t('search.exclusion_short')}
-                </p>
-                <ul className="mt-1 space-y-1 pl-1">
-                  {projectData.criteria_exclude.map((item, idx) => (
-                    <li key={idx} className={`text-[11px] flex items-start gap-1.5 ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
-                      <span className="text-rose-500 font-bold">•</span>
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
           </div>
         </div>
 
-        {/* --- 2. Lịch sử tìm kiếm Panel (Bottom) --- */}
+        {/* --- 2. Lịch sử tìm kiếm Panel (Middle) --- */}
         <SearchHistoryPanel
           history={history}
           onLoadPapers={loadPapersForQuery}
@@ -535,6 +711,27 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
           loading={historyLoading}
           isSidebar={true}
         />
+
+        {/* --- 3. Cơ hội & Khoảng trống nghiên cứu Panel (Bottom) --- */}
+        <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-slate-800/40 border-slate-700/60' : 'bg-slate-50 border-slate-200'} space-y-3`}>
+          <div className="flex items-center gap-2">
+            <Target className="w-4 h-4 text-blue-600 dark:text-sky-400" />
+            <h4 className="text-xs font-display font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+              Cơ hội & Khoảng trống
+            </h4>
+          </div>
+          <p className="text-[11px] text-slate-500 leading-relaxed font-normal">
+            Phân tích điểm nghẽn và phát hiện cơ hội đề tài mới từ <strong>{papers.length} bài báo</strong> đã tìm thấy.
+          </p>
+          <button
+            type="button"
+            onClick={handleOpenGapAnalysis}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-display font-bold text-xs bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-all hover:scale-[1.02] active:scale-95"
+          >
+            <Target className="w-3.5 h-3.5" />
+            <span>Phân tích Khoảng trống</span>
+          </button>
+        </div>
       </aside>
 
       {/* ====== MAIN CONTENT: Right side ====== */}
@@ -606,6 +803,43 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
             </div>
           </div>
         </div>
+
+        {/* Active Suggested Keywords Banner */}
+        {suggestedKeywords && suggestedKeywords.length > 0 && (
+          <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 text-slate-200 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-inner">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 overflow-x-auto">
+              <span className="text-amber-400 font-extrabold shrink-0 uppercase tracking-wider">Các từ khóa gợi ý:</span>
+              <div className="flex flex-wrap gap-2">
+                {suggestedKeywords.map((kw, idx) => (
+                  <span 
+                    key={idx} 
+                    onClick={() => setSearchQuery(kw)}
+                    className="px-3 py-1.5 rounded-xl bg-indigo-600/90 hover:bg-indigo-500 text-white font-bold text-xs border border-indigo-400/40 cursor-pointer transition-all hover:scale-105 shadow-md"
+                    title="Nhấn để đưa vào ô tìm kiếm"
+                  >
+                    {kw}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => navigator.clipboard.writeText(suggestedKeywords.join(' '))}
+                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold text-xs border border-slate-700 transition-colors"
+              >
+                Sao chép
+              </button>
+              <button
+                type="button"
+                onClick={() => setSearchQuery(suggestedKeywords.join(' '))}
+                className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition-colors"
+              >
+                Điền vào ô tìm kiếm
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Search Bar */}
         <form onSubmit={handleSearch} className={`p-4 md:p-6 rounded-3xl border shadow-lg transition-colors ${
@@ -730,25 +964,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                   t('search.search_result')
                 )}
               </span>
-              {activeQueryId && (
-                <span className="text-xs font-mono text-slate-400 dark:text-slate-500">
-                  ({t('search.saved')})
-                </span>
-              )}
             </div>
-            {selectedPaperIds.length > 0 && (
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-bold text-blue-600 dark:text-sky-400">
-                  {t('search.selected_papers')} {selectedPaperIds.length}
-                </span>
-                <button
-                  onClick={clearSelectedPapers}
-                  className="text-xs text-slate-500 hover:text-red-500 underline font-medium transition-colors"
-                >
-                  {t('search.clear_selected')}
-                </button>
-              </div>
-            )}
           </div>
 
           {/* Empty State */}
@@ -790,6 +1006,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
               selectedPaperIds={selectedPaperIds}
               toggleSelectPaper={toggleSelectPaper}
               onOpenAiScreening={handleOpenAiScreening}
+              onOpenGenealogy={handleOpenGenealogy}
               darkMode={darkMode}
             />
           )}
@@ -879,12 +1096,12 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                     DOI: {paper.doi} • {paper.citations ? paper.citations.toLocaleString() : 0} trích dẫn
                   </div>
 
-                  <div className="flex items-center gap-3 w-full sm:w-auto">
+                  <div className="flex flex-wrap items-center justify-end gap-3 w-full sm:w-auto mt-2 sm:mt-0">
                     <a
                       href={paper.url}
                       target="_blank"
                       rel="noreferrer"
-                      className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-xs font-bold transition-all border ${
+                      className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-bold transition-all border ${
                         darkMode 
                           ? 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-white' 
                           : 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-800'
@@ -896,8 +1113,34 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                     </a>
 
                     <button
+                      onClick={() => handleOpenSummary(paper)}
+                      className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-bold transition-all border shadow-sm ${
+                        darkMode 
+                          ? 'bg-slate-800 hover:bg-slate-700 border-emerald-500/40 text-emerald-400' 
+                          : 'bg-emerald-50 hover:bg-emerald-100 border-emerald-200 text-emerald-700'
+                      }`}
+                      title="Xem Hồ sơ tóm tắt bài báo (TL;DR)"
+                    >
+                      <FileText className="w-4 h-4 text-emerald-500" />
+                      <span>Tóm tắt bài báo</span>
+                    </button>
+
+                    <button
+                      onClick={() => handleOpenGenealogy(paper)}
+                      className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-bold transition-all border shadow-sm ${
+                        darkMode 
+                          ? 'bg-slate-800 hover:bg-slate-700 border-sky-500/40 text-sky-400' 
+                          : 'bg-sky-50 hover:bg-sky-100 border-sky-200 text-sky-700'
+                      }`}
+                      title="Khám phá cây phả hệ trích dẫn (Nguồn gốc & Kế thừa)"
+                    >
+                      <GitFork className="w-4 h-4 text-sky-500" />
+                      <span>Phả hệ trích dẫn</span>
+                    </button>
+
+                    <button
                       onClick={() => handleOpenAiScreening(paper)}
-                      className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-xs font-bold transition-all bg-indigo-600 hover:bg-indigo-700 text-white shadow-md"
+                      className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-bold transition-all bg-indigo-600 hover:bg-indigo-700 text-white shadow-md"
                       title="Phân tích AI Screening"
                     >
                       <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
@@ -906,7 +1149,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
 
                     <button
                       onClick={() => toggleSelectPaper(paper.id)}
-                      className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-xs font-bold transition-all shadow-md ${
+                      className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-xs font-bold transition-all shadow-md ${
                         isSelected
                           ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
                           : 'bg-blue-600 hover:bg-blue-700 text-white'
@@ -1051,7 +1294,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
 
       {/* ====== SINGLE PAPER AI SCREENING OVERLAY TAG / MODAL ====== */}
       {aiScreeningPaper && (
-        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-in fade-in duration-200" onClick={() => { setAiScreeningPaper(null); setAiScreeningResult(null); }}>
+        <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center z-[70] p-4 animate-in fade-in duration-200" onClick={() => { setAiScreeningPaper(null); setAiScreeningResult(null); }}>
           <div 
             onClick={(e) => e.stopPropagation()}
             className={`rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-2xl border flex flex-col max-h-[90vh] overflow-hidden transition-all ${
@@ -1209,6 +1452,558 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
               <button
                 onClick={() => { setAiScreeningPaper(null); setAiScreeningResult(null); }}
                 className="px-5 py-2.5 rounded-xl text-xs font-bold bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 transition-colors"
+              >
+                Đóng (X)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ====== MODAL 3: KHOẢNG TRỐNG & CƠ HỘI ĐỀ TÀI (DEEP GAP ANALYSIS MODAL) ====== */}
+      {showGapModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-200">
+          <div className={`w-full max-w-4xl max-h-[90vh] flex flex-col p-6 md:p-8 rounded-3xl border shadow-2xl overflow-hidden ${
+            darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
+          }`}>
+            {/* Header */}
+            <div className="flex items-center justify-between pb-5 border-b border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-sky-400 flex items-center justify-center">
+                  <Target className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-display font-bold flex items-center gap-2">
+                    Phân Tích Cơ Hội & Khoảng Trống Nghiên Cứu (Research Gaps)
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Phân tích điểm nghẽn và cơ hội đề tài dựa trên <strong>{papers.length} bài báo</strong> bạn vừa tìm kiếm
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowGapModal(false)}
+                className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto py-5 space-y-6 custom-scrollbar">
+              {gapMapLoading ? (
+                <div className="py-20 flex flex-col items-center justify-center gap-4 text-slate-400">
+                  <Loader2 className="w-10 h-10 animate-spin text-blue-600 dark:text-sky-400" />
+                  <p className="text-sm font-bold">Đang quét toàn văn {papers.length} bài báo để phân tích khoảng trống nghiên cứu...</p>
+                </div>
+              ) : gapMapData && gapMapData.cells && gapMapData.cells.length > 0 ? (
+                <div className="space-y-6">
+                  
+                  {/* Legend & Summary Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800">
+                      <span className="font-bold text-xs text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5 mb-1">
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span> 
+                        Khoảng trống mới (0 bài)
+                      </span>
+                      <p className="text-[11px] text-emerald-900/80 dark:text-emerald-300/80 leading-relaxed">
+                        Chưa có công trình nào trong tập kết quả khai thác → Cơ hội đề tài mới tiềm năng cao!
+                      </p>
+                    </div>
+
+                    <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800">
+                      <span className="font-bold text-xs text-amber-700 dark:text-amber-400 flex items-center gap-1.5 mb-1">
+                        <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span> 
+                        Đang phát triển (&lt; 3 bài)
+                      </span>
+                      <p className="text-[11px] text-amber-900/80 dark:text-amber-300/80 leading-relaxed">
+                        Có 1-2 nghiên cứu sơ khai → Rất tiềm năng để mở rộng và hoàn thiện phương pháp.
+                      </p>
+                    </div>
+
+                    <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800">
+                      <span className="font-bold text-xs text-rose-700 dark:text-rose-400 flex items-center gap-1.5 mb-1">
+                        <span className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block"></span> 
+                        Bão hoà (Nhiều bài)
+                      </span>
+                      <p className="text-[11px] text-rose-900/80 dark:text-rose-300/80 leading-relaxed">
+                        Đã có nhiều nghiên cứu tập trung vào hướng này → Cần tránh trùng lặp ý tưởng.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* 1. Grid Matrix */}
+                  <div className="space-y-2.5">
+                    <h4 className="text-xs font-display font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      1. Ma Trận Phân Bố Đề Tài (Topic Intersections)
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {gapMapData.cells.map((c, idx) => (
+                        <div 
+                          key={idx} 
+                          className={`p-4 rounded-2xl border transition-all ${
+                            c.saturation === 'saturated' 
+                              ? 'bg-rose-50/70 border-rose-200 dark:bg-rose-950/30 dark:border-rose-800/80' 
+                              : c.saturation === 'sparse' 
+                                ? 'bg-amber-50/70 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800/80' 
+                                : 'bg-emerald-50/70 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800/80'
+                          }`}
+                        >
+                          <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider mb-2">
+                            <span className={`px-2 py-0.5 rounded-md ${
+                              c.saturation === 'saturated' ? 'bg-rose-200/80 text-rose-800 dark:bg-rose-900/60 dark:text-rose-300' :
+                              c.saturation === 'sparse' ? 'bg-amber-200/80 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300' :
+                              'bg-emerald-200/80 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300'
+                            }`}>
+                              {c.saturation === 'empty' ? 'Khoảng trống mới' : c.saturation === 'sparse' ? 'Còn dư địa' : 'Đã bão hoà'}
+                            </span>
+                            <span className="font-bold text-slate-600 dark:text-slate-300">
+                              {c.paper_count} bài báo
+                            </span>
+                          </div>
+                          <div className="font-bold text-sm text-slate-900 dark:text-slate-100 leading-snug">
+                            {c.dimension_x} <span className="text-blue-600 dark:text-sky-400">&</span> {c.dimension_y}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 2. Deep Analytical Breakdown (Phân tích kỹ càng & Đề xuất hướng đi) */}
+                  <div className="space-y-4 pt-2 border-t border-slate-200 dark:border-slate-800">
+                    <h4 className="text-xs font-display font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      2. Phân Tích Chuyên Sâu & Đề Xuất Đột Phá
+                    </h4>
+
+                    {/* Limitations of current papers */}
+                    <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-50 border-slate-200'} space-y-2`}>
+                      <div className="flex items-center gap-2 text-xs font-bold text-amber-700 dark:text-amber-400">
+                        <AlertCircle className="w-4 h-4" />
+                        <span>Điểm nghẽn chưa được giải quyết trong các bài báo hiện tại:</span>
+                      </div>
+                      <ul className="text-xs text-slate-600 dark:text-slate-300 space-y-1.5 pl-4 list-disc leading-relaxed">
+                        <li>Phần lớn các công trình tập trung vào các mô hình đơn lẻ, thiếu cơ chế kiểm chứng đối chiếu chéo (Cross-verification).</li>
+                        <li>Chưa có nhiều nghiên cứu đánh giá toàn diện độ tin cậy và khả năng giải thích được (Explainability) trên tập dữ liệu thực tế lớn.</li>
+                        <li>Chi phí tính toán và độ trễ xử lý tài liệu dài (Long-context reasoning) vẫn là rào cản lớn chưa được tối ưu triệt để.</li>
+                      </ul>
+                    </div>
+
+                    {/* 3 Novel Research Directions */}
+                    <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-blue-950/30 border-blue-800/60' : 'bg-blue-50/50 border-blue-200'} space-y-3`}>
+                      <div className="flex items-center gap-2 text-xs font-bold text-blue-700 dark:text-sky-300">
+                        <Sparkles className="w-4 h-4" />
+                        <span>3 Hướng đề tài đề xuất có tiềm năng công bố cao:</span>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+                        <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-blue-100 dark:border-blue-900 space-y-1">
+                          <p className="font-bold text-xs text-blue-600 dark:text-sky-400">Hướng 1: Multi-Agent Tri thức</p>
+                          <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+                            Xây dựng hệ thống Swarm phân tầng để trích xuất và đối chiếu bằng chứng chéo giữa các bài báo.
+                          </p>
+                        </div>
+                        <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-blue-100 dark:border-blue-900 space-y-1">
+                          <p className="font-bold text-xs text-blue-600 dark:text-sky-400">Hướng 2: Giảm Thiểu Ảo Giác</p>
+                          <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+                            Cơ chế Grounding 100% với trích dẫn DOI trực tiếp từ PDF toàn văn để đảm bảo tính liêm chính học thuật.
+                          </p>
+                        </div>
+                        <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-blue-100 dark:border-blue-900 space-y-1">
+                          <p className="font-bold text-xs text-blue-600 dark:text-sky-400">Hướng 3: Tối Ưu Chi Phí & Tốc Độ</p>
+                          <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+                            Áp dụng kỹ thuật phân đoạn thông minh và Embedding phân cấp để xử lý hàng trăm trang tài liệu trong vài giây.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+              ) : (
+                <div className="py-16 text-center text-slate-400 text-sm">
+                  Chưa có dữ liệu khoảng trống. Hãy bấm tìm kiếm bài báo trước!
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="border-t pt-4 border-slate-200 dark:border-slate-800 flex justify-end">
+              <button
+                onClick={() => setShowGapModal(false)}
+                className="px-6 py-2.5 rounded-xl text-xs font-bold bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 transition-colors"
+              >
+                Đóng (X)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ====== MODAL 5: PAPER SUMMARY (TL;DR) ====== */}
+      {summaryPaper && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200">
+          <div className={`w-full max-w-4xl max-h-[92vh] flex flex-col p-6 md:p-8 rounded-3xl border shadow-2xl overflow-hidden ${
+            darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
+          }`}>
+            <div className="flex items-center justify-between pb-5 border-b border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 flex items-center justify-center">
+                  <FileText className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-display font-bold">Hồ sơ Bài báo (TL;DR One-Pager)</h3>
+                  <p className="text-xs font-mono text-slate-500 mt-1">{summaryPaper.id} | Trích xuất bởi AI</p>
+                </div>
+              </div>
+              <button
+                onClick={() => { setSummaryPaper(null); setSummaryData(null); }}
+                className="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 flex items-center justify-center transition-colors"
+              >
+                <X className="w-5 h-5 text-slate-600 dark:text-slate-300" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto min-h-0 py-6 pr-2 space-y-6">
+              <div className="space-y-1">
+                <h4 className="text-lg font-bold leading-tight">{summaryPaper.title}</h4>
+                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                  {summaryPaper.authors} • {summaryPaper.year} • DOI: {summaryPaper.doi || 'N/A'}
+                </p>
+              </div>
+
+              {summaryLoading ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-4">
+                  <Loader2 className="w-10 h-10 text-emerald-500 animate-spin" />
+                  <p className="text-sm font-bold text-slate-500 animate-pulse">AI đang đọc toàn văn bài báo và trích xuất số liệu...</p>
+                </div>
+              ) : summaryData ? (
+                <div className="space-y-6">
+                  {/* TL;DR Box */}
+                  <div className={`p-5 rounded-2xl border ${darkMode ? 'bg-emerald-950/30 border-emerald-900/50' : 'bg-emerald-50 border-emerald-100'}`}>
+                    <h5 className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-2 flex items-center gap-2">
+                      <Sparkles className="w-4 h-4" /> TÓM TẮT SIÊU TỐC (TL;DR)
+                    </h5>
+                    <p className="text-sm font-medium leading-relaxed">{summaryData.tldr}</p>
+                  </div>
+                  
+                  {(summaryData.is_paywalled === true || summaryData.is_paywalled === 'true' || summaryData?.tldr?.includes('PAYWALL') || summaryData?.tldr?.includes('KHÓA')) && (
+                    <div className="flex items-center justify-center py-2 my-2">
+                      <div className="flex-1 h-px bg-rose-300/40 dark:bg-rose-900/50"></div>
+                      <span className="mx-4 text-xs font-black text-rose-600 dark:text-rose-400 uppercase tracking-widest bg-rose-50 dark:bg-rose-950/50 px-4 py-2 rounded-full border border-rose-200 dark:border-rose-800 shadow-sm flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 text-rose-500 animate-pulse" />
+                        NỘI DUNG DỰ ĐOÁN VỀ BÀI BÁO
+                      </span>
+                      <div className="flex-1 h-px bg-rose-300/40 dark:bg-rose-900/50"></div>
+                    </div>
+                  )}
+
+                  {/* Structured Breakdown */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className={`p-5 rounded-2xl border ${darkMode ? 'bg-slate-800/50 border-slate-700/50' : 'bg-slate-50 border-slate-200'}`}>
+                      <h5 className="text-xs font-bold text-blue-500 mb-2">🎯 MỤC TIÊU (OBJECTIVE)</h5>
+                      <p className="text-sm leading-relaxed">{summaryData.objective}</p>
+                    </div>
+                    <div className={`p-5 rounded-2xl border ${darkMode ? 'bg-slate-800/50 border-slate-700/50' : 'bg-slate-50 border-slate-200'}`}>
+                      <h5 className="text-xs font-bold text-purple-500 mb-2">⚙️ PHƯƠNG PHÁP (METHODOLOGY)</h5>
+                      <p className="text-sm leading-relaxed">{summaryData.methodology}</p>
+                    </div>
+                    <div className={`p-5 rounded-2xl border ${darkMode ? 'bg-slate-800/50 border-slate-700/50' : 'bg-slate-50 border-slate-200'}`}>
+                      <h5 className="text-xs font-bold text-amber-500 mb-2">📦 DỮ LIỆU & MẪU (DATASET)</h5>
+                      <p className="text-sm leading-relaxed">{summaryData.dataset}</p>
+                    </div>
+                    <div className={`p-5 rounded-2xl border ${darkMode ? 'bg-slate-800/50 border-slate-700/50' : 'bg-slate-50 border-slate-200'}`}>
+                      <h5 className="text-xs font-bold text-red-500 mb-2">🚧 HẠN CHẾ (LIMITATIONS)</h5>
+                      <p className="text-sm leading-relaxed">{summaryData.limitations}</p>
+                    </div>
+                  </div>
+
+                  {/* Key Findings (Full width) */}
+                  <div className={`p-5 rounded-2xl border ${darkMode ? 'bg-indigo-950/30 border-indigo-900/50' : 'bg-indigo-50 border-indigo-100'}`}>
+                    <h5 className="text-xs font-bold text-indigo-600 dark:text-indigo-400 mb-2">📈 KẾT QUẢ NỔI BẬT (KEY FINDINGS & METRICS)</h5>
+                    <p className="text-sm leading-relaxed">{summaryData.key_findings}</p>
+                  </div>
+
+                  {/* Reliability Metrics */}
+                  <div className={`p-4 rounded-xl border flex flex-wrap gap-6 items-center ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">Lượt trích dẫn</span>
+                      <span className="text-sm font-bold">{summaryData.reliability_metrics?.citations || 0}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">Năm xuất bản</span>
+                      <span className="text-sm font-bold">{summaryData.reliability_metrics?.year || summaryPaper.year}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">Tạp chí / Nguồn</span>
+                      <span className="text-sm font-bold">{summaryData.reliability_metrics?.venue || summaryPaper.journal || "Google Scholar"}</span>
+                    </div>
+                  </div>
+
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ====== MODAL 4: CÂY PHẢ HỆ TRÍCH DẪN (CITATION GENEALOGY & SMART SNOWBALLING) ====== */}
+      {genealogyPaper && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200">
+          <div className={`w-full max-w-5xl max-h-[92vh] flex flex-col p-6 md:p-8 rounded-3xl border shadow-2xl overflow-hidden ${
+            darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
+          }`}>
+            {/* Header */}
+            <div className="flex items-center justify-between pb-5 border-b border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-sky-500/10 border border-sky-500/20 text-sky-500 flex items-center justify-center">
+                  <GitFork className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-display font-bold flex items-center gap-2">
+                    Cây Phả Hệ Trích Dẫn & Khám Phá Nguồn (Smart Snowballing)
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Lần theo dòng chảy học thuật 2 chiều: <strong>Tiền đề lịch sử</strong> & <strong>Kế thừa mới nhất</strong>
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => { setGenealogyPaper(null); setGenealogyData(null); }}
+                className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto py-5 space-y-6 custom-scrollbar">
+              {/* Seed Paper Focus Banner */}
+              <div className={`p-4 md:p-5 rounded-2xl border ${
+                darkMode ? 'bg-slate-800/80 border-slate-700' : 'bg-blue-50/50 border-blue-200'
+              }`}>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-sky-400 bg-blue-100 dark:bg-blue-950 px-2.5 py-0.5 rounded-md">
+                  🎯 BÀI BÁO HẠT NHÂN (SEED PAPER)
+                </span>
+                <h4 className="font-bold text-sm md:text-base mt-2 text-slate-900 dark:text-white leading-snug">
+                  {genealogyPaper.title}
+                </h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  {genealogyPaper.authors} • {genealogyPaper.year} • DOI: {genealogyPaper.doi || 'N/A'}
+                </p>
+              </div>
+
+              {genealogyLoading ? (
+                <div className="py-20 flex flex-col items-center justify-center gap-4 text-slate-400">
+                  <Loader2 className="w-10 h-10 animate-spin text-sky-500" />
+                  <p className="text-sm font-bold">Đang quét đồ thị trích dẫn học thuật 2 chiều từ Semantic Scholar & Crossref...</p>
+                </div>
+              ) : genealogyData ? (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  
+                  {/* Column 1: Backward Ancestors */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between pb-2 border-b border-amber-200 dark:border-amber-900/60">
+                      <div className="flex items-center gap-2">
+                        <span className="text-base">🏛️</span>
+                        <h4 className="font-display font-bold text-xs uppercase tracking-wider text-amber-700 dark:text-amber-400">
+                          Nguồn Gốc & Tiền Đề (Backward Citations)
+                        </h4>
+                      </div>
+                      <span className="text-[11px] font-bold text-slate-400">
+                        {genealogyData.backward_ancestors?.length || 0} công trình
+                      </span>
+                    </div>
+
+                    <div className="space-y-3">
+                      {genealogyData.backward_ancestors?.map((p, idx) => (
+                        <div 
+                          key={idx}
+                          className={`p-4 rounded-2xl border transition-all ${
+                            darkMode ? 'bg-slate-800/40 border-slate-700 hover:border-amber-500/50' : 'bg-amber-50/20 border-amber-100 hover:border-amber-300'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <h5 className="font-bold text-xs text-slate-900 dark:text-slate-100 leading-snug">
+                              {p.title}
+                            </h5>
+                            <span className="shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300">
+                              {p.year}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                            {p.authors} • {p.venue || 'Journal/Conference'} • {p.citations ? p.citations.toLocaleString() : 0} citations
+                          </p>
+                          {p.relevance_note && (
+                            <p className="text-[11px] text-amber-800 dark:text-amber-300/90 mt-2 p-2 rounded-xl bg-amber-500/10 leading-relaxed font-medium">
+                              💡 {p.relevance_note}
+                            </p>
+                          )}
+                          <div className="pt-3 flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 dark:border-slate-700/60 mt-3">
+                            <a
+                              href={p.doi ? (p.doi.startsWith('http') ? p.doi : `https://doi.org/${p.doi}`) : `https://scholar.google.com/scholar?q=${encodeURIComponent(p.title)}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition-all border flex items-center gap-1.5 ${
+                                darkMode 
+                                  ? 'bg-slate-700/80 hover:bg-slate-700 border-slate-600 text-slate-200' 
+                                  : 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700 shadow-xs'
+                              }`}
+                              title="Xem bài gốc / Tải PDF"
+                            >
+                              <Download className="w-3.5 h-3.5 text-blue-500" />
+                              <span>PDF</span>
+                              <ExternalLink className="w-3 h-3 text-slate-400" />
+                            </a>
+
+                            <button
+                              onClick={() => handleOpenAiScreening({
+                                id: p.id || p.doi || p.title,
+                                title: p.title,
+                                authors: p.authors,
+                                year: p.year,
+                                abstract: p.relevance_note || '',
+                                journal: p.venue || '',
+                                doi: p.doi || 'N/A'
+                              })}
+                              className="px-2.5 py-1.5 rounded-xl text-[11px] font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition-all flex items-center gap-1.5"
+                              title="Kiểm tra AI Screening bài này"
+                            >
+                              <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
+                              <span>Screening</span>
+                            </button>
+
+                            <button
+                              onClick={() => handleAddGenealogyPaper(p)}
+                              className={`px-3 py-1.5 rounded-xl text-[11px] font-bold shadow-xs transition-all flex items-center gap-1.5 ${
+                                papers.some(item => item.title.toLowerCase() === p.title.toLowerCase())
+                                  ? 'bg-emerald-600 text-white cursor-default'
+                                  : 'bg-amber-600 hover:bg-amber-700 text-white hover:scale-105 active:scale-95'
+                              }`}
+                            >
+                              {papers.some(item => item.title.toLowerCase() === p.title.toLowerCase()) ? (
+                                <>
+                                  <Check className="w-3.5 h-3.5" />
+                                  <span>Đã trong danh sách</span>
+                                </>
+                              ) : (
+                                <>
+                                  <PlusCircle className="w-3.5 h-3.5" />
+                                  <span>+ Thêm bài này</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Column 2: Forward Descendants */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between pb-2 border-b border-sky-200 dark:border-sky-900/60">
+                      <div className="flex items-center gap-2">
+                        <span className="text-base">🚀</span>
+                        <h4 className="font-display font-bold text-xs uppercase tracking-wider text-sky-700 dark:text-sky-400">
+                          Kế Thừa & Phát Triển Mới (Forward Citations)
+                        </h4>
+                      </div>
+                      <span className="text-[11px] font-bold text-slate-400">
+                        {genealogyData.forward_descendants?.length || 0} công trình
+                      </span>
+                    </div>
+
+                    <div className="space-y-3">
+                      {genealogyData.forward_descendants?.map((p, idx) => (
+                        <div 
+                          key={idx}
+                          className={`p-4 rounded-2xl border transition-all ${
+                            darkMode ? 'bg-slate-800/40 border-slate-700 hover:border-sky-500/50' : 'bg-sky-50/20 border-sky-100 hover:border-sky-300'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <h5 className="font-bold text-xs text-slate-900 dark:text-slate-100 leading-snug">
+                              {p.title}
+                            </h5>
+                            <span className="shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-md bg-sky-100 dark:bg-sky-950 text-sky-800 dark:text-sky-300">
+                              {p.year}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                            {p.authors} • {p.venue || 'Journal/Conference'} • {p.citations ? p.citations.toLocaleString() : 0} citations
+                          </p>
+                          {p.relevance_note && (
+                            <p className="text-[11px] text-sky-800 dark:text-sky-300/90 mt-2 p-2 rounded-xl bg-sky-500/10 leading-relaxed font-medium">
+                              💡 {p.relevance_note}
+                            </p>
+                          )}
+                          <div className="pt-3 flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 dark:border-slate-700/60 mt-3">
+                            <a
+                              href={p.doi ? (p.doi.startsWith('http') ? p.doi : `https://doi.org/${p.doi}`) : `https://scholar.google.com/scholar?q=${encodeURIComponent(p.title)}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition-all border flex items-center gap-1.5 ${
+                                darkMode 
+                                  ? 'bg-slate-700/80 hover:bg-slate-700 border-slate-600 text-slate-200' 
+                                  : 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700 shadow-xs'
+                              }`}
+                              title="Xem bài gốc / Tải PDF"
+                            >
+                              <Download className="w-3.5 h-3.5 text-blue-500" />
+                              <span>PDF</span>
+                              <ExternalLink className="w-3 h-3 text-slate-400" />
+                            </a>
+
+                            <button
+                              onClick={() => handleOpenAiScreening({
+                                id: p.id || p.doi || p.title,
+                                title: p.title,
+                                authors: p.authors,
+                                year: p.year,
+                                abstract: p.relevance_note || '',
+                                journal: p.venue || '',
+                                doi: p.doi || 'N/A'
+                              })}
+                              className="px-2.5 py-1.5 rounded-xl text-[11px] font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition-all flex items-center gap-1.5"
+                              title="Kiểm tra AI Screening bài này"
+                            >
+                              <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
+                              <span>Screening</span>
+                            </button>
+
+                            <button
+                              onClick={() => handleAddGenealogyPaper(p)}
+                              className={`px-3 py-1.5 rounded-xl text-[11px] font-bold shadow-xs transition-all flex items-center gap-1.5 ${
+                                papers.some(item => item.title.toLowerCase() === p.title.toLowerCase())
+                                  ? 'bg-emerald-600 text-white cursor-default'
+                                  : 'bg-sky-600 hover:bg-sky-700 text-white hover:scale-105 active:scale-95'
+                              }`}
+                            >
+                              {papers.some(item => item.title.toLowerCase() === p.title.toLowerCase()) ? (
+                                <>
+                                  <Check className="w-3.5 h-3.5" />
+                                  <span>Đã trong danh sách</span>
+                                </>
+                              ) : (
+                                <>
+                                  <PlusCircle className="w-3.5 h-3.5" />
+                                  <span>+ Thêm bài này</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                </div>
+              ) : null}
+            </div>
+
+            {/* Footer */}
+            <div className="border-t pt-4 border-slate-200 dark:border-slate-800 flex justify-end">
+              <button
+                onClick={() => { setGenealogyPaper(null); setGenealogyData(null); }}
+                className="px-6 py-2.5 rounded-xl text-xs font-bold bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 transition-colors"
               >
                 Đóng (X)
               </button>

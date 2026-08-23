@@ -1,0 +1,22 @@
+id,type,retrieval_recall,answer_accuracy,citation_precision,llm_score,refusal_correct,total_citations,ragas_faithfulness,ragas_relevancy,elapsed_sec,error
+CONFIG,META,,,,,,,,,,"MIN_RELEVANCE_SCORE=2, MAX_CONTEXT_CHUNKS=10"
+f001,factual,1.0,0,0.0,0,,0,0.0,0.0,4.92,Gen error: Connection error.
+f002,factual,0.0,0,0.0,0,,0,0.0,0.0,5.09,Gen error: Connection error.
+f003,factual,0.0,0,0.0,0,,0,0.0,0.0,3.12,Gen error: Connection error.
+f004,factual,0.0,0,0.0,0,,0,0.0,0.0,2.96,Gen error: Connection error.
+f005,factual,0.0,0,0.0,0,,0,0.0,0.0,2.96,Gen error: Connection error.
+f006,factual,1.0,0,0.0,0,,0,0.0,0.0,3.21,Gen error: Connection error.
+f007,factual,0.0,0,0.0,0,,0,0.0,0.0,2.87,Gen error: Connection error.
+f008,factual,1.0,0,0.0,0,,0,0.0,0.0,3.04,Gen error: Connection error.
+f009,factual,0.0,0,0.0,0,,0,0.0,0.0,3.12,Gen error: Connection error.
+s001,factual,1.0,0,0.0,0,,0,0.0,0.0,2.99,Gen error: Connection error.
+s002,factual,0.0,0,0.0,0,,0,0.0,0.0,3.09,Gen error: Connection error.
+s003,factual,1.0,0,0.0,0,,0,0.0,0.0,3.09,Gen error: Connection error.
+s004,factual,1.0,0,0.0,0,,0,0.0,0.0,3.06,Gen error: Connection error.
+c001,synthesis,0.0,0,0.0,0,,0,0.0,0.0,2.92,Gen error: Connection error.
+c002,synthesis,0.0,0,0.0,0,,0,0.0,0.0,2.89,Gen error: Connection error.
+c003,synthesis,0.0,0,0.0,0,,0,0.0,0.0,3.16,Gen error: Connection error.
+c004,synthesis,0.0,0,0.0,0,,0,0.0,0.0,3.01,Gen error: Connection error.
+d001,factual,1.0,0,0.0,0,,0,0.0,0.0,2.84,Gen error: Connection error.
+d002,factual,0.0,0,0.0,0,,0,0.0,0.0,3.12,Gen error: Connection error.
+d003,factual,0.0,0,0.0,0,,0,0.0,0.0,2.84,Gen error: Connection error.
