@@ -53,8 +53,8 @@ export function SimpleBarChart({ data = [], title = '', xLabel = '', yLabel = ''
             {title || 'Biểu đồ phân bố định lượng'}
           </h4>
         </div>
-        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
-          Tổng: {totalVal.toLocaleString()}
+        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
+          {data.length} {data.length === 1 ? 'mục' : 'nhóm/chỉ số'}
         </span>
       </div>
 
@@ -76,10 +76,11 @@ export function SimpleBarChart({ data = [], title = '', xLabel = '', yLabel = ''
               >
                 {/* Hover Tooltip */}
                 {isHover && (
-                  <div className="absolute -top-7 z-20 px-2 py-1 rounded-md text-[10px] font-bold bg-slate-900 text-white shadow-lg whitespace-nowrap animate-in fade-in duration-100">
-                    {item.name}: {val.toLocaleString()} ({totalVal ? Math.round((val / totalVal) * 100) : 0}%)
+                  <div className="absolute -top-7 z-20 px-2.5 py-1 rounded-md text-[10px] font-bold bg-slate-900 text-white shadow-lg whitespace-nowrap animate-in fade-in duration-100">
+                    {item.name}: {val.toLocaleString()}
                   </div>
                 )}
+
 
                 {/* Bar */}
                 <div 

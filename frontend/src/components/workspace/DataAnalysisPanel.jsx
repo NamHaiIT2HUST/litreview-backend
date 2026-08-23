@@ -931,6 +931,9 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
           charts: data.charts ?? (data.chart ? [data.chart] : null),
           kpis: data.kpis ?? null,
           profile: data.dataset_profile ?? null,
+          python_code: data.python_code ?? null,
+          figures: data.figures ?? null,
+          block_outputs: data.block_outputs ?? null,
         }
       ]);
     } catch (err) {
@@ -1080,34 +1083,70 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
                   </div>
                 )}
 
-                {/* Markdown Narrative */}
                 <div className={msg.sender === 'user' ? 'whitespace-pre-wrap mb-3' : 'prose prose-slate dark:prose-invert max-w-none prose-p:text-[13.5px] prose-p:leading-relaxed prose-headings:font-bold prose-h1:text-[16px] prose-h2:text-[15px] prose-h3:text-[14px] prose-li:text-[13.5px] prose-pre:bg-slate-900 prose-table:text-[12.5px] mb-3'}>
                   {msg.sender === 'user' ? msg.text : (
-                    <ReactMarkdown 
-                      remarkPlugins={[remarkMath, remarkGfm]}
-                      rehypePlugins={[rehypeKatex]}
-                      components={{
-                        code({node, inline, className, children, ...props}) {
-                          const match = /language-(\w+)/.exec(className || '')
-                          const lang = match ? match[1] : ''
-                          const codeStr = String(children).replace(/\n$/, '')
-                          if (!inline && (lang === 'python' || lang === 'py')) {
-                            return (
-                              <InteractiveCodeSandboxBlock 
-                                code={codeStr} 
-                                csvText={activeCsvText} 
-                                darkMode={dm} 
-                                isEn={isEn} 
-                              />
-                            )
-                          }
-                          return <code className={className} {...props}>{children}</code>
+                    (!msg.block_outputs || msg.block_outputs.length === 0) ? (
+                      <ReactMarkdown 
+                        remarkPlugins={[remarkMath, remarkGfm]}
+                        rehypePlugins={[rehypeKatex]}
+                      >
+                        {formatMathAndMarkdown(msg.text)}
+                      </ReactMarkdown>
+                    ) : (
+                      msg.text.split(/```(?:python|py)\s*[\r\n]+([\s\S]*?)```/i).map((part, index) => {
+                        if (index % 2 === 0) {
+                          if (!part.trim()) return null;
+                          return (
+                            <ReactMarkdown 
+                              key={index}
+                              remarkPlugins={[remarkMath, remarkGfm]}
+                              rehypePlugins={[rehypeKatex]}
+                            >
+                              {formatMathAndMarkdown(part)}
+                            </ReactMarkdown>
+                          );
+                        } else {
+                          const blockIndex = Math.floor(index / 2);
+                          const output = msg.block_outputs[blockIndex];
+                          return (
+                            <div key={index} className="my-4">
+                              <div className="rounded-lg bg-slate-900 border border-slate-800 overflow-hidden shadow-sm">
+                                <div className="px-3 py-1.5 bg-slate-800/80 border-b border-slate-800 text-[11px] font-mono text-slate-400 flex items-center gap-1.5">
+                                  <FileCode className="w-3.5 h-3.5" /> Python
+                                </div>
+                                <pre className="p-4 text-[13px] font-mono text-slate-300 overflow-x-auto whitespace-pre-wrap">
+                                  {part}
+                                </pre>
+                              </div>
+                              
+                              {output && (output.stdout || (output.figures && output.figures.length > 0)) && (
+                                <div className="mt-2 pl-2 border-l-4 border-blue-500/30">
+                                  {output.stdout && (
+                                    <pre className="p-3 text-[12px] font-mono text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/50 rounded-lg whitespace-pre-wrap mb-3 border border-slate-100 dark:border-slate-800">
+                                      {output.stdout}
+                                    </pre>
+                                  )}
+                                  {output.figures && output.figures.length > 0 && (
+                                    <div className="flex flex-col gap-4">
+                                      {output.figures.map((fig, fIdx) => (
+                                        <div key={fIdx} className="bg-white dark:bg-slate-900 p-2 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm inline-block">
+                                          <img 
+                                            src={fig} 
+                                            alt={`Figure ${blockIndex}-${fIdx}`} 
+                                            className="max-w-full h-auto rounded-lg cursor-pointer hover:opacity-95 transition-opacity"
+                                            onClick={() => setSelectedZoomFigure(fig)}
+                                          />
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
                         }
-                      }}
-                    >
-                      {formatMathAndMarkdown(msg.text)}
-                    </ReactMarkdown>
-
+                      })
+                    )
                   )}
                 </div>
 
@@ -1116,12 +1155,71 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
                   <KPICardsGrid kpis={msg.kpis} darkMode={dm} />
                 )}
 
-                {/* Interactive Visual Charts */}
+                {/* Interactive Visual Charts (Recharts) */}
                 {msg.charts && msg.charts.length > 0 && (
                   <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mt-4">
                     {msg.charts.map((chartItem, cIdx) => (
                       <DynamicDataChart key={cIdx} chart={chartItem} darkMode={dm} />
                     ))}
+                  </div>
+                )}
+
+                {/* Scientific Figures & Plots (Matplotlib) - Fallback for non-interleaved */}
+                {msg.figures && msg.figures.length > 0 && (!msg.block_outputs || msg.block_outputs.length === 0) && (
+                  <div className="my-5 p-4 rounded-2xl border bg-slate-900/90 dark:bg-slate-900/90 border-slate-700/80 shadow-xl">
+                    <div className="flex items-center justify-between gap-2 mb-3 pb-2 border-b border-slate-700/80 text-white">
+                      <div className="flex items-center gap-2">
+                        <Image className="w-4 h-4 text-sky-400" />
+                        <h4 className="font-bold text-xs text-slate-100">
+                          {isEn ? "Scientific Data Visualizations & Plots" : "Đồ thị Trực quan hóa Dữ liệu Thực nghiệm (EDA Figures)"}
+                        </h4>
+                      </div>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/30">
+                        {msg.figures.length} {isEn ? "figures" : "đồ thị trực quan"}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                      {msg.figures.map((figBase64, fIdx) => (
+                        <div key={fIdx} className="rounded-xl overflow-hidden border border-slate-800 bg-slate-950 p-2.5 group relative flex flex-col shadow-md">
+                          <div 
+                            className="relative overflow-hidden rounded-lg cursor-pointer bg-white flex items-center justify-center min-h-[220px]" 
+                            onClick={() => setSelectedZoomFigure(figBase64)}
+                          >
+                            <img 
+                              src={figBase64} 
+                              alt={`Figure ${fIdx + 1}`} 
+                              className="w-full h-auto object-contain max-h-[300px] group-hover:scale-[1.02] transition-transform duration-200" 
+                            />
+                            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                              <span className="px-3 py-1.5 rounded-lg bg-black/75 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg backdrop-blur-xs">
+                                <Maximize2 className="w-3.5 h-3.5" />
+                                {isEn ? "Click to enlarge" : "Phóng to"}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="mt-2 pt-2 border-t border-slate-800 flex items-center justify-between text-[11px] text-slate-400">
+                            <span className="font-mono font-semibold">Đồ thị #{fIdx + 1}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Technical Appendix: Python EDA Sandbox & Notebook Export (At the very end) */}
+                {msg.python_code && (
+                  <div className="mt-5 pt-3 border-t border-slate-200 dark:border-slate-800/80">
+                    <div className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-1.5">
+                      <FileCode className="w-4 h-4 text-emerald-500" />
+                      <span>{isEn ? "Technical Appendix: Executable Python Script & Notebook Export" : "Phụ lục Kỹ thuật: Mã nguồn tổng hợp EDA & Công cụ Sandbox"}</span>
+                    </div>
+                    <InteractiveCodeSandboxBlock 
+                      code={msg.python_code} 
+                      csvText={activeCsvText} 
+                      darkMode={dm} 
+                      isEn={isEn} 
+                    />
                   </div>
                 )}
 

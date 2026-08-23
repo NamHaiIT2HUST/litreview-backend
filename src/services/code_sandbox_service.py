@@ -60,14 +60,14 @@ class StatisticalInsight(BaseModel):
 
 class CodeExecutionResponse(BaseModel):
     success: bool
+    error: Optional[str] = None
     stdout: str = ""
     stderr: str = ""
-    figures: List[str] = Field(default_factory=list, description="Base64-encoded PNG figures from matplotlib/seaborn")
-    tables: List[TableResult] = Field(default_factory=list, description="Extracted DataFrames and tabular results")
-    insights: List[StatisticalInsight] = Field(default_factory=list, description="Automated statistical and data science insights")
     execution_time_ms: int = 0
-    error: Optional[str] = None
-    variables_summary: Optional[Dict[str, str]] = None
+    figures: List[str] = Field(default_factory=list, description="Base64 encoded matplotlib figures")
+    tables: List[TableResult] = Field(default_factory=list, description="Extracted DataFrame tables")
+    insights: List[StatisticalInsight] = Field(default_factory=list)
+    execution_stream: Optional[List[Dict[str, Any]]] = Field(default_factory=list, description="Ordered sequence of stdout text and figures")
 
 
 class SecurityCheckVisitor(ast.NodeVisitor):
@@ -131,6 +131,235 @@ class CodeSandboxService:
             timeout_seconds
         )
 
+    async def execute_blocks_async(
+        self,
+        blocks: List[str],
+        csv_text: str = "",
+        timeout_seconds: float = 25.0
+    ) -> List[dict]:
+        """Executes a list of code blocks sequentially in the same environment."""
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(
+            None,
+            self._execute_blocks_sync,
+            blocks,
+            csv_text,
+            timeout_seconds
+        )
+
+    def _execute_blocks_sync(
+        self,
+        blocks: List[str],
+        csv_text: str = "",
+        timeout_seconds: float = 25.0
+    ) -> List[dict]:
+        t0 = time.time()
+        
+        # Setup sandbox execution namespace
+        import io as py_io
+        import pandas as pd
+        import numpy as np
+
+        def safe_import(name, *args, **kwargs):
+            root = name.split(".")[0]
+            if root in DISALLOWED_MODULES:
+                raise ImportError(f"Importing module '{name}' is prohibited in the sandbox.")
+            return __import__(name, *args, **kwargs)
+
+        sandbox_globals: Dict[str, Any] = {
+            "__builtins__": {
+                "__import__": safe_import,
+                "abs": abs, "all": all, "any": any, "bin": bin, "bool": bool,
+                "bytes": bytes, "chr": chr, "dict": dict, "dir": dir, "divmod": divmod,
+                "enumerate": enumerate, "filter": filter, "float": float, "format": format,
+                "frozenset": frozenset, "hasattr": hasattr, "hash": hash, "hex": hex,
+                "int": int, "isinstance": isinstance, "issubclass": issubclass, "iter": iter,
+                "len": len, "list": list, "map": map, "max": max, "min": min, "next": next,
+                "oct": oct, "ord": ord, "pow": pow, "print": print, "range": range,
+                "repr": repr, "reversed": reversed, "round": round, "set": set,
+                "slice": slice, "sorted": sorted, "str": str, "sum": sum, "tuple": tuple,
+                "type": type, "vars": vars, "zip": zip,
+                "Exception": Exception, "ValueError": ValueError, "TypeError": TypeError,
+                "KeyError": KeyError, "IndexError": IndexError, "RuntimeError": RuntimeError,
+            },
+            "pd": pd,
+            "pandas": pd,
+            "np": np,
+            "numpy": np,
+        }
+
+        try:
+            import scipy
+            import scipy.stats as stats
+            sandbox_globals["scipy"] = scipy
+            sandbox_globals["stats"] = stats
+        except ImportError:
+            pass
+
+        try:
+            import sklearn
+            sandbox_globals["sklearn"] = sklearn
+        except ImportError:
+            pass
+
+        # Matplotlib setup
+        try:
+            import matplotlib
+            matplotlib.use("Agg")
+            import matplotlib.pyplot as plt
+            plt.clf()
+            plt.close("all")
+            sandbox_globals["plt"] = plt
+            sandbox_globals["matplotlib"] = matplotlib
+            
+            try:
+                import seaborn as sns
+                sandbox_globals["sns"] = sns
+                sandbox_globals["seaborn"] = sns
+            except ImportError:
+                pass
+        except ImportError:
+            plt = None
+
+        # Pre-load DataFrame if CSV text is supplied
+        df = None
+        raw_csv = (csv_text or "").strip()
+        if raw_csv:
+            try:
+                first_line = raw_csv.split('\n')[0]
+                sep = '\t' if '\t' in first_line and first_line.count('\t') > first_line.count(',') else (';' if ';' in first_line and first_line.count(';') > first_line.count(',') else ',')
+                try:
+                    df = pd.read_csv(py_io.StringIO(raw_csv), sep=sep, on_bad_lines='skip')
+                except Exception:
+                    df = pd.read_csv(py_io.StringIO(raw_csv), on_bad_lines='skip')
+                sandbox_globals["df"] = df
+                sandbox_globals["data"] = df
+            except Exception as e:
+                logger.warning(f"Could not initialize dataframe from CSV: {e}")
+
+        orig_read_csv = pd.read_csv
+        orig_read_table = pd.read_table
+        orig_read_excel = getattr(pd, "read_excel", None)
+
+        def smart_read_csv(filepath_or_buffer, *args, **kwargs):
+            if isinstance(filepath_or_buffer, str):
+                import os
+                if not os.path.exists(filepath_or_buffer):
+                    if df is not None: return df.copy()
+                    if raw_csv: return orig_read_csv(py_io.StringIO(raw_csv), *args, **kwargs)
+            return orig_read_csv(filepath_or_buffer, *args, **kwargs)
+
+        def smart_read_table(filepath_or_buffer, *args, **kwargs):
+            if isinstance(filepath_or_buffer, str):
+                import os
+                if not os.path.exists(filepath_or_buffer):
+                    if df is not None: return df.copy()
+                    if raw_csv: return orig_read_table(py_io.StringIO(raw_csv), *args, **kwargs)
+            return orig_read_table(filepath_or_buffer, *args, **kwargs)
+
+        def smart_read_excel(filepath_or_buffer, *args, **kwargs):
+            if isinstance(filepath_or_buffer, str):
+                import os
+                if not os.path.exists(filepath_or_buffer):
+                    if df is not None: return df.copy()
+                    if raw_csv: return orig_read_csv(py_io.StringIO(raw_csv))
+            if orig_read_excel:
+                try: return orig_read_excel(filepath_or_buffer, *args, **kwargs)
+                except Exception: pass
+            if df is not None: return df.copy()
+            if raw_csv: return orig_read_csv(py_io.StringIO(raw_csv))
+            raise FileNotFoundError(f"File {filepath_or_buffer} not found and no in-memory dataset available.")
+
+        pd.read_csv = smart_read_csv
+        pd.read_table = smart_read_table
+        if orig_read_excel: pd.read_excel = smart_read_excel
+
+        results = []
+        for i, block in enumerate(blocks):
+            clean_code = block.strip()
+            if clean_code.startswith("```"):
+                clean_code = re.sub(r"^```(?:python|py)?\s*\n", "", clean_code)
+                clean_code = re.sub(r"\n```$", "", clean_code)
+            
+            block_output = {"stdout": "", "stderr": "", "figures": []}
+            
+            if not clean_code:
+                results.append(block_output)
+                continue
+                
+            security_error = validate_python_code(clean_code)
+            if security_error:
+                block_output["stderr"] = f"Rào chắn bảo mật Sandbox: {security_error}"
+                results.append(block_output)
+                continue
+
+            stdout_buf = io.StringIO()
+            def custom_print(*args, **kwargs):
+                sep = kwargs.get("sep", " ")
+                end = kwargs.get("end", "\n")
+                stdout_buf.write(sep.join(str(a) for a in args) + end)
+
+            sandbox_globals["__builtins__"]["print"] = custom_print
+
+            figures_base64 = []
+            if plt:
+                def custom_show(*args, **kwargs):
+                    try:
+                        fig_nums = plt.get_fignums()
+                        for num in fig_nums:
+                            fig = plt.figure(num)
+                            try: fig.tight_layout(pad=2.0)
+                            except Exception: pass
+                            buf = io.BytesIO()
+                            fig.savefig(buf, format="png", bbox_inches="tight", dpi=160)
+                            buf.seek(0)
+                            img_str = base64.b64encode(buf.read()).decode("utf-8")
+                            figures_base64.append(f"data:image/png;base64,{img_str}")
+                            buf.close()
+                        plt.close("all")
+                    except Exception as e:
+                        pass
+                plt.show = custom_show
+
+            def custom_display(*args):
+                for a in args:
+                    custom_print(a)
+            sandbox_globals["display"] = custom_display
+            sandbox_globals["__builtins__"]["display"] = custom_display
+
+            try:
+                parsed = ast.parse(clean_code)
+                if parsed.body and isinstance(parsed.body[-1], ast.Expr):
+                    last_expr = parsed.body.pop()
+                    if parsed.body:
+                        compiled_lead = compile(ast.Module(body=parsed.body, type_ignores=[]), filename=f"<sandbox_block_{i}>", mode="exec")
+                        exec(compiled_lead, sandbox_globals)
+                    val = eval(compile(ast.Expression(last_expr.value), filename=f"<sandbox_block_{i}_eval>", mode="eval"), sandbox_globals)
+                    if val is not None:
+                        custom_print(val)
+                else:
+                    compiled = compile(clean_code, filename=f"<sandbox_block_{i}>", mode="exec")
+                    exec(compiled, sandbox_globals)
+                
+                # Check for unshown figures
+                if plt:
+                    fig_nums = plt.get_fignums()
+                    if fig_nums:
+                        plt.show()
+                        
+            except Exception as exc:
+                block_output["stderr"] = f"{type(exc).__name__}: {exc}"
+            
+            block_output["stdout"] = stdout_buf.getvalue()
+            block_output["figures"] = figures_base64
+            results.append(block_output)
+
+        pd.read_csv = orig_read_csv
+        pd.read_table = orig_read_table
+        if orig_read_excel: pd.read_excel = orig_read_excel
+        
+        return results
+
     def _execute_code_sync(
         self,
         code: str,
@@ -163,6 +392,8 @@ class CodeSandboxService:
             )
 
         # 3. Setup sandbox execution namespace with scientific libraries
+        execution_stream = []
+
         import io as py_io
         import pandas as pd
         import numpy as np
@@ -219,6 +450,30 @@ class CodeSandboxService:
             import matplotlib.pyplot as plt
             plt.clf()
             plt.close("all")
+            
+            orig_show = plt.show
+            def custom_show(*args, **kwargs):
+                try:
+                    fig_nums = plt.get_fignums()
+                    for num in fig_nums:
+                        fig = plt.figure(num)
+                        try:
+                            fig.tight_layout(pad=2.0)
+                        except Exception:
+                            pass
+                        buf = io.BytesIO()
+                        fig.savefig(buf, format="png", bbox_inches="tight", dpi=160)
+                        buf.seek(0)
+                        img_str = base64.b64encode(buf.read()).decode("utf-8")
+                        b64_fig = f"data:image/png;base64,{img_str}"
+                        figures_base64.append(b64_fig)
+                        execution_stream.append({"type": "figure", "content": b64_fig})
+                        buf.close()
+                    plt.close("all")
+                except Exception as e:
+                    pass
+            
+            plt.show = custom_show
             sandbox_globals["plt"] = plt
             sandbox_globals["matplotlib"] = matplotlib
             
@@ -247,23 +502,52 @@ class CodeSandboxService:
             except Exception as e:
                 logger.warning(f"Could not initialize dataframe from CSV: {e}")
 
-        # Hook pd.read_csv, pd.read_table so any filename lookup redirects to in-memory csv_text
+        # Hook pd.read_csv, pd.read_table, pd.read_excel so any filename lookup redirects to in-memory df or csv_text
         orig_read_csv = pd.read_csv
         orig_read_table = pd.read_table
+        orig_read_excel = getattr(pd, "read_excel", None)
 
         def smart_read_csv(filepath_or_buffer, *args, **kwargs):
-            if isinstance(filepath_or_buffer, str) and raw_csv:
+            if isinstance(filepath_or_buffer, str):
                 import os
                 if not os.path.exists(filepath_or_buffer):
-                    return orig_read_csv(py_io.StringIO(raw_csv), *args, **kwargs)
+                    if df is not None:
+                        return df.copy()
+                    if raw_csv:
+                        return orig_read_csv(py_io.StringIO(raw_csv), *args, **kwargs)
             return orig_read_csv(filepath_or_buffer, *args, **kwargs)
 
         def smart_read_table(filepath_or_buffer, *args, **kwargs):
-            if isinstance(filepath_or_buffer, str) and raw_csv:
+            if isinstance(filepath_or_buffer, str):
                 import os
                 if not os.path.exists(filepath_or_buffer):
-                    return orig_read_table(py_io.StringIO(raw_csv), *args, **kwargs)
+                    if df is not None:
+                        return df.copy()
+                    if raw_csv:
+                        return orig_read_table(py_io.StringIO(raw_csv), *args, **kwargs)
             return orig_read_table(filepath_or_buffer, *args, **kwargs)
+
+        def smart_read_excel(filepath_or_buffer, *args, **kwargs):
+            if isinstance(filepath_or_buffer, str):
+                import os
+                if not os.path.exists(filepath_or_buffer):
+                    if df is not None:
+                        return df.copy()
+                    if raw_csv:
+                        return orig_read_csv(py_io.StringIO(raw_csv))
+            if orig_read_excel:
+                try:
+                    return orig_read_excel(filepath_or_buffer, *args, **kwargs)
+                except Exception:
+                    if df is not None:
+                        return df.copy()
+                    if raw_csv:
+                        return orig_read_csv(py_io.StringIO(raw_csv))
+            if df is not None:
+                return df.copy()
+            if raw_csv:
+                return orig_read_csv(py_io.StringIO(raw_csv))
+            raise FileNotFoundError(f"File {filepath_or_buffer} not found and no in-memory dataset available.")
 
         # 4. Redirect stdout and stderr
         stdout_buf = io.StringIO()
@@ -274,8 +558,13 @@ class CodeSandboxService:
             end = kwargs.get("end", "\n")
             text = sep.join(str(a) for a in args) + end
             stdout_buf.write(text)
+            if execution_stream and execution_stream[-1]["type"] == "text":
+                execution_stream[-1]["content"] += text
+            else:
+                execution_stream.append({"type": "text", "content": text})
 
         sandbox_globals["__builtins__"]["print"] = custom_print
+
 
         exec_error: Optional[str] = None
         success = True
@@ -284,6 +573,8 @@ class CodeSandboxService:
         try:
             pd.read_csv = smart_read_csv
             pd.read_table = smart_read_table
+            if orig_read_excel:
+                pd.read_excel = smart_read_excel
             compiled = compile(clean_code, filename="<sandbox>", mode="exec")
             exec(compiled, sandbox_globals)
         except Exception as exc:
@@ -293,6 +584,9 @@ class CodeSandboxService:
         finally:
             pd.read_csv = orig_read_csv
             pd.read_table = orig_read_table
+            if orig_read_excel:
+                pd.read_excel = orig_read_excel
+
 
         # 6. Capture figures if any were plotted with anti-squish auto layout
         if plt is not None:
@@ -445,6 +739,7 @@ class CodeSandboxService:
             figures=figures_base64,
             tables=tables_list,
             insights=insights_list,
+            execution_stream=execution_stream,
             execution_time_ms=elapsed_ms,
             error=exec_error,
             variables_summary=vars_summary if vars_summary else None,

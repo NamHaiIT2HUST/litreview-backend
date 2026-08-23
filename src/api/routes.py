@@ -1109,6 +1109,9 @@ class DataAnalysisResponse(BaseModel):
     charts: Optional[List[ChartSpec]] = None
     kpis: Optional[List[KPISpec]] = None
     dataset_profile: Optional[DatasetProfile] = None
+    figures: Optional[List[str]] = None
+    python_code: Optional[str] = None
+    block_outputs: Optional[List[dict]] = None
 
 @router.post("/workspace/analyze-data", response_model=DataAnalysisResponse)
 async def workspace_analyze_data(request: DataAnalysisRequest) -> DataAnalysisResponse:
@@ -1220,29 +1223,28 @@ async def workspace_analyze_data(request: DataAnalysisRequest) -> DataAnalysisRe
         prompt_parts.append(f"\n--- TRÍCH ĐOẠN DỮ LIỆU THÔ (SAMPLE) ---\n```\n{preview}{truncation_note}\n```\n")
 
     prompt_parts.append(
-        "HƯỚNG DẪN TRẢ LỜI:\n"
-        "1. Trả lời chi tiết, chính xác, khách quan theo phong cách Exploratory Data Analysis (EDA) chuẩn mực.\n"
-        "2. ĐỂ HIỂN THỊ BIỂU ĐỒ TRÊN GIAO DIỆN: Bạn CÓ THỂ SINH NHIỀU KHỐI BIỂU ĐỒ TRỰC QUAN (đặc biệt khi người dùng yêu cầu Auto-EDA toàn diện). Mỗi biểu đồ nằm trong một thẻ ```json_chart ... ``` riêng biệt. LƯU Ý QUAN TRỌNG: Bạn PHẢI tự tổng hợp/gom nhóm dữ liệu trước khi đưa vào JSON.\n"
-        "```json_chart\n"
-        "{\n"
-        "  \"type\": \"bar\", // Chọn: \"bar\" (so sánh), \"line\" (xu hướng), \"donut\" (tỷ lệ phần trăm)\n"
-        "  \"title\": \"Tiêu đề biểu đồ ngắn gọn\",\n"
-        "  \"data\": [\n"
-        "    {\"name\": \"Nhóm A\", \"value\": 15},\n"
-        "    {\"name\": \"Nhóm B\", \"value\": 28}\n"
-        "  ],\n"
-        "  \"x_label\": \"Trục hoành\",\n"
-        "  \"y_label\": \"Trục tung\"\n"
-        "}\n"
-        "```\n"
-        "3. ĐỂ NGƯỜI DÙNG XUẤT CODE: Bạn PHẢI luôn sinh ra mã Python (pandas, matplotlib, seaborn) tương ứng để vẽ biểu đồ phức tạp hơn cho câu hỏi này. Đặt mã Python vào thẻ ```python ... ```.\n"
-        "4. Nếu có các chỉ số tổng kết quan trọng, hãy sinh khối JSON trong thẻ ```json_kpis ... ```:\n"
+        "HƯỚNG DẪN CẤU TRÚC BÁO CÁO EDA CHUẨN MỰC (PHONG CÁCH JUPYTER NOTEBOOK - MACHINE LEARNING CƠ BẢN):\n"
+        "Bạn PHẢI trình bày bài phân tích khám phá dữ liệu (EDA) theo từng phần mạch lạc, logic. BẮT BUỘC tuân thủ cấu trúc xen kẽ: [Lời giải thích/Đặt vấn đề] ➔ [Khối mã Python riêng biệt (vẽ biểu đồ hoặc in thống kê)] ➔ [Nhận xét, phân tích sâu về kết quả/đồ thị vừa tạo].\n\n"
+        "CÁC NGUYÊN TẮC BẮT BUỘC VỀ TRÌNH BÀY:\n"
+        "1. TÁCH BIỂU ĐỒ & CODE THÀNH TỪNG KHỐI RIÊNG: TUYỆT ĐỐI KHÔNG gom tất cả các biểu đồ vào một khối code duy nhất. Mỗi biểu đồ/mỗi mục phân tích PHẢI là một khối ```python riêng biệt.\n"
+        "2. VẼ BIỂU ĐỒ BẰNG MATPLOTLIB/SEABORN: KHÔNG dùng json_chart. Mỗi khối vẽ biểu đồ LUÔN LUÔN kết thúc bằng `plt.show()` để hệ thống xuất ảnh và chèn trực tiếp ngay dưới khối code đó.\n"
+        "3. PHÂN TÍCH CHUYÊN SÂU SAU MỖI KHỐI: Ngay sau mỗi khối code và biểu đồ, hãy viết mục 'Một vài quan sát / Nhận xét:' (dùng gạch đầu dòng) phân tích kỹ:\n"
+        "   - Hình dạng phân phối (phân phối chuẩn, lệch trái, lệch phải right-skewed, đuôi dài long-tail).\n"
+        "   - Giá trị ngoại lai (outliers) hoặc các điểm bị cắt ngọn (clipped values).\n"
+        "   - Mối tương quan thuận/nghịch giữa các biến và biến mục tiêu (target).\n"
+        "   - Ý nghĩa thực tế/nghiệp vụ của dữ liệu.\n"
+        "4. CẤU TRÚC GỢI Ý CHO MỘT BÀI EDA TOÀN DIỆN:\n"
+        "   - **1. Khám phá tổng quan**: Xem cấu trúc, số lượng hàng/cột, các dòng đầu tiên (`df.head()`), thống kê mô tả (`df.describe()`). Nhận xét về dữ liệu khuyết (missing values), các giá trị min/max bất thường.\n"
+        "   - **2. Phân tích phân phối đơn biến (Histograms / Boxplots)**: Tách riêng từng biểu đồ cho các biến quan trọng hoặc phân phối tổng thể (`df.hist(figsize=(...))`). Đưa ra nhận xét chi tiết cho từng biến.\n"
+        "   - **3. Phân tích biến hạng mục (Categorical Data)**: Đếm tần suất (`value_counts()`) hoặc vẽ biểu đồ cột (Countplot/Barplot). Nhận xét tỷ lệ chênh lệch giữa các nhóm.\n"
+        "   - **4. Phân tích độ tương quan đa biến (Correlation & Scatter Plots)**: Vẽ ma trận tương quan (Heatmap) hoặc Scatter plot giữa các cặp biến quan trọng nhất. Phân tích xu hướng và các nhóm điểm tập trung bất thường.\n"
+        "   - **5. Tổng kết & Đề xuất tiền xử lý**: Đề xuất các bước tiếp theo (xử lý khuyết, cắt ngọn/log transform cho biến lệch, mã hóa biến phân loại, lựa chọn đặc trưng cho mô hình ML).\n"
+        "5. Nếu có các chỉ số tổng kết quan trọng, hãy sinh khối JSON trong thẻ ```json_kpis ... ```:\n"
         "```json_kpis\n"
         "[\n"
         "  {\"label\": \"Tổng số bản ghi\", \"value\": 10, \"subtext\": \"Dữ liệu hợp lệ\"}\n"
         "]\n"
         "```\n"
-        "5. Hãy viết nội dung phân tích thuyết minh trước, các khối ```json_chart```, ```python``` và ```json_kpis``` đặt ở vị trí phù hợp hoặc cuối câu trả lời."
     )
 
     full_prompt = "\n".join(prompt_parts)
@@ -1294,10 +1296,33 @@ async def workspace_analyze_data(request: DataAnalysisRequest) -> DataAnalysisRe
         cleaned_answer = re.sub(r'```json_chart[\s\S]*?```', '', raw_text)
         cleaned_answer = re.sub(r'```json_kpis[\s\S]*?```', '', cleaned_answer).strip()
 
+        # 4.5 Trích xuất mã Python và chạy ngầm (Backend Execution) để lấy block outputs
+        py_matches = list(re.finditer(r'```(?:python|py)\s*(.*?)\s*```', cleaned_answer, re.DOTALL | re.IGNORECASE))
+        extracted_python = ""
+        block_outputs = []
+        
+        if py_matches:
+            blocks = [m.group(1).strip() for m in py_matches]
+            extracted_python = "\n\n".join(blocks)
+            
+            # Execute all blocks sequentially in sandbox to get outputs for each block
+            if request.csv_text.strip():
+                try:
+                    from src.services.code_sandbox_service import code_sandbox_service
+                    block_outputs = await code_sandbox_service.execute_blocks_async(
+                        blocks=blocks,
+                        csv_text=request.csv_text.strip(),
+                        timeout_seconds=25.0
+                    )
+                except Exception as ex:
+                    logger.warning(f"Background python execution failed: {ex}")
+
         return DataAnalysisResponse(
             answer=cleaned_answer or "Hoàn tất phân tích dữ liệu.",
             charts=charts_list if charts_list else None,
             kpis=kpis_list if kpis_list else None,
+            python_code=extracted_python if extracted_python else None,
+            block_outputs=block_outputs if block_outputs else None,
             dataset_profile=dataset_profile,
         )
 
