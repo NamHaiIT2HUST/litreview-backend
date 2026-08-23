@@ -84,6 +84,17 @@ class Settings(BaseSettings):
     fast_v2_relevance_threshold: float = 0.0
     fast_v2_candidates_per_dimension: int = Field(default=40, ge=1, le=200)
 
+    # Reranker selection. "identity" performs NO reranking -- it is the safe,
+    # deterministic default so importing/running fast_v2 (and CI) never
+    # downloads a checkpoint. "cross_encoder" is the reranker the validated
+    # Evidence-First / Dimension-Aware v1 experiments actually used
+    # (cross-encoder/ms-marco-MiniLM-L-6-v2, see
+    # src/synthesis/fast_v2/selection/cross_encoder.py for the provenance
+    # citations). It must be opted into explicitly; a typo fails loudly rather
+    # than silently changing which evidence reaches the bank.
+    fast_v2_reranker: Literal["identity", "cross_encoder"] = "identity"
+    fast_v2_reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+
     # Database
     database_url: str = "sqlite:///./data/app.db"
 

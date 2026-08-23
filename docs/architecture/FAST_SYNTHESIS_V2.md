@@ -192,8 +192,10 @@ Additional limitations:
   production threshold.
 - The relevance gate `score > 0` is likewise **not** calibrated.
 - The core benchmark corpus is only Xu2010/Xu2018. No held-out generalization.
-- The reranker is an injected interface in this worktree; no cross-encoder
-  implementation ships here (see section J).
+- A concrete cross-encoder adapter now ships (section J), but it is **not the
+  default**, and it has **not** been re-validated against the RQ1/RQ2 v1
+  evidence banks — see "Reranker wiring status" in section J for exactly what
+  could and could not be verified.
 
 ## J. Final fast_v2 architecture
 
@@ -225,13 +227,87 @@ dedup, claim-graph generation, or iterative QA loops into fast_v2.
 
 ### Reranker
 
-`src/synthesis/fast_v2/selection/rerank.py` defines an `EvidenceReranker`
-protocol only. **No reranker model, service, or scoring convention is
-introduced by this freeze** — the target worktree contains none, and the
-validated experiments used an externally supplied cross-encoder. The protocol
-documents the call signature and the return-order contract (returns
-`(index, score)` pairs, caller re-associates; ordering is the reranker's
-output order, not the input order). Wiring a concrete reranker is a follow-up.
+`src/synthesis/fast_v2/selection/rerank.py` defines the `EvidenceReranker`
+protocol. Its contract is unchanged: `rerank(query, texts)` returns
+`(index, score)` pairs, the caller re-associates by `index`, ordering is the
+reranker's output order (not input order), and scores are raw cross-encoder
+logits which are unbounded and legitimately negative.
+
+#### The model
+
+`src/synthesis/fast_v2/selection/cross_encoder.py` implements
+`CrossEncoderReranker` over **`cross-encoder/ms-marco-MiniLM-L-6-v2`**.
+
+That is the reranker the validated Evidence-First / Hygiene / Dimension-Aware
+work actually ran against. It is not a new choice — it is the repository's
+pre-existing reranker, declared at `src/services/reranker.py:13` on the
+`feat/phase123-eval-hybrid-agentic` worktree and imported by every
+Evidence-First spike there (`spike_evidence_first_v0.py:61`,
+`spike_evidence_first_v1_context_budget.py:61`,
+`spike_evidence_first_v2_section_routing.py:61`, `spike_global_extraction.py:45`,
+`spike_global_extraction_v2.py:31`) as "the existing cross-encoder reranker".
+
+`Qwen/Qwen3-Reranker-0.6B` (`feat/scientific-reranker-mvp`,
+`src/services/qwen_reranker.py:12`) is documented in that worktree as a
+"Candidate replacement for the MiniLM reranker slot" whose real inference was
+deferred to Colab. It did **not** produce the v1 numbers and is deliberately
+NOT implemented here. Nor is the locally fine-tuned QASPER checkpoint under
+`scientific-reranker/final_model` (`run_manifest.json`, base
+`ms-marco-MiniLM-L6-v2`), which belongs to a separate evaluation.
+
+#### Call contract, preserved exactly
+
+Upstream built `(query, doc.page_content)` pairs — query first, input order —
+scored them with `CrossEncoder.predict`, and sorted **score-descending**. The
+adapter reproduces all of that; the only shape change is returning `(index,
+score)` instead of `(Document, score)`, so nothing can positionally mis-pair
+evidence with scores.
+
+Verified live against the real checkpoint (offline, cached): adapter output is
+byte-identical to the upstream call in both index order and score values.
+Observed logit range on a 5-passage probe: **-11.42 .. +5.91**.
+
+Note what that range implies for the *uncalibrated* `score > 0` gate: on that
+probe only 1 of 5 passages cleared it. The gate and this model's score scale
+are coupled; re-calibrating one without the other is not meaningful.
+
+#### Selection
+
+`fast_v2_reranker` (`src/config.py`) is `Literal["identity", "cross_encoder"]`
+and defaults to **`"identity"`** — `IdentityReranker`, which performs no
+reranking. `src/synthesis/fast_v2/selection/factory.py::build_reranker`
+resolves it. The default keeps imports, CI, and CPU-only machines free of a
+checkpoint download and keeps tests deterministic; an unknown value fails
+loudly. The model loads lazily on the first `rerank` call, never at import or
+construction (asserted by AST and subprocess tests, matching the OpenScholar
+discipline).
+
+#### Reranker wiring status — what is NOT validated
+
+The RQ1/RQ2 Dimension-Aware v1 evidence banks (RQ1 9 units, Xu2018=7,
+Xu2010=2; RQ2 7 units, Xu2018=4, Xu2010=3) have **not** been reproduced with
+this adapter, and could not be. Absent from disk anywhere searched:
+
+- `dimension_aware_lib.py`, `run_dimension_aware_v1.py`, `test_dimension_aware.py`;
+- `rq1_dimension_v1.json`, `rq2_dimension_v1.json`, `dimension_aware_summary.json`,
+  `evidence_hygiene_report.md`, `rq1/rq2_before_after.json`;
+- the RQ1/RQ2 research-question texts and the explicit dimension lists they used;
+- the ingested corpus instance itself — the spikes reference Xu2010
+  `52c06c26-1dd1-486a-8c4f-202779ed5c7f` and Xu2018
+  `0373c7b5-3a9e-437d-a59a-a1baa9a708cc`, and neither the target worktree's
+  Chroma store (0 embeddings), `phase123-merge`'s (0 embeddings), nor the root
+  store (779 embeddings, different paper ids) contains them.
+
+`data/setB_benchmark.db` in the repo root does hold `5.-xu2010` / `6.-xu2018`
+chunk text, but under different paper ids from a different ingestion, with no
+matching embedding index and no recorded dimension queries. Running against it
+would produce a *new* number, not a comparison, so no such comparison was
+fabricated.
+
+Promotion criterion 6 is therefore **partially** met: the reranker is wired and
+its scoring convention is pinned by tests, but its effect on the evidence bank
+is unmeasured. Re-validating it requires re-ingesting Xu2010/Xu2018 and
+recovering the v1 dimension lists.
 
 ### EvidenceUnit vs EvidenceRecord — mapping
 
@@ -275,6 +351,8 @@ field from `source_chunk_id`, and both are carried.
 | Claim grounding | OPEN | quality failures remain |
 | General-purpose dimension decomposition | OPEN | current experiment used deterministic explicit dimensions |
 | Held-out generalization | OPEN | current core benchmark only Xu2010/Xu2018 |
+| Reranker model choice | FROZEN | `cross-encoder/ms-marco-MiniLM-L-6-v2`, the reranker the v1 spikes imported |
+| Reranker effect on the bank | OPEN | v1 banks not reproducible; corpus + dimension lists absent |
 
 ## L. What is explicitly NOT solved yet
 
@@ -287,8 +365,12 @@ field from `source_chunk_id`, and both are carried.
    validated experiments used manually specified dimensions.
 3. **Calibrated thresholds.** Hygiene 8.0 and relevance `> 0` are experimental
    defaults exposed as configuration, not calibrated values.
-4. **Reranker wiring.** Protocol only; no concrete implementation in this
-   worktree.
+4. **Reranker effect on the evidence bank.** `CrossEncoderReranker`
+   (`cross-encoder/ms-marco-MiniLM-L-6-v2`) is wired and its call/score
+   contract is pinned by tests, but the RQ1/RQ2 v1 banks were **not**
+   reproduced with it — the v1 scripts, artifacts, dimension lists and corpus
+   instance are gone. Default stays `identity`. See section J, "Reranker
+   wiring status".
 5. **Held-out corpus validation.** Only Xu2010/Xu2018.
 6. **Answer quality.** See section I. Latency is validated; factuality is not.
 
@@ -306,6 +388,10 @@ fast_v2 may only become the default when ALL of the following hold:
 5. A general dimension-decomposition strategy is designed and validated, or
    the API contractually requires caller-supplied dimensions.
 6. A concrete reranker is wired and its scoring convention is pinned by tests.
+   **PARTIAL.** `CrossEncoderReranker` is wired and its convention is pinned,
+   but it is still not the default and its effect on the RQ1/RQ2 evidence
+   banks is unmeasured. This criterion is met only once the v1 banks are
+   reproduced (or deliberately superseded) on a re-ingested corpus.
 7. End-to-end latency is re-measured on the production embedding backend, so
    the numbers are production-equivalent (see section D caveat).
 8. Legacy regression suite still passes and a quality A/B on a held-out set
