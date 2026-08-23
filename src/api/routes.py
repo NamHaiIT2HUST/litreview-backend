@@ -23,6 +23,7 @@ import uuid
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query, UploadFile, File, Form
+from fastapi.responses import JSONResponse
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -1082,6 +1083,24 @@ async def create_synthesis_session(
             detail="Papers do not belong to the selected project: "
             + ", ".join(str(item) for item in foreign_project),
         )
+
+    # Fast v2 (EXPERIMENTAL, opt-in via SYNTHESIS_MODE=fast_v2_experimental):
+    # runs synchronously in-request through the real composition root and
+    # returns the result directly, bypassing the Legacy session/graph/DB
+    # path entirely. Legacy path below is completely unchanged when this
+    # flag is off (the default).
+    if get_settings().fast_v2_enabled:
+        if not request.research_question or not request.research_question.strip():
+            raise HTTPException(
+                status_code=422,
+                detail="research_question is required for fast_v2_experimental synthesis",
+            )
+        from src.synthesis.fast_v2.runtime import run_fast_v2_synthesis
+
+        fast_v2_result = await run_fast_v2_synthesis(
+            paper_ids=paper_ids, research_question=request.research_question
+        )
+        return JSONResponse(status_code=200, content=fast_v2_result.to_dict())
 
     # Auto-ingest any papers missing active_ingestion_id
     from src.services.ingestion_service import ensure_paper_ingested

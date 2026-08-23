@@ -196,6 +196,10 @@ class FastSynthesisV2Pipeline:
                 "prompt_version": draft.prompt_version,
                 "finish_reason": draft.finish_reason,
                 "stop_reason": draft.stop_reason,
+                "generation_calls": draft.generation_calls,
+                "generation_network_ms": draft.generation_ms,
+                "input_tokens": draft.input_tokens,
+                "output_tokens": draft.output_tokens,
                 **finalized.diagnostics,
             },
         )

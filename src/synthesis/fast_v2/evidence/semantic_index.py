@@ -110,6 +110,17 @@ class FastV2SemanticIndex:
     def is_model_loaded(self) -> bool:
         return self._model is not None
 
+    def warm(self) -> None:
+        """Force the embedding model + Chroma collection handle to load now.
+
+        Pure warmup: no behaviour change, just moves the existing lazy-load
+        cost (``_load_model``/``_get_collection``) earlier so it does not
+        land inside a user request. Safe to call more than once (idempotent
+        -- both underlying loads are already memoised).
+        """
+        self._load_model()
+        self._get_collection()
+
     def _default_model_factory(self, model_name: str) -> Any:
         from sentence_transformers import SentenceTransformer
 

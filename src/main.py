@@ -24,6 +24,16 @@ async def lifespan(app: FastAPI):
     # Seed the default project so synthesis & direct-upload always work
     await _ensure_default_project()
     print("Default project seeded.")
+    # Fast v2 (EXPERIMENTAL): warm local evidence models (embedding +
+    # reranker) once at startup so a real request never pays cold-load
+    # latency. Zero LLM/API calls. Only runs when explicitly activated;
+    # fails the startup loudly rather than deferring a broken runtime to
+    # the first real request.
+    if settings.fast_v2_enabled:
+        from src.synthesis.fast_v2.runtime import warm_fast_v2
+
+        warmup_timings = await warm_fast_v2()
+        print(f"Fast v2 warmup complete: {warmup_timings}")
     # Run minimal Scopus seeding in the background to prevent blocking server port binding
     import asyncio
     asyncio.create_task(_ensure_minimal_scopus_sources())
