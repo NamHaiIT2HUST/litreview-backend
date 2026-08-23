@@ -1,8 +1,8 @@
-"""Structured claim-manifest prompt: ``p165_structured_claim_manifest_v1``.
+"""Structured claim-manifest prompt: ``p165_structured_claim_manifest_v2``.
 
 Evidence is serialized with stable evidence/paper IDs and raw canonical text
-so generated support quotes can be checked by exact substring. Output is one
-strict JSON manifest; P-165 validates provenance and owns final citations.
+so generated evidence IDs can be resolved deterministically. Output is one
+strict JSON manifest; P-165 derives canonical quotes and owns final citations.
 
 The legacy citation-sanitizing helper remains for compatibility tests and old
 artifacts. It is not used by the structured prompt.
@@ -15,7 +15,7 @@ from typing import Sequence
 
 from src.synthesis.fast_v2.evidence.models import EvidenceUnit
 
-PROMPT_VERSION = "p165_structured_claim_manifest_v1"
+PROMPT_VERSION = "p165_structured_claim_manifest_v2"
 
 RESPONSE_START = "[Response_Start]"
 RESPONSE_END = "[Response_End]"
@@ -67,7 +67,7 @@ def build_prompt(
 
     return f"""You are an AI research assistant. Use only the provided EvidenceUnits.
 
-EvidenceUnits (raw canonical text; copy support_quote exactly):
+EvidenceUnits:
 {references}
 
 Question:
@@ -77,16 +77,15 @@ Requested facets:
 {requested_facets}
 
 Return exactly one JSON object with this shape and no extra fields:
-{{"claims":[{{"facet":"<requested facet>","is_comparative":false,"statements":[{{"claim_text":"<one factual statement>","paper_id":"<selected paper UUID>","supports":[{{"evidence_id":"<exact EvidenceUnit ID>","support_quote":"<short exact substring copied from that EvidenceUnit text>"}}]}}]}}]}}
+{{"claims":[{{"facet":"<requested facet>","is_comparative":false,"statements":[{{"claim_text":"<one factual statement>","paper_id":"<selected paper UUID>","supports":[{{"evidence_id":"<exact EvidenceUnit ID>"}}]}}]}}]}}
 
 Rules:
 - Every factual statement must have at least one support item.
-- support_quote must be copied byte-for-byte from the referenced EvidenceUnit text.
 - Do not emit bracket-number citations inside claim_text.
 - Use only requested facets and IDs present above.
 - A non-comparative claim has exactly one statement.
 - A comparative claim has one explicit statement per compared paper, with distinct paper_id values and support from each paper.
-- Do not use outside knowledge. Omit claims lacking exact support.
+- Do not use outside knowledge. Omit claims lacking support from the listed EvidenceUnits.
 - Output JSON only; no Markdown fences, prose wrapper, bibliography, or extra keys.
 """
 

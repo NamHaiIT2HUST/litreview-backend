@@ -53,7 +53,7 @@ def _bank(*units: EvidenceUnit) -> GroundedEvidenceBank:
     )
 
 
-def test_valid_single_paper_claim_gets_unique_exact_quote_offsets():
+def test_valid_single_paper_claim_derives_canonical_evidence_quote_and_offsets():
     unit = _unit(
         paper_id=PAPER_A,
         title="Paper A",
@@ -69,12 +69,7 @@ def test_valid_single_paper_claim_gets_unique_exact_quote_offsets():
                     ClaimStatement(
                         claim_text="The algorithm converges weakly.",
                         paper_id=PAPER_A,
-                        supports=(
-                            ClaimSupport(
-                                evidence_id=unit.evidence_id,
-                                support_quote="The algorithm converges weakly.",
-                            ),
-                        ),
+                        supports=(ClaimSupport(evidence_id=unit.evidence_id),),
                     ),
                 ),
             ),
@@ -90,10 +85,11 @@ def test_valid_single_paper_claim_gets_unique_exact_quote_offsets():
     assert result.semantic_entailment == "unvalidated"
     assert len(result.valid_claims) == 1
     support = result.valid_claims[0].statements[0].supports[0]
-    assert support.quote_char_start == 8
-    assert support.quote_char_end == 39
-    assert support.source_char_start == 108
-    assert support.source_char_end == 139
+    assert support.support_quote == unit.text
+    assert support.quote_char_start == 0
+    assert support.quote_char_end == len(unit.text)
+    assert support.source_char_start == 100
+    assert support.source_char_end == 100 + len(unit.text)
     assert result.dropped_claims == ()
 
 
@@ -101,13 +97,12 @@ def _statement(
     *,
     paper_id: uuid.UUID,
     evidence_id: str,
-    quote: str,
     text: str = "A factual claim.",
 ) -> ClaimStatement:
     return ClaimStatement(
         claim_text=text,
         paper_id=paper_id,
-        supports=(ClaimSupport(evidence_id=evidence_id, support_quote=quote),),
+        supports=(ClaimSupport(evidence_id=evidence_id),),
     )
 
 
@@ -136,8 +131,8 @@ def test_valid_comparative_claim_requires_and_accepts_both_papers():
 
     result = _validate(
         _manifest(
-            _statement(paper_id=PAPER_A, evidence_id=a.evidence_id, quote=a.text),
-            _statement(paper_id=PAPER_B, evidence_id=b.evidence_id, quote=b.text),
+            _statement(paper_id=PAPER_A, evidence_id=a.evidence_id),
+            _statement(paper_id=PAPER_B, evidence_id=b.evidence_id),
             facet="algorithms",
             comparative=True,
         ),
@@ -152,7 +147,7 @@ def test_valid_comparative_claim_requires_and_accepts_both_papers():
 def test_unknown_evidence_id_drops_claim():
     unit = _unit(paper_id=PAPER_A, title="A", text="Exact quote.", facet="formulation")
     result = _validate(
-        _manifest(_statement(paper_id=PAPER_A, evidence_id="ev-missing", quote="Exact quote.")),
+        _manifest(_statement(paper_id=PAPER_A, evidence_id="ev-missing")),
         unit,
     )
     assert result.valid_claims == ()
@@ -162,24 +157,14 @@ def test_unknown_evidence_id_drops_claim():
 def test_evidence_owned_by_wrong_paper_drops_claim():
     unit = _unit(paper_id=PAPER_A, title="A", text="Exact quote.", facet="formulation")
     result = _validate(
-        _manifest(_statement(paper_id=PAPER_B, evidence_id=unit.evidence_id, quote="Exact quote.")),
+        _manifest(_statement(paper_id=PAPER_B, evidence_id=unit.evidence_id)),
         unit,
     )
     assert result.valid_claims == ()
     assert "wrong_paper" in result.dropped_claims[0].reasons
 
 
-def test_quote_absent_from_evidence_drops_claim():
-    unit = _unit(paper_id=PAPER_A, title="A", text="Actual source text.", facet="formulation")
-    result = _validate(
-        _manifest(_statement(paper_id=PAPER_A, evidence_id=unit.evidence_id, quote="Fabricated quote.")),
-        unit,
-    )
-    assert result.valid_claims == ()
-    assert "support_quote_not_found" in result.dropped_claims[0].reasons
-
-
-def test_repeated_exact_quote_is_ambiguous_and_drops_claim():
+def test_repeated_text_needs_no_generated_quote_matching():
     unit = _unit(
         paper_id=PAPER_A,
         title="A",
@@ -187,28 +172,7 @@ def test_repeated_exact_quote_is_ambiguous_and_drops_claim():
         facet="formulation",
     )
     result = _validate(
-        _manifest(_statement(paper_id=PAPER_A, evidence_id=unit.evidence_id, quote="same quote")),
-        unit,
-    )
-    assert result.valid_claims == ()
-    assert "ambiguous_support_quote" in result.dropped_claims[0].reasons
-
-
-def test_longer_quote_that_occurs_once_resolves_ambiguity():
-    unit = _unit(
-        paper_id=PAPER_A,
-        title="A",
-        text="same quote; intervening text; same quote",
-        facet="formulation",
-    )
-    result = _validate(
-        _manifest(
-            _statement(
-                paper_id=PAPER_A,
-                evidence_id=unit.evidence_id,
-                quote="same quote; intervening text",
-            )
-        ),
+        _manifest(_statement(paper_id=PAPER_A, evidence_id=unit.evidence_id)),
         unit,
     )
     assert len(result.valid_claims) == 1
@@ -228,7 +192,7 @@ def test_comparative_claim_missing_one_paper_side_drops_claim():
     unit = _unit(paper_id=PAPER_A, title="A", text="Paper A evidence.", facet="formulation")
     result = _validate(
         _manifest(
-            _statement(paper_id=PAPER_A, evidence_id=unit.evidence_id, quote=unit.text),
+            _statement(paper_id=PAPER_A, evidence_id=unit.evidence_id),
             comparative=True,
         ),
         unit,
@@ -241,7 +205,7 @@ def test_invalid_facet_drops_claim():
     unit = _unit(paper_id=PAPER_A, title="A", text="Source.", facet="formulation")
     result = _validate(
         _manifest(
-            _statement(paper_id=PAPER_A, evidence_id=unit.evidence_id, quote=unit.text),
+            _statement(paper_id=PAPER_A, evidence_id=unit.evidence_id),
             facet="future_work",
         ),
         unit,
@@ -252,7 +216,7 @@ def test_invalid_facet_drops_claim():
 
 def test_duplicate_evidence_support_in_one_statement_drops_claim():
     unit = _unit(paper_id=PAPER_A, title="A", text="Source.", facet="formulation")
-    support = ClaimSupport(evidence_id=unit.evidence_id, support_quote=unit.text)
+    support = ClaimSupport(evidence_id=unit.evidence_id)
     manifest = _manifest(
         ClaimStatement(
             claim_text="Fact.",
@@ -272,7 +236,6 @@ def test_native_model_citation_marker_in_claim_text_drops_claim():
             _statement(
                 paper_id=PAPER_A,
                 evidence_id=unit.evidence_id,
-                quote=unit.text,
                 text="Fabricated native citation [0].",
             )
         ),
@@ -293,12 +256,7 @@ def _manifest_json(unit: EvidenceUnit) -> str:
                         {
                             "claim_text": "A factual claim.",
                             "paper_id": str(unit.paper_id),
-                            "supports": [
-                                {
-                                    "evidence_id": unit.evidence_id,
-                                    "support_quote": unit.text,
-                                }
-                            ],
+                            "supports": [{"evidence_id": unit.evidence_id}],
                         }
                     ],
                 }
@@ -353,12 +311,13 @@ def test_structured_prompt_exposes_stable_ids_raw_text_and_manifest_schema():
     assert str(PAPER_A) in prompt
     assert unit.text in prompt
     assert '"claims"' in prompt
-    assert '"support_quote"' in prompt
+    assert '"supports":[{"evidence_id"' in prompt
+    assert "support_quote" not in prompt
     assert "Return exactly one JSON object" in prompt
 
 
 def test_structured_prompt_has_new_contract_version():
-    assert PROMPT_VERSION == "p165_structured_claim_manifest_v1"
+    assert PROMPT_VERSION == "p165_structured_claim_manifest_v2"
 
 
 def _draft_with_manifest(manifest: ClaimManifest, *, text="untrusted raw [0]"):
@@ -375,7 +334,7 @@ def test_grounding_service_reports_structural_provenance_not_semantic_grounding(
     unit = _unit(paper_id=PAPER_A, title="A", text="Exact source quote.", facet="formulation")
     grounded = StructuredClaimManifestGroundingService().evaluate(
         draft=_draft_with_manifest(
-            _manifest(_statement(paper_id=PAPER_A, evidence_id=unit.evidence_id, quote=unit.text))
+            _manifest(_statement(paper_id=PAPER_A, evidence_id=unit.evidence_id))
         ),
         evidence_bank=_bank(unit),
     )
@@ -397,18 +356,9 @@ def test_grounding_diagnostics_preserve_manifest_and_nested_validation_failures(
             claim_text="Generated claim with native citation [9].",
             paper_id=PAPER_B,
             supports=(
-                ClaimSupport(
-                    evidence_id="ev-missing",
-                    support_quote="Missing source quote.",
-                ),
-                ClaimSupport(
-                    evidence_id=unit.evidence_id,
-                    support_quote=unit.text,
-                ),
-                ClaimSupport(
-                    evidence_id=unit.evidence_id,
-                    support_quote=unit.text,
-                ),
+                ClaimSupport(evidence_id="ev-missing"),
+                ClaimSupport(evidence_id=unit.evidence_id),
+                ClaimSupport(evidence_id=unit.evidence_id),
             ),
         )
     )
@@ -485,7 +435,6 @@ def test_structured_finalizer_ignores_raw_text_and_uses_validated_support_only()
         _statement(
             paper_id=PAPER_A,
             evidence_id=unit.evidence_id,
-            quote="Exact support.",
             text="Validated claim.",
         )
     )
@@ -500,9 +449,9 @@ def test_structured_finalizer_ignores_raw_text_and_uses_validated_support_only()
     assert finalized.text.count("[1]") == 1
     assert finalized.citation_authority == "p165_deterministic_finalizer"
     assert finalized.citations[0].evidence_id == unit.evidence_id
-    assert finalized.citations[0].quoted_snippet == "Exact support."
-    assert finalized.citations[0].source_char_start == 108
-    assert finalized.citations[0].source_char_end == 122
+    assert finalized.citations[0].quoted_snippet == unit.text
+    assert finalized.citations[0].source_char_start == 100
+    assert finalized.citations[0].source_char_end == 130
     assert finalized.rejected_native_indices == (0,)
     citation = finalized.citations[0]
     assert finalized.text[citation.review_char_start:citation.review_char_end] == "[1]"
@@ -518,13 +467,11 @@ def test_structured_finalizer_places_each_comparative_side_citation_locally():
         _statement(
             paper_id=PAPER_A,
             evidence_id=a.evidence_id,
-            quote=a.text,
             text="Paper A uses projections.",
         ),
         _statement(
             paper_id=PAPER_B,
             evidence_id=b.evidence_id,
-            quote=b.text,
             text="Paper B uses MM.",
         ),
         facet="algorithms",
@@ -582,13 +529,11 @@ def test_structured_finalizer_groups_and_exact_dedupes_realistic_comparison():
                 _statement(
                     paper_id=PAPER_A,
                     evidence_id=a.evidence_id,
-                    quote=a.text,
                     text=source_text[facet][0],
                 ),
                 _statement(
                     paper_id=PAPER_B,
                     evidence_id=b.evidence_id,
-                    quote=b.text,
                     text=source_text[facet][1],
                 ),
             ),
@@ -647,7 +592,7 @@ Xu2010 establishes convergence for its linear setting. [1] Xu2018 states global 
 def test_all_invalid_claims_render_insufficient_information_without_citations():
     unit = _unit(paper_id=PAPER_A, title="A", text="Source.", facet="formulation")
     invalid = _manifest(
-        _statement(paper_id=PAPER_A, evidence_id="ev-unknown", quote="Source.")
+        _statement(paper_id=PAPER_A, evidence_id="ev-unknown")
     )
     bank = _bank(unit)
     grounded = StructuredClaimManifestGroundingService().evaluate(

@@ -22,7 +22,7 @@ VALID_RESPONSE = {
             "statements": [{
                 "claim_text": "body text",
                 "paper_id": "11111111-1111-1111-1111-111111111111",
-                "supports": [{"evidence_id": "ev-fixture", "support_quote": "body text"}],
+                "supports": [{"evidence_id": "ev-fixture"}],
             }],
         }],
     }),

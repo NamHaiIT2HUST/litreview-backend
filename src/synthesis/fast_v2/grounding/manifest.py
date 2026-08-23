@@ -1,7 +1,7 @@
 """Structured claim provenance contract and deterministic validation.
 
 Validation proves provenance integrity only. It does not prove semantic
-entailment between generated claim text and quoted source text.
+entailment between generated claim text and referenced evidence text.
 """
 from __future__ import annotations
 
@@ -17,13 +17,9 @@ from src.synthesis.fast_v2.evidence.bank import GroundedEvidenceBank
 @dataclass(frozen=True)
 class ClaimSupport:
     evidence_id: str
-    support_quote: str
 
     def to_dict(self) -> dict[str, Any]:
-        return {
-            "evidence_id": self.evidence_id,
-            "support_quote": self.support_quote,
-        }
+        return {"evidence_id": self.evidence_id}
 
 
 @dataclass(frozen=True)
@@ -130,16 +126,13 @@ def parse_claim_manifest(raw: str) -> ClaimManifest:
                 support_path = f"{statement_path}.supports[{support_index}]"
                 support = _exact_object(
                     raw_support,
-                    {"evidence_id", "support_quote"},
+                    {"evidence_id"},
                     path=support_path,
                 )
                 supports.append(
                     ClaimSupport(
                         evidence_id=_string(
                             support["evidence_id"], path=f"{support_path}.evidence_id"
-                        ),
-                        support_quote=_string(
-                            support["support_quote"], path=f"{support_path}.support_quote"
                         ),
                     )
                 )
@@ -285,63 +278,15 @@ class StructuredClaimManifestGuard:
                             }
                         )
                         continue
-                    if not support.support_quote:
-                        reject_support("missing_support_quote")
-                        support_validation.append(
-                            {
-                                "support_index": support_index,
-                                "evidence_id": support.evidence_id,
-                                "failures": support_failures,
-                            }
-                        )
-                        continue
-
-                    quote_starts: list[int] = []
-                    search_from = 0
-                    while True:
-                        found = unit.text.find(support.support_quote, search_from)
-                        if found < 0:
-                            break
-                        quote_starts.append(found)
-                        search_from = found + 1
-                    if not quote_starts:
-                        reject_support("support_quote_not_found")
-                        support_validation.append(
-                            {
-                                "support_index": support_index,
-                                "evidence_id": support.evidence_id,
-                                "failures": support_failures,
-                            }
-                        )
-                        continue
-                    if len(quote_starts) > 1:
-                        reject_support("ambiguous_support_quote")
-                        support_validation.append(
-                            {
-                                "support_index": support_index,
-                                "evidence_id": support.evidence_id,
-                                "failures": support_failures,
-                            }
-                        )
-                        continue
-
-                    quote_start = quote_starts[0]
-                    page_start = unit.page_char_start
                     supports.append(
                         ValidatedSupport(
                             evidence_id=unit.evidence_id,
                             paper_id=unit.paper_id,
-                            support_quote=support.support_quote,
-                            quote_char_start=quote_start,
-                            quote_char_end=quote_start + len(support.support_quote),
-                            source_char_start=(
-                                None if page_start is None else page_start + quote_start
-                            ),
-                            source_char_end=(
-                                None
-                                if page_start is None
-                                else page_start + quote_start + len(support.support_quote)
-                            ),
+                            support_quote=unit.text,
+                            quote_char_start=0,
+                            quote_char_end=len(unit.text),
+                            source_char_start=unit.page_char_start,
+                            source_char_end=unit.page_char_end,
                         )
                     )
                     support_validation.append(

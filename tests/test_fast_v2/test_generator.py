@@ -176,11 +176,11 @@ def test_openscholar_generator_satisfies_the_generator_interface():
 
 
 # --------------------------------------------------------------------------
-# Structured prompt p165_structured_claim_manifest_v1
+# Structured prompt p165_structured_claim_manifest_v2
 # --------------------------------------------------------------------------
 
 def test_prompt_version_names_structured_claim_contract():
-    assert PROMPT_VERSION == "p165_structured_claim_manifest_v1"
+    assert PROMPT_VERSION == "p165_structured_claim_manifest_v2"
 
 
 def test_prompt_uses_stable_evidence_and_paper_ids_not_temporary_indices():
@@ -196,7 +196,7 @@ def test_prompt_restricts_the_model_to_the_provided_references():
     prompt = build_prompt(question="q", evidence=_bank().evidence)
     assert "Use only the provided EvidenceUnits" in prompt
     assert "Do not use outside knowledge" in prompt
-    assert "Omit claims lacking exact support" in prompt
+    assert "Omit claims lacking support from the listed EvidenceUnits" in prompt
 
 
 def test_prompt_requires_json_without_legacy_response_markers():
@@ -213,7 +213,7 @@ def test_raw_pdf_citation_markers_are_sanitized_out_of_the_index_namespace():
     assert sanitize_internal_citations("range [7-9]") == "range (source-ref 7-9)"
 
 
-def test_prompt_preserves_raw_evidence_for_exact_quote_validation():
+def test_prompt_preserves_raw_evidence_for_claim_generation():
     prompt = build_prompt(question="q", evidence=_bank().evidence)
     assert "[27]" in prompt
     assert "(source-ref 27)" not in prompt

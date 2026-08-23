@@ -1,7 +1,8 @@
 """Claim-grounding boundary.
 
-Structured provenance validation checks identities, ownership, facets, exact
-unique source quotes, and comparative paper coverage. It deliberately does not
+Structured provenance validation checks identities, ownership, facets, and
+comparative paper coverage, then derives citation spans from canonical evidence.
+It deliberately does not
 claim semantic entailment. The older unvalidated passthrough remains available
 for explicit compatibility tests; production Fast v2 uses the structured
 service.
@@ -113,7 +114,7 @@ class StructuredClaimManifestGroundingService:
 
     WARNING = (
         "Structured provenance passed deterministic validation. Semantic "
-        "entailment between claim text and support quote remains unvalidated."
+        "entailment between claim text and referenced evidence remains unvalidated."
     )
 
     def __init__(self, guard: StructuredClaimManifestGuard | None = None) -> None:

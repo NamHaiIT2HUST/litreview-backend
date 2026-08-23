@@ -7,7 +7,7 @@ numbers are always untrusted diagnostics.
 
 Final provenance chain::
 
-    validated support -> EvidenceUnit -> evidence_id -> exact quote offsets
+    validated support ID -> EvidenceUnit -> canonical text/page/source offsets
 
 Relationship to the Legacy finalizer
 ------------------------------------
@@ -190,7 +190,7 @@ def finalize_structured_draft(
 
     Raw generator prose and native citation markers are never copied into the
     output. This function validates no semantics; it consumes the guard's
-    already validated IDs, paper ownership, and exact quote offsets.
+    already validated IDs, paper ownership, and canonical evidence spans.
     """
     evidence_by_id = {
         unit.evidence_id: unit for unit in evidence_bank.evidence

@@ -62,7 +62,6 @@ class FakeSynthesisGenerator:
                             supports=(
                                 ClaimSupport(
                                     evidence_id=unit.evidence_id,
-                                    support_quote=unit.text,
                                 ),
                             ),
                         ),

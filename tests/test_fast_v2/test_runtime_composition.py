@@ -310,7 +310,7 @@ def test_hosted_generation_metadata_survives_into_pipeline_diagnostics():
             return GeneratedDraft(
                 text='{"claims":[]}',
                 model_name="stub/model",
-                prompt_version="p165_structured_claim_manifest_v1",
+                prompt_version="p165_structured_claim_manifest_v2",
                 claim_manifest=ClaimManifest(claims=()),
                 generation_calls=1,
                 input_tokens=3997,
