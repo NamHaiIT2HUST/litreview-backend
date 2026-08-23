@@ -5,10 +5,11 @@ import remarkMath from 'remark-math';
 import remarkGfm from 'remark-gfm';
 import rehypeKatex from 'rehype-katex';
 import CitationChip from './CitationChip';
-import RAGVerificationBadge from './RAGVerificationBadge';
 import { useLanguage } from '../../contexts/LanguageContext';
-
+import { formatMathAndMarkdown } from '../../utils/mathUtils';
 import { API_BASE } from '../../utils/apiConfig';
+
+
 
 export default function ChatPanel({ 
   workspacePapers,
@@ -142,20 +143,9 @@ export default function ChatPanel({
                       }
                     }}
                   >
-                    {(() => {
-                      if (!msg.text) return '';
-                      // 1. Expand multi-citations like [1, 2] or [1,2, 3] -> [1][2][3]
-                      let formatted = msg.text.replace(/\[([\d\s,]+)\]/g, (match, inner) => {
-                        const nums = inner.split(',').map(n => n.trim()).filter(n => /^\d+$/.test(n));
-                        if (nums.length > 1) {
-                          return nums.map(n => `[${n}]`).join('');
-                        }
-                        return match;
-                      });
-                      // 2. Linkify [1] -> [[1]](#cite-1)
-                      return formatted.replace(/\[(\d+)\]/g, '[[$1]](#cite-$1)');
-                    })()}
+                    {formatMathAndMarkdown(msg.text)}
                   </ReactMarkdown>
+
                 )}
               </div>
               {/* Render Unified Context Used if available */}
@@ -195,16 +185,8 @@ export default function ChatPanel({
                 </details>
               )}
 
-              {/* RAG Verification & Hallucination Guardrail Badge */}
-              {msg.sender === 'ai' && msg.guardrail && (
-                <RAGVerificationBadge 
-                  guardrail={msg.guardrail} 
-                  citations={msg.citations || []} 
-                  darkMode={darkMode} 
-                />
-              )}
-
               {/* Action Buttons */}
+
               {msg.sender === 'ai' && (
                 <div className="flex items-center justify-between gap-1.5 mt-3 pt-3 border-t border-slate-200 dark:border-slate-700/60">
                   <div className="flex items-center gap-1.5">

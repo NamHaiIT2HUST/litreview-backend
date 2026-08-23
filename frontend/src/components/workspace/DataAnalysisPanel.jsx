@@ -38,10 +38,14 @@ import {
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
 import * as XLSX from 'xlsx';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { safeFetch } from '../../utils/apiConfig';
+import { formatMathAndMarkdown } from '../../utils/mathUtils';
 import DynamicDataChart, { KPICardsGrid, DatasetHealthCard } from './DataCharts';
+
 
 // Preloaded Demo Datasets inspired by ASTA
 const DEMO_DATASETS = {
@@ -1080,7 +1084,8 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
                 <div className={msg.sender === 'user' ? 'whitespace-pre-wrap mb-3' : 'prose prose-slate dark:prose-invert max-w-none prose-p:text-[13.5px] prose-p:leading-relaxed prose-headings:font-bold prose-h1:text-[16px] prose-h2:text-[15px] prose-h3:text-[14px] prose-li:text-[13.5px] prose-pre:bg-slate-900 prose-table:text-[12.5px] mb-3'}>
                   {msg.sender === 'user' ? msg.text : (
                     <ReactMarkdown 
-                      remarkPlugins={[remarkGfm]}
+                      remarkPlugins={[remarkMath, remarkGfm]}
+                      rehypePlugins={[rehypeKatex]}
                       components={{
                         code({node, inline, className, children, ...props}) {
                           const match = /language-(\w+)/.exec(className || '')
@@ -1100,8 +1105,9 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
                         }
                       }}
                     >
-                      {msg.text}
+                      {formatMathAndMarkdown(msg.text)}
                     </ReactMarkdown>
+
                   )}
                 </div>
 

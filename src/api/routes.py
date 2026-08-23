@@ -20,9 +20,11 @@ Quality Verification (Module 4):
 import os
 import re
 import uuid
+import asyncio
 from typing import List, Dict, Any, Optional, Union
 from uuid import UUID
 import logging
+
 
 logger = logging.getLogger(__name__)
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query, UploadFile, File, Form
@@ -906,16 +908,20 @@ async def workspace_chat(
         from langchain_core.documents import Document
 
         if target_pids:
+            search_tasks = [
+                vector_store_service.search_similar_documents(
+                    request.message, top_k=6, filters={"paper_id": str(pid).strip()}
+                )
+                for pid in target_pids
+            ]
+            search_results = await asyncio.gather(*search_tasks, return_exceptions=True)
+            for res in search_results:
+                if isinstance(res, list) and res:
+                    chunks.extend(res)
+            
             for pid in target_pids:
                 pid_str = str(pid).strip()
-                try:
-                    res_chunks = await vector_store_service.search_similar_documents(
-                        request.message, top_k=8, filters={"paper_id": pid_str}
-                    )
-                    if res_chunks:
-                        chunks.extend(res_chunks)
-                except Exception:
-                    pass
+
 
                 # Fallback 1: Trực tiếp lấy PDFChunks từ database nếu vector store chưa có hoặc lỗi
                 if not any(str(c.metadata.get("paper_id")) == pid_str for c in chunks):
@@ -1412,13 +1418,17 @@ async def get_evidence_coords(
     
     try:
         try:
-            import fitz  # PyMuPDF
+            try:
+                import pymupdf as fitz
+            except ImportError:
+                import fitz
         except ImportError:
             logging.getLogger(__name__).warning(
                 "PyMuPDF is not installed; evidence coordinates are unavailable."
             )
             return EvidenceCoordsResponse(rects=[])
         doc = fitz.open(file_path)
+
         # fitz is 0-indexed, UI is 1-indexed (usually, though the UI sends the actual page number from the source)
         page_index = max(0, request.page - 1)
         if page_index >= len(doc):

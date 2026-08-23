@@ -4,8 +4,8 @@ import VerificationPanel from './VerificationPanel';
 import { persistedDirectUploadSources } from '../../utils/workspaceSources';
 import SynthesisPanel from './SynthesisPanel';
 import DataAnalysisPanel from './DataAnalysisPanel';
-import RAGEvalHarnessModal from './RAGEvalHarnessModal';
 import { reconcileSelectedPaperIds, selectedPapersFromIds } from '../../utils/workspaceScope';
+
 import { useLanguage } from '../../contexts/LanguageContext';
 import {
   Bot,
@@ -465,26 +465,8 @@ export default function WorkspaceTab({
                 </div>
               </div>
             </div>
-
-            {/* Sidebar Footer Action: RAG Benchmark & Guardrails */}
-            {allSources.length > 0 && (
-              <div className={`p-3 border-t shrink-0 ${darkMode ? 'border-slate-800 bg-slate-900/50' : 'border-slate-100 bg-slate-50/50'}`}>
-                <button
-                  type="button"
-                  onClick={() => setIsHarnessOpen(true)}
-                  className={`w-full py-2 px-3 rounded-xl border text-[11.5px] font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                    darkMode 
-                      ? 'border-blue-900/50 bg-blue-950/30 text-blue-400 hover:bg-blue-900/50' 
-                      : 'border-blue-200 bg-blue-50/80 text-blue-700 hover:bg-blue-100'
-                  }`}
-                  title="Đánh giá độ chính xác & kiểm định ảo giác trên các tài liệu đã nạp"
-                >
-                  <ShieldCheck className="w-4 h-4 text-blue-500" />
-                  <span>Kiểm định RAG trên tài liệu</span>
-                </button>
-              </div>
-            )}
           </>
+
         ) : (
           <>
             {/* MINI HEADER */}
@@ -526,20 +508,9 @@ export default function WorkspaceTab({
                   </div>
                 ))}
               </div>
-
-              {allSources.length > 0 && (
-                <button
-                  onClick={() => setIsHarnessOpen(true)}
-                  className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-all cursor-pointer ${
-                    darkMode ? 'border-blue-900/50 bg-blue-950/40 text-blue-400 hover:bg-blue-900/50' : 'border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100'
-                  }`}
-                  title="Kiểm định RAG trên tài liệu"
-                >
-                  <ShieldCheck className="w-4 h-4 text-blue-500" />
-                </button>
-              )}
             </div>
           </>
+
         )}
         </div>
 
@@ -633,10 +604,10 @@ export default function WorkspaceTab({
                   setChatMessages={setChatMessages}
                   activeCitation={activeCitation}
                   setActiveCitation={setActiveCitation}
-                  onOpenHarness={() => setIsHarnessOpen(true)}
                   darkMode={darkMode}
                 />
               )}
+
               {activeWorkspaceTab === 'synthesis' && (
                 <SynthesisPanel
                   workspacePapers={scopedPapers}
@@ -668,16 +639,9 @@ export default function WorkspaceTab({
       </div>
       </div>
 
-      {/* RAG Evaluation Benchmark Harness Modal */}
-      <RAGEvalHarnessModal
-        isOpen={isHarnessOpen}
-        onClose={() => setIsHarnessOpen(false)}
-        workspacePapers={allSources}
-        darkMode={darkMode}
-      />
-
       {/* Disclaimer Text (Centered at the very bottom of the entire layout) */}
       <div className="shrink-0 pb-1 text-center -mt-2">
+
         <p className={`text-[12px] font-medium ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
           {t('workspace.disclaimer')}
         </p>
