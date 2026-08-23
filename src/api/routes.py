@@ -1223,7 +1223,7 @@ async def workspace_analyze_data(request: DataAnalysisRequest) -> DataAnalysisRe
         prompt_parts.append(f"\n--- TRÍCH ĐOẠN DỮ LIỆU THÔ (SAMPLE) ---\n```\n{preview}{truncation_note}\n```\n")
 
     prompt_parts.append(
-        "HƯỚNG DẪN CẤU TRÚC BÁO CÁO EDA CHUẨN MỰC (PHONG CÁCH JUPYTER NOTEBOOK - MACHINE LEARNING CƠ BẢN):\n"
+        "HƯỚNG DẪN CẤU TRÚC BÁO CÁO PHÂN TÍCH DỮ LIỆU (EDA) CHUẨN MỰC:\n"
         "Bạn PHẢI trình bày bài phân tích khám phá dữ liệu (EDA) theo từng phần mạch lạc, logic. BẮT BUỘC tuân thủ cấu trúc xen kẽ: [Lời giải thích/Đặt vấn đề] ➔ [Khối mã Python riêng biệt (vẽ biểu đồ hoặc in thống kê)] ➔ [Nhận xét, phân tích sâu về kết quả/đồ thị vừa tạo].\n\n"
         "CÁC NGUYÊN TẮC BẮT BUỘC VỀ TRÌNH BÀY:\n"
         "1. TÁCH BIỂU ĐỒ & CODE THÀNH TỪNG KHỐI RIÊNG: TUYỆT ĐỐI KHÔNG gom tất cả các biểu đồ vào một khối code duy nhất. Mỗi biểu đồ/mỗi mục phân tích PHẢI là một khối ```python riêng biệt.\n"

@@ -357,31 +357,39 @@ export function SimpleDonutChart({ data = [], title = '', darkMode = false }) {
 export function KPICardsGrid({ kpis = [], darkMode = false }) {
   if (!kpis || kpis.length === 0) return null;
 
+  const sanitizeKpi = (str) => {
+    if (!str) return '';
+    return String(str)
+      .replace(/\uFFFD/g, 'ó')
+      .replace(/C\s*\s*TƯƠNG/gi, 'CÓ TƯƠNG')
+      .replace(/C/g, 'Có');
+  };
+
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 my-3">
+    <div className="flex flex-wrap gap-2.5 my-3">
       {kpis.map((kpi, idx) => {
         const color = CHART_COLORS[idx % CHART_COLORS.length];
         return (
           <div 
             key={idx}
-            className={`p-3.5 rounded-2xl border transition-all shadow-2xs flex flex-col justify-between ${
+            className={`flex-1 min-w-[150px] p-3 rounded-xl border transition-all shadow-2xs flex flex-col justify-between ${
               darkMode ? 'bg-slate-900/70 border-slate-800/80' : 'bg-white border-slate-200/80'
             }`}
           >
             <div className="flex items-center justify-between gap-1 mb-1">
-              <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 truncate">
-                {kpi.label}
+              <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 truncate" title={sanitizeKpi(kpi.label)}>
+                {sanitizeKpi(kpi.label)}
               </span>
               <span className={`w-2 h-2 rounded-full ${color.bg}`} />
             </div>
 
-            <div className="text-lg font-black text-slate-800 dark:text-slate-100 tracking-tight my-0.5">
-              {kpi.value}
+            <div className="text-base font-black text-slate-800 dark:text-slate-100 tracking-tight my-0.5">
+              {sanitizeKpi(kpi.value)}
             </div>
 
             {kpi.subtext && (
-              <div className="text-[10px] text-slate-400 dark:text-slate-500 truncate mt-0.5">
-                {kpi.subtext}
+              <div className="text-[10px] text-slate-400 dark:text-slate-500 truncate mt-0.5" title={sanitizeKpi(kpi.subtext)}>
+                {sanitizeKpi(kpi.subtext)}
               </div>
             )}
           </div>

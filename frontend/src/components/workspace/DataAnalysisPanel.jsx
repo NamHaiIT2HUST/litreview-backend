@@ -34,7 +34,10 @@ import {
   Search as SearchIcon,
   Activity,
   FileText,
-  Maximize2
+  Maximize2,
+  ExternalLink,
+  Globe,
+  BookOpen
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -45,6 +48,12 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { safeFetch } from '../../utils/apiConfig';
 import { formatMathAndMarkdown } from '../../utils/mathUtils';
 import DynamicDataChart, { KPICardsGrid, DatasetHealthCard } from './DataCharts';
+import { 
+  generateStandaloneHTMLReport, 
+  openReportInNewTab, 
+  downloadHTMLReport, 
+  downloadJupyterNotebook 
+} from '../../utils/standaloneReportGenerator';
 
 
 // Preloaded Demo Datasets inspired by ASTA
@@ -1223,21 +1232,67 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
                   </div>
                 )}
 
-                {/* AI Footer Actions */}
+                {/* Standalone HTML Report & Executive Export Toolbar */}
                 {msg.sender === 'ai' && (
-                  <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-200 dark:border-slate-800">
-                    <button
-                      onClick={() => handleCopy(msg.text, idx)}
-                      className={`px-2 py-1 rounded-md text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer ${
-                        copiedIndex === idx
-                          ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/30'
-                          : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
-                      }`}
-                      title="Sao chép nội dung phân tích"
-                    >
-                      {copiedIndex === idx ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                      <span>{copiedIndex === idx ? 'Đã sao chép' : 'Sao chép'}</span>
-                    </button>
+                  <div className="flex flex-wrap items-center justify-between gap-2.5 mt-5 p-3.5 bg-gradient-to-r from-blue-50/80 to-indigo-50/40 dark:from-slate-900/90 dark:to-blue-950/40 border border-blue-100 dark:border-blue-900/40 rounded-xl shadow-xs">
+                    <div className="flex items-center gap-2 text-xs font-bold text-blue-700 dark:text-blue-300">
+                      <Globe className="w-4 h-4 text-blue-500" />
+                      <span>{isEn ? "Executive Report & Export Tools" : "Xuất Báo Cáo & Xem Toàn Màn Hình"}</span>
+                    </div>
+                    
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        onClick={() => {
+                          const html = generateStandaloneHTMLReport({
+                            message: msg,
+                            filename: attachedFile?.name || 'dataset.csv',
+                            title: isEn ? 'Exploratory Data Analysis (EDA) Report' : 'Báo Cáo Phân Tích Khám Phá Dữ Liệu (EDA)'
+                          });
+                          openReportInNewTab(html);
+                        }}
+                        className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 active:scale-98 text-white text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                        title={isEn ? "Open full standalone HTML report in a new tab" : "Mở toàn văn báo cáo trong tab trình duyệt mới"}
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        <span>{isEn ? "Open HTML (New Tab)" : "Mở bản HTML (Tab mới)"}</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          const html = generateStandaloneHTMLReport({
+                            message: msg,
+                            filename: attachedFile?.name || 'dataset.csv',
+                            title: isEn ? 'Exploratory Data Analysis (EDA) Report' : 'Báo Cáo Phân Tích Khám Phá Dữ Liệu (EDA)'
+                          });
+                          downloadHTMLReport(html, `Bao_cao_EDA_${attachedFile?.name ? attachedFile.name.replace(/\.[^/.]+$/, '') : 'dataset'}.html`);
+                        }}
+                        className="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 active:scale-98 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
+                        title="Tải file HTML độc lập về máy"
+                      >
+                        <Download className="w-3.5 h-3.5 text-blue-500" />
+                        <span>{isEn ? "Download HTML" : "Tải HTML"}</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          downloadJupyterNotebook(msg, `eda_notebook_${attachedFile?.name ? attachedFile.name.replace(/\.[^/.]+$/, '') : 'dataset'}.ipynb`);
+                        }}
+                        className="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 active:scale-98 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
+                        title="Tải file Jupyter Notebook (.ipynb) để mở trên Google Colab / VS Code"
+                      >
+                        <BookOpen className="w-3.5 h-3.5 text-amber-500" />
+                        <span>{isEn ? "Download .ipynb" : "Tải .ipynb"}</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleCopy(msg.text, idx)}
+                        className="px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 active:scale-98 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 text-xs font-semibold flex items-center gap-1 shadow-xs transition-all cursor-pointer"
+                        title="Sao chép nội dung văn bản"
+                      >
+                        {copiedIndex === idx ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                        <span>{copiedIndex === idx ? (isEn ? 'Copied' : 'Đã chép') : (isEn ? 'Copy' : 'Sao chép')}</span>
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
