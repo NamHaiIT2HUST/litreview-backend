@@ -160,15 +160,42 @@ class CodeSandboxService:
         import pandas as pd
         import numpy as np
 
+        class MockIPythonDisplay:
+            @staticmethod
+            def display(*args, **kwargs):
+                current_print = sandbox_globals.get("__builtins__", {}).get("print", print)
+                for a in args:
+                    current_print(a)
+            @staticmethod
+            def HTML(html_str):
+                return html_str
+            @staticmethod
+            def Markdown(md_str):
+                return md_str
+
+        class MockIPython:
+            display = MockIPythonDisplay
+            __name__ = "IPython"
+
         def safe_import(name, *args, **kwargs):
             root = name.split(".")[0]
             if root in DISALLOWED_MODULES:
                 raise ImportError(f"Importing module '{name}' is prohibited in the sandbox.")
-            return __import__(name, *args, **kwargs)
+            if root == "IPython":
+                if name == "IPython.display":
+                    return MockIPythonDisplay
+                return MockIPython
+            try:
+                return __import__(name, *args, **kwargs)
+            except ImportError:
+                if root == "IPython":
+                    return MockIPython
+                raise
 
         sandbox_globals: Dict[str, Any] = {
             "__builtins__": {
                 "__import__": safe_import,
+                "display": MockIPythonDisplay.display,
                 "abs": abs, "all": all, "any": any, "bin": bin, "bool": bool,
                 "bytes": bytes, "chr": chr, "dict": dict, "dir": dir, "divmod": divmod,
                 "enumerate": enumerate, "filter": filter, "float": float, "format": format,
@@ -182,6 +209,8 @@ class CodeSandboxService:
                 "Exception": Exception, "ValueError": ValueError, "TypeError": TypeError,
                 "KeyError": KeyError, "IndexError": IndexError, "RuntimeError": RuntimeError,
             },
+            "display": MockIPythonDisplay.display,
+            "IPython": MockIPython,
             "pd": pd,
             "pandas": pd,
             "np": np,
@@ -398,16 +427,43 @@ class CodeSandboxService:
         import pandas as pd
         import numpy as np
 
+        class MockIPythonDisplay:
+            @staticmethod
+            def display(*args, **kwargs):
+                current_print = sandbox_globals.get("__builtins__", {}).get("print", print)
+                for a in args:
+                    current_print(a)
+            @staticmethod
+            def HTML(html_str):
+                return html_str
+            @staticmethod
+            def Markdown(md_str):
+                return md_str
+
+        class MockIPython:
+            display = MockIPythonDisplay
+            __name__ = "IPython"
+
         def safe_import(name, *args, **kwargs):
             root = name.split(".")[0]
             if root in DISALLOWED_MODULES:
                 raise ImportError(f"Importing module '{name}' is prohibited in the sandbox.")
-            return __import__(name, *args, **kwargs)
+            if root == "IPython":
+                if name == "IPython.display":
+                    return MockIPythonDisplay
+                return MockIPython
+            try:
+                return __import__(name, *args, **kwargs)
+            except ImportError:
+                if root == "IPython":
+                    return MockIPython
+                raise
 
         # Safe global namespace
         sandbox_globals: Dict[str, Any] = {
             "__builtins__": {
                 "__import__": safe_import,
+                "display": MockIPythonDisplay.display,
                 "abs": abs, "all": all, "any": any, "bin": bin, "bool": bool,
                 "bytes": bytes, "chr": chr, "dict": dict, "dir": dir, "divmod": divmod,
                 "enumerate": enumerate, "filter": filter, "float": float, "format": format,
@@ -421,6 +477,8 @@ class CodeSandboxService:
                 "Exception": Exception, "ValueError": ValueError, "TypeError": TypeError,
                 "KeyError": KeyError, "IndexError": IndexError, "RuntimeError": RuntimeError,
             },
+            "display": MockIPythonDisplay.display,
+            "IPython": MockIPython,
             "pd": pd,
             "pandas": pd,
             "np": np,
@@ -566,6 +624,29 @@ class CodeSandboxService:
         sandbox_globals["__builtins__"]["print"] = custom_print
 
 
+        def custom_display(*args, **kwargs):
+            for a in args:
+                custom_print(a)
+
+        sandbox_globals["display"] = custom_display
+        sandbox_globals["__builtins__"]["display"] = custom_display
+
+        class MockIPythonDisplay:
+            @staticmethod
+            def display(*args, **kwargs):
+                custom_display(*args, **kwargs)
+            @staticmethod
+            def HTML(html_str):
+                return html_str
+            @staticmethod
+            def Markdown(md_str):
+                return md_str
+
+        class MockIPython:
+            display = MockIPythonDisplay
+
+        sandbox_globals["IPython"] = MockIPython
+
         exec_error: Optional[str] = None
         success = True
 
@@ -575,8 +656,19 @@ class CodeSandboxService:
             pd.read_table = smart_read_table
             if orig_read_excel:
                 pd.read_excel = smart_read_excel
-            compiled = compile(clean_code, filename="<sandbox>", mode="exec")
-            exec(compiled, sandbox_globals)
+            
+            parsed = ast.parse(clean_code)
+            if parsed.body and isinstance(parsed.body[-1], ast.Expr):
+                last_expr = parsed.body.pop()
+                if parsed.body:
+                    compiled_lead = compile(ast.Module(body=parsed.body, type_ignores=[]), filename="<sandbox>", mode="exec")
+                    exec(compiled_lead, sandbox_globals)
+                val = eval(compile(ast.Expression(last_expr.value), filename="<sandbox_eval>", mode="eval"), sandbox_globals)
+                if val is not None:
+                    custom_print(val)
+            else:
+                compiled = compile(clean_code, filename="<sandbox>", mode="exec")
+                exec(compiled, sandbox_globals)
         except Exception as exc:
             success = False
             exec_error = f"{type(exc).__name__}: {exc}"
