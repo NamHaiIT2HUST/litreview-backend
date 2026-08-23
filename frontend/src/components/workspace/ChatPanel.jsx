@@ -96,9 +96,7 @@ export default function ChatPanel({
               className={`text-[14px] leading-relaxed ${
                 msg.sender === 'user'
                   ? 'px-5 py-3.5 rounded-3xl rounded-tr-sm max-w-[85%] md:max-w-[75%] bg-blue-600 text-white font-medium shadow-sm'
-                  : darkMode
-                    ? 'py-1.5 w-full max-w-full text-slate-200'
-                    : 'py-1.5 w-full max-w-full text-slate-800'
+                  : 'py-1.5 w-full max-w-full text-slate-800 dark:py-1.5 dark:w-full dark:max-w-full dark:text-slate-200'
               }`}
             >
               <div className={msg.sender === 'user' ? 'whitespace-pre-wrap' : 'prose prose-slate dark:prose-invert max-w-none prose-p:text-[14px] prose-p:leading-relaxed prose-headings:font-bold prose-h1:text-[16px] prose-h2:text-[15px] prose-h3:text-[14px] prose-li:text-[14px] prose-pre:bg-slate-800'}>
@@ -246,7 +244,7 @@ export default function ChatPanel({
               <Bot className="w-6 h-6" />
             </div>
             <div className={`py-2.5 w-full max-w-full text-sm leading-relaxed flex items-center gap-1.5 ${
-              darkMode ? 'text-slate-200' : 'text-slate-900'
+              'text-slate-900 dark:text-slate-200'
             }`}>
               <div className="w-2.5 h-2.5 rounded-full bg-slate-400 animate-bounce"></div>
               <div className="w-2.5 h-2.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: '0.2s' }}></div>
@@ -277,9 +275,7 @@ export default function ChatPanel({
           onChange={e => setInputQuestion(e.target.value)}
           placeholder={t('chat.input_placeholder')}
           className={`w-full pl-6 pr-32 py-4 border rounded-[2rem] text-[14px] font-medium focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 shadow-sm transition-all ${
-            darkMode 
-              ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500' 
-              : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400'
+            'bg-white border-slate-200 text-slate-900 placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700 dark:text-white dark:placeholder-slate-500'
           }`}
         />
         <button

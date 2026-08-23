@@ -127,23 +127,23 @@ export default function RAGVerificationBadge({ guardrail, citations = [], darkMo
       {/* Expandable Audit Drawer */}
       {isOpen && (
         <div className={`mt-2.5 p-4 rounded-2xl border transition-all animate-in fade-in-50 duration-200 ${
-          darkMode ? 'bg-slate-900/95 border-slate-800 shadow-md' : 'bg-slate-50 border-slate-200 shadow-xs'
+          'bg-slate-50 border-slate-200 shadow-xs dark:bg-slate-900/95 dark:border-slate-800 dark:shadow-md'
         }`}>
           {/* Header metrics */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
-            <div className={`p-2.5 rounded-xl border ${darkMode ? 'bg-slate-800/60 border-slate-700' : 'bg-white border-slate-200'}`}>
+            <div className={`p-2.5 rounded-xl border ${'bg-white border-slate-200 dark:bg-slate-800/60 dark:border-slate-700'}`}>
               <div className="text-[10px] text-slate-400 font-semibold">{isEn ? 'Total Claims' : 'Tổng số luận điểm'}</div>
               <div className="text-base font-extrabold text-slate-700 dark:text-slate-200 mt-0.5">{total_claims}</div>
             </div>
-            <div className={`p-2.5 rounded-xl border ${darkMode ? 'bg-slate-800/60 border-slate-700' : 'bg-white border-slate-200'}`}>
+            <div className={`p-2.5 rounded-xl border ${'bg-white border-slate-200 dark:bg-slate-800/60 dark:border-slate-700'}`}>
               <div className="text-[10px] text-emerald-500 font-semibold">{isEn ? 'Attributable' : 'Có căn cứ xác thực'}</div>
               <div className="text-base font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5">{attributable_claims_count}</div>
             </div>
-            <div className={`p-2.5 rounded-xl border ${darkMode ? 'bg-slate-800/60 border-slate-700' : 'bg-white border-slate-200'}`}>
+            <div className={`p-2.5 rounded-xl border ${'bg-white border-slate-200 dark:bg-slate-800/60 dark:border-slate-700'}`}>
               <div className="text-[10px] text-amber-500 font-semibold">{isEn ? 'Extrapolatory' : 'Suy diễn / Chưa rõ'}</div>
               <div className="text-base font-extrabold text-amber-600 dark:text-amber-400 mt-0.5">{extrapolatory_claims_count}</div>
             </div>
-            <div className={`p-2.5 rounded-xl border ${darkMode ? 'bg-slate-800/60 border-slate-700' : 'bg-white border-slate-200'}`}>
+            <div className={`p-2.5 rounded-xl border ${'bg-white border-slate-200 dark:bg-slate-800/60 dark:border-slate-700'}`}>
               <div className="text-[10px] text-blue-500 font-semibold">{isEn ? 'Citation Precision' : 'Độ chính xác trích dẫn'}</div>
               <div className="text-base font-extrabold text-blue-600 dark:text-blue-400 mt-0.5">{Math.round(citation_precision * 100)}%</div>
             </div>
@@ -163,7 +163,7 @@ export default function RAGVerificationBadge({ guardrail, citations = [], darkMo
                 <div 
                   key={cIdx} 
                   className={`p-3 rounded-xl border transition-all ${
-                    darkMode ? 'bg-slate-800/40 border-slate-800' : 'bg-white border-slate-200/80 shadow-xs'
+                    'bg-white border-slate-200/80 shadow-xs dark:bg-slate-800/40 dark:border-slate-800'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">

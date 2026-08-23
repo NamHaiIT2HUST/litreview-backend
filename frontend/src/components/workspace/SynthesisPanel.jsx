@@ -431,7 +431,7 @@ export default function SynthesisPanel({
       
       {/* Top Banner & Control Section */}
       <div className={`p-5 rounded-2xl border transition-all ${
-        darkMode ? 'bg-slate-900/60 border-slate-800 shadow-lg' : 'bg-white border-slate-200/80 shadow-sm'
+        'bg-white border-slate-200/80 shadow-sm dark:bg-slate-900/60 dark:border-slate-800 dark:shadow-lg'
       }`}>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
           <div className="flex items-start gap-3">
@@ -458,9 +458,7 @@ export default function SynthesisPanel({
               <button
                 onClick={createNewSession}
                 className={`inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl border transition-colors text-xs font-semibold ${
-                  darkMode
-                    ? 'border-slate-700 hover:bg-slate-800 text-slate-300'
-                    : 'border-slate-200 hover:bg-slate-100 text-slate-700'
+                  'border-slate-200 hover:bg-slate-100 text-slate-700 dark:border-slate-700 dark:hover:bg-slate-800 dark:text-slate-300'
                 }`}
                 title={t('synthesis.new_report')}
               >
@@ -474,8 +472,8 @@ export default function SynthesisPanel({
                 onClick={() => setIsHistoryOpen(!isHistoryOpen)}
                 className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border transition-all text-xs font-semibold cursor-pointer select-none ${
                   isHistoryOpen
-                    ? (darkMode ? 'bg-slate-800 border-blue-500 text-blue-400' : 'bg-blue-50 border-blue-300 text-blue-700')
-                    : (darkMode ? 'border-slate-700 hover:bg-slate-800 text-slate-300' : 'border-slate-200 hover:bg-slate-100 text-slate-700')
+                    ? ('bg-blue-50 border-blue-300 text-blue-700 dark:bg-slate-800 dark:border-blue-500 dark:text-blue-400')
+                    : ('border-slate-200 hover:bg-slate-100 text-slate-700 dark:border-slate-700 dark:hover:bg-slate-800 dark:text-slate-300')
                 }`}
                 title={t('synthesis.history_title')}
               >
@@ -491,7 +489,7 @@ export default function SynthesisPanel({
                     onClick={() => setIsHistoryOpen(false)} 
                   />
                   <div className={`absolute right-0 top-full mt-2 w-80 max-h-80 overflow-y-auto rounded-2xl shadow-xl border z-50 p-2 space-y-1.5 custom-scrollbar ${
-                    darkMode ? 'bg-slate-900 border-slate-700 shadow-black/80' : 'bg-white border-slate-200 shadow-slate-300/60'
+                    'bg-white border-slate-200 shadow-slate-300/60 dark:bg-slate-900 dark:border-slate-700 dark:shadow-black/80'
                   }`}>
                     <div className="px-2 py-1 text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between border-b pb-1.5 dark:border-slate-800 border-slate-100">
                       <span>{t('synthesis.history_title')} ({history.length})</span>
@@ -519,8 +517,8 @@ export default function SynthesisPanel({
                           }}
                           className={`w-full flex items-center justify-between p-2.5 rounded-xl text-xs transition-all group cursor-pointer border ${
                             sessionId === session.id
-                              ? (darkMode ? 'bg-blue-900/40 border-blue-700 text-blue-300 font-semibold' : 'bg-blue-50 border-blue-200 text-blue-700 font-semibold')
-                              : (darkMode ? 'border-transparent hover:bg-slate-800/80 text-slate-300' : 'border-transparent hover:bg-slate-100 text-slate-700')
+                              ? ('bg-blue-50 border-blue-200 text-blue-700 font-semibold dark:bg-blue-900/40 dark:border-blue-700 dark:text-blue-300 dark:font-semibold')
+                              : ('border-transparent hover:bg-slate-100 text-slate-700 dark:border-transparent dark:hover:bg-slate-800/80 dark:text-slate-300')
                           }`}
                         >
                           <div className="flex-1 min-w-0 flex flex-col gap-0.5">
@@ -578,9 +576,7 @@ export default function SynthesisPanel({
               disabled={isRunning}
               placeholder={t('synthesis.focus_topic_placeholder')}
               className={`flex-1 px-4 py-2.5 rounded-xl text-xs border transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/20 ${
-                darkMode 
-                  ? 'bg-slate-950 border-slate-700 text-slate-200 placeholder-slate-500 focus:border-blue-500' 
-                  : 'bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400 focus:border-blue-600'
+                'bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400 focus:border-blue-600 dark:bg-slate-950 dark:border-slate-700 dark:text-slate-200 dark:placeholder-slate-500 dark:focus:border-blue-500'
               }`}
             />
             <button
@@ -627,7 +623,7 @@ export default function SynthesisPanel({
       {/* Complete Literature Report View */}
       {(result?.review_markdown || reviewSections.length > 0) && status === 'done' && (
         <div className={`rounded-2xl border p-6 space-y-6 ${reviewScrollClass} ${
-          darkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+          'bg-white border-slate-200 shadow-sm dark:bg-slate-900/40 dark:border-slate-800'
         }`}>
           
           {/* Action Bar: Copy, Download MD, Download BibTeX, Export CSV */}
@@ -650,9 +646,7 @@ export default function SynthesisPanel({
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
                   copied
                     ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
-                    : darkMode
-                    ? 'border-slate-700 hover:bg-slate-800 text-slate-300'
-                    : 'border-slate-200 hover:bg-slate-100 text-slate-700'
+                    : 'border-slate-200 hover:bg-slate-100 text-slate-700 dark:border-slate-700 dark:hover:bg-slate-800 dark:text-slate-300'
                 }`}
                 title={t('synthesis.copy_md')}
               >
@@ -665,9 +659,7 @@ export default function SynthesisPanel({
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
                   apaCopied
                     ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
-                    : darkMode
-                    ? 'border-slate-700 hover:bg-slate-800 text-slate-300'
-                    : 'border-slate-200 hover:bg-slate-100 text-slate-700'
+                    : 'border-slate-200 hover:bg-slate-100 text-slate-700 dark:border-slate-700 dark:hover:bg-slate-800 dark:text-slate-300'
                 }`}
                 title="Sao chép danh mục trích dẫn chuẩn APA 7th Edition"
               >
@@ -678,9 +670,7 @@ export default function SynthesisPanel({
               <button
                 onClick={handleDownloadMarkdown}
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
-                  darkMode
-                    ? 'border-slate-700 hover:bg-slate-800 text-slate-300'
-                    : 'border-slate-200 hover:bg-slate-100 text-slate-700'
+                  'border-slate-200 hover:bg-slate-100 text-slate-700 dark:border-slate-700 dark:hover:bg-slate-800 dark:text-slate-300'
                 }`}
                 title="Tải bài báo cáo học thuật hoàn chỉnh (.md)"
               >
@@ -691,9 +681,7 @@ export default function SynthesisPanel({
               <button
                 onClick={handleDownloadBibtex}
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
-                  darkMode
-                    ? 'border-slate-700 hover:bg-slate-800 text-slate-300'
-                    : 'border-slate-200 hover:bg-slate-100 text-slate-700'
+                  'border-slate-200 hover:bg-slate-100 text-slate-700 dark:border-slate-700 dark:hover:bg-slate-800 dark:text-slate-300'
                 }`}
                 title={t('synthesis.download_bib')}
               >
@@ -705,9 +693,7 @@ export default function SynthesisPanel({
                 <button
                   onClick={handleExportCSV}
                   className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
-                    darkMode
-                      ? 'border-slate-700 hover:bg-slate-800 text-slate-300'
-                      : 'border-slate-200 hover:bg-slate-100 text-slate-700'
+                    'border-slate-200 hover:bg-slate-100 text-slate-700 dark:border-slate-700 dark:hover:bg-slate-800 dark:text-slate-300'
                   }`}
                   title="Xuất bảng đối chiếu ma trận ra file CSV (Excel tương thích)"
                 >
@@ -721,7 +707,7 @@ export default function SynthesisPanel({
           {/* Executive Takeaways Card (Điểm nhấn Cốt lõi) */}
           {consensus.length > 0 && (
             <div className={`p-4 rounded-xl border transition-all ${
-              darkMode ? 'bg-blue-950/20 border-blue-900/40' : 'bg-blue-50/50 border-blue-100'
+              'bg-blue-50/50 border-blue-100 dark:bg-blue-950/20 dark:border-blue-900/40'
             }`}>
               <div className="flex items-center gap-2 mb-2 text-blue-700 dark:text-blue-300 font-bold text-xs">
                 <Lightbulb className="w-4 h-4" />
@@ -760,7 +746,7 @@ export default function SynthesisPanel({
                     onChange={(e) => setMatrixSearchQuery(e.target.value)}
                     placeholder={t('synthesis.matrix_search_placeholder')}
                     className={`w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border focus:outline-none focus:ring-1 focus:ring-blue-500 ${
-                      darkMode ? 'bg-slate-950 border-slate-700 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-800'
+                      'bg-slate-50 border-slate-200 text-slate-800 dark:bg-slate-950 dark:border-slate-700 dark:text-slate-200'
                     }`}
                   />
                 </div>
@@ -829,7 +815,7 @@ export default function SynthesisPanel({
           {/* Section 2: Novelty & Research Gaps Evaluation (Đánh giá Tính mới & Khoảng trống Nghiên cứu) */}
           {(consensus.length > 0 || debates.length > 0 || gaps.length > 0) && (
             <div className={`p-5 rounded-xl border space-y-3 transition-all ${
-              darkMode ? 'bg-slate-950/50 border-slate-800' : 'bg-slate-50/80 border-slate-200'
+              'bg-slate-50/80 border-slate-200 dark:bg-slate-950/50 dark:border-slate-800'
             }`}>
               <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200 font-bold text-xs uppercase tracking-wider">
                 <Compass className="w-4 h-4 text-amber-500" />
@@ -965,15 +951,15 @@ export default function SynthesisPanel({
                   <div 
                     key={section.id} 
                     className={`rounded-2xl border transition-all duration-200 shadow-xs overflow-hidden ${
-                      darkMode ? 'bg-slate-900/60 border-slate-800 hover:border-slate-700' : 'bg-white border-slate-200/90 hover:border-slate-300'
+                      'bg-white border-slate-200/90 hover:border-slate-300 dark:bg-slate-900/60 dark:border-slate-800 dark:hover:border-slate-700'
                     }`}
                   >
                     {/* Collapsible Section Header (Accordion) */}
                     <div 
                       onClick={() => toggleSection(section.id)}
                       className={`p-4 flex flex-wrap items-center justify-between gap-3 cursor-pointer select-none transition-colors ${
-                        darkMode ? 'hover:bg-slate-800/50' : 'hover:bg-slate-50'
-                      } ${!isCollapsed ? (darkMode ? 'border-b border-slate-800/80 bg-slate-800/20' : 'border-b border-slate-100 bg-slate-50/40') : ''}`}
+                        'hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                      } ${!isCollapsed ? ('border-b border-slate-100 bg-slate-50/40 dark:border-b dark:border-slate-800/80 dark:bg-slate-800/20') : ''}`}
                     >
                       <div className="flex items-center gap-2.5 flex-wrap">
                         <span className="w-6 h-6 rounded-lg bg-blue-600 text-white text-xs flex items-center justify-center font-bold shadow-xs">
@@ -1066,7 +1052,7 @@ export default function SynthesisPanel({
           {/* Section 4: Interactive Follow-up Research Prompts */}
           {followUpQuestions.length > 0 && (
             <div className={`p-5 rounded-xl border space-y-3 transition-all ${
-              darkMode ? 'bg-blue-950/20 border-blue-900/40' : 'bg-blue-50/40 border-blue-100'
+              'bg-blue-50/40 border-blue-100 dark:bg-blue-950/20 dark:border-blue-900/40'
             }`}>
               <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300 font-bold text-xs uppercase tracking-wider">
                 <Sparkles className="w-4 h-4" />
@@ -1080,7 +1066,7 @@ export default function SynthesisPanel({
                   <div
                     key={idx}
                     className={`p-3 rounded-xl border flex flex-col justify-between gap-2 text-xs transition-all ${
-                      darkMode ? 'bg-slate-900/80 border-slate-800 hover:border-blue-700' : 'bg-white border-slate-200 hover:border-blue-400 shadow-xs'
+                      'bg-white border-slate-200 hover:border-blue-400 shadow-xs dark:bg-slate-900/80 dark:border-slate-800 dark:hover:border-blue-700'
                     }`}
                   >
                     <p className="font-medium text-slate-700 dark:text-slate-300 leading-relaxed">
@@ -1152,7 +1138,7 @@ export default function SynthesisPanel({
                       key={cite.id || idx}
                       onClick={() => openCitation(cite)}
                       className={`flex items-start gap-3 p-3 rounded-xl border text-xs cursor-pointer transition-colors ${
-                        darkMode ? 'bg-slate-950/30 border-slate-800 hover:bg-slate-800/60' : 'bg-slate-50/50 border-slate-200/80 hover:bg-blue-50/50'
+                        'bg-slate-50/50 border-slate-200/80 hover:bg-blue-50/50 dark:bg-slate-950/30 dark:border-slate-800 dark:hover:bg-slate-800/60'
                       }`}
                     >
                       <span className="font-bold text-blue-600 dark:text-blue-400 shrink-0">

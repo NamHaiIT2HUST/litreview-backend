@@ -16,11 +16,11 @@ export default function SearchBar({
 }) {
   return (
     <div className={`p-6 rounded-2xl border transition-colors space-y-6 ${
-      darkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'
+      'bg-white border-slate-200 text-slate-800 dark:bg-slate-800 dark:border-slate-700 dark:text-white'
     }`}>
       {/* Top Header Row - Multi-Agent Engine Status */}
       <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b ${
-        darkMode ? 'border-slate-700' : 'border-slate-100'
+        'border-slate-100 dark:border-slate-700'
       }`}>
         <div>
           <h3 className="font-bold text-sm flex items-center gap-2">
@@ -30,7 +30,7 @@ export default function SearchBar({
           <p className="text-xs text-slate-500 dark:text-slate-400">Gõ từ khóa khoa học để biệt đội Agents tự động thu thập và sàng lọc bài báo.</p>
         </div>
         <div className={`flex items-center gap-2 text-xs px-3 py-1.5 rounded-xl border ${
-          darkMode ? 'bg-slate-900 border-slate-700 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'
+          'bg-slate-50 border-slate-200 text-slate-700 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300'
         }`}>
           <Bot className="w-3.5 h-3.5 text-purple-500" />
           <span className="font-semibold">Engine:</span>
@@ -48,9 +48,7 @@ export default function SearchBar({
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Nhập chủ đề nghiên cứu (ví dụ: 'large language models in medical diagnostics')..."
             className={`w-full pl-12 pr-4 py-3 border rounded-xl font-medium text-sm transition-all focus:outline-none focus:ring-2 focus:ring-purple-500 ${
-              darkMode 
-                ? 'bg-slate-900 border-slate-700 text-white placeholder-slate-500' 
-                : 'bg-slate-50 border-slate-300 text-slate-800 placeholder-slate-400'
+              'bg-slate-50 border-slate-300 text-slate-800 placeholder-slate-400 dark:bg-slate-900 dark:border-slate-700 dark:text-white dark:placeholder-slate-500'
             }`}
           />
         </div>
@@ -64,9 +62,7 @@ export default function SearchBar({
         <button
           onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
           className={`inline-flex items-center gap-2 font-semibold px-6 py-2 rounded-xl text-xs transition-all border ${
-            darkMode 
-              ? 'bg-slate-700/60 hover:bg-slate-700 text-slate-200 border-slate-600' 
-              : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+            'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200 dark:bg-slate-700/60 dark:hover:bg-slate-700 dark:text-slate-200 dark:border-slate-600'
           }`}
         >
           <SlidersHorizontal className="w-3.5 h-3.5" />
@@ -76,7 +72,7 @@ export default function SearchBar({
 
       {/* Collapsible Advanced Filters Panel */}
       {showAdvancedFilters && (
-        <div className={`pt-6 border-t space-y-6 ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
+        <div className={`pt-6 border-t space-y-6 ${'border-slate-200 dark:border-slate-700'}`}>
           {/* Section 1: Bộ lọc Xuất bản */}
           <div>
             <h4 className="text-xs font-bold uppercase tracking-wider pb-2 mb-4 border-b border-slate-200/40">
@@ -89,7 +85,7 @@ export default function SearchBar({
                   type="text"
                   placeholder="ví dụ: Smith J"
                   className={`w-full p-2 border rounded-lg ${
-                    darkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300'
+                    'bg-white border-slate-300 dark:bg-slate-900 dark:border-slate-700 dark:text-white'
                   }`}
                 />
               </div>
@@ -100,7 +96,7 @@ export default function SearchBar({
                   type="text"
                   placeholder="ví dụ: Lancet, Nature"
                   className={`w-full p-2 border rounded-lg ${
-                    darkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300'
+                    'bg-white border-slate-300 dark:bg-slate-900 dark:border-slate-700 dark:text-white'
                   }`}
                 />
               </div>
@@ -111,7 +107,7 @@ export default function SearchBar({
                   value={articleType} 
                   onChange={e => setArticleType(e.target.value)}
                   className={`w-full p-2 border rounded-lg ${
-                    darkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300'
+                    'bg-white border-slate-300 dark:bg-slate-900 dark:border-slate-700 dark:text-white'
                   }`}
                 >
                   <option value="All">Tất cả các loại</option>
@@ -127,7 +123,7 @@ export default function SearchBar({
                   value={language} 
                   onChange={e => setLanguage(e.target.value)}
                   className={`w-full p-2 border rounded-lg ${
-                    darkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300'
+                    'bg-white border-slate-300 dark:bg-slate-900 dark:border-slate-700 dark:text-white'
                   }`}
                 >
                   <option value="english">Tiếng Anh</option>

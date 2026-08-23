@@ -116,7 +116,7 @@ export default function RAGEvalHarnessModal({ isOpen, onClose, workspacePapers =
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
       <div className={`w-full max-w-5xl h-[88vh] rounded-3xl border flex flex-col overflow-hidden shadow-2xl transition-all ${
-        darkMode ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
+        'bg-white border-slate-200 text-slate-900 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-100'
       }`}>
         
         {/* Modal Header */}
@@ -174,7 +174,7 @@ export default function RAGEvalHarnessModal({ isOpen, onClose, workspacePapers =
           
           {/* Left Sidebar: Paper Selector */}
           <div className={`w-72 border-r dark:border-slate-800 border-slate-200 flex flex-col shrink-0 ${
-            darkMode ? 'bg-slate-900/50' : 'bg-slate-50/50'
+            'bg-slate-50/50 dark:bg-slate-900/50'
           }`}>
             <div className="p-4 border-b dark:border-slate-800 border-slate-200 flex items-center justify-between">
               <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300">
@@ -279,7 +279,7 @@ export default function RAGEvalHarnessModal({ isOpen, onClose, workspacePapers =
                 {/* Benchmark Summary KPI Cards */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <div className={`p-4 rounded-2xl border transition-all ${
-                    darkMode ? 'bg-slate-800/60 border-slate-700' : 'bg-slate-50 border-slate-200'
+                    'bg-slate-50 border-slate-200 dark:bg-slate-800/60 dark:border-slate-700'
                   }`}>
                     <div className="flex items-center justify-between text-slate-400 text-xs font-semibold">
                       <span>{isEn ? 'Pass Rate' : 'Tỷ lệ đạt chuẩn'}</span>
@@ -294,7 +294,7 @@ export default function RAGEvalHarnessModal({ isOpen, onClose, workspacePapers =
                   </div>
 
                   <div className={`p-4 rounded-2xl border transition-all ${
-                    darkMode ? 'bg-slate-800/60 border-slate-700' : 'bg-slate-50 border-slate-200'
+                    'bg-slate-50 border-slate-200 dark:bg-slate-800/60 dark:border-slate-700'
                   }`}>
                     <div className="flex items-center justify-between text-slate-400 text-xs font-semibold">
                       <span>{isEn ? 'Faithfulness' : 'Độ trung thực nguồn'}</span>
@@ -309,7 +309,7 @@ export default function RAGEvalHarnessModal({ isOpen, onClose, workspacePapers =
                   </div>
 
                   <div className={`p-4 rounded-2xl border transition-all ${
-                    darkMode ? 'bg-slate-800/60 border-slate-700' : 'bg-slate-50 border-slate-200'
+                    'bg-slate-50 border-slate-200 dark:bg-slate-800/60 dark:border-slate-700'
                   }`}>
                     <div className="flex items-center justify-between text-slate-400 text-xs font-semibold">
                       <span>{isEn ? 'Hallucination Rate' : 'Tỷ lệ ảo giác'}</span>
@@ -326,7 +326,7 @@ export default function RAGEvalHarnessModal({ isOpen, onClose, workspacePapers =
                   </div>
 
                   <div className={`p-4 rounded-2xl border transition-all ${
-                    darkMode ? 'bg-slate-800/60 border-slate-700' : 'bg-slate-50 border-slate-200'
+                    'bg-slate-50 border-slate-200 dark:bg-slate-800/60 dark:border-slate-700'
                   }`}>
                     <div className="flex items-center justify-between text-slate-400 text-xs font-semibold">
                       <span>{isEn ? 'Citation Precision' : 'Độ chuẩn xác trích dẫn'}</span>
@@ -344,7 +344,7 @@ export default function RAGEvalHarnessModal({ isOpen, onClose, workspacePapers =
                 {/* Recommendations Box */}
                 {currentReport.recommendations && currentReport.recommendations.length > 0 && (
                   <div className={`p-4 rounded-2xl border ${
-                    darkMode ? 'bg-blue-950/20 border-blue-900/50' : 'bg-blue-50/50 border-blue-200/80'
+                    'bg-blue-50/50 border-blue-200/80 dark:bg-blue-950/20 dark:border-blue-900/50'
                   }`}>
                     <h5 className="text-xs font-bold text-blue-700 dark:text-blue-300 flex items-center gap-1.5 mb-2">
                       <Sparkles className="w-3.5 h-3.5" />
@@ -374,7 +374,7 @@ export default function RAGEvalHarnessModal({ isOpen, onClose, workspacePapers =
                         <div 
                           key={tc.test_case_id || idx}
                           className={`rounded-2xl border transition-all overflow-hidden ${
-                            darkMode ? 'bg-slate-800/40 border-slate-800' : 'bg-white border-slate-200 shadow-xs'
+                            'bg-white border-slate-200 shadow-xs dark:bg-slate-800/40 dark:border-slate-800'
                           }`}
                         >
                           <div 

@@ -453,7 +453,7 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
               <div className={`text-[14px] leading-relaxed ${
                 msg.sender === 'user'
                   ? 'px-5 py-3.5 rounded-3xl rounded-tr-sm max-w-[85%] md:max-w-[75%] bg-blue-600 text-white font-medium shadow-sm'
-                  : dm ? 'py-1.5 w-full max-w-full text-slate-200' : 'py-1.5 w-full max-w-full text-slate-800'
+                  : 'py-1.5 w-full max-w-full text-slate-800 dark:py-1.5 dark:w-full dark:max-w-full dark:text-slate-200'
               }`}>
                 
                 {/* User Attachment Chip */}
@@ -553,7 +553,7 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
               <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-md">
                 <BarChart2 className="w-4 h-4" />
               </div>
-              <div className={`py-2 px-4 rounded-2xl flex items-center gap-2 ${dm ? 'bg-slate-900 text-slate-300' : 'bg-slate-100 text-slate-700'}`}>
+              <div className={`py-2 px-4 rounded-2xl flex items-center gap-2 ${'bg-slate-100 text-slate-700 dark:bg-slate-900 dark:text-slate-300'}`}>
                 <RefreshCw className="w-3.5 h-3.5 animate-spin text-blue-500" />
                 <span className="text-xs font-semibold">DataVoyager đang tính toán thống kê & phân tích dữ liệu...</span>
               </div>
@@ -586,7 +586,7 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
                     <div 
                       key={catIdx}
                       className={`p-4 rounded-2xl border transition-all ${
-                        dm ? 'bg-slate-900/60 border-slate-800/80 hover:border-slate-700' : 'bg-white border-slate-200/90 shadow-2xs hover:border-slate-300'
+                        'bg-white border-slate-200/90 shadow-2xs hover:border-slate-300 dark:bg-slate-900/60 dark:border-slate-800/80 dark:hover:border-slate-700'
                       }`}
                     >
                       <div className="flex items-start gap-2.5 mb-2.5">
@@ -636,7 +636,7 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
         {/* ASTA Style Attachment Chip */}
         {attachedFile && (
           <div className={`self-start flex items-center gap-2 px-3 py-1.5 rounded-xl border text-[12px] font-semibold shadow-sm animate-in fade-in duration-150 ${
-            dm ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-700'
+            'bg-slate-50 border-slate-200 text-slate-700 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200'
           }`}>
             <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-500" />
             <span className="max-w-[240px] truncate">{attachedFile.name}</span>
@@ -664,7 +664,7 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
             onClick={() => fileInputRef.current?.click()}
             title="Đính kèm tập dữ liệu nghiên cứu (Excel .xlsx, .xls, CSV, TSV)"
             className={`absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-xl transition-colors cursor-pointer ${
-              attachedFile ? 'text-blue-500 bg-blue-50 dark:bg-blue-950/40' : dm ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-700' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+              attachedFile ? 'text-blue-500 bg-blue-50 dark:bg-blue-950/40' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-700'
             }`}
           >
             <Paperclip className="w-4 h-4" />
@@ -676,7 +676,7 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
             onChange={(e) => setInput(e.target.value)}
             placeholder={isEn ? "Ask a scientific question, test hypothesis, analyze trends, or request charts..." : "Đặt câu hỏi khoa học, phân tích xu hướng, kiểm định giả thuyết hoặc yêu cầu vẽ biểu đồ..."}
             className={`w-full pl-12 pr-32 py-3.5 border rounded-2xl text-[13.5px] font-medium focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 shadow-sm transition-all ${
-              dm ? 'bg-slate-900 border-slate-700 text-white placeholder-slate-500' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400'
+              'bg-white border-slate-200 text-slate-900 placeholder-slate-400 dark:bg-slate-900 dark:border-slate-700 dark:text-white dark:placeholder-slate-500'
             }`}
           />
 

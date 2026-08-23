@@ -51,7 +51,7 @@ export default function InteractiveHeroBackground({ darkMode }) {
         vx: (Math.random() - 0.5) * 0.7,
         vy: (Math.random() - 0.5) * 0.7,
         radius: Math.random() * 2 + 1.5,
-        baseColor: darkMode ? 'rgba(59, 130, 246, 0.7)' : 'rgba(37, 99, 235, 0.6)',
+        baseColor: 'rgba(37, 99, 235, 0.6) dark:rgba(59, dark:130, dark:246, dark:0.7)',
       });
     }
 
@@ -97,9 +97,9 @@ export default function InteractiveHeroBackground({ darkMode }) {
         // Draw particle dot with glow
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-        ctx.fillStyle = darkMode ? '#60A5FA' : '#2563EB';
+        ctx.fillStyle = '#2563EB dark:#60A5FA';
         ctx.shadowBlur = 8;
-        ctx.shadowColor = darkMode ? 'rgba(96, 165, 250, 0.8)' : 'rgba(37, 99, 235, 0.5)';
+        ctx.shadowColor = 'rgba(37, 99, 235, 0.5) dark:rgba(96, dark:165, dark:250, dark:0.8)';
         ctx.fill();
         ctx.shadowBlur = 0; // reset
 
@@ -148,9 +148,7 @@ export default function InteractiveHeroBackground({ darkMode }) {
       {/* Cyber Grid Pattern Lines */}
       <div 
         className={`absolute inset-0 opacity-[0.04] dark:opacity-[0.07] ${
-          darkMode 
-            ? 'bg-[linear-gradient(to_right,#60a5fa_1px,transparent_1px),linear-gradient(to_bottom,#60a5fa_1px,transparent_1px)]' 
-            : 'bg-[linear-gradient(to_right,#2563eb_1px,transparent_1px),linear-gradient(to_bottom,#2563eb_1px,transparent_1px)]'
+          'bg-[linear-gradient(to_right,#2563eb_1px,transparent_1px),linear-gradient(to_bottom,#2563eb_1px,transparent_1px)] dark:bg-[linear-gradient(to_right,#60a5fa_1px,transparent_1px),linear-gradient(to_bottom,#60a5fa_1px,transparent_1px)]'
         } bg-[size:4rem_4rem]`} 
       />
 

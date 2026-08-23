@@ -652,40 +652,38 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
   };
 
   return (
-    <div className="flex gap-6 max-w-[1400px] mx-auto py-4">
+    <div className="flex gap-0 min-h-screen">
       
-      {/* ====== SIDEBAR: Left side (Scrollable & Sticky) ====== */}
-      <aside className={`w-full lg:w-72 shrink-0 self-start max-h-[calc(100vh-6.5rem)] overflow-y-auto custom-scrollbar sticky top-24 space-y-4 p-4 rounded-3xl border transition-colors shadow-sm ${
-        darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-      }`}>
-        {/* --- 1. Chủ đề & Phạm vi Nghiên cứu (Tinh gọn) --- */}
-        <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-slate-800/50 border-slate-700/60' : 'bg-slate-50 border-slate-200'}`}>
-          <div className="flex items-center justify-between gap-2 mb-3 border-b pb-2 border-slate-200 dark:border-slate-700">
+      {/* ====== LEFT SIDEBAR ====== */}
+      <aside className="hidden lg:flex flex-col w-72 shrink-0 sticky top-0 h-screen overflow-y-auto border-r border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 p-4 space-y-4">
+        {/* Topic Overview */}
+        <div className="card p-4 space-y-3">
+          <div className="flex items-center justify-between gap-2 pb-2 border-b border-surface-100 dark:border-surface-800">
             <div className="flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-blue-600 dark:text-sky-400" />
-              <h4 className="text-xs font-display font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                Chủ đề & Phạm vi
+              <BookOpen className="w-4 h-4 text-primary-600 dark:text-primary-400" />
+              <h4 className="section-label">
+                {t('search.topic_scope')}
               </h4>
             </div>
-            <span className="px-2 py-0.5 rounded-md bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-sky-300 text-[10px] font-bold">
-              {projectData?.year_from || 2020} - {projectData?.year_to || 2026}
+            <span className="badge badge-primary text-[10px]">
+              {projectData?.year_from || 2020} – {projectData?.year_to || 2026}
             </span>
           </div>
 
-          <div className="space-y-2.5 text-xs">
+          <div className="space-y-2 text-xs">
             <div>
-              <p className="font-bold text-[10px] text-slate-400 uppercase tracking-wider">Lĩnh vực nghiên cứu:</p>
-              <p className="font-semibold text-slate-800 dark:text-slate-200 mt-0.5">
-                {projectData?.research_field || "Chưa xác định"}
+              <p className="section-label mb-0.5">{t('search.field_label')}</p>
+              <p className="font-medium text-surface-800 dark:text-surface-200">
+                {projectData?.research_field || '—'}
               </p>
             </div>
 
             <div>
-              <p className="font-bold text-[10px] text-slate-400 uppercase tracking-wider">Câu hỏi nghiên cứu:</p>
-              <p className={`font-normal text-slate-600 dark:text-slate-400 mt-0.5 leading-relaxed ${
+              <p className="section-label mb-0.5">{t('search.question_label')}</p>
+              <p className={`text-surface-600 dark:text-surface-400 mt-0.5 leading-relaxed ${
                 isQuestionExpanded ? '' : 'line-clamp-2'
               }`}>
-                {projectData?.research_question || projectData?.name || "Chưa thiết lập"}
+                {projectData?.research_question || projectData?.name || '—'}
               </p>
               {((projectData?.research_question || projectData?.name || '').length > 75) && (
                 <button
@@ -712,104 +710,99 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
           isSidebar={true}
         />
 
-        {/* --- 3. Cơ hội & Khoảng trống nghiên cứu Panel (Bottom) --- */}
-        <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-slate-800/40 border-slate-700/60' : 'bg-slate-50 border-slate-200'} space-y-3`}>
+        {/* Gap Analysis */}
+        <div className="card p-4 space-y-3">
           <div className="flex items-center gap-2">
-            <Target className="w-4 h-4 text-blue-600 dark:text-sky-400" />
-            <h4 className="text-xs font-display font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-              Cơ hội & Khoảng trống
-            </h4>
+            <Target className="w-4 h-4 text-primary-600 dark:text-primary-400" />
+            <h4 className="section-label">{t('search.opportunities_gaps')}</h4>
           </div>
-          <p className="text-[11px] text-slate-500 leading-relaxed font-normal">
-            Phân tích điểm nghẽn và phát hiện cơ hội đề tài mới từ <strong>{papers.length} bài báo</strong> đã tìm thấy.
+          <p className="text-xs text-surface-500 dark:text-surface-400 leading-relaxed">
+            {t('search.gap_desc', { count: papers.length })}
           </p>
           <button
             type="button"
             onClick={handleOpenGapAnalysis}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-display font-bold text-xs bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-all hover:scale-[1.02] active:scale-95"
+            className="btn btn-primary btn-sm w-full"
           >
             <Target className="w-3.5 h-3.5" />
-            <span>Phân tích Khoảng trống</span>
+            <span>{t('search.gap_btn')}</span>
           </button>
         </div>
       </aside>
 
-      {/* ====== MAIN CONTENT: Right side ====== */}
-      <div className="flex-1 space-y-6 min-w-0">
+      {/* ====== MAIN CONTENT ====== */}
+      <div className="flex-1 min-w-0 px-6 py-6 space-y-5">
 
         {/* Research Topic Banner */}
         {projectData && (
-          <div className={`p-5 rounded-3xl border shadow-sm ${
-            darkMode ? 'bg-gradient-to-r from-slate-900 to-slate-800 border-slate-700' : 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-100'
-          }`}>
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3 min-w-0">
-                <BookOpen className="w-6 h-6 text-blue-600 dark:text-sky-400 shrink-0" />
-                <div className="min-w-0">
-                  <h3 className={`font-extrabold text-base truncate ${darkMode ? 'text-white' : 'text-slate-900'}`}>
-                    {projectData.name || t('search.unnamed_project')}
-                  </h3>
-                  <p className={`text-xs truncate mt-0.5 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                    {projectData.research_question || t('search.no_question')}
-                  </p>
-                </div>
+          <div className="card p-4 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-primary-50 dark:bg-primary-950 flex items-center justify-center flex-shrink-0">
+                <BookOpen className="w-4 h-4 text-primary-600 dark:text-primary-400" />
               </div>
-              <button
-                onClick={() => setShowScreeningModal(true)}
-                className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-2xl font-bold text-xs bg-indigo-600 hover:bg-indigo-700 text-white transition-all shadow-md"
-              >
-                <ShieldAlert className="w-4 h-4" />
-                Screening
-              </button>
+              <div className="min-w-0">
+                <h3 className="text-xs font-bold text-surface-900 dark:text-white truncate">
+                  {projectData.name || t('search.unnamed_project')}
+                </h3>
+                <p className="text-xs text-surface-400 truncate mt-0.5">
+                  {projectData.research_question || t('search.no_question')}
+                </p>
+              </div>
             </div>
+            <button
+              onClick={() => setShowScreeningModal(true)}
+              className="btn btn-primary btn-sm flex-shrink-0"
+            >
+              <ShieldAlert className="w-3.5 h-3.5" />
+              Screening
+            </button>
           </div>
         )}
 
-        {/* Page Title */}
-        <div className="text-center space-y-2">
-          <h2 className={`text-2xl md:text-3xl font-extrabold tracking-tight ${darkMode ? 'text-white' : 'text-slate-900'}`}>
-            {t('search.tab_title')}
-          </h2>
-          <p className={`text-sm max-w-2xl mx-auto font-medium ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-            {t('search.tab_desc')}
-          </p>
+        {/* Page Header */}
+        <div className="page-header">
+          <div>
+            <h1 className="page-title">{t('search.tab_title')}</h1>
+            <p className="text-sm text-surface-500 dark:text-surface-400">{t('search.tab_desc')}</p>
+          </div>
+          {papers.length > 0 && (
+            <span className="badge badge-primary">{papers.length} {t('search.verified_papers')}</span>
+          )}
         </div>
 
-        {/* BYOK API Key Banner */}
-        <div className={`p-4 rounded-3xl border transition-all ${
-          darkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-100'
-        }`}>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-sm font-bold text-blue-700 dark:text-sky-300">
-              <Key className="w-4 h-4 shrink-0 text-blue-600 dark:text-sky-400" />
+        {/* API Key Section */}
+        <details className="card">
+          <summary className="p-3 cursor-pointer list-none flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm font-semibold text-surface-700 dark:text-surface-300">
+              <Key className="w-4 h-4 text-primary-500" />
               <span>{t('search.api_key_label')}</span>
             </div>
-            <div className="flex-1 max-w-md flex items-center gap-2">
+            <ChevronDown className="w-4 h-4 text-surface-400" />
+          </summary>
+          <div className="px-3 pb-3 pt-0">
+            <div className="flex items-center gap-2">
               <input
                 type="password"
                 value={apiKey}
                 onChange={handleApiKeyChange}
                 placeholder={t('search.api_key_placeholder')}
-                className={`w-full px-4 py-2 border rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-600 ${
-                  darkMode ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500' : 'bg-white border-slate-300 text-slate-900'
-                }`}
+                className="input input-sm font-mono flex-1"
               />
-            </div>
-            <div className="flex items-center gap-3 text-xs font-bold text-blue-600 dark:text-sky-400 shrink-0">
-              <a href="https://serpapi.com/users/sign_up" target="_blank" rel="noreferrer" className="hover:underline flex items-center gap-1">
-                <span>{t('search.get_api_key')}</span>
-                <ExternalLink className="w-3 h-3" />
+              <a href="https://serpapi.com/users/sign_up" target="_blank" rel="noreferrer"
+                className="btn btn-sm btn-ghost text-primary-600 dark:text-primary-400 flex-shrink-0">
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">{t('search.get_api_key')}</span>
               </a>
             </div>
           </div>
-        </div>
+        </details>
 
-        {/* Active Suggested Keywords Banner */}
+        {/* Suggested Keywords Banner */}
         {suggestedKeywords && suggestedKeywords.length > 0 && (
-          <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 text-slate-200 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-inner">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 overflow-x-auto">
-              <span className="text-amber-400 font-extrabold shrink-0 uppercase tracking-wider">Các từ khóa gợi ý:</span>
-              <div className="flex flex-wrap gap-2">
+          <div className="card p-3 flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="section-label">Suggested keywords:</span>
+              <div className="flex flex-wrap gap-1.5">
                 {suggestedKeywords.map((kw, idx) => (
                   <span 
                     key={idx} 
@@ -842,8 +835,8 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
         )}
 
         {/* Search Bar */}
-        <form onSubmit={handleSearch} className={`p-4 md:p-6 rounded-3xl border shadow-lg transition-colors ${
-          darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+        <form id="tour-search-bar" onSubmit={handleSearch} className={`p-4 md:p-6 rounded-3xl border shadow-lg transition-colors ${
+          'bg-white border-slate-200 dark:bg-slate-900 dark:border-slate-800'
         }`}>
           <div className="flex flex-col gap-4">
             <div className="flex flex-col sm:flex-row gap-3">
@@ -856,9 +849,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                   onKeyDown={handleInputKeyDown}
                   placeholder={t('search.search_placeholder')}
                   className={`w-full pl-14 pr-4 py-4 border rounded-2xl text-base font-semibold focus:outline-none focus:ring-2 focus:ring-blue-600 ${
-                    darkMode 
-                      ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500' 
-                      : 'bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400'
+                    'bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700 dark:text-white dark:placeholder-slate-500'
                   }`}
                 />
               </div>
@@ -916,8 +907,8 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
 
         {/* Error Alert */}
         {error && (
-          <div className="p-4 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/60 text-red-700 dark:text-red-300 text-sm font-semibold flex items-center gap-3">
-            <AlertCircle className="w-5 h-5 shrink-0 text-red-500" />
+          <div className="p-3 rounded-xl bg-danger-light dark:bg-danger-dark border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-sm flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 flex-shrink-0 text-danger" />
             <span>{error}</span>
           </div>
         )}
@@ -969,31 +960,24 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
 
           {/* Empty State */}
           {papers.length === 0 && !loading && (
-            <div className={`p-12 text-center rounded-3xl border ${
-              darkMode ? 'bg-slate-900/60 border-slate-800 text-slate-400' : 'bg-white border-slate-200 text-slate-500'
-            }`}>
-              <Search className="w-12 h-12 mx-auto mb-4 opacity-30 text-blue-500" />
-              <h3 className="text-lg font-bold mb-1">{t('search.empty_title')}</h3>
-              <p className="text-sm max-w-md mx-auto">
-                {t('search.empty_desc')}
-              </p>
+            <div className="card flex flex-col items-center justify-center py-20 text-center">
+              <div className="w-16 h-16 rounded-2xl bg-surface-100 dark:bg-surface-800 flex items-center justify-center mb-4">
+                <Search className="w-8 h-8 text-surface-400" />
+              </div>
+              <p className="font-display font-semibold text-surface-700 dark:text-surface-300 mb-1">{t('search.empty_title')}</p>
+              <p className="text-sm text-surface-400 max-w-xs">{t('search.empty_desc')}</p>
             </div>
           )}
 
           {/* Filter Empty State */}
           {papers.length > 0 && filteredAndSortedPapers.length === 0 && (
-            <div className={`p-10 text-center rounded-3xl border ${
-              darkMode ? 'bg-slate-900/60 border-slate-800 text-slate-400' : 'bg-white border-slate-200 text-slate-500'
-            }`}>
-              <Search className="w-10 h-10 mx-auto mb-3 opacity-40 text-amber-500" />
-              <h3 className="text-base font-bold text-slate-800 dark:text-slate-200 mb-1">{t('search.filter_empty_title')}</h3>
-              <p className="text-xs max-w-sm mx-auto mb-4">
-                {t('search.filter_empty_desc')}
-              </p>
-              <button
-                onClick={resetFilters}
-                className="px-4 py-2 bg-blue-600 text-white font-bold text-xs rounded-xl hover:bg-blue-700 transition-colors"
-              >
+            <div className="card flex flex-col items-center justify-center py-16 text-center">
+              <div className="w-12 h-12 rounded-2xl bg-surface-100 dark:bg-surface-800 flex items-center justify-center mb-3">
+                <Search className="w-6 h-6 text-surface-400" />
+              </div>
+              <p className="font-semibold text-surface-700 dark:text-surface-300 mb-1">{t('search.filter_empty_title')}</p>
+              <p className="text-sm text-surface-400 mb-4">{t('search.filter_empty_desc')}</p>
+              <button onClick={resetFilters} className="btn btn-primary btn-sm">
                 {t('search.clear_filters')}
               </button>
             </div>
@@ -1020,7 +1004,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
               <div
                 key={paper.id}
                 className={`p-6 md:p-8 rounded-3xl border transition-all duration-300 space-y-5 shadow-sm hover:shadow-xl hover:-translate-y-1 ${
-                  darkMode ? 'bg-slate-900 border-slate-800 text-slate-200 hover:shadow-blue-900/20' : 'bg-white border-slate-200 hover:shadow-slate-300'
+                  'bg-white border-slate-200 hover:shadow-slate-300 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-200 dark:hover:shadow-blue-900/20'
                 } ${isSelected ? 'ring-2 ring-blue-500 border-blue-500 shadow-md' : ''}`}
               >
                 <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
@@ -1041,7 +1025,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                       )}
                     </div>
 
-                    <h3 className={`font-extrabold text-lg md:text-xl leading-snug ${darkMode ? 'text-white' : 'text-slate-900'}`}>
+                    <h3 className={`font-extrabold text-lg md:text-xl leading-snug ${'text-slate-900 dark:text-white'}`}>
                       {paper.title}
                     </h3>
                     
@@ -1053,7 +1037,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
 
                 {/* Abstract & TL;DR */}
                 <div className={`p-5 rounded-2xl text-sm leading-relaxed border transition-all ${
-                  darkMode ? 'bg-slate-800/80 border-slate-700 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'
+                  'bg-slate-50 border-slate-200 text-slate-700 dark:bg-slate-800/80 dark:border-slate-700 dark:text-slate-300'
                 }`}>
                   {paper.tldr && (
                     <div className="mb-3 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-800/50">
@@ -1102,9 +1086,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                       target="_blank"
                       rel="noreferrer"
                       className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-bold transition-all border ${
-                        darkMode 
-                          ? 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-white' 
-                          : 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-800'
+                        'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-white'
                       }`}
                     >
                       <Download className="w-4 h-4 text-blue-600 dark:text-sky-400" />
@@ -1115,9 +1097,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                     <button
                       onClick={() => handleOpenSummary(paper)}
                       className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-bold transition-all border shadow-sm ${
-                        darkMode 
-                          ? 'bg-slate-800 hover:bg-slate-700 border-emerald-500/40 text-emerald-400' 
-                          : 'bg-emerald-50 hover:bg-emerald-100 border-emerald-200 text-emerald-700'
+                        'bg-emerald-50 hover:bg-emerald-100 border-emerald-200 text-emerald-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-emerald-500/40 dark:text-emerald-400'
                       }`}
                       title="Xem Hồ sơ tóm tắt bài báo (TL;DR)"
                     >
@@ -1128,9 +1108,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                     <button
                       onClick={() => handleOpenGenealogy(paper)}
                       className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-bold transition-all border shadow-sm ${
-                        darkMode 
-                          ? 'bg-slate-800 hover:bg-slate-700 border-sky-500/40 text-sky-400' 
-                          : 'bg-sky-50 hover:bg-sky-100 border-sky-200 text-sky-700'
+                        'bg-sky-50 hover:bg-sky-100 border-sky-200 text-sky-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-sky-500/40 dark:text-sky-400'
                       }`}
                       title="Khám phá cây phả hệ trích dẫn (Nguồn gốc & Kế thừa)"
                     >
@@ -1211,7 +1189,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
           <div 
             onClick={(e) => e.stopPropagation()}
             className={`rounded-3xl p-6 md:p-8 max-w-2xl w-full space-y-6 shadow-2xl border max-h-[90vh] overflow-y-auto ${
-              darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
+              'bg-white border-slate-200 text-slate-900 dark:bg-slate-900 dark:border-slate-800 dark:text-white'
             }`}
           >
             <div className="flex items-center justify-between border-b pb-4 border-slate-200 dark:border-slate-800">
@@ -1228,14 +1206,14 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
             </div>
 
             {/* Research Question */}
-            <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-slate-800/60 border-slate-700' : 'bg-blue-50/50 border-blue-100'}`}>
+            <div className={`p-4 rounded-2xl border ${'bg-blue-50/50 border-blue-100 dark:bg-slate-800/60 dark:border-slate-700'}`}>
               <p className="text-xs font-bold text-blue-600 dark:text-sky-400 mb-1">🎯 Câu hỏi nghiên cứu:</p>
               <p className="text-sm font-semibold">{projectData.research_question || 'Chưa thiết lập'}</p>
             </div>
 
             {/* Criteria */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-emerald-950/30 border-emerald-800' : 'bg-emerald-50 border-emerald-200'}`}>
+              <div className={`p-4 rounded-2xl border ${'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800'}`}>
                 <h5 className="font-bold text-emerald-700 dark:text-emerald-400 mb-2 flex items-center gap-2">
                   <Check className="w-4 h-4" /> Inclusion (Nên có)
                 </h5>
@@ -1252,7 +1230,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                   <p className="text-xs opacity-50 italic">Chưa có tiêu chí</p>
                 )}
               </div>
-              <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-red-950/30 border-red-800' : 'bg-red-50 border-red-200'}`}>
+              <div className={`p-4 rounded-2xl border ${'bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-800'}`}>
                 <h5 className="font-bold text-red-700 dark:text-red-400 mb-2 flex items-center gap-2">
                   <X className="w-4 h-4" /> Exclusion (Loại trừ)
                 </h5>
@@ -1272,7 +1250,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
             </div>
 
             {/* Screening Info */}
-            <div className={`p-4 rounded-2xl text-sm ${darkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-50 text-slate-600'}`}>
+            <div className={`p-4 rounded-2xl text-sm ${'bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-300'}`}>
               <p className="font-semibold mb-1">📋 Quy trình Screening:</p>
               <ol className="list-decimal ml-5 space-y-1 text-xs">
                 <li>Bài báo được tìm trên Google Scholar và tự động đối chiếu Scopus</li>
@@ -1298,7 +1276,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
           <div 
             onClick={(e) => e.stopPropagation()}
             className={`rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-2xl border flex flex-col max-h-[90vh] overflow-hidden transition-all ${
-              darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
+              'bg-white border-slate-200 text-slate-900 dark:bg-slate-900 dark:border-slate-800 dark:text-white'
             }`}
           >
             {/* Modal Header */}
@@ -1328,7 +1306,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
             {/* Modal Body */}
             <div className="flex-1 overflow-y-auto py-5 space-y-5 pr-1">
               {/* Paper Meta */}
-              <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-slate-800/60 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+              <div className={`p-4 rounded-2xl border ${'bg-slate-50 border-slate-200 dark:bg-slate-800/60 dark:border-slate-700'}`}>
                 <p className="text-xs font-bold text-slate-500 dark:text-slate-400">Tạp chí & Năm xuất bản</p>
                 <p className="text-xs font-semibold mt-0.5 text-blue-600 dark:text-sky-400">
                   {aiScreeningPaper.journal} ({aiScreeningPaper.year}) • DOI: {aiScreeningPaper.doi}
@@ -1337,7 +1315,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
 
               {/* Research Scope */}
               {projectData && (
-                <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-indigo-950/30 border-indigo-900/50' : 'bg-indigo-50/70 border-indigo-100'}`}>
+                <div className={`p-4 rounded-2xl border ${'bg-indigo-50/70 border-indigo-100 dark:bg-indigo-950/30 dark:border-indigo-900/50'}`}>
                   <p className="text-xs font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-wider mb-1">
                     🎯 Câu hỏi nghiên cứu đối chiếu:
                   </p>
@@ -1382,7 +1360,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
 
                   {/* Matches Breakdown */}
                   {aiScreeningResult.reason?.matches?.length > 0 && (
-                    <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-emerald-950/20 border-emerald-900/40' : 'bg-emerald-50 border-emerald-100'}`}>
+                    <div className={`p-4 rounded-2xl border ${'bg-emerald-50 border-emerald-100 dark:bg-emerald-950/20 dark:border-emerald-900/40'}`}>
                       <h4 className="text-xs font-extrabold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                         <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                         ĐIỂM KHỚP TIÊU CHÍ CHỌN (INCLUSION):
@@ -1400,7 +1378,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
 
                   {/* Unmatched Points / Potential Gaps Breakdown */}
                   {aiScreeningResult.reason?.mismatches?.length > 0 && (
-                    <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-amber-950/20 border-amber-900/40' : 'bg-amber-50 border-amber-100'}`}>
+                    <div className={`p-4 rounded-2xl border ${'bg-amber-50 border-amber-100 dark:bg-amber-950/20 dark:border-amber-900/40'}`}>
                       <h4 className="text-xs font-extrabold text-amber-700 dark:text-amber-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                         <AlertCircle className="w-4 h-4 text-amber-600" />
                         ĐIỂM CHƯA KHỚP HOẶC CẦN LƯU Ý (GAPS & UNMATCHED):
@@ -1418,7 +1396,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
 
                   {/* Exclusion Check Breakdown */}
                   {aiScreeningResult.reason?.exclusion_notes?.length > 0 && (
-                    <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-slate-800/80 border-slate-700' : 'bg-slate-100/80 border-slate-200'}`}>
+                    <div className={`p-4 rounded-2xl border ${'bg-slate-100/80 border-slate-200 dark:bg-slate-800/80 dark:border-slate-700'}`}>
                       <h4 className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                         <ShieldAlert className="w-4 h-4 text-slate-500" />
                         KIỂM TRA TIÊU CHÍ LOẠI TRỪ (EXCLUSION CHECK):
@@ -1438,7 +1416,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                   <div>
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Trích đoạn Abstract:</p>
                     <p className={`text-xs p-3 rounded-xl border leading-relaxed ${
-                      darkMode ? 'bg-slate-800/40 border-slate-700 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'
+                      'bg-slate-50 border-slate-200 text-slate-700 dark:bg-slate-800/40 dark:border-slate-700 dark:text-slate-300'
                     }`}>
                       {aiScreeningPaper.abstract}
                     </p>
@@ -1464,7 +1442,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
       {showGapModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-200">
           <div className={`w-full max-w-4xl max-h-[90vh] flex flex-col p-6 md:p-8 rounded-3xl border shadow-2xl overflow-hidden ${
-            darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
+            'bg-white border-slate-200 text-slate-900 dark:bg-slate-900 dark:border-slate-800 dark:text-white'
           }`}>
             {/* Header */}
             <div className="flex items-center justify-between pb-5 border-b border-slate-200 dark:border-slate-800">
@@ -1576,7 +1554,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                     </h4>
 
                     {/* Limitations of current papers */}
-                    <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-50 border-slate-200'} space-y-2`}>
+                    <div className={`p-4 rounded-2xl border ${'bg-slate-50 border-slate-200 dark:bg-slate-800/50 dark:border-slate-700'} space-y-2`}>
                       <div className="flex items-center gap-2 text-xs font-bold text-amber-700 dark:text-amber-400">
                         <AlertCircle className="w-4 h-4" />
                         <span>Điểm nghẽn chưa được giải quyết trong các bài báo hiện tại:</span>
@@ -1589,7 +1567,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                     </div>
 
                     {/* 3 Novel Research Directions */}
-                    <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-blue-950/30 border-blue-800/60' : 'bg-blue-50/50 border-blue-200'} space-y-3`}>
+                    <div className={`p-4 rounded-2xl border ${'bg-blue-50/50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-800/60'} space-y-3`}>
                       <div className="flex items-center gap-2 text-xs font-bold text-blue-700 dark:text-sky-300">
                         <Sparkles className="w-4 h-4" />
                         <span>3 Hướng đề tài đề xuất có tiềm năng công bố cao:</span>
@@ -1642,7 +1620,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
       {summaryPaper && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200">
           <div className={`w-full max-w-4xl max-h-[92vh] flex flex-col p-6 md:p-8 rounded-3xl border shadow-2xl overflow-hidden ${
-            darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
+            'bg-white border-slate-200 text-slate-900 dark:bg-slate-900 dark:border-slate-800 dark:text-white'
           }`}>
             <div className="flex items-center justify-between pb-5 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-3">
@@ -1678,7 +1656,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
               ) : summaryData ? (
                 <div className="space-y-6">
                   {/* TL;DR Box */}
-                  <div className={`p-5 rounded-2xl border ${darkMode ? 'bg-emerald-950/30 border-emerald-900/50' : 'bg-emerald-50 border-emerald-100'}`}>
+                  <div className={`p-5 rounded-2xl border ${'bg-emerald-50 border-emerald-100 dark:bg-emerald-950/30 dark:border-emerald-900/50'}`}>
                     <h5 className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-2 flex items-center gap-2">
                       <Sparkles className="w-4 h-4" /> TÓM TẮT SIÊU TỐC (TL;DR)
                     </h5>
@@ -1698,32 +1676,32 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
 
                   {/* Structured Breakdown */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className={`p-5 rounded-2xl border ${darkMode ? 'bg-slate-800/50 border-slate-700/50' : 'bg-slate-50 border-slate-200'}`}>
+                    <div className={`p-5 rounded-2xl border ${'bg-slate-50 border-slate-200 dark:bg-slate-800/50 dark:border-slate-700/50'}`}>
                       <h5 className="text-xs font-bold text-blue-500 mb-2">🎯 MỤC TIÊU (OBJECTIVE)</h5>
                       <p className="text-sm leading-relaxed">{summaryData.objective}</p>
                     </div>
-                    <div className={`p-5 rounded-2xl border ${darkMode ? 'bg-slate-800/50 border-slate-700/50' : 'bg-slate-50 border-slate-200'}`}>
+                    <div className={`p-5 rounded-2xl border ${'bg-slate-50 border-slate-200 dark:bg-slate-800/50 dark:border-slate-700/50'}`}>
                       <h5 className="text-xs font-bold text-purple-500 mb-2">⚙️ PHƯƠNG PHÁP (METHODOLOGY)</h5>
                       <p className="text-sm leading-relaxed">{summaryData.methodology}</p>
                     </div>
-                    <div className={`p-5 rounded-2xl border ${darkMode ? 'bg-slate-800/50 border-slate-700/50' : 'bg-slate-50 border-slate-200'}`}>
+                    <div className={`p-5 rounded-2xl border ${'bg-slate-50 border-slate-200 dark:bg-slate-800/50 dark:border-slate-700/50'}`}>
                       <h5 className="text-xs font-bold text-amber-500 mb-2">📦 DỮ LIỆU & MẪU (DATASET)</h5>
                       <p className="text-sm leading-relaxed">{summaryData.dataset}</p>
                     </div>
-                    <div className={`p-5 rounded-2xl border ${darkMode ? 'bg-slate-800/50 border-slate-700/50' : 'bg-slate-50 border-slate-200'}`}>
+                    <div className={`p-5 rounded-2xl border ${'bg-slate-50 border-slate-200 dark:bg-slate-800/50 dark:border-slate-700/50'}`}>
                       <h5 className="text-xs font-bold text-red-500 mb-2">🚧 HẠN CHẾ (LIMITATIONS)</h5>
                       <p className="text-sm leading-relaxed">{summaryData.limitations}</p>
                     </div>
                   </div>
 
                   {/* Key Findings (Full width) */}
-                  <div className={`p-5 rounded-2xl border ${darkMode ? 'bg-indigo-950/30 border-indigo-900/50' : 'bg-indigo-50 border-indigo-100'}`}>
+                  <div className={`p-5 rounded-2xl border ${'bg-indigo-50 border-indigo-100 dark:bg-indigo-950/30 dark:border-indigo-900/50'}`}>
                     <h5 className="text-xs font-bold text-indigo-600 dark:text-indigo-400 mb-2">📈 KẾT QUẢ NỔI BẬT (KEY FINDINGS & METRICS)</h5>
                     <p className="text-sm leading-relaxed">{summaryData.key_findings}</p>
                   </div>
 
                   {/* Reliability Metrics */}
-                  <div className={`p-4 rounded-xl border flex flex-wrap gap-6 items-center ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+                  <div className={`p-4 rounded-xl border flex flex-wrap gap-6 items-center ${'bg-white border-slate-200 dark:bg-slate-900 dark:border-slate-800'}`}>
                     <div className="flex flex-col">
                       <span className="text-[10px] font-bold text-slate-400 uppercase">Lượt trích dẫn</span>
                       <span className="text-sm font-bold">{summaryData.reliability_metrics?.citations || 0}</span>
@@ -1749,7 +1727,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
       {genealogyPaper && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200">
           <div className={`w-full max-w-5xl max-h-[92vh] flex flex-col p-6 md:p-8 rounded-3xl border shadow-2xl overflow-hidden ${
-            darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
+            'bg-white border-slate-200 text-slate-900 dark:bg-slate-900 dark:border-slate-800 dark:text-white'
           }`}>
             {/* Header */}
             <div className="flex items-center justify-between pb-5 border-b border-slate-200 dark:border-slate-800">
@@ -1778,7 +1756,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
             <div className="flex-1 overflow-y-auto py-5 space-y-6 custom-scrollbar">
               {/* Seed Paper Focus Banner */}
               <div className={`p-4 md:p-5 rounded-2xl border ${
-                darkMode ? 'bg-slate-800/80 border-slate-700' : 'bg-blue-50/50 border-blue-200'
+                'bg-blue-50/50 border-blue-200 dark:bg-slate-800/80 dark:border-slate-700'
               }`}>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-sky-400 bg-blue-100 dark:bg-blue-950 px-2.5 py-0.5 rounded-md">
                   🎯 BÀI BÁO HẠT NHÂN (SEED PAPER)
@@ -1818,7 +1796,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                         <div 
                           key={idx}
                           className={`p-4 rounded-2xl border transition-all ${
-                            darkMode ? 'bg-slate-800/40 border-slate-700 hover:border-amber-500/50' : 'bg-amber-50/20 border-amber-100 hover:border-amber-300'
+                            'bg-amber-50/20 border-amber-100 hover:border-amber-300 dark:bg-slate-800/40 dark:border-slate-700 dark:hover:border-amber-500/50'
                           }`}
                         >
                           <div className="flex items-start justify-between gap-2">
@@ -1843,9 +1821,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                               target="_blank"
                               rel="noreferrer"
                               className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition-all border flex items-center gap-1.5 ${
-                                darkMode 
-                                  ? 'bg-slate-700/80 hover:bg-slate-700 border-slate-600 text-slate-200' 
-                                  : 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700 shadow-xs'
+                                'bg-white hover:bg-slate-100 border-slate-200 text-slate-700 shadow-xs dark:bg-slate-700/80 dark:hover:bg-slate-700 dark:border-slate-600 dark:text-slate-200'
                               }`}
                               title="Xem bài gốc / Tải PDF"
                             >
@@ -1916,7 +1892,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                         <div 
                           key={idx}
                           className={`p-4 rounded-2xl border transition-all ${
-                            darkMode ? 'bg-slate-800/40 border-slate-700 hover:border-sky-500/50' : 'bg-sky-50/20 border-sky-100 hover:border-sky-300'
+                            'bg-sky-50/20 border-sky-100 hover:border-sky-300 dark:bg-slate-800/40 dark:border-slate-700 dark:hover:border-sky-500/50'
                           }`}
                         >
                           <div className="flex items-start justify-between gap-2">
@@ -1941,9 +1917,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                               target="_blank"
                               rel="noreferrer"
                               className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition-all border flex items-center gap-1.5 ${
-                                darkMode 
-                                  ? 'bg-slate-700/80 hover:bg-slate-700 border-slate-600 text-slate-200' 
-                                  : 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700 shadow-xs'
+                                'bg-white hover:bg-slate-100 border-slate-200 text-slate-700 shadow-xs dark:bg-slate-700/80 dark:hover:bg-slate-700 dark:border-slate-600 dark:text-slate-200'
                               }`}
                               title="Xem bài gốc / Tải PDF"
                             >
