@@ -24,6 +24,8 @@ Every result from this pipeline is labelled ``fast_v2_experimental`` with
 """
 from __future__ import annotations
 
+import asyncio
+
 from dataclasses import dataclass, field
 from typing import Any, Sequence
 
@@ -158,8 +160,11 @@ class FastSynthesisV2Pipeline:
 
                 # -- rerank_per_dimension ------------------------------------
                 with timings.phase("rerank_ms"):
-                    reranked = apply_reranker(
-                        self.reranker, query=query.query_text, units=kept
+                    reranked = await asyncio.to_thread(
+                        apply_reranker,
+                        self.reranker,
+                        query=query.query_text,
+                        units=kept,
                     )
 
                 # -- apply_relevance_gate ------------------------------------
@@ -186,7 +191,11 @@ class FastSynthesisV2Pipeline:
 
             # -- generate_openscholar (exactly ONE call) ----------------------
             with timings.phase("generation_ms"):
-                draft = self.generator.generate(question=question, evidence_bank=bank)
+                draft = await asyncio.to_thread(
+                    self.generator.generate,
+                    question=question,
+                    evidence_bank=bank,
+                )
                 timings.record_generation_call(draft.generation_calls)
 
             # -- structured_provenance_guard ----------------------------------

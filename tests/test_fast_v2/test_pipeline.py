@@ -383,3 +383,61 @@ async def test_comparative_scopes_select_independently_without_balancing_or_padd
         unit.selected_for_dimensions == ("formulation", "convergence")
         for unit in result.evidence_bank.evidence
     )
+
+# --------------------------------------------------------------------------
+# Event-loop safety
+# --------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_sync_reranker_runs_off_event_loop_thread(units):
+    import threading
+
+    class ThreadRecordingReranker(ScoringReranker):
+        def __init__(self):
+            super().__init__()
+            self.thread_id = None
+
+        def rerank(self, query, texts):
+            self.thread_id = threading.get_ident()
+            return super().rerank(query, texts)
+
+    reranker = ThreadRecordingReranker()
+    pipeline = FastSynthesisV2Pipeline(
+        retriever=StaticEvidenceRetriever(units),
+        reranker=reranker,
+        generator=FakeSynthesisGenerator(),
+    )
+
+    event_loop_thread_id = threading.get_ident()
+    await _run(pipeline)
+
+    assert reranker.thread_id != event_loop_thread_id
+
+
+@pytest.mark.asyncio
+async def test_sync_generator_runs_off_event_loop_thread(units):
+    import threading
+
+    class ThreadRecordingGenerator(FakeSynthesisGenerator):
+        def __init__(self):
+            super().__init__()
+            self.thread_id = None
+
+        def generate(self, *, question, evidence_bank):
+            self.thread_id = threading.get_ident()
+            return super().generate(
+                question=question,
+                evidence_bank=evidence_bank,
+            )
+
+    generator = ThreadRecordingGenerator()
+    pipeline = FastSynthesisV2Pipeline(
+        retriever=StaticEvidenceRetriever(units),
+        reranker=ScoringReranker(),
+        generator=generator,
+    )
+
+    event_loop_thread_id = threading.get_ident()
+    await _run(pipeline)
+
+    assert generator.thread_id != event_loop_thread_id
