@@ -13,7 +13,25 @@ from src.synthesis.fast_v2.grounding.manifest import ClaimManifest
 
 
 class FastV2GenerationError(RuntimeError):
-    """Generator transport, response-shape, or manifest-contract failure."""
+    """Generator failure with opt-in raw diagnostics kept out of log text."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        diagnostics: dict[str, Any] | None = None,
+        raw_generated_content: str | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.diagnostics = dict(diagnostics or {})
+        self.raw_generated_content = raw_generated_content
+
+    def to_diagnostic_dict(self, *, include_raw_content: bool = False) -> dict[str, Any]:
+        """Return safe metadata, optionally adding raw content for scratch only."""
+        result = dict(self.diagnostics)
+        if include_raw_content and self.raw_generated_content is not None:
+            result["raw_generated_content"] = self.raw_generated_content
+        return result
 
 
 @dataclass(frozen=True)

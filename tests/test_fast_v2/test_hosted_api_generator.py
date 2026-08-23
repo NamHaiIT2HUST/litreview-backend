@@ -162,16 +162,41 @@ def test_valid_hosted_response_maps_to_generated_draft():
 
 
 def test_malformed_manifest_fails_closed_after_one_request():
+    raw_content = '{"claims":[{"facet":"formulation","statements":[{"claim_text":"cut off'
     malformed = {
-        "id": "x",
-        "model": "m",
-        "choices": [{"message": {"content": "not-json"}, "finish_reason": "stop"}],
-        "usage": {"prompt_tokens": 1, "completion_tokens": 1},
+        "id": "chatcmpl-truncated",
+        "model": "openai/gpt-oss-120b",
+        "choices": [
+            {"message": {"content": raw_content}, "finish_reason": "length"}
+        ],
+        "usage": {"prompt_tokens": 3997, "completion_tokens": 3000},
     }
     client = _FakeClient(post_response=_FakeResponse(200, malformed))
     gen = _make_generator(client)
-    with pytest.raises(FastV2GenerationError, match="claim manifest"):
+    with pytest.raises(FastV2GenerationError, match="claim manifest") as excinfo:
         gen.generate(question="Q", evidence_bank=_bank())
+
+    error = excinfo.value
+    assert error.diagnostics == {
+        "response_id": "chatcmpl-truncated",
+        "provider_model": "openai/gpt-oss-120b",
+        "finish_reason": "length",
+        "prompt_tokens": 3997,
+        "completion_tokens": 3000,
+        "generated_content_chars": len(raw_content),
+    }
+    assert error.raw_generated_content == raw_content
+    assert error.to_diagnostic_dict(include_raw_content=True) == {
+        **error.diagnostics,
+        "raw_generated_content": raw_content,
+    }
+    normal_log_text = str(error)
+    assert "finish_reason='length'" in normal_log_text
+    assert "completion_tokens=3000" in normal_log_text
+    assert raw_content not in normal_log_text
+    assert "sk-test-key" not in normal_log_text
+    assert "Authorization" not in normal_log_text
+    assert "sk-test-key" not in repr(error.to_diagnostic_dict(include_raw_content=True))
     assert len(client.post_calls) == 1
 
 

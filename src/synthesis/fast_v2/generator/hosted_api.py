@@ -180,12 +180,26 @@ class HostedApiGenerator:
         usage = data.get("usage") or {}
         self.last_request_id = data.get("id")
         self.last_provider_model = data.get("model")
+        failure_diagnostics = {
+            "response_id": self.last_request_id,
+            "provider_model": self.last_provider_model,
+            "finish_reason": finish_reason,
+            "prompt_tokens": usage.get("prompt_tokens"),
+            "completion_tokens": usage.get("completion_tokens"),
+            "generated_content_chars": len(text),
+        }
 
         try:
             claim_manifest = parse_claim_manifest(text)
         except ClaimManifestParseError as exc:
+            safe_metadata = ", ".join(
+                f"{name}={value!r}" for name, value in failure_diagnostics.items()
+            )
             raise FastV2GenerationError(
-                f"Hosted API returned invalid structured claim manifest: {exc}"
+                f"Hosted API returned invalid structured claim manifest: {exc} "
+                f"({safe_metadata})",
+                diagnostics=failure_diagnostics,
+                raw_generated_content=text,
             ) from exc
 
         return GeneratedDraft(
