@@ -9,21 +9,27 @@ from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
 from src.synthesis.fast_v2.evidence.bank import GroundedEvidenceBank
+from src.synthesis.fast_v2.grounding.manifest import ClaimManifest
+
+
+class FastV2GenerationError(RuntimeError):
+    """Generator transport, response-shape, or manifest-contract failure."""
 
 
 @dataclass(frozen=True)
 class GeneratedDraft:
     """Raw generator output plus its telemetry.
 
-    ``text`` is the model's answer. Any citation markers inside it are the
-    generator's own **temporary** local indices and are NOT authoritative
-    provenance -- see ``fast_v2/citations/finalizer.py``.
+    ``text`` is raw generator output. Production Fast v2 requires it to parse
+    into ``claim_manifest``. Any bracket markers in raw output remain
+    diagnostics only and are never authoritative provenance.
     """
 
     text: str
     model_name: str
     prompt_version: str
     generation_calls: int = 1
+    claim_manifest: ClaimManifest | None = None
 
     input_tokens: int | None = None
     output_tokens: int | None = None
@@ -41,6 +47,9 @@ class GeneratedDraft:
             "model_name": self.model_name,
             "prompt_version": self.prompt_version,
             "generation_calls": self.generation_calls,
+            "claim_manifest": (
+                None if self.claim_manifest is None else self.claim_manifest.to_dict()
+            ),
             "input_tokens": self.input_tokens,
             "output_tokens": self.output_tokens,
             "finish_reason": self.finish_reason,

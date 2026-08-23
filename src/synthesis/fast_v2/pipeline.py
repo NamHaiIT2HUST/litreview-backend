@@ -10,7 +10,7 @@ Dataflow::
       -> apply_relevance_gate
       -> merge_evidence_bank
       -> generate_openscholar          (exactly ONE generation call)
-      -> claim_grounding_placeholder   (unvalidated passthrough)
+      -> structured_provenance_guard   (semantic entailment unvalidated)
       -> deterministic_finalize        (P-165 owns citations)
 
 Invariant: **ZERO query-time LLM evidence-extraction calls.** This pipeline
@@ -27,7 +27,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Sequence
 
-from src.synthesis.fast_v2.citations.finalizer import FinalCitation, finalize_draft
+from src.synthesis.fast_v2.citations.finalizer import (
+    FinalCitation,
+    finalize_structured_draft,
+)
 from src.synthesis.fast_v2.dimensions.planner import (
     DeterministicDimensionQueryPlanner,
     DimensionQueryPlanner,
@@ -37,7 +40,7 @@ from src.synthesis.fast_v2.evidence.retrieval import EvidenceRetriever
 from src.synthesis.fast_v2.generator.base import SynthesisGenerator
 from src.synthesis.fast_v2.grounding.interface import (
     ClaimGroundingService,
-    UnvalidatedClaimGroundingPassthrough,
+    StructuredClaimManifestGroundingService,
 )
 from src.synthesis.fast_v2.hygiene.classifier import filter_evidence_units
 from src.synthesis.fast_v2.observability import PhaseTimings
@@ -62,11 +65,13 @@ class FastSynthesisV2Result:
     citation_authority: str = "p165_deterministic_finalizer"
     native_citation_indices: tuple[int, ...] = ()
     rejected_native_indices: tuple[int, ...] = ()
+    structured_provenance_validation: str = "not_evaluated"
+    semantic_entailment: str = "unvalidated"
     diagnostics: dict[str, Any] = field(default_factory=dict)
 
     @property
     def grounded(self) -> bool:
-        """Always False. Claim grounding is not implemented."""
+        """Always False: structural provenance is not semantic grounding."""
         return False
 
     def to_dict(self) -> dict[str, Any]:
@@ -80,6 +85,8 @@ class FastSynthesisV2Result:
             "citations": [citation.to_dict() for citation in self.citations],
             "native_citation_indices": list(self.native_citation_indices),
             "rejected_native_indices": list(self.rejected_native_indices),
+            "structured_provenance_validation": self.structured_provenance_validation,
+            "semantic_entailment": self.semantic_entailment,
             "evidence_bank": self.evidence_bank.to_dict(),
             "timings": dict(self.timings),
             "diagnostics": dict(self.diagnostics),
@@ -106,7 +113,9 @@ class FastSynthesisV2Pipeline:
         self.reranker = reranker or IdentityReranker()
         self.planner = planner or DeterministicDimensionQueryPlanner()
         self.selection_policy = selection_policy or EvidenceSelectionPolicy()
-        self.grounding_service = grounding_service or UnvalidatedClaimGroundingPassthrough()
+        self.grounding_service = (
+            grounding_service or StructuredClaimManifestGroundingService()
+        )
         self.candidates_per_dimension = candidates_per_dimension
 
         # Held only so tests can prove it is never used. fast_v2 performs no
@@ -180,7 +189,7 @@ class FastSynthesisV2Pipeline:
                 draft = self.generator.generate(question=question, evidence_bank=bank)
                 timings.record_generation_call(draft.generation_calls)
 
-            # -- claim_grounding_placeholder ----------------------------------
+            # -- structured_provenance_guard ----------------------------------
             with timings.phase("grounding_ms"):
                 grounded = self.grounding_service.evaluate(
                     draft=draft, evidence_bank=bank
@@ -188,7 +197,10 @@ class FastSynthesisV2Pipeline:
 
             # -- deterministic_finalize ---------------------------------------
             with timings.phase("finalize_ms"):
-                finalized = finalize_draft(draft=grounded.draft, evidence_bank=bank)
+                finalized = finalize_structured_draft(
+                    grounded=grounded,
+                    evidence_bank=bank,
+                )
 
         return FastSynthesisV2Result(
             text=finalized.text,
@@ -200,6 +212,10 @@ class FastSynthesisV2Pipeline:
             citation_authority=finalized.citation_authority,
             native_citation_indices=finalized.native_citation_indices,
             rejected_native_indices=finalized.rejected_native_indices,
+            structured_provenance_validation=(
+                grounded.structured_provenance_validation
+            ),
+            semantic_entailment=grounded.semantic_entailment,
             diagnostics={
                 "hygiene_dropped": hygiene_dropped,
                 "model_name": draft.model_name,

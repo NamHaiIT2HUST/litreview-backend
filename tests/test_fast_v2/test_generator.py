@@ -163,6 +163,8 @@ def test_fake_generator_returns_a_generated_draft():
     assert isinstance(draft, GeneratedDraft)
     assert draft.text
     assert draft.generation_calls == 1
+    assert draft.claim_manifest is not None
+    assert draft.claim_manifest.claims
 
 
 def test_fake_generator_satisfies_the_generator_interface():
@@ -174,31 +176,34 @@ def test_openscholar_generator_satisfies_the_generator_interface():
 
 
 # --------------------------------------------------------------------------
-# Frozen prompt p165_controlled_sanitized_v1
+# Structured prompt p165_structured_claim_manifest_v1
 # --------------------------------------------------------------------------
 
-def test_prompt_version_is_frozen():
-    assert PROMPT_VERSION == "p165_controlled_sanitized_v1"
+def test_prompt_version_names_structured_claim_contract():
+    assert PROMPT_VERSION == "p165_structured_claim_manifest_v1"
 
 
-def test_prompt_uses_local_temporary_reference_indices():
+def test_prompt_uses_stable_evidence_and_paper_ids_not_temporary_indices():
     bank = _bank(3)
     prompt = build_prompt(question=bank.question, evidence=bank.evidence)
-    assert "[0]" in prompt and "[1]" in prompt and "[2]" in prompt
-    assert "[0] through [2]" in prompt
+    for unit in bank.evidence:
+        assert unit.evidence_id in prompt
+        assert str(unit.paper_id) in prompt
+    assert "[0] through" not in prompt
 
 
 def test_prompt_restricts_the_model_to_the_provided_references():
     prompt = build_prompt(question="q", evidence=_bank().evidence)
-    assert "only the provided References" in prompt
+    assert "Use only the provided EvidenceUnits" in prompt
     assert "Do not use outside knowledge" in prompt
-    assert "unsupported claims" in prompt
+    assert "Omit claims lacking exact support" in prompt
 
 
-def test_prompt_uses_response_markers():
+def test_prompt_requires_json_without_legacy_response_markers():
     prompt = build_prompt(question="q", evidence=_bank().evidence)
-    assert "[Response_Start]" in prompt
-    assert "[Response_End]" in prompt
+    assert "Return exactly one JSON object" in prompt
+    assert "[Response_Start]" not in prompt
+    assert "[Response_End]" not in prompt
 
 
 def test_raw_pdf_citation_markers_are_sanitized_out_of_the_index_namespace():
@@ -208,11 +213,10 @@ def test_raw_pdf_citation_markers_are_sanitized_out_of_the_index_namespace():
     assert sanitize_internal_citations("range [7-9]") == "range (source-ref 7-9)"
 
 
-def test_sanitization_is_applied_when_building_the_prompt():
+def test_prompt_preserves_raw_evidence_for_exact_quote_validation():
     prompt = build_prompt(question="q", evidence=_bank().evidence)
-    assert "(source-ref 27)" in prompt
-    # The only bare bracket-number tokens left are the reference indices.
-    assert "[27]" not in prompt
+    assert "[27]" in prompt
+    assert "(source-ref 27)" not in prompt
 
 
 def test_prompt_is_deterministic():

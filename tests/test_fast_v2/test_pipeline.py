@@ -232,6 +232,8 @@ async def test_result_declares_grounding_as_unvalidated(pipeline):
     result = await _run(pipeline)
     assert result.claim_grounding_status == "unvalidated"
     assert result.grounded is False
+    assert result.structured_provenance_validation == "passed"
+    assert result.semantic_entailment == "unvalidated"
 
 
 @pytest.mark.asyncio
@@ -240,6 +242,16 @@ async def test_result_metadata_is_serializable(pipeline):
     assert payload["synthesis_mode"] == "fast_v2_experimental"
     assert payload["claim_grounding_status"] == "unvalidated"
     assert payload["grounded"] is False
+    assert payload["structured_provenance_validation"] == "passed"
+    assert payload["semantic_entailment"] == "unvalidated"
+
+
+@pytest.mark.asyncio
+async def test_pipeline_final_text_is_rendered_from_validated_manifest(pipeline):
+    result = await _run(pipeline)
+    assert "Drawing on the supplied references" not in result.text
+    assert result.citations
+    assert all(citation.evidence_id for citation in result.citations)
 
 
 # --------------------------------------------------------------------------

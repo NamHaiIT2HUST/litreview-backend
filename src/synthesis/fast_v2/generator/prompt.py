@@ -1,31 +1,21 @@
-"""Frozen prompt: ``p165_controlled_sanitized_v1``.
+"""Structured claim-manifest prompt: ``p165_structured_claim_manifest_v1``.
 
-Taken verbatim in structure from CELL 4 of
-``P165_OpenScholar_RQ2_Clean_Validation.ipynb``, the notebook that produced
-the validated controlled RQ2 generation.
+Evidence is serialized with stable evidence/paper IDs and raw canonical text
+so generated support quotes can be checked by exact substring. Output is one
+strict JSON manifest; P-165 validates provenance and owns final citations.
 
-Design points that are load-bearing
------------------------------------
-* Answer using **only** the provided References; no outside knowledge; no
-  unsupported claims.
-* References are presented with **local temporary indices** ``[0]..[N-1]``.
-  Those indices are a prompt-local namespace for the generator's convenience.
-  They are **not** authoritative provenance -- P-165 owns citations.
-* Raw in-text bibliography-style bracket citations inside the source PDF text
-  (``...prior work [27]...``) are mechanically rewritten to
-  ``(source-ref 27)`` so they cannot collide with the temporary reference
-  namespace. This is a regex rewrite of the *evidence text*, not a change to
-  the model's instructions.
-* The answer is delimited by ``[Response_Start]`` / ``[Response_End]``.
+The legacy citation-sanitizing helper remains for compatibility tests and old
+artifacts. It is not used by the structured prompt.
 """
 from __future__ import annotations
 
+import json
 import re
 from typing import Sequence
 
 from src.synthesis.fast_v2.evidence.models import EvidenceUnit
 
-PROMPT_VERSION = "p165_controlled_sanitized_v1"
+PROMPT_VERSION = "p165_structured_claim_manifest_v1"
 
 RESPONSE_START = "[Response_Start]"
 RESPONSE_END = "[Response_End]"
@@ -46,45 +36,58 @@ def sanitize_internal_citations(text: str) -> str:
 
 
 def build_references_block(evidence: Sequence[EvidenceUnit]) -> str:
-    """Render evidence as ``[i] Title: ... Text: ...`` with sanitized text."""
-    lines = []
-    for index, unit in enumerate(evidence):
-        title = unit.title or ""
-        lines.append(f"[{index}] Title: {title} Text: {sanitize_internal_citations(unit.text)}")
-    return "\n".join(lines)
+    """Render raw canonical evidence with stable provenance identifiers."""
+    return json.dumps(
+        [
+            {
+                "evidence_id": unit.evidence_id,
+                "paper_id": str(unit.paper_id),
+                "title": unit.title or "",
+                "text": unit.text,
+            }
+            for unit in evidence
+        ],
+        ensure_ascii=False,
+        separators=(",", ":"),
+    )
 
 
-def build_prompt(*, question: str, evidence: Sequence[EvidenceUnit]) -> str:
-    """Build the frozen controlled sanitized prompt.
+def build_prompt(
+    *,
+    question: str,
+    evidence: Sequence[EvidenceUnit],
+    dimensions: Sequence[str] = (),
+) -> str:
+    """Build the strict structured-claim-manifest prompt.
 
     Deterministic: the same bank always yields the same prompt.
     """
-    count = len(evidence)
-    last_index = max(count - 1, 0)
     references = build_references_block(evidence)
+    requested_facets = json.dumps(list(dimensions), ensure_ascii=False)
 
-    return f"""You are an AI research assistant. Answer the Question using only the provided References.
+    return f"""You are an AI research assistant. Use only the provided EvidenceUnits.
 
-References:
+EvidenceUnits (raw canonical text; copy support_quote exactly):
 {references}
 
 Question:
 {question}
 
-Instructions:
-- Use only information from the References to answer the Question.
-- Do not use outside knowledge or make unsupported claims.
-- Cite statements by placing citation numbers in square brackets, e.g. [1], [2], immediately after the relevant claim.
-- Citation numbers must correspond to the numeric labels of the References.
-- Use only citation numbers [0] through [{last_index}]; do not invent or renumber citations.
-- If multiple references support a claim, include all relevant citation numbers, e.g. [1][3].
-- If the References do not contain enough information to answer the Question, state that the information is insufficient.
-- Do not include a separate bibliography or reference list in the answer.
-- Start the answer with {RESPONSE_START} and end the answer with {RESPONSE_END}.
-- Do not write any text outside the {RESPONSE_START} and {RESPONSE_END} markers.
+Requested facets:
+{requested_facets}
 
-Response:
-{RESPONSE_START}
+Return exactly one JSON object with this shape and no extra fields:
+{{"claims":[{{"facet":"<requested facet>","is_comparative":false,"statements":[{{"claim_text":"<one factual statement>","paper_id":"<selected paper UUID>","supports":[{{"evidence_id":"<exact EvidenceUnit ID>","support_quote":"<short exact substring copied from that EvidenceUnit text>"}}]}}]}}]}}
+
+Rules:
+- Every factual statement must have at least one support item.
+- support_quote must be copied byte-for-byte from the referenced EvidenceUnit text.
+- Do not emit bracket-number citations inside claim_text.
+- Use only requested facets and IDs present above.
+- A non-comparative claim has exactly one statement.
+- A comparative claim has one explicit statement per compared paper, with distinct paper_id values and support from each paper.
+- Do not use outside knowledge. Omit claims lacking exact support.
+- Output JSON only; no Markdown fences, prose wrapper, bibliography, or extra keys.
 """
 
 

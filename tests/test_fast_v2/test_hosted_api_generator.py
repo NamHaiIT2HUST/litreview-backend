@@ -11,12 +11,14 @@ from src.synthesis.fast_v2.evidence.models import EvidenceUnit
 from src.synthesis.fast_v2.generator.remote_openscholar import FastV2GenerationError
 from src.synthesis.fast_v2.generator.hosted_api import HostedApiGenerator
 
+MANIFEST_CONTENT = """{"claims":[{"facet":"D1","is_comparative":false,"statements":[{"claim_text":"body text","paper_id":"11111111-1111-1111-1111-111111111111","supports":[{"evidence_id":"ev-fixture","support_quote":"body text"}]}]}]}"""
+
 VALID_RESPONSE = {
     "id": "chatcmpl-abc123",
     "model": "gpt-4o-mini-2024-07-18",
     "choices": [
         {
-            "message": {"content": "[Response_Start]The algorithm converges [0].[Response_End]"},
+            "message": {"content": MANIFEST_CONTENT},
             "finish_reason": "stop",
         }
     ],
@@ -104,6 +106,7 @@ def test_evidence_prompt_sent_correctly():
     assert "body text" in user_message  # evidence content reached the prompt
     assert payload["messages"][0]["role"] == "system"
     assert payload["messages"][1]["role"] == "user"
+    assert payload["response_format"] == {"type": "json_object"}
 
 
 def test_model_propagated_in_request():
@@ -154,6 +157,22 @@ def test_valid_hosted_response_maps_to_generated_draft():
     assert draft.model_name == "gpt-4o-mini-2024-07-18"  # provider-reported model
     assert draft.generation_ms is not None and draft.generation_ms >= 0
     assert gen.last_request_id == "chatcmpl-abc123"
+    assert draft.claim_manifest is not None
+    assert draft.claim_manifest.claims[0].facet == "D1"
+
+
+def test_malformed_manifest_fails_closed_after_one_request():
+    malformed = {
+        "id": "x",
+        "model": "m",
+        "choices": [{"message": {"content": "not-json"}, "finish_reason": "stop"}],
+        "usage": {"prompt_tokens": 1, "completion_tokens": 1},
+    }
+    client = _FakeClient(post_response=_FakeResponse(200, malformed))
+    gen = _make_generator(client)
+    with pytest.raises(FastV2GenerationError, match="claim manifest"):
+        gen.generate(question="Q", evidence_bank=_bank())
+    assert len(client.post_calls) == 1
 
 
 # --------------------------------------------------------------------------

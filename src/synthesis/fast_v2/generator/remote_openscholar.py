@@ -9,8 +9,8 @@ backend itself runs on the GPU box; this module is for the split-process
 deployment.
 
 Same frozen generation config as the validated local run
-(``src/synthesis/fast_v2/generator/openscholar.py``), same prompt
-(``p165_controlled_sanitized_v1``), same ``SynthesisGenerator`` protocol.
+(``src/synthesis/fast_v2/generator/openscholar.py``), same structured
+claim-manifest prompt, same ``SynthesisGenerator`` protocol.
 Retrieval never happens here -- the caller's ``GroundedEvidenceBank`` is the
 only evidence input.
 
@@ -25,7 +25,7 @@ import time
 from typing import Any, Callable
 
 from src.synthesis.fast_v2.evidence.bank import GroundedEvidenceBank
-from src.synthesis.fast_v2.generator.base import GeneratedDraft
+from src.synthesis.fast_v2.generator.base import FastV2GenerationError, GeneratedDraft
 from src.synthesis.fast_v2.generator.openscholar import (
     FROZEN_GENERATION_CONFIG,
     OPENSCHOLAR_MODEL,
@@ -34,6 +34,10 @@ from src.synthesis.fast_v2.generator.prompt import (
     PROMPT_VERSION,
     build_prompt,
     extract_native_citation_indices,
+)
+from src.synthesis.fast_v2.grounding.manifest import (
+    ClaimManifestParseError,
+    parse_claim_manifest,
 )
 
 #: Response fields the GPU service contract guarantees. A response missing
@@ -46,11 +50,6 @@ REQUIRED_RESPONSE_FIELDS = (
     "finish_reason",
     "stop_reason",
 )
-
-
-class FastV2GenerationError(RuntimeError):
-    """Raised for every remote-generation failure mode. Never swallowed into
-    a fallback -- the caller must see that generation did not happen."""
 
 
 class RemoteOpenScholarGenerator:
@@ -135,7 +134,11 @@ class RemoteOpenScholarGenerator:
         self, *, question: str, evidence_bank: GroundedEvidenceBank
     ) -> GeneratedDraft:
         """One remote generation call from the bank alone. Never retrieves."""
-        prompt = build_prompt(question=question, evidence=evidence_bank.evidence)
+        prompt = build_prompt(
+            question=question,
+            evidence=evidence_bank.evidence,
+            dimensions=evidence_bank.dimensions,
+        )
         payload = {"prompt": prompt, "generation_config": dict(self.generation_config)}
 
         client = self._get_client()
@@ -174,11 +177,19 @@ class RemoteOpenScholarGenerator:
         self.last_network_ms = round(network_ms - (remote_generation_ms or 0.0), 3)
         self.last_remote_generation_ms = remote_generation_ms
 
+        try:
+            claim_manifest = parse_claim_manifest(text)
+        except ClaimManifestParseError as exc:
+            raise FastV2GenerationError(
+                f"OpenScholar GPU service returned invalid claim manifest: {exc}"
+            ) from exc
+
         return GeneratedDraft(
             text=text,
             model_name=self.model_name,
             prompt_version=PROMPT_VERSION,
             generation_calls=1,
+            claim_manifest=claim_manifest,
             input_tokens=data.get("input_tokens"),
             output_tokens=data.get("output_tokens"),
             finish_reason=data.get("finish_reason"),

@@ -8,12 +8,20 @@ generator that could retrieve would violate the architecture.
 """
 from __future__ import annotations
 
+import json
+
 from src.synthesis.fast_v2.evidence.bank import GroundedEvidenceBank
 from src.synthesis.fast_v2.generator.base import GeneratedDraft
 from src.synthesis.fast_v2.generator.prompt import (
     PROMPT_VERSION,
     build_prompt,
     extract_native_citation_indices,
+)
+from src.synthesis.fast_v2.grounding.manifest import (
+    ClaimManifest,
+    ClaimStatement,
+    ClaimSupport,
+    GeneratedClaim,
 )
 
 
@@ -32,22 +40,49 @@ class FakeSynthesisGenerator:
     ) -> GeneratedDraft:
         self.calls += 1
         self.last_bank = evidence_bank
-        self.last_prompt = build_prompt(question=question, evidence=evidence_bank.evidence)
+        self.last_prompt = build_prompt(
+            question=question,
+            evidence=evidence_bank.evidence,
+            dimensions=evidence_bank.dimensions,
+        )
+
+        manifest = ClaimManifest(
+            claims=tuple(
+                GeneratedClaim(
+                    facet=(
+                        unit.selected_for_dimensions[0]
+                        if unit.selected_for_dimensions
+                        else evidence_bank.dimensions[0]
+                    ),
+                    is_comparative=False,
+                    statements=(
+                        ClaimStatement(
+                            claim_text=unit.text,
+                            paper_id=unit.paper_id,
+                            supports=(
+                                ClaimSupport(
+                                    evidence_id=unit.evidence_id,
+                                    support_quote=unit.text,
+                                ),
+                            ),
+                        ),
+                    ),
+                )
+                for unit in evidence_bank.evidence
+            )
+        )
 
         if self._text is not None:
             text = self._text
         else:
-            indices = "".join(f"[{i}]" for i in range(len(evidence_bank.evidence)))
-            text = (
-                f"Synthesised answer for: {question} "
-                f"Drawing on the supplied references {indices}."
-            )
+            text = json.dumps(manifest.to_dict(), ensure_ascii=False)
 
         return GeneratedDraft(
             text=text,
             model_name=self.model_name,
             prompt_version=PROMPT_VERSION,
             generation_calls=1,
+            claim_manifest=manifest,
             input_tokens=len(self.last_prompt.split()),
             output_tokens=len(text.split()),
             finish_reason="stop",

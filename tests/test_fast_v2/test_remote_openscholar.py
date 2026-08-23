@@ -3,6 +3,7 @@ network, no torch/vllm import."""
 from __future__ import annotations
 
 import uuid
+import json
 
 import pytest
 
@@ -14,7 +15,17 @@ from src.synthesis.fast_v2.generator.remote_openscholar import (
 )
 
 VALID_RESPONSE = {
-    "text": "[Response_Start]The algorithm converges [0].[Response_End]",
+    "text": json.dumps({
+        "claims": [{
+            "facet": "D1",
+            "is_comparative": False,
+            "statements": [{
+                "claim_text": "body text",
+                "paper_id": "11111111-1111-1111-1111-111111111111",
+                "supports": [{"evidence_id": "ev-fixture", "support_quote": "body text"}],
+            }],
+        }],
+    }),
     "input_tokens": 3974,
     "output_tokens": 493,
     "generation_ms": 27180.0,
@@ -145,6 +156,7 @@ def test_remote_response_mapped_correctly_to_generated_draft():
     assert draft.stop_reason == "[Response_End]"
     assert draft.model_name == "NeuML/Llama-3.1_OpenScholar-8B-AWQ"
     assert draft.generation_ms is not None and draft.generation_ms >= 0
+    assert draft.claim_manifest is not None
 
 
 def test_native_citation_indices_are_extracted_but_not_authoritative():
@@ -153,10 +165,19 @@ def test_native_citation_indices_are_extracted_but_not_authoritative():
     client = _FakeClient(post_response=_FakeResponse(200, VALID_RESPONSE))
     gen = _make_generator(client)
     draft = gen.generate(question="Q", evidence_bank=_bank())
-    assert draft.native_citation_indices == (0,)
+    assert draft.native_citation_indices == ()
     # GeneratedDraft carries no "citations" field at all -- native indices
     # are diagnostics-only by construction, never promoted to citations here.
     assert not hasattr(draft, "citations")
+
+
+def test_malformed_claim_manifest_fails_closed_without_retry():
+    invalid = {**VALID_RESPONSE, "text": "not-json"}
+    client = _FakeClient(post_response=_FakeResponse(200, invalid))
+    gen = _make_generator(client)
+    with pytest.raises(FastV2GenerationError, match="claim manifest"):
+        gen.generate(question="Q", evidence_bank=_bank())
+    assert len(client.post_calls) == 1
 
 
 def test_network_and_remote_generation_ms_recorded_separately():

@@ -30,12 +30,16 @@ import time
 from typing import Any, Callable
 
 from src.synthesis.fast_v2.evidence.bank import GroundedEvidenceBank
-from src.synthesis.fast_v2.generator.base import GeneratedDraft
+from src.synthesis.fast_v2.generator.base import FastV2GenerationError, GeneratedDraft
 from src.synthesis.fast_v2.generator.prompt import (
     PROMPT_VERSION,
     RESPONSE_END,
     build_prompt,
     extract_native_citation_indices,
+)
+from src.synthesis.fast_v2.grounding.manifest import (
+    ClaimManifestParseError,
+    parse_claim_manifest,
 )
 
 OPENSCHOLAR_MODEL = "NeuML/Llama-3.1_OpenScholar-8B-AWQ"
@@ -111,7 +115,11 @@ class OpenScholarGenerator:
         self, *, question: str, evidence_bank: GroundedEvidenceBank
     ) -> GeneratedDraft:
         """One generation call from the bank alone. Never retrieves."""
-        prompt = build_prompt(question=question, evidence=evidence_bank.evidence)
+        prompt = build_prompt(
+            question=question,
+            evidence=evidence_bank.evidence,
+            dimensions=evidence_bank.dimensions,
+        )
 
         engine = self.load()
         if engine is None:
@@ -132,11 +140,19 @@ class OpenScholarGenerator:
         completion = outputs[0].outputs[0]
         text = completion.text
 
+        try:
+            claim_manifest = parse_claim_manifest(text)
+        except ClaimManifestParseError as exc:
+            raise FastV2GenerationError(
+                f"Local OpenScholar returned invalid claim manifest: {exc}"
+            ) from exc
+
         return GeneratedDraft(
             text=text,
             model_name=self.model_name,
             prompt_version=PROMPT_VERSION,
             generation_calls=1,
+            claim_manifest=claim_manifest,
             input_tokens=len(getattr(outputs[0], "prompt_token_ids", []) or []) or None,
             output_tokens=len(getattr(completion, "token_ids", []) or []) or None,
             finish_reason=getattr(completion, "finish_reason", None),

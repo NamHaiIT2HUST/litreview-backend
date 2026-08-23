@@ -1,15 +1,13 @@
 """Deterministic P-165 provenance/citation finalizer for fast_v2.
 
-**P-165 is the citation authority.** The generator's own bracket numbers are a
-prompt-local temporary namespace, and OpenScholar has a known history of
-citation-namespace failures and misattribution. They are therefore treated as
-*untrusted input*: every native index is resolved back through the evidence
-bank, and any index that does not resolve is discarded and reported, never
-published.
+**P-165 is the citation authority.** Production Fast v2 renders citations only
+from provenance-validated structured claims. The older native-index finalizer
+remains for compatibility tests and historical artifacts; native bracket
+numbers are always untrusted diagnostics.
 
 Final provenance chain::
 
-    native index -> EvidenceUnit -> evidence_id -> paper/page/source offsets
+    validated support -> EvidenceUnit -> evidence_id -> exact quote offsets
 
 Relationship to the Legacy finalizer
 ------------------------------------
@@ -37,6 +35,7 @@ from uuid import UUID
 from src.synthesis.fast_v2.evidence.bank import GroundedEvidenceBank
 from src.synthesis.fast_v2.generator.base import GeneratedDraft
 from src.synthesis.fast_v2.generator.prompt import RESPONSE_END, RESPONSE_START
+from src.synthesis.fast_v2.grounding.interface import GroundedDraft
 
 CITATION_AUTHORITY = "p165_deterministic_finalizer"
 
@@ -177,5 +176,134 @@ def finalize_draft(
         diagnostics={
             "papers_cited": len({c.paper_id for c in citations}),
             "evidence_available": len(evidence),
+        },
+    )
+
+
+def finalize_structured_draft(
+    *,
+    grounded: GroundedDraft,
+    evidence_bank: GroundedEvidenceBank,
+    finalize_ms: float | None = None,
+) -> FinalizedSynthesis:
+    """Render only provenance-validated manifest statements.
+
+    Raw generator prose and native citation markers are never copied into the
+    output. This function validates no semantics; it consumes the guard's
+    already validated IDs, paper ownership, and exact quote offsets.
+    """
+    evidence_by_id = {
+        unit.evidence_id: unit for unit in evidence_bank.evidence
+    }
+    paper_order: dict[UUID, int] = {}
+    for unit in evidence_bank.evidence:
+        if unit.paper_id not in paper_order:
+            paper_order[unit.paper_id] = len(paper_order) + 1
+
+    if not grounded.validated_claims:
+        return FinalizedSynthesis(
+            text="Insufficient validated evidence to answer the question.",
+            citation_authority=CITATION_AUTHORITY,
+            native_citation_indices=grounded.draft.native_citation_indices,
+            rejected_native_indices=grounded.draft.native_citation_indices,
+            generation_calls=0,
+            finalize_ms=finalize_ms,
+            diagnostics={
+                "papers_cited": 0,
+                "evidence_available": len(evidence_bank.evidence),
+                "validated_claims": 0,
+                "dropped_claims": len(grounded.dropped_claims),
+            },
+        )
+
+    out: list[str] = []
+    citations: list[FinalCitation] = []
+    cursor = 0
+
+    def append(value: str) -> None:
+        nonlocal cursor
+        out.append(value)
+        cursor += len(value)
+
+    claims_by_facet: dict[str, list[Any]] = {}
+    seen_claim_signatures: set[tuple[Any, ...]] = set()
+    for claim in grounded.validated_claims:
+        signature = (
+            claim.facet,
+            claim.is_comparative,
+            tuple(
+                (
+                    statement.claim_text,
+                    statement.paper_id,
+                    tuple(
+                        (
+                            support.evidence_id,
+                            support.paper_id,
+                            support.quote_char_start,
+                            support.quote_char_end,
+                        )
+                        for support in statement.supports
+                    ),
+                )
+                for statement in claim.statements
+            ),
+        )
+        if signature in seen_claim_signatures:
+            continue
+        seen_claim_signatures.add(signature)
+        claims_by_facet.setdefault(claim.facet, []).append(claim)
+
+    rendered_facets = 0
+    for facet in evidence_bank.dimensions:
+        facet_claims = claims_by_facet.get(facet, ())
+        if not facet_claims:
+            continue
+        if rendered_facets:
+            append("\n\n")
+        append(f"**{facet.replace('_', ' ').title()}**\n\n")
+        rendered_facets += 1
+
+        for claim_index, claim in enumerate(facet_claims):
+            if claim_index:
+                append("\n\n")
+            for statement_index, statement in enumerate(claim.statements):
+                if statement_index:
+                    append(" ")
+                append(statement.claim_text.strip())
+                append(" ")
+                for support in statement.supports:
+                    unit = evidence_by_id[support.evidence_id]
+                    marker = f"[{paper_order[unit.paper_id]}]"
+                    marker_start = cursor
+                    append(marker)
+                    citations.append(
+                        FinalCitation(
+                            evidence_id=unit.evidence_id,
+                            paper_id=unit.paper_id,
+                            paper_title=unit.title,
+                            citation_marker=marker,
+                            review_char_start=marker_start,
+                            review_char_end=cursor,
+                            source_page=unit.page,
+                            source_char_start=support.source_char_start,
+                            source_char_end=support.source_char_end,
+                            quoted_snippet=support.support_quote,
+                        )
+                    )
+
+    native = grounded.draft.native_citation_indices
+    return FinalizedSynthesis(
+        text="".join(out).strip(),
+        citations=tuple(citations),
+        citation_authority=CITATION_AUTHORITY,
+        native_citation_indices=native,
+        rejected_native_indices=native,
+        generation_calls=0,
+        finalize_ms=finalize_ms,
+        diagnostics={
+            "papers_cited": len({citation.paper_id for citation in citations}),
+            "evidence_available": len(evidence_bank.evidence),
+            "validated_claims": len(grounded.validated_claims),
+            "dropped_claims": len(grounded.dropped_claims),
         },
     )

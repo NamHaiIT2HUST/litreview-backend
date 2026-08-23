@@ -302,14 +302,16 @@ def test_hosted_generation_metadata_survives_into_pipeline_diagnostics():
 
     from src.synthesis.fast_v2.evidence.retrieval import StaticEvidenceRetriever
     from src.synthesis.fast_v2.generator.base import GeneratedDraft
+    from src.synthesis.fast_v2.grounding.manifest import ClaimManifest
     from src.synthesis.fast_v2.pipeline import FastSynthesisV2Pipeline
 
     class _StubGenerator:
         def generate(self, *, question, evidence_bank):
             return GeneratedDraft(
-                text="[Response_Start] answer [Response_End]",
+                text='{"claims":[]}',
                 model_name="stub/model",
-                prompt_version="p165_controlled_sanitized_v1",
+                prompt_version="p165_structured_claim_manifest_v1",
+                claim_manifest=ClaimManifest(claims=()),
                 generation_calls=1,
                 input_tokens=3997,
                 output_tokens=1584,

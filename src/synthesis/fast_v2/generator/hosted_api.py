@@ -2,10 +2,9 @@
 
 Alternative to ``RemoteOpenScholarGenerator`` for benchmarking Fast v2
 generation speed/cost against a pay-per-request hosted LLM API, without
-maintaining a persistent GPU. Same ``SynthesisGenerator`` protocol, same
-frozen prompt (``p165_controlled_sanitized_v1``), same evidence formatting --
-this module only changes the wire format and endpoint of the ONE generation
-call. It never performs retrieval or evidence processing.
+maintaining a persistent GPU. Same ``SynthesisGenerator`` protocol and
+structured claim-manifest prompt; this module changes only the wire format and
+endpoint of the ONE generation call. It never retrieves.
 
 Deliberately provider-agnostic: a generic ``POST {base_url}/chat/completions``
 OpenAI-compatible contract (``messages``, ``choices[0].message.content``,
@@ -28,19 +27,20 @@ import time
 from typing import Any, Callable
 
 from src.synthesis.fast_v2.evidence.bank import GroundedEvidenceBank
-from src.synthesis.fast_v2.generator.base import GeneratedDraft
-from src.synthesis.fast_v2.generator.remote_openscholar import FastV2GenerationError
+from src.synthesis.fast_v2.generator.base import FastV2GenerationError, GeneratedDraft
 from src.synthesis.fast_v2.generator.prompt import (
     PROMPT_VERSION,
     RESPONSE_END,
     build_prompt,
     extract_native_citation_indices,
 )
+from src.synthesis.fast_v2.grounding.manifest import (
+    ClaimManifestParseError,
+    parse_claim_manifest,
+)
 
 #: Short wrapping role instruction only -- NOT the frozen prompt content.
-#: The frozen p165_controlled_sanitized_v1 prompt (question + sanitized
-#: References + citation instructions) goes entirely into the user message,
-#: unmodified.
+#: Structured manifest prompt goes entirely into the user message.
 SYSTEM_ROLE_INSTRUCTION = (
     "You are an AI research assistant. Follow the user's instructions exactly."
 )
@@ -118,7 +118,11 @@ class HostedApiGenerator:
         No automatic retry: a retry would corrupt the latency measurement
         this generator exists to produce for benchmarking.
         """
-        prompt = build_prompt(question=question, evidence=evidence_bank.evidence)
+        prompt = build_prompt(
+            question=question,
+            evidence=evidence_bank.evidence,
+            dimensions=evidence_bank.dimensions,
+        )
 
         payload = {
             "model": self.model,
@@ -126,6 +130,7 @@ class HostedApiGenerator:
                 {"role": "system", "content": SYSTEM_ROLE_INSTRUCTION},
                 {"role": "user", "content": prompt},
             ],
+            "response_format": {"type": "json_object"},
             **self.generation_config,
         }
         headers = {"Authorization": f"Bearer {self.api_key}"}
@@ -176,11 +181,19 @@ class HostedApiGenerator:
         self.last_request_id = data.get("id")
         self.last_provider_model = data.get("model")
 
+        try:
+            claim_manifest = parse_claim_manifest(text)
+        except ClaimManifestParseError as exc:
+            raise FastV2GenerationError(
+                f"Hosted API returned invalid structured claim manifest: {exc}"
+            ) from exc
+
         return GeneratedDraft(
             text=text,
             model_name=self.last_provider_model or self.model,
             prompt_version=PROMPT_VERSION,
             generation_calls=1,
+            claim_manifest=claim_manifest,
             input_tokens=usage.get("prompt_tokens"),
             output_tokens=usage.get("completion_tokens"),
             finish_reason=finish_reason,
