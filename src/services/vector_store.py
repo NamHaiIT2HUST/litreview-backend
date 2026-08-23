@@ -5,6 +5,7 @@ from langchain_chroma import Chroma
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain_openai import OpenAIEmbeddings
 
 from src.config import get_settings
 from src.services.vector_store_config import build_chroma_connection_kwargs
@@ -12,22 +13,13 @@ from src.services.vector_store_config import build_chroma_connection_kwargs
 CHROMA_PERSIST_DIR = ".chroma_db"
 
 
-def should_use_gemini_embeddings(settings) -> bool:
-    return (
-        getattr(settings, "embedding_provider", "local") == "gemini"
-        and bool(
-            getattr(settings, "gemini_api_key", "")
-            or getattr(settings, "google_api_key", "")
-        )
-    )
-
-
 class LightweightHashEmbeddings(Embeddings):
-    """Small offline fallback embeddings for local/Docker runs without OpenAI.
+    """Non-semantic word-hash embedding. Explicit opt-in only
+    (embedding_provider="hash-debug") -- NOT a fallback for any other provider.
 
-    This keeps the app bootable without downloading sentence-transformers/torch.
-    It is sufficient for smoke tests and local demos; production-quality semantic
-    search should use OpenAI embeddings or another real embedding provider.
+    Bag-of-words character-hash buckets, no learned representation. Sufficient
+    only for wiring smoke tests; retrieval quality on this backend is not
+    representative of production semantic search.
     """
 
     dimension = 128
@@ -47,22 +39,58 @@ class LightweightHashEmbeddings(Embeddings):
         return [value / norm for value in vector]
 
 
+def build_embeddings(settings, *, gemini_cls=None, openai_cls=None, huggingface_cls=None, hash_cls=None):
+    """Construct the configured embedding backend without a network call.
+
+    Each provider either returns a real backend or raises -- no silent
+    fallback to the hash embedding for a misconfigured gemini/openai/local
+    provider. hash-debug is the only path that returns the non-semantic
+    backend, and only when explicitly selected. `*_cls` overrides exist
+    purely for dependency injection in tests (no network/model download).
+    """
+    provider = getattr(settings, "embedding_provider", "local")
+
+    if provider == "gemini":
+        gemini_key = getattr(settings, "gemini_api_key", "") or getattr(settings, "google_api_key", "")
+        if not gemini_key:
+            raise RuntimeError("EMBEDDING_PROVIDER=gemini requires GEMINI_API_KEY or GOOGLE_API_KEY.")
+        gemini_cls = gemini_cls or GoogleGenerativeAIEmbeddings
+        return gemini_cls(model=settings.embedding_model, google_api_key=gemini_key)
+
+    if provider == "openai":
+        if not getattr(settings, "openai_api_key", ""):
+            raise RuntimeError("EMBEDDING_PROVIDER=openai requires OPENAI_API_KEY.")
+        openai_cls = openai_cls or OpenAIEmbeddings
+        return openai_cls(
+            model=settings.embedding_model,
+            api_key=settings.openai_api_key,
+            base_url=settings.get_api_base or None,
+        )
+
+    if provider == "local":
+        if huggingface_cls is None:
+            try:
+                from langchain_huggingface import HuggingFaceEmbeddings as huggingface_cls
+            except ImportError as exc:
+                raise RuntimeError(
+                    "EMBEDDING_PROVIDER=local requires the 'sentence-transformers' and "
+                    "'langchain-huggingface' packages (see requirements.txt) to be installed "
+                    "in this runtime. Install them, or set EMBEDDING_PROVIDER=hash-debug to "
+                    "explicitly opt into the non-semantic hash fallback (smoke-test/demo only)."
+                ) from exc
+        return huggingface_cls(model_name=settings.local_embedding_model)
+
+    if provider == "hash-debug":
+        hash_cls = hash_cls or LightweightHashEmbeddings
+        return hash_cls()
+
+    raise RuntimeError(f"Unsupported EMBEDDING_PROVIDER={provider!r}.")
+
+
 class VectorStoreService:
     def __init__(self):
         settings = get_settings()
-        gemini_key = getattr(settings, "gemini_api_key", "") or getattr(
-            settings, "google_api_key", ""
-        )
-
-        # Gemini embeddings first. If the key is missing, keep the app bootable
-        # with a lightweight offline fallback so local smoke tests still work.
-        if should_use_gemini_embeddings(settings):
-            self.embeddings = GoogleGenerativeAIEmbeddings(
-                model=settings.embedding_model,
-                google_api_key=gemini_key,
-            )
-        else:
-            self.embeddings = LightweightHashEmbeddings()
+        self.embeddings = build_embeddings(settings)
 
         chroma_kwargs = build_chroma_connection_kwargs(settings)
         if "persist_directory" in chroma_kwargs and not chroma_kwargs["persist_directory"]:

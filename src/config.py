@@ -35,7 +35,12 @@ class Settings(BaseSettings):
     synthesis_llm_max_concurrency: int = Field(default=1, ge=1, le=10)
     groq_api_key: str = ""
     embedding_model: str = "text-embedding-3-small"
-    embedding_provider: Literal["local", "gemini", "openai"] = "openai"
+    embedding_provider: Literal["local", "gemini", "openai", "hash-debug"] = "openai"
+    # Used only when embedding_provider="local". "local" means a real local semantic
+    # model (sentence-transformers via langchain-huggingface), not a fallback -- use
+    # embedding_provider="hash-debug" to explicitly opt into the non-semantic hash
+    # embedding (smoke-test/demo only, no downloads required).
+    local_embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
 
     @property
     def effective_gemini_api_key(self) -> str:
