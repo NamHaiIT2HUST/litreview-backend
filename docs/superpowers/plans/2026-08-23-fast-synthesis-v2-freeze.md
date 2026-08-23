@@ -81,6 +81,59 @@ fixture breakage in `tests/test_services/test_vector_store_async.py`).
 
 ---
 
+## Outcome (all tasks complete)
+
+Tasks were implemented in dependency order rather than strict numeric order:
+1, 2, 3, 4, 5, 6, then 9 (grounding) and 8 (finalizer) as leaf components,
+then 7 + 10 together (the pipeline needs the timings), then 11 and 12.
+
+Commits (one per task boundary):
+
+| Commit | Task |
+|---|---|
+| `ca04592` | 1 — ADR + `SYNTHESIS_MODE` flag |
+| `90cc3b1` | 2 — `EvidenceUnit` |
+| `7e8ce1d` | 3 — Evidence Hygiene |
+| `6ba6cf2` | 4 — dimension planner, selection policy, reranker contract |
+| `fc11545` | 5 — `GroundedEvidenceBank` |
+| `6627e04` | 6 — OpenScholar adapter + frozen prompt |
+| `d8c98dc` | 9 — claim-grounding interface |
+| `efdbb87` | 8 — deterministic citation finalizer |
+| `8385639` | 7 + 10 — pipeline wiring + observability |
+
+Test results: **277 passed, 5 failed**, versus the recorded baseline of
+**128 passed, 5 failed**. The same 5 pre-existing failures, unchanged:
+
+- `tests/test_agents/test_graph.py::test_agent_basic_flow` — OpenAI auth
+- `tests/test_agents/test_graph.py::test_agent_state_structure` — OpenAI auth
+- 3 × `tests/test_services/test_vector_store_async.py` — `SimpleNamespace`
+  fixtures lack `local_embedding_model`, pre-existing since commit `5fbc555`
+
+**149 new tests, zero regressions.** The diff against `5fbc555` is 4132
+insertions and **0 deletions**; the only file changed outside
+`src/synthesis/fast_v2/` is `src/config.py` (22 additive lines). Legacy
+synthesis is byte-for-byte untouched.
+
+### Deliberately NOT ported from the scratch experiments
+
+- `run_dimension_aware_v1.py`, `run_controlled_legacy.py`,
+  `run_final_controlled_ab.py`, `run_multi_set_stress_benchmarks.py`,
+  `spike_evidence_first_v*.py`, `spike_global_extraction*.py`,
+  `microbench_*.py`, `measure_round1_variance.py` — benchmark runners and
+  report printers, not runtime services.
+- `colab_rq2_dimension_v1_generation.py` and the Colab notebooks — notebook
+  cells, `google.colab` download helpers, and a `min_tokens=450` sampling
+  config that is a known-invalid setting. Only the prompt structure and the
+  sanitization regex were taken from CELL 4.
+- Benchmark identifiers (RQ1/RQ2/Xu2010/Xu2018) and the hardcoded dimension
+  strings — enforced absent from executable code by a tokenizer-based test.
+- `evidence_hygiene_report.md` metrics tables — recorded in the ADR as
+  evidence, not embedded in runtime code.
+- The invalid 162.99s generation artifact — recorded in the ADR only, as a
+  counter-example.
+
+---
+
 ## Explicitly out of scope
 
 - Any LLM planner for dimension decomposition.
