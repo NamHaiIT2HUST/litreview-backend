@@ -95,6 +95,18 @@ class Settings(BaseSettings):
     fast_v2_reranker: Literal["identity", "cross_encoder"] = "identity"
     fast_v2_reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 
+    # Generator selection. "fake" loads nothing and calls nothing -- the safe,
+    # deterministic default so importing/running fast_v2 (and CI) never needs a
+    # GPU or a network call. "remote_openscholar" talks HTTP to a warm GPU
+    # service (see scripts/fast_v2_openscholar_gpu_service.py) and must never
+    # be loaded in-process in the CPU backend. "local_vllm" is the in-process
+    # vLLM adapter for when the backend itself runs on the GPU box. Must be
+    # opted into explicitly; a typo fails loudly rather than silently
+    # changing latency/cost.
+    fast_v2_generator: Literal["fake", "local_vllm", "remote_openscholar"] = "fake"
+    # Required only when fast_v2_generator="remote_openscholar".
+    fast_v2_openscholar_base_url: str = ""
+
     # Database
     database_url: str = "sqlite:///./data/app.db"
 
