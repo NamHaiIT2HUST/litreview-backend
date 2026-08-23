@@ -45,13 +45,16 @@ SYSTEM_ROLE_INSTRUCTION = (
     "You are an AI research assistant. Follow the user's instructions exactly."
 )
 
-#: Same temperature/max_tokens/stop as the frozen OpenScholar config
+#: Structured JSON needs enough room to close the full claim manifest.
+STRUCTURED_MANIFEST_MAX_TOKENS = 6000
+
+#: Same temperature/stop as the frozen OpenScholar config
 #: (src/synthesis/fast_v2/generator/openscholar.py::FROZEN_GENERATION_CONFIG).
 #: min_tokens and stop_token_ids are vLLM-specific and have no OpenAI-
 #: compatible equivalent, so they are intentionally omitted here.
 DEFAULT_GENERATION_CONFIG: dict[str, Any] = {
     "temperature": 0.7,
-    "max_tokens": 3000,
+    "max_tokens": STRUCTURED_MANIFEST_MAX_TOKENS,
     "stop": [RESPONSE_END],
 }
 

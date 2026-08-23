@@ -117,6 +117,15 @@ def test_model_propagated_in_request():
     assert payload["model"] == "gpt-4o-mini"
 
 
+def test_structured_manifest_request_allows_6000_output_tokens():
+    client = _FakeClient(post_response=_FakeResponse(200, VALID_RESPONSE))
+    gen = _make_generator(client)
+    gen.generate(question="Q", evidence_bank=_bank())
+
+    _, payload, _ = client.post_calls[0]
+    assert payload["max_tokens"] == 6000
+
+
 def test_api_key_sent_as_bearer_header():
     client = _FakeClient(post_response=_FakeResponse(200, VALID_RESPONSE))
     gen = _make_generator(client)
