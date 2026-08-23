@@ -32,11 +32,13 @@ Both facet detection and query construction are deterministic, CPU-only, and
 never call an LLM. Neither hardcodes a benchmark question, a paper id, or a
 paper-specific term (CQ/MM/quasi-Newton/etc) -- only a small generic
 scientific-facet lexicon and expansion vocabulary, plus whatever entities/
-topic the actual input question contains.
+topic the actual input question contains. Comparative scopes use selected
+paper IDs as identity; entity strings need not occur in chunk text.
 """
 from __future__ import annotations
 
 import re
+import uuid
 from typing import Sequence
 
 from src.synthesis.fast_v2.dimensions.planner import DimensionQuery
@@ -123,6 +125,10 @@ FACET_EXPANSION_TERMS: dict[str, tuple[str, ...]] = {
 FALLBACK_FACETS: tuple[str, ...] = ("general_topic", "methodology", "outcomes", "constraints")
 
 _ENTITY_PATTERN = re.compile(r"\b([A-Z][a-zA-Z]*)\s?(20\d{2})\b")
+_COMPARISON_PATTERN = re.compile(
+    r"\b(compare(?:d|s|ing)?|comparison|differ(?:s|ed|ing|ence|ences)?|versus|vs\.?)\b",
+    re.IGNORECASE,
+)
 _TOPIC_PATTERN = re.compile(
     r"\bof the ([a-z][a-z0-9\-]*(?:\s+[a-z][a-z0-9\-]*){0,4}?)\s+"
     r"(problem|framework|algorithm|method|approach|task|model|setting)\b",
@@ -150,6 +156,11 @@ def extract_topic_phrase(research_question: str) -> str:
     if not match:
         return ""
     return f"{match.group(1)} {match.group(2)}".lower()
+
+
+def has_comparison_language(research_question: str) -> bool:
+    """Whether the question explicitly asks for a comparison."""
+    return bool(_COMPARISON_PATTERN.search(research_question or ""))
 
 
 def detect_facets(research_question: str) -> list[str]:
@@ -182,14 +193,18 @@ class QuestionFacetDimensionQueryPlanner:
     Successor to ``DeterministicDimensionQueryPlanner`` for the real product
     runtime only -- that class is untouched and still used wherever a bare
     facet-label query is wanted (tests, the original Dimension-Aware v1
-    parity harness). This planner instead combines question-extracted
-    entities + topic phrase with a small generic per-facet expansion
-    vocabulary, so a comparison question retrieves discriminating evidence
-    per facet instead of a bare single word.
+    parity harness). For ordinary questions this planner combines
+    question-extracted entities + topic phrase with a small generic per-facet
+    expansion vocabulary. For an explicit comparison with multiple selected
+    papers, it emits facet-major paper-scoped queries using topic + facet
+    vocabulary; the paper-ID filter supplies entity identity.
 
     Never concatenates the full research question into a query -- that is
     the validated v0 failure mode.
     """
+
+    def __init__(self, *, paper_ids: Sequence[uuid.UUID] = ()) -> None:
+        self._paper_ids = tuple(dict.fromkeys(paper_ids))
 
     def plan(
         self, *, research_question: str, dimensions: Sequence[str]
@@ -209,10 +224,29 @@ class QuestionFacetDimensionQueryPlanner:
 
         entities = extract_entities(research_question)
         topic = extract_topic_phrase(research_question)
+        comparison_scopes = (
+            self._paper_ids
+            if len(self._paper_ids) > 1 and has_comparison_language(research_question)
+            else ()
+        )
 
         queries: list[DimensionQuery] = []
         for facet in cleaned:
             expansion = FACET_EXPANSION_TERMS.get(facet, (facet,))
+            if comparison_scopes:
+                parts = [topic] if topic else []
+                parts.extend(expansion)
+                query_text = " ".join(parts)
+                queries.extend(
+                    DimensionQuery(
+                        dimension=facet,
+                        query_text=query_text,
+                        paper_id=paper_id,
+                    )
+                    for paper_id in comparison_scopes
+                )
+                continue
+
             parts: list[str] = list(entities)
             if topic:
                 parts.append(topic)

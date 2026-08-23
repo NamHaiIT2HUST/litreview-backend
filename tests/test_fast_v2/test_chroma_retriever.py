@@ -56,3 +56,26 @@ async def test_retrieve_respects_limit():
     retriever = FastV2ChromaEvidenceRetriever(index, paper_ids=[PAPER_A])
     results = await retriever.retrieve("q", limit=2)
     assert len(results) == 2
+
+
+@pytest.mark.asyncio
+async def test_retrieve_scopes_query_to_one_selected_paper():
+    index = _FakeIndex([_unit(PAPER_B)])
+    retriever = FastV2ChromaEvidenceRetriever(index, paper_ids=[PAPER_A, PAPER_B])
+
+    await retriever.retrieve("facet query", limit=40, paper_id=PAPER_B)
+
+    assert index.calls == [
+        {"query": "facet query", "limit": 40, "paper_ids": [PAPER_B]}
+    ]
+
+
+@pytest.mark.asyncio
+async def test_retrieve_rejects_scope_outside_selected_papers():
+    index = _FakeIndex([])
+    retriever = FastV2ChromaEvidenceRetriever(index, paper_ids=[PAPER_A, PAPER_B])
+
+    with pytest.raises(ValueError, match="selected paper"):
+        await retriever.retrieve("facet query", limit=40, paper_id=uuid.uuid4())
+
+    assert index.calls == []

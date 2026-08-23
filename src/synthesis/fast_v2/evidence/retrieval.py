@@ -23,7 +23,9 @@ from src.synthesis.fast_v2.evidence.models import EvidenceUnit
 class EvidenceRetriever(Protocol):
     """Returns reusable EvidenceUnits for one dimension query."""
 
-    async def retrieve(self, query: str, *, limit: int) -> Sequence[EvidenceUnit]:
+    async def retrieve(
+        self, query: str, *, limit: int, paper_id: uuid.UUID | None = None
+    ) -> Sequence[EvidenceUnit]:
         ...
 
 
@@ -82,16 +84,22 @@ class VectorStoreEvidenceRetriever:
         self._vector_store = vector_store_service
         self._paper_ids = [str(pid) for pid in (paper_ids or [])]
 
-    def _filters(self) -> dict[str, Any] | None:
+    def _filters(self, paper_id: uuid.UUID | None = None) -> dict[str, Any] | None:
+        if paper_id is not None:
+            if self._paper_ids and str(paper_id) not in self._paper_ids:
+                raise ValueError("paper_id scope must be one of the selected paper IDs")
+            return {"paper_id": str(paper_id)}
         if not self._paper_ids:
             return None
         if len(self._paper_ids) == 1:
             return {"paper_id": self._paper_ids[0]}
         return {"paper_id": {"$in": self._paper_ids}}
 
-    async def retrieve(self, query: str, *, limit: int) -> list[EvidenceUnit]:
+    async def retrieve(
+        self, query: str, *, limit: int, paper_id: uuid.UUID | None = None
+    ) -> list[EvidenceUnit]:
         results = await self._vector_store.search_similar_documents_with_scores(
-            query, top_k=limit, filters=self._filters()
+            query, top_k=limit, filters=self._filters(paper_id)
         )
 
         units: list[EvidenceUnit] = []
@@ -114,6 +122,11 @@ class StaticEvidenceRetriever:
         self._units = list(units)
         self.queries: list[str] = []
 
-    async def retrieve(self, query: str, *, limit: int) -> list[EvidenceUnit]:
+    async def retrieve(
+        self, query: str, *, limit: int, paper_id: uuid.UUID | None = None
+    ) -> list[EvidenceUnit]:
         self.queries.append(query)
-        return self._units[:limit]
+        units = self._units
+        if paper_id is not None:
+            units = [unit for unit in units if unit.paper_id == paper_id]
+        return units[:limit]

@@ -148,7 +148,7 @@ def build_fast_v2_pipeline(*, paper_ids: Sequence[uuid.UUID]) -> FastSynthesisV2
         retriever=retriever,
         generator=generator,
         reranker=reranker,
-        planner=QuestionFacetDimensionQueryPlanner(),
+        planner=QuestionFacetDimensionQueryPlanner(paper_ids=paper_ids),
         selection_policy=selection_policy,
         candidates_per_dimension=settings.fast_v2_candidates_per_dimension,
     )

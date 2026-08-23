@@ -30,7 +30,12 @@ class FastV2ChromaEvidenceRetriever:
         self._index = index
         self._paper_ids = list(paper_ids)
 
-    async def retrieve(self, query: str, *, limit: int) -> list[EvidenceUnit]:
+    async def retrieve(
+        self, query: str, *, limit: int, paper_id: uuid.UUID | None = None
+    ) -> list[EvidenceUnit]:
+        if paper_id is not None and paper_id not in self._paper_ids:
+            raise ValueError("paper_id scope must be one of the selected paper IDs")
+        paper_ids = self._paper_ids if paper_id is None else [paper_id]
         return await asyncio.to_thread(
-            self._index.query, query, limit=limit, paper_ids=self._paper_ids
+            self._index.query, query, limit=limit, paper_ids=paper_ids
         )

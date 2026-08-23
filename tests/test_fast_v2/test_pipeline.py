@@ -10,6 +10,7 @@ import pytest
 
 from src.synthesis.fast_v2.evidence.models import EvidenceUnit
 from src.synthesis.fast_v2.evidence.retrieval import StaticEvidenceRetriever
+from src.synthesis.fast_v2.dimensions.facets import QuestionFacetDimensionQueryPlanner
 from src.synthesis.fast_v2.generator.fake import FakeSynthesisGenerator
 from src.synthesis.fast_v2.observability import PHASES
 from src.synthesis.fast_v2.pipeline import FastSynthesisV2Pipeline, FastSynthesisV2Result
@@ -108,6 +109,16 @@ def pipeline(units):
 
 async def _run(pipeline):
     return await pipeline.run(question=QUESTION, dimensions=DIMENSIONS)
+
+
+@pytest.mark.asyncio
+async def test_static_retriever_honors_optional_paper_scope(units):
+    retriever = StaticEvidenceRetriever(units)
+
+    results = await retriever.retrieve("query", limit=40, paper_id=PAPER_B)
+
+    assert results
+    assert {unit.paper_id for unit in results} == {PAPER_B}
 
 
 # --------------------------------------------------------------------------
@@ -273,3 +284,73 @@ async def test_no_negative_scored_evidence_reaches_the_bank(pipeline):
     result = await _run(pipeline)
     for unit in result.evidence_bank.evidence:
         assert unit.best_dimension_score > 0
+
+
+@pytest.mark.asyncio
+async def test_comparative_scopes_select_independently_without_balancing_or_padding():
+    paper_a = uuid.UUID("11111111-1111-1111-1111-111111111111")
+    paper_b = uuid.UUID("22222222-2222-2222-2222-222222222222")
+
+    def scored_unit(paper_id, title, page, score):
+        text = (
+            f"Substantive scientific evidence on page {page} explains the mathematical "
+            f"method, assumptions, and convergence result with score marker {score}."
+        )
+        return _unit(paper_id, title, page, text)
+
+    units_by_paper = {
+        paper_a: [scored_unit(paper_a, "Paper A", page, score) for page, score in enumerate((5, 4, 3, 2), 1)],
+        paper_b: [scored_unit(paper_b, "Paper B", 1, 1), scored_unit(paper_b, "Paper B", 2, -1)],
+    }
+    scores = {
+        unit.text: float(unit.text.rsplit(" ", 1)[-1].rstrip("."))
+        for paper_units in units_by_paper.values()
+        for unit in paper_units
+    }
+
+    class ScopedRetriever:
+        def __init__(self):
+            self.calls = []
+
+        async def retrieve(self, query, *, limit, paper_id=None):
+            self.calls.append((query, paper_id))
+            return list(units_by_paper.get(paper_id, ()))[:limit]
+
+    class FixedReranker:
+        def rerank(self, query, texts):
+            return sorted(
+                [(index, scores[text]) for index, text in enumerate(texts)],
+                key=lambda item: item[1],
+                reverse=True,
+            )
+
+    retriever = ScopedRetriever()
+    pipeline = FastSynthesisV2Pipeline(
+        retriever=retriever,
+        reranker=FixedReranker(),
+        generator=FakeSynthesisGenerator(),
+        planner=QuestionFacetDimensionQueryPlanner(paper_ids=[paper_a, paper_b]),
+    )
+
+    result = await pipeline.run(
+        question=(
+            "How do the selected papers differ in their formulations of the "
+            "gradient descent problem and convergence guarantees?"
+        ),
+        dimensions=["formulation", "convergence"],
+    )
+
+    assert [paper_id for _query, paper_id in retriever.calls] == [
+        paper_a,
+        paper_b,
+        paper_a,
+        paper_b,
+    ]
+    assert result.evidence_bank.dimensions == ("formulation", "convergence")
+    assert result.evidence_bank.paper_distribution == {"Paper A": 3, "Paper B": 1}
+    assert len(result.evidence_bank.evidence) == 4
+    assert all(unit.best_dimension_score > 0 for unit in result.evidence_bank.evidence)
+    assert all(
+        unit.selected_for_dimensions == ("formulation", "convergence")
+        for unit in result.evidence_bank.evidence
+    )

@@ -131,9 +131,14 @@ class FastSynthesisV2Pipeline:
             for query in queries:
                 # -- retrieve_evidence_first (no LLM) ------------------------
                 with timings.phase("retrieval_ms"):
+                    retrieve_kwargs: dict[str, Any] = {
+                        "limit": self.candidates_per_dimension
+                    }
+                    if query.paper_id is not None:
+                        retrieve_kwargs["paper_id"] = query.paper_id
                     candidates = list(
                         await self.retriever.retrieve(
-                            query.query_text, limit=self.candidates_per_dimension
+                            query.query_text, **retrieve_kwargs
                         )
                     )
 
@@ -150,15 +155,20 @@ class FastSynthesisV2Pipeline:
 
                 # -- apply_relevance_gate ------------------------------------
                 with timings.phase("evidence_bank_ms"):
-                    evidence_by_dimension[query.dimension] = self.selection_policy.select(
-                        reranked, dimension=query.dimension
+                    evidence_by_dimension.setdefault(query.dimension, []).extend(
+                        self.selection_policy.select(
+                            reranked, dimension=query.dimension
+                        )
                     )
 
             # -- merge_evidence_bank ------------------------------------------
             with timings.phase("evidence_bank_ms"):
+                planned_dimensions = list(
+                    dict.fromkeys(query.dimension for query in queries)
+                )
                 bank = GroundedEvidenceBank.build(
                     question=question,
-                    dimensions=[q.dimension for q in queries],
+                    dimensions=planned_dimensions,
                     evidence_by_dimension=evidence_by_dimension,
                     query_ms=timings.timings["dimension_query_ms"],
                     retrieval_ms=timings.timings["retrieval_ms"],

@@ -116,7 +116,11 @@ class InMemoryCosineEvidenceRetriever:
         norms = np.linalg.norm(matrix, axis=1, keepdims=True)
         self._matrix_normed = matrix / np.where(norms == 0, 1, norms)
 
-    async def retrieve(self, query: str, *, limit: int) -> list[EvidenceUnit]:
+    async def retrieve(
+        self, query: str, *, limit: int, paper_id: uuid.UUID | None = None
+    ) -> list[EvidenceUnit]:
+        if paper_id is not None and paper_id not in self._paper_ids:
+            raise ValueError("paper_id scope must be one of the selected paper IDs")
         await self._ensure_corpus()
         units = self._units or []
         if not units:
@@ -129,7 +133,15 @@ class InMemoryCosineEvidenceRetriever:
         query_vec = query_vec / (norm if norm else 1)
 
         scores = self._matrix_normed @ query_vec
-        ranked_idx = np.argsort(-scores)[:limit]
+        eligible_idx = np.array(
+            [
+                index
+                for index, unit in enumerate(units)
+                if paper_id is None or unit.paper_id == paper_id
+            ],
+            dtype=int,
+        )
+        ranked_idx = eligible_idx[np.argsort(-scores[eligible_idx])[:limit]]
 
         return [
             units[i].with_scores(retrieval_score=float(scores[i])) for i in ranked_idx

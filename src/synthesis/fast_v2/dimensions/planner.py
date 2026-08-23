@@ -26,6 +26,7 @@ in ``docs/architecture/FAST_SYNTHESIS_V2.md`` section L.
 """
 from __future__ import annotations
 
+import uuid
 from dataclasses import dataclass
 from typing import Protocol, Sequence, runtime_checkable
 
@@ -36,6 +37,7 @@ class DimensionQuery:
 
     dimension: str
     query_text: str
+    paper_id: uuid.UUID | None = None
 
 
 @runtime_checkable

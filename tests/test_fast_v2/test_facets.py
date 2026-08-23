@@ -7,6 +7,8 @@ reproduce, the frozen benchmark question itself.
 """
 from __future__ import annotations
 
+import uuid
+
 from src.synthesis.fast_v2.dimensions.facets import (
     FACET_LEXICON,
     FALLBACK_FACETS,
@@ -121,3 +123,59 @@ def test_planner_falls_back_to_facet_name_when_no_expansion_defined():
     queries = planner.plan(research_question="no entities or topic here", dimensions=["custom_facet"])
     assert queries[0].dimension == "custom_facet"
     assert "custom_facet" in queries[0].query_text
+
+
+def test_comparative_planner_expands_facets_by_authoritative_paper_id():
+    paper_a = uuid.UUID("11111111-1111-1111-1111-111111111111")
+    paper_b = uuid.UUID("22222222-2222-2222-2222-222222222222")
+    planner = QuestionFacetDimensionQueryPlanner(paper_ids=[paper_a, paper_b])
+
+    queries = planner.plan(
+        research_question=(
+            "How do the selected papers differ in their formulations of the "
+            "gradient descent problem, algorithmic strategies, assumptions, "
+            "and convergence guarantees?"
+        ),
+        dimensions=["formulation", "algorithms", "assumptions", "convergence"],
+    )
+
+    assert [(query.dimension, query.paper_id) for query in queries] == [
+        ("formulation", paper_a),
+        ("formulation", paper_b),
+        ("algorithms", paper_a),
+        ("algorithms", paper_b),
+        ("assumptions", paper_a),
+        ("assumptions", paper_b),
+        ("convergence", paper_a),
+        ("convergence", paper_b),
+    ]
+    assert [query.query_text for query in queries] == [
+        "gradient descent problem formulation mathematical setting definition spaces mappings constraints linear nonlinear",
+        "gradient descent problem formulation mathematical setting definition spaces mappings constraints linear nonlinear",
+        "gradient descent problem algorithms iterative methods optimization projection fixed point acceleration",
+        "gradient descent problem algorithms iterative methods optimization projection fixed point acceleration",
+        "gradient descent problem assumptions conditions convexity smoothness linearity mappings operators",
+        "gradient descent problem assumptions conditions convexity smoothness linearity mappings operators",
+        "gradient descent problem convergence guarantees theorem weak strong stationary global minimizer",
+        "gradient descent problem convergence guarantees theorem weak strong stationary global minimizer",
+    ]
+
+
+def test_multiple_selected_papers_do_not_change_non_comparative_queries():
+    paper_a = uuid.UUID("11111111-1111-1111-1111-111111111111")
+    paper_b = uuid.UUID("22222222-2222-2222-2222-222222222222")
+    question = "What formulation and convergence are reported for Chen2015?"
+
+    baseline = QuestionFacetDimensionQueryPlanner().plan(
+        research_question=question,
+        dimensions=["formulation", "convergence"],
+    )
+    with_selected_papers = QuestionFacetDimensionQueryPlanner(
+        paper_ids=[paper_a, paper_b]
+    ).plan(
+        research_question=question,
+        dimensions=["formulation", "convergence"],
+    )
+
+    assert with_selected_papers == baseline
+    assert all(query.paper_id is None for query in with_selected_papers)

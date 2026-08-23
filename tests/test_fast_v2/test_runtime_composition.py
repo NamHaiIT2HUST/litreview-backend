@@ -97,6 +97,31 @@ def test_composition_root_selects_hosted_api_generator_from_settings(monkeypatch
     assert isinstance(pipeline.reranker, IdentityReranker)
 
 
+def test_composition_root_gives_selected_paper_ids_to_comparative_planner(monkeypatch):
+    from src import config as config_module
+    from src.synthesis.fast_v2.runtime import build_fast_v2_pipeline
+
+    monkeypatch.setattr(config_module, "get_settings", lambda: _hosted_api_settings())
+    paper_a = uuid.UUID("11111111-1111-1111-1111-111111111111")
+    paper_b = uuid.UUID("22222222-2222-2222-2222-222222222222")
+
+    pipeline = build_fast_v2_pipeline(paper_ids=[paper_a, paper_b])
+    queries = pipeline.planner.plan(
+        research_question=(
+            "How do the selected papers differ in their formulations of the "
+            "gradient descent problem and convergence guarantees?"
+        ),
+        dimensions=["formulation", "convergence"],
+    )
+
+    assert [(query.dimension, query.paper_id) for query in queries] == [
+        ("formulation", paper_a),
+        ("formulation", paper_b),
+        ("convergence", paper_a),
+        ("convergence", paper_b),
+    ]
+
+
 def test_composition_root_selects_cross_encoder_reranker_when_configured(monkeypatch):
     from src import config as config_module
     from src.synthesis.fast_v2.runtime import build_fast_v2_pipeline

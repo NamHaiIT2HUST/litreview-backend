@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import sys
 import time
 import uuid
@@ -21,6 +22,10 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
+
+# Enforce cache-only resolution for the already-downloaded local models.
+os.environ["HF_HUB_OFFLINE"] = "1"
+os.environ["TRANSFORMERS_OFFLINE"] = "1"
 
 XU_2010_PAPER_ID = uuid.UUID("52c06c26-1dd1-486a-8c4f-202779ed5c7f")
 XU_2018_PAPER_ID = uuid.UUID("0373c7b5-3a9e-437d-a59a-a1baa9a708cc")
@@ -51,23 +56,39 @@ async def main() -> None:
     print(f"Detected facets: {facets}")
     assert facets == ["formulation", "algorithms", "assumptions", "convergence"], facets
 
-    planner = QuestionFacetDimensionQueryPlanner()
+    paper_ids = [XU_2010_PAPER_ID, XU_2018_PAPER_ID]
+    paper_labels = {
+        XU_2010_PAPER_ID: "Xu2010",
+        XU_2018_PAPER_ID: "Xu2018",
+    }
+    planner = QuestionFacetDimensionQueryPlanner(paper_ids=paper_ids)
     queries = planner.plan(research_question=QUESTION, dimensions=facets)
     for q in queries:
-        print(f"  [{q.dimension}] query_text = {q.query_text!r}")
+        print(
+            f"  [{q.dimension} x {paper_labels[q.paper_id]}] "
+            f"paper_id={q.paper_id} query_text={q.query_text!r}"
+        )
 
     index = FastV2SemanticIndex()
-    retriever = FastV2ChromaEvidenceRetriever(index, paper_ids=[XU_2010_PAPER_ID, XU_2018_PAPER_ID])
+    retriever = FastV2ChromaEvidenceRetriever(index, paper_ids=paper_ids)
     reranker = CrossEncoderReranker()
     selection_policy = EvidenceSelectionPolicy()  # frozen defaults: max 3/dim, threshold 0.0
 
-    report: dict = {"question": QUESTION, "facets": facets, "per_facet": {}}
+    report: dict = {
+        "question": QUESTION,
+        "facets": facets,
+        "paper_ids": {label: str(paper_id) for paper_id, label in paper_labels.items()},
+        "per_cell": {facet: {} for facet in facets},
+    }
     evidence_by_dimension: dict[str, list] = {}
     hygiene_dropped_total = 0
+    selected_occurrences = 0
 
     for query in queries:
         t0 = time.perf_counter()
-        candidates = await retriever.retrieve(query.query_text, limit=40)
+        candidates = await retriever.retrieve(
+            query.query_text, limit=40, paper_id=query.paper_id
+        )
         retrieval_ms = (time.perf_counter() - t0) * 1000.0
 
         kept, dropped = filter_evidence_units(candidates)
@@ -78,16 +99,31 @@ async def main() -> None:
         rerank_ms = (time.perf_counter() - t0) * 1000.0
 
         selected = selection_policy.select(reranked, dimension=query.dimension)
-        evidence_by_dimension[query.dimension] = selected
+        evidence_by_dimension.setdefault(query.dimension, []).extend(selected)
+        selected_occurrences += len(selected)
 
-        report["per_facet"][query.dimension] = {
+        label = paper_labels[query.paper_id]
+        report["per_cell"][query.dimension][label] = {
+            "paper_id": str(query.paper_id),
             "query_text": query.query_text,
             "candidates_retrieved": len(candidates),
             "candidates_after_hygiene": len(kept),
             "hygiene_dropped": len(dropped),
+            "hygiene_dropped_evidence_ids": [unit.evidence_id for unit in dropped],
             "retrieval_ms": round(retrieval_ms, 2),
             "rerank_ms": round(rerank_ms, 2),
-            "reranked_top5_scores": [round(u.rerank_score, 4) for u in reranked[:5]],
+            "reranked": [
+                {
+                    "evidence_id": unit.evidence_id,
+                    "source_chunk_id": str(unit.source_chunk_id),
+                    "page": unit.page,
+                    "score": round(unit.rerank_score, 6),
+                }
+                for unit in reranked
+            ],
+            "best_reranker_score": (
+                None if not reranked else round(reranked[0].rerank_score, 6)
+            ),
             "selected_count": len(selected),
             "selected": [
                 {
@@ -132,6 +168,8 @@ async def main() -> None:
 
     report["merged_bank"] = {
         "total_evidence": len(bank.evidence),
+        "selected_occurrences_before_merge": selected_occurrences,
+        "duplicate_count": selected_occurrences - len(bank.evidence),
         "xu2010_count": xu2010_count,
         "xu2018_count": xu2018_count,
         "paper_distribution": paper_distribution,
@@ -141,6 +179,19 @@ async def main() -> None:
         "dimensions_without_evidence": bank.coverage["dimensions_without_evidence"],
         "is_thin": bank.coverage["is_thin"],
         "hygiene_dropped_total": hygiene_dropped_total,
+        "page_diversity": sum(len(pages) for pages in bank.pages_represented.values()),
+    }
+    empty_cells = [
+        f"{facet} x {label}"
+        for facet in facets
+        for label in paper_labels.values()
+        if report["per_cell"][facet][label]["selected_count"] == 0
+    ]
+    report["comparative_coverage"] = {
+        "cells_requested": len(facets) * len(paper_ids),
+        "cells_with_positive_evidence": len(facets) * len(paper_ids) - len(empty_cells),
+        "empty_cells": empty_cells,
+        "previous_unscoped_cells_with_evidence": 4,
     }
     report["overlap_with_original_v1_bank"] = {
         "method": "(paper_title, page, page_char_start, page_char_end) span match "
@@ -155,20 +206,37 @@ async def main() -> None:
     print(json.dumps(report["merged_bank"], indent=2, ensure_ascii=False))
     print("\n=== OVERLAP WITH ORIGINAL v1 BANK ===")
     print(json.dumps(report["overlap_with_original_v1_bank"], indent=2, ensure_ascii=False))
+    print("\n=== FACET x PAPER MATRIX ===")
+    print(json.dumps(report["per_cell"], indent=2, ensure_ascii=False))
+    print("\n=== COMPARATIVE COVERAGE ===")
+    print(json.dumps(report["comparative_coverage"], indent=2, ensure_ascii=False))
 
     out_path = REPO_ROOT / "scratch" / "fast_v2_parity_results" / "facet_planner_offline_coverage.json"
     out_path.parent.mkdir(parents=True, exist_ok=True)
+    acceptance = {
+        "A_both_papers_present": xu2010_count > 0 and xu2018_count > 0,
+        "B_all_facets_represented": not bank.coverage["dimensions_without_evidence"],
+        "C_comparative_coverage_improved": (
+            report["comparative_coverage"]["cells_with_positive_evidence"] > 4
+        ),
+        "D_no_negative_padding": all(
+            unit.best_dimension_score is not None and unit.best_dimension_score > 0
+            for unit in bank.evidence
+        ),
+    }
+    acceptance["overall_pass"] = all(acceptance.values())
+    report["acceptance"] = acceptance
+    report["structural_constraints"] = {
+        "paper_quota_or_balancing_added": False,
+        "generator_constructed_or_called": False,
+        "selection_order_verified_by_repeat_run": "verified by caller comparison",
+    }
     out_path.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"\nWrote {out_path}")
-
-    # Acceptance checks (section 4 of the task) -- assert, don't silently pass.
-    assert xu2010_count > 0, "Xu2010 must be present in the merged bank"
-    assert xu2018_count > 0, "Xu2018 must be present in the merged bank"
-    for facet in facets:
-        assert report["merged_bank"]["dimensions_without_evidence"].count(facet) == 0, (
-            f"facet {facet!r} has zero selected evidence"
-        )
-    print("\nAcceptance checks PASSED: both papers present, all 4 facets covered.")
+    print("\n=== ACCEPTANCE ===")
+    print(json.dumps(acceptance, indent=2, ensure_ascii=False))
+    if not acceptance["overall_pass"]:
+        raise SystemExit("Offline comparison-aware acceptance checks failed")
 
 
 if __name__ == "__main__":

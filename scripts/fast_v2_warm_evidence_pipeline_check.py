@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import sys
 import time
 import uuid
@@ -20,6 +21,10 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
+
+# Enforce cache-only resolution for the already-downloaded local models.
+os.environ["HF_HUB_OFFLINE"] = "1"
+os.environ["TRANSFORMERS_OFFLINE"] = "1"
 
 XU_2010_PAPER_ID = uuid.UUID("52c06c26-1dd1-486a-8c4f-202779ed5c7f")
 XU_2018_PAPER_ID = uuid.UUID("0373c7b5-3a9e-437d-a59a-a1baa9a708cc")
@@ -50,54 +55,84 @@ async def main() -> None:
 
     index = runtime_module.get_fast_v2_index()
     reranker = runtime_module.get_fast_v2_reranker()
-    retriever = FastV2ChromaEvidenceRetriever(index, paper_ids=[XU_2010_PAPER_ID, XU_2018_PAPER_ID])
+    paper_ids = [XU_2010_PAPER_ID, XU_2018_PAPER_ID]
+    retriever = FastV2ChromaEvidenceRetriever(index, paper_ids=paper_ids)
     selection_policy = EvidenceSelectionPolicy()
-    planner = QuestionFacetDimensionQueryPlanner()
 
     facets = detect_facets(QUESTION)
-    queries = planner.plan(research_question=QUESTION, dimensions=facets)
-
-    timings = PhaseTimings()
-    evidence_by_dimension: dict[str, list] = {}
-
-    with timings.total():
-        for query in queries:
-            with timings.phase("retrieval_ms"):
-                candidates = await retriever.retrieve(query.query_text, limit=40)
-            with timings.phase("hygiene_ms"):
-                kept, _dropped = filter_evidence_units(candidates)
-            with timings.phase("rerank_ms"):
-                reranked = apply_reranker(reranker, query=query.query_text, units=kept)
-            with timings.phase("evidence_bank_ms"):
-                evidence_by_dimension[query.dimension] = selection_policy.select(
-                    reranked, dimension=query.dimension
-                )
-
-        with timings.phase("evidence_bank_ms"):
-            bank = GroundedEvidenceBank.build(
-                question=QUESTION, dimensions=facets, evidence_by_dimension=evidence_by_dimension
-            )
-
-    evidence_pipeline_ms = (
-        timings.timings["retrieval_ms"]
-        + timings.timings["hygiene_ms"]
-        + timings.timings["rerank_ms"]
-        + timings.timings["evidence_bank_ms"]
+    unscoped_queries = QuestionFacetDimensionQueryPlanner().plan(
+        research_question=QUESTION, dimensions=facets
+    )
+    scoped_queries = QuestionFacetDimensionQueryPlanner(paper_ids=paper_ids).plan(
+        research_question=QUESTION, dimensions=facets
     )
 
-    result = {
-        "warmup_ms": warmup_timings["warmup_ms"],
-        "warmup_breakdown": warmup_timings,
-        "warm_evidence_timings_ms": {
+    async def measure(queries):
+        timings = PhaseTimings()
+        evidence_by_dimension: dict[str, list] = {}
+
+        with timings.total():
+            for query in queries:
+                with timings.phase("retrieval_ms"):
+                    if query.paper_id is None:
+                        candidates = await retriever.retrieve(query.query_text, limit=40)
+                    else:
+                        candidates = await retriever.retrieve(
+                            query.query_text, limit=40, paper_id=query.paper_id
+                        )
+                with timings.phase("hygiene_ms"):
+                    kept, _dropped = filter_evidence_units(candidates)
+                with timings.phase("rerank_ms"):
+                    reranked = apply_reranker(
+                        reranker, query=query.query_text, units=kept
+                    )
+                with timings.phase("evidence_bank_ms"):
+                    evidence_by_dimension.setdefault(query.dimension, []).extend(
+                        selection_policy.select(reranked, dimension=query.dimension)
+                    )
+
+            with timings.phase("evidence_bank_ms"):
+                bank = GroundedEvidenceBank.build(
+                    question=QUESTION,
+                    dimensions=list(dict.fromkeys(query.dimension for query in queries)),
+                    evidence_by_dimension=evidence_by_dimension,
+                )
+
+        evidence_pipeline_ms = sum(
+            timings.timings[name]
+            for name in ("retrieval_ms", "hygiene_ms", "rerank_ms", "evidence_bank_ms")
+        )
+        return timings, bank, evidence_pipeline_ms
+
+    control_timings, control_bank, control_ms = await measure(unscoped_queries)
+    scoped_timings, scoped_bank, scoped_ms = await measure(scoped_queries)
+
+    def timing_result(timings, pipeline_ms):
+        return {
             "retrieval_ms": round(timings.timings["retrieval_ms"], 3),
             "hygiene_ms": round(timings.timings["hygiene_ms"], 3),
             "rerank_ms": round(timings.timings["rerank_ms"], 3),
             "evidence_bank_ms": round(timings.timings["evidence_bank_ms"], 3),
-            "evidence_pipeline_ms": round(evidence_pipeline_ms, 3),
+            "evidence_pipeline_ms": round(pipeline_ms, 3),
+        }
+
+    result = {
+        "warmup_ms": warmup_timings["warmup_ms"],
+        "warmup_breakdown": warmup_timings,
+        "same_process_warm_control": {
+            "query_count": len(unscoped_queries),
+            "timings_ms": timing_result(control_timings, control_ms),
+            "evidence_count": len(control_bank.evidence),
+            "paper_distribution": control_bank.paper_distribution,
         },
-        "previously_observed_warm_reference_ms": 11600,
-        "evidence_count": len(bank.evidence),
-        "paper_distribution": bank.paper_distribution,
+        "same_process_warm_scoped": {
+            "query_count": len(scoped_queries),
+            "timings_ms": timing_result(scoped_timings, scoped_ms),
+            "evidence_count": len(scoped_bank.evidence),
+            "paper_distribution": scoped_bank.paper_distribution,
+        },
+        "measured_extra_cost_ms": round(scoped_ms - control_ms, 3),
+        "historical_unscoped_reference_ms": 6832,
     }
     print("\n=== WARM EVIDENCE PIPELINE RESULT ===")
     print(json.dumps(result, indent=2, ensure_ascii=False))
