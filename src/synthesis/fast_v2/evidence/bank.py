@@ -9,6 +9,18 @@ Dedupe is deterministic and keyed on the canonical ``evidence_id``. There is
 distinct. Evidence selected by several dimensions is merged into one unit that
 retains ``selected_for_dimensions``, ``dimension_scores`` and
 ``best_dimension_score``.
+
+Ordering: first-seen wins position
+-----------------------------------
+The validated v1 experiment iterated dimension selections in dimension order,
+deduped by ``evidence_id``, and let the FIRST occurrence of a unit keep its
+position; later occurrences of the same unit only appended dimension
+metadata/scores onto the already-positioned unit. It never re-sorted the
+merged bank by score afterwards. A prior version of this module re-sorted the
+merged list by ``best_dimension_score`` descending, which changes the
+generator's context order relative to what was validated -- context order is
+part of the validated generator input and may affect output, so it is
+preserved here rather than "improved".
 """
 from __future__ import annotations
 
@@ -23,10 +35,15 @@ def merge_evidence(
 ) -> list[EvidenceUnit]:
     """Deterministically dedupe per-dimension selections into one list.
 
-    Ordering is by ``best_dimension_score`` descending, then ``evidence_id``
-    for a stable tiebreak.
+    Iterates dimensions in the order given (a ``dict``/mapping preserves
+    insertion order). The FIRST occurrence of an ``evidence_id`` fixes its
+    position in the output; later occurrences of the same evidence from other
+    dimensions only accumulate onto that already-positioned unit via
+    ``with_dimension`` -- they never move it. No final sort by score. This
+    matches the validated v1 experiment's merge order exactly.
     """
     merged: dict[str, EvidenceUnit] = {}
+    order: list[str] = []
 
     for dimension in evidence_by_dimension:
         for unit in evidence_by_dimension[dimension] or ():
@@ -34,9 +51,11 @@ def merge_evidence(
             existing = merged.get(unit.evidence_id)
             if existing is None:
                 merged[unit.evidence_id] = unit
+                order.append(unit.evidence_id)
                 continue
-            # Same canonical evidence reached from another dimension: keep one
-            # unit and accumulate the dimension metadata onto it.
+            # Same canonical evidence reached from another dimension: keep the
+            # first-seen unit's position and accumulate dimension metadata
+            # onto it, without moving it in `order`.
             if score is not None:
                 merged[unit.evidence_id] = existing.with_dimension(dimension, score)
             else:
@@ -45,10 +64,7 @@ def merge_evidence(
                         other, other_score
                     )
 
-    return sorted(
-        merged.values(),
-        key=lambda unit: (-(unit.best_dimension_score or 0.0), unit.evidence_id),
-    )
+    return [merged[evidence_id] for evidence_id in order]
 
 
 @dataclass(frozen=True)

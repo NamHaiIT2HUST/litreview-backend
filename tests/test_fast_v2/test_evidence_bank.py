@@ -77,14 +77,44 @@ def test_dimension_metadata_is_preserved():
     assert unit.best_dimension_score == pytest.approx(3.5)
 
 
-def test_merge_is_deterministic_and_ordered_by_best_score():
+def test_merge_preserves_first_seen_order_not_score_order():
+    """Validated v1 behaviour: dimension-iteration order, NOT score order.
+
+    A prior version of this module re-sorted by ``best_dimension_score``
+    descending after merging, which does not match the original experiment --
+    the generator's context order is part of the validated input.
+    """
     merged = merge_evidence(
         {
             "d1": [_unit(CHUNK_1).with_dimension("d1", 0.5)],
             "d2": [_unit(CHUNK_2).with_dimension("d2", 4.0)],
         }
     )
-    assert [u.best_dimension_score for u in merged] == [4.0, 0.5]
+    # CHUNK_1 was seen first (dimension d1 iterated first), despite scoring
+    # lower than CHUNK_2 -- it must stay first in the output.
+    assert [u.source_chunk_id for u in merged] == [CHUNK_1, CHUNK_2]
+    assert [u.best_dimension_score for u in merged] == [0.5, 4.0]
+
+
+def test_merge_first_occurrence_fixes_position_later_occurrences_only_append_metadata():
+    """Test: duplicate evidence appears once; first-seen position is fixed;
+    later dimension metadata is still recorded onto that same position."""
+    per_dimension = {
+        "d1": [_unit(CHUNK_2).with_dimension("d1", 9.0)],  # highest score, seen first
+        "d2": [_unit(CHUNK_1).with_dimension("d2", 1.0)],  # seen second, lower score
+        "d3": [_unit(CHUNK_1).with_dimension("d3", 5.0)],  # same evidence as d2, third dimension
+    }
+    merged = merge_evidence(per_dimension)
+
+    assert len(merged) == 2
+    # CHUNK_2 was first-seen (dimension d1 iterated first) and keeps position 0
+    # even though CHUNK_1's best score (5.0) exceeds neither here -- position
+    # is purely about iteration order, not score.
+    assert merged[0].source_chunk_id == CHUNK_2
+    assert merged[1].source_chunk_id == CHUNK_1
+    # Later dimension metadata (d3) is preserved onto the first-seen CHUNK_1 unit.
+    assert set(merged[1].selected_for_dimensions) == {"d2", "d3"}
+    assert merged[1].dimension_scores == pytest.approx({"d2": 1.0, "d3": 5.0})
 
 
 def test_merge_does_not_use_llm_semantic_dedup():
