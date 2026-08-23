@@ -359,10 +359,7 @@ export function KPICardsGrid({ kpis = [], darkMode = false }) {
 
   const sanitizeKpi = (str) => {
     if (!str) return '';
-    return String(str)
-      .replace(/\uFFFD/g, 'ó')
-      .replace(/C\s*\s*TƯƠNG/gi, 'CÓ TƯƠNG')
-      .replace(/C/g, 'Có');
+    return String(str);
   };
 
   return (
@@ -372,7 +369,7 @@ export function KPICardsGrid({ kpis = [], darkMode = false }) {
         return (
           <div 
             key={idx}
-            className={`flex-1 min-w-[150px] p-3 rounded-xl border transition-all shadow-2xs flex flex-col justify-between ${
+            className={`flex-1 min-w-[170px] p-3.5 rounded-xl border transition-all shadow-2xs flex flex-col justify-between ${
               darkMode ? 'bg-slate-900/70 border-slate-800/80' : 'bg-white border-slate-200/80'
             }`}
           >
@@ -405,6 +402,9 @@ export function KPICardsGrid({ kpis = [], darkMode = false }) {
 export function DatasetHealthCard({ profile, filename, darkMode = false, onRunAutoEDA }) {
   if (!profile) return null;
 
+  const hasEmptyCols = profile.completely_empty_cols && profile.completely_empty_cols.length > 0;
+  const hasConstCols = profile.constant_cols && profile.constant_cols.length > 0;
+
   return (
     <div className={`p-4 rounded-2xl border transition-all ${
       darkMode ? 'bg-slate-900/80 border-slate-800 shadow-md' : 'bg-slate-50 border-slate-200 shadow-xs'
@@ -427,7 +427,7 @@ export function DatasetHealthCard({ profile, filename, darkMode = false, onRunAu
               <span>{filename || 'Tập dữ liệu nghiên cứu'}</span>
             </h4>
             <p className="text-[10.5px] text-slate-500 mt-0.5 font-medium">
-              Kích thước: {profile.row_count} dòng · {profile.column_count} cột | Tỷ lệ thiếu dữ liệu: {profile.missing_rate_pct}%
+              Kích thước: {profile.row_count?.toLocaleString()} dòng · {profile.column_count} cột {profile.duplicate_rows ? `· ${profile.duplicate_rows} dòng trùng` : ''}
             </p>
           </div>
         </div>
@@ -438,30 +438,61 @@ export function DatasetHealthCard({ profile, filename, darkMode = false, onRunAu
             className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm active:scale-95 transition-all cursor-pointer shrink-0"
           >
             <Sparkles className="w-3.5 h-3.5" />
-            <span>Auto-EDA (Phân tích tự động)</span>
+            <span>Auto-EDA (Chuẩn 7 Phần)</span>
           </button>
         )}
       </div>
 
+      {/* Quality Audit Badges */}
+      {(hasEmptyCols || hasConstCols) && (
+        <div className="mt-3 p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 flex flex-wrap items-center gap-2 text-xs">
+          <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
+          <span className="font-semibold text-rose-700 dark:text-rose-300 text-[11px]">
+            Cần loại bỏ trước khi mô hình hóa (DROP):
+          </span>
+          {hasEmptyCols && (
+            <span className="px-2 py-0.5 rounded-md font-mono text-[10px] bg-rose-100 dark:bg-rose-900/50 text-rose-700 dark:text-rose-300 font-bold border border-rose-300 dark:border-rose-800">
+              {profile.completely_empty_cols.length} cột rỗng 100% ({profile.completely_empty_cols.join(', ')})
+            </span>
+          )}
+          {hasConstCols && (
+            <span className="px-2 py-0.5 rounded-md font-mono text-[10px] bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 font-bold border border-amber-300 dark:border-amber-800">
+              {profile.constant_cols.length} cột hằng số 0 ({profile.constant_cols.join(', ')})
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Columns Tag Cloud */}
       {profile.columns && profile.columns.length > 0 && (
         <div className="flex flex-wrap gap-1.5 pt-3">
-          {profile.columns.map((c, i) => (
-            <span 
-              key={i} 
-              className={`text-[10px] px-2 py-0.5 rounded-lg border font-mono flex items-center gap-1 ${
-                c.type === 'numeric' 
-                  ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-900' 
-                  : c.type === 'datetime'
-                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900'
-                  : 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
-              }`}
-              title={`${c.name} (${c.type}): ${c.null_count} ô rỗng, ${c.unique_count} giá trị phân biệt`}
-            >
-              <span className="font-semibold">{c.name}</span>
-              <span className="opacity-60 text-[9px]">[{c.type}]</span>
-            </span>
-          ))}
+          {profile.columns.map((c, i) => {
+            const is100Empty = profile.completely_empty_cols?.includes(c.name);
+            const isConst = profile.constant_cols?.includes(c.name);
+
+            return (
+              <span 
+                key={i} 
+                className={`text-[10px] px-2 py-0.5 rounded-lg border font-mono flex items-center gap-1 ${
+                  is100Empty
+                    ? 'bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950/50 dark:text-rose-300 line-through opacity-80'
+                    : isConst
+                    ? 'bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300'
+                    : c.type === 'numeric' 
+                    ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-900' 
+                    : c.type === 'datetime'
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900'
+                    : 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
+                }`}
+                title={`${c.name} (${c.type}): ${c.null_count} ô rỗng (${c.null_pct}%), ${c.unique_count} giá trị phân biệt`}
+              >
+                <span className="font-semibold">{c.name}</span>
+                <span className="opacity-60 text-[9px]">
+                  {is100Empty ? '[100% NaN - DROP]' : isConst ? '[Hằng số - DROP]' : `[${c.type}]`}
+                </span>
+              </span>
+            );
+          })}
         </div>
       )}
     </div>

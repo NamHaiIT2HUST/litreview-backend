@@ -23,6 +23,15 @@ export function formatMathAndMarkdown(text) {
     return placeholder;
   });
 
+  // 2.5. Auto-promote Section Headers: Convert plain "1. Header", "2. Header", etc. into "### 1. Header"
+  formatted = formatted.replace(
+    /(?:^|\n)(?:---\s*\n+)?(\d+\.\s+[A-ZÀ-Ỹa-zà-ỹ0-9\s&—\-_:\(\)]+)(?=\n|$)/gm,
+    (match, heading) => {
+      if (match.trim().startsWith('#')) return match;
+      return `\n\n### ${heading.trim()}\n\n`;
+    }
+  );
+
   // 3. Convert Display / Block LaTeX: \\[ ... \\] or \[ ... \] -> $$ ... $$
   formatted = formatted.replace(/\\+\[([\s\S]*?)\\+\]/g, (match, eq) => {
     return `\n\n$$\n${eq.trim()}\n$$\n\n`;

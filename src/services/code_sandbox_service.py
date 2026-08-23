@@ -95,10 +95,83 @@ class SecurityCheckVisitor(ast.NodeVisitor):
         self.generic_visit(node)
 
 
+def smart_repair_python_code(code: str) -> str:
+    """Cleans markdown, fixes whitespace, and repairs accidental indentations in python code."""
+    import textwrap
+    if not code:
+        return ""
+
+    # 1. Clean markdown fences
+    code = code.strip()
+    if code.startswith("```"):
+        code = re.sub(r"^```(?:python|py)?\s*\n", "", code, flags=re.IGNORECASE)
+        code = re.sub(r"\n```$", "", code)
+
+    # 2. Normalize whitespace characters & newlines
+    code = code.replace("\u00a0", " ").replace("\u200b", "").replace("\ufeff", "")
+    code = code.replace("\r\n", "\n").replace("\r", "\n")
+    code = code.replace("\t", "    ")
+
+    # 3. First pass: standard textwrap dedent
+    code = textwrap.dedent(code).strip()
+
+    # 4. Check if ast.parse works immediately
+    try:
+        ast.parse(code)
+        return code
+    except (IndentationError, SyntaxError):
+        pass
+
+    # 5. Intelligent block-level indent repair if leading lines were indented
+    lines = code.split("\n")
+    first_code_indent = None
+    for line in lines:
+        stripped = line.strip()
+        if stripped and not stripped.startswith("#"):
+            first_code_indent = len(line) - len(line.lstrip(" "))
+            break
+
+    if first_code_indent and first_code_indent > 0:
+        new_lines = []
+        for line in lines:
+            if line.startswith(" " * first_code_indent):
+                new_lines.append(line[first_code_indent:])
+            else:
+                new_lines.append(line.lstrip(" ") if line.strip().startswith("#") else line)
+        candidate = "\n".join(new_lines).strip()
+        try:
+            ast.parse(candidate)
+            return candidate
+        except (IndentationError, SyntaxError):
+            pass
+
+    # 6. Iterative unexpected indent repair
+    current_code = code
+    for _ in range(15):
+        try:
+            ast.parse(current_code)
+            return current_code
+        except (IndentationError, SyntaxError) as e:
+            if not hasattr(e, "lineno") or e.lineno is None:
+                break
+            err_line_idx = e.lineno - 1
+            curr_lines = current_code.split("\n")
+            if 0 <= err_line_idx < len(curr_lines):
+                problem_line = curr_lines[err_line_idx]
+                if "unexpected indent" in str(e).lower() or isinstance(e, IndentationError):
+                    curr_lines[err_line_idx] = problem_line.lstrip(" ")
+                    current_code = "\n".join(curr_lines)
+                    continue
+            break
+
+    return current_code
+
+
 def validate_python_code(code: str) -> Optional[str]:
     """Parses code into AST and inspects for unsafe operations."""
+    repaired_code = smart_repair_python_code(code)
     try:
-        tree = ast.parse(code)
+        tree = ast.parse(repaired_code)
     except SyntaxError as e:
         return f"Syntax Error at line {e.lineno}: {e.msg}"
 
@@ -107,6 +180,127 @@ def validate_python_code(code: str) -> Optional[str]:
     if visitor.errors:
         return " | ".join(visitor.errors)
     return None
+
+
+def configure_matplotlib_sandbox(sandbox_globals: Dict[str, Any]) -> Any:
+    """Configures Matplotlib & Seaborn with Vietnamese Unicode font support and modern publication-grade styling."""
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        import matplotlib.font_manager as fm
+
+        plt.clf()
+        plt.close("all")
+
+        # 1. Automatic Vietnamese Unicode Font Selection
+        available_font_names = {f.name for f in fm.fontManager.ttflist}
+        vn_candidates = [
+            "Segoe UI", "Arial", "Tahoma", "Verdana", "Microsoft Sans Serif",
+            "Calibri", "DejaVu Sans", "Liberation Sans", "Helvetica", "sans-serif"
+        ]
+        chosen_font = next((f for f in vn_candidates if f in available_font_names), "sans-serif")
+
+        # 2. Modern Plot Style Configuration
+        try:
+            if "seaborn-v0_8-whitegrid" in plt.style.available:
+                plt.style.use("seaborn-v0_8-whitegrid")
+            elif "seaborn-whitegrid" in plt.style.available:
+                plt.style.use("seaborn-whitegrid")
+        except Exception:
+            pass
+
+        # 3. Enhanced rcParams with beautiful Boxplot defaults & crisp typography
+        matplotlib.rcParams.update({
+            "font.family": "sans-serif",
+            "font.sans-serif": [chosen_font] + [f for f in vn_candidates if f != chosen_font],
+            "axes.unicode_minus": False,  # Fixes missing glyphs / unicode minus
+            "figure.facecolor": "#ffffff",
+            "figure.edgecolor": "none",
+            "axes.facecolor": "#f8fafc",
+            "axes.edgecolor": "#cbd5e1",
+            "axes.linewidth": 1.2,
+            "axes.grid": True,
+            "grid.color": "#e2e8f0",
+            "grid.linestyle": "--",
+            "grid.alpha": 0.75,
+            "font.size": 10.5,
+            "axes.titlesize": 13,
+            "axes.titleweight": "bold",
+            "axes.titlepad": 14,
+            "axes.labelsize": 11,
+            "axes.labelweight": "bold",
+            "xtick.labelsize": 9.5,
+            "ytick.labelsize": 9.5,
+            "legend.frameon": True,
+            "legend.facecolor": "#ffffff",
+            "legend.edgecolor": "#e2e8f0",
+            "legend.fontsize": 9.5,
+            "figure.dpi": 150,
+            "savefig.dpi": 160,
+            "savefig.bbox": "tight",
+            "savefig.pad_inches": 0.15,
+            # Boxplot styling defaults (turns bland wireframe boxplots into beautiful filled colored boxes)
+            "boxplot.patchartist": True,
+            "boxplot.boxprops.color": "#2563eb",
+            "boxplot.boxprops.linewidth": 1.5,
+            "boxplot.whiskerprops.color": "#475569",
+            "boxplot.whiskerprops.linewidth": 1.3,
+            "boxplot.capprops.color": "#475569",
+            "boxplot.capprops.linewidth": 1.3,
+            "boxplot.medianprops.color": "#dc2626",
+            "boxplot.medianprops.linewidth": 2.0,
+            "boxplot.flierprops.color": "#ea580c",
+            "boxplot.flierprops.markeredgecolor": "#ea580c",
+            "boxplot.flierprops.markerfacecolor": "#fed7aa",
+            "boxplot.flierprops.markersize": 6,
+        })
+
+        sandbox_globals["plt"] = plt
+        sandbox_globals["matplotlib"] = matplotlib
+
+        # 4. Seaborn Setup & Smart Boxplot Auto-Coloring
+        try:
+            import seaborn as sns
+            sns.set_theme(style="whitegrid", palette="Set2")
+            # Preserve Unicode font settings after seaborn theme reset
+            matplotlib.rcParams["font.family"] = "sans-serif"
+            matplotlib.rcParams["font.sans-serif"] = [chosen_font] + [f for f in vn_candidates if f != chosen_font]
+            matplotlib.rcParams["axes.unicode_minus"] = False
+            sandbox_globals["sns"] = sns
+            sandbox_globals["seaborn"] = sns
+        except ImportError:
+            pass
+
+        # 5. Smart Boxplot Hook: Automatically inject vibrant harmonious colors and clear accents
+        orig_boxplot = plt.boxplot
+        palette_colors = [
+            '#60a5fa', '#34d399', '#f472b6', '#fbbf24', '#a78bfa',
+            '#f87171', '#38bdf8', '#fb923c', '#4ade80', '#c084fc'
+        ]
+
+        def smart_boxplot(*args, **kwargs):
+            kwargs.setdefault('patch_artist', True)
+            kwargs.setdefault('medianprops', dict(color='#dc2626', linewidth=2.2))
+            kwargs.setdefault('whiskerprops', dict(color='#475569', linewidth=1.3, linestyle='--'))
+            kwargs.setdefault('capprops', dict(color='#475569', linewidth=1.3))
+            kwargs.setdefault('flierprops', dict(marker='o', markersize=5.5, markerfacecolor='#ea580c', markeredgecolor='#c2410c', alpha=0.85))
+            
+            res = orig_boxplot(*args, **kwargs)
+            if isinstance(res, dict) and 'boxes' in res:
+                for idx, box in enumerate(res['boxes']):
+                    color = palette_colors[idx % len(palette_colors)]
+                    box.set_facecolor(color)
+                    box.set_edgecolor('#1e293b')
+                    box.set_linewidth(1.3)
+                    box.set_alpha(0.85)
+            return res
+
+        plt.boxplot = smart_boxplot
+
+        return plt
+    except ImportError:
+        return None
 
 
 class CodeSandboxService:
@@ -226,29 +420,23 @@ class CodeSandboxService:
             pass
 
         try:
+            import statsmodels
+            import statsmodels.api as sm
+            from statsmodels.tsa.stattools import adfuller
+            sandbox_globals["statsmodels"] = statsmodels
+            sandbox_globals["sm"] = sm
+            sandbox_globals["adfuller"] = adfuller
+        except ImportError:
+            pass
+
+        try:
             import sklearn
             sandbox_globals["sklearn"] = sklearn
         except ImportError:
             pass
 
-        # Matplotlib setup
-        try:
-            import matplotlib
-            matplotlib.use("Agg")
-            import matplotlib.pyplot as plt
-            plt.clf()
-            plt.close("all")
-            sandbox_globals["plt"] = plt
-            sandbox_globals["matplotlib"] = matplotlib
-            
-            try:
-                import seaborn as sns
-                sandbox_globals["sns"] = sns
-                sandbox_globals["seaborn"] = sns
-            except ImportError:
-                pass
-        except ImportError:
-            plt = None
+        # Matplotlib & Seaborn setup with Unicode font & modern theme
+        plt = configure_matplotlib_sandbox(sandbox_globals)
 
         # Pre-load DataFrame if CSV text is supplied
         df = None
@@ -305,10 +493,7 @@ class CodeSandboxService:
 
         results = []
         for i, block in enumerate(blocks):
-            clean_code = block.strip()
-            if clean_code.startswith("```"):
-                clean_code = re.sub(r"^```(?:python|py)?\s*\n", "", clean_code)
-                clean_code = re.sub(r"\n```$", "", clean_code)
+            clean_code = smart_repair_python_code(block)
             
             block_output = {"stdout": "", "stderr": "", "figures": []}
             
@@ -398,11 +583,7 @@ class CodeSandboxService:
         t0 = time.time()
         
         # 1. Clean and validate code
-        clean_code = code.strip()
-        # Strip markdown code fencing if present
-        if clean_code.startswith("```"):
-            clean_code = re.sub(r"^```(?:python|py)?\s*\n", "", clean_code)
-            clean_code = re.sub(r"\n```$", "", clean_code)
+        clean_code = smart_repair_python_code(code)
 
         if not clean_code:
             return CodeExecutionResponse(
@@ -495,20 +676,25 @@ class CodeSandboxService:
             pass
 
         try:
+            import statsmodels
+            import statsmodels.api as sm
+            from statsmodels.tsa.stattools import adfuller
+            sandbox_globals["statsmodels"] = statsmodels
+            sandbox_globals["sm"] = sm
+            sandbox_globals["adfuller"] = adfuller
+        except ImportError:
+            pass
+
+        try:
             import sklearn
             sandbox_globals["sklearn"] = sklearn
         except ImportError:
             pass
 
-        # Matplotlib headless backend configuration
+        # Matplotlib headless backend configuration with Unicode font & theme
         figures_base64: List[str] = []
-        try:
-            import matplotlib
-            matplotlib.use("Agg")  # Non-interactive backend
-            import matplotlib.pyplot as plt
-            plt.clf()
-            plt.close("all")
-            
+        plt = configure_matplotlib_sandbox(sandbox_globals)
+        if plt is not None:
             orig_show = plt.show
             def custom_show(*args, **kwargs):
                 try:
@@ -532,17 +718,6 @@ class CodeSandboxService:
                     pass
             
             plt.show = custom_show
-            sandbox_globals["plt"] = plt
-            sandbox_globals["matplotlib"] = matplotlib
-            
-            try:
-                import seaborn as sns
-                sandbox_globals["sns"] = sns
-                sandbox_globals["seaborn"] = sns
-            except ImportError:
-                pass
-        except ImportError:
-            plt = None
 
         # Pre-load DataFrame if CSV text is supplied
         df = None

@@ -30,20 +30,16 @@ export default function InsightsTab({ workspacePapers, darkMode }) {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs md:text-sm">
-          <div className={`p-5 rounded-2xl border ${darkMode ? 'bg-slate-800/80 border-slate-700' : 'bg-amber-50/50 border-amber-100'}`}>
-            <h4 className="font-bold text-amber-700 dark:text-amber-300 mb-1.5 text-sm">1. Vấn đề về Mẫu dữ liệu (Sample Bias)</h4>
-            <p className="text-slate-700 dark:text-slate-300 leading-relaxed">
-              Các bài báo hiện tại chủ yếu thử nghiệm trên dữ liệu bệnh nhân tiếng Anh tại Mỹ. Chưa có nghiên cứu nào đánh giá độ chính xác trên dữ liệu y tế đa ngôn ngữ khu vực Đông Nam Á.
-            </p>
+        <div className={`p-8 rounded-2xl border flex flex-col items-center justify-center text-center space-y-3 ${darkMode ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+          <div className="p-3 bg-blue-100 dark:bg-blue-900/50 text-blue-500 rounded-full">
+            <Lightbulb className="w-6 h-6 animate-pulse" />
           </div>
-
-          <div className={`p-5 rounded-2xl border ${darkMode ? 'bg-slate-800/80 border-slate-700' : 'bg-amber-50/50 border-amber-100'}`}>
-            <h4 className="font-bold text-amber-700 dark:text-amber-300 mb-1.5 text-sm">2. Thách thức về Latency & Chi phí</h4>
-            <p className="text-slate-700 dark:text-slate-300 leading-relaxed">
-              Model GPT-4 cho kết quả tốt nhưng chi phí API cao và thời gian phản hồi 2-3 giây không phù hợp cho ca cấp cứu khẩn cấp. Hướng đi khả thi: Fine-tune mô hình nhỏ Llama-3-8B local.
-            </p>
-          </div>
+          <h4 className={`font-bold text-base ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+            Tính năng đang phát triển (Coming Soon)
+          </h4>
+          <p className="text-sm text-slate-500 max-w-md">
+            Biệt đội Agent đang được huấn luyện để tự động phát hiện khoảng trống nghiên cứu từ các bài báo của bạn. Tính năng sẽ sớm ra mắt!
+          </p>
         </div>
       </div>
 
@@ -88,9 +84,11 @@ export default function InsightsTab({ workspacePapers, darkMode }) {
               {workspacePapers.map((paper, idx) => (
                 <tr key={idx} className="hover:bg-blue-50/20">
                   <td className="p-4 font-bold text-blue-600 dark:text-sky-400">[{idx+1}] {paper.id}</td>
-                  <td className="p-4">{paper.title.slice(0, 45)}...</td>
-                  <td className="p-4 font-bold text-emerald-600 dark:text-emerald-400">89.4% Accuracy</td>
-                  <td className="p-4 text-slate-500 dark:text-slate-400">Cần thẩm định với tập dữ liệu rộng hơn</td>
+                  <td className="p-4">{paper.method || "-"}</td>
+                  <td className="p-4">
+                    <span className="px-2 py-1 text-xs rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500">N/A</span>
+                  </td>
+                  <td className="p-4 text-slate-500 dark:text-slate-400">{paper.limitation || "Chưa trích xuất"}</td>
                 </tr>
               ))}
             </tbody>

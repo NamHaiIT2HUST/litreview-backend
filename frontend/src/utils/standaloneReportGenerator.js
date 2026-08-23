@@ -4,28 +4,57 @@
  */
 
 /**
- * Sanitizes text to prevent broken character glitches (e.g. unicode replacement chars).
+ * Sanitizes text to prevent broken character glitches.
  */
 function sanitizeText(str) {
   if (!str) return '';
-  return String(str)
-    .replace(/\uFFFD/g, 'ó') // Fix replacement character for common Vietnamese vowels if corrupted
-    .replace(/C\s*\s*TƯƠNG/gi, 'CÓ TƯƠNG')
-    .replace(/C/g, 'Có');
+  return String(str);
 }
 
 /**
- * Converts a simple markdown string to clean HTML.
+ * Converts a markdown string to clean, responsive HTML.
  */
 function markdownToHtml(md) {
   if (!md) return '';
-  let html = sanitizeText(md)
-    // Escape HTML special chars except those needed
+
+  // 1. Auto-promote Section Headers: Convert plain "1. Header", "2. Header", etc. into "### 1. Header"
+  let text = md.replace(
+    /(?:^|\n)(?:---\s*\n+)?(\d+\.\s+[A-ZÀ-Ỹa-zà-ỹ0-9\s&—\-_:\(\)]+)(?=\n|$)/gm,
+    (match, heading) => {
+      if (match.trim().startsWith('#')) return match;
+      return `\n\n### ${heading.trim()}\n\n`;
+    }
+  );
+
+  let html = sanitizeText(text)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
 
-  // Headers
+  // Markdown Tables
+  const tableRegex = /((?:\|.+?\|\r?\n)+)/g;
+  html = html.replace(tableRegex, (tableText) => {
+    const lines = tableText.trim().split('\n').map(l => l.trim()).filter(Boolean);
+    if (lines.length < 2) return tableText;
+    
+    let tableHtml = '<div class="table-wrapper"><table class="report-table">';
+    let hasHeader = false;
+    lines.forEach((line, idx) => {
+      if (line.includes('---')) return;
+      const cells = line.split('|').map(c => c.trim()).filter((_, i, arr) => i > 0 && i < arr.length - 1);
+      if (!hasHeader) {
+        tableHtml += '<thead><tr>' + cells.map(c => `<th>${c}</th>`).join('') + '</tr></thead><tbody>';
+        hasHeader = true;
+      } else {
+        tableHtml += '<tr>' + cells.map(c => `<td>${c}</td>`).join('') + '</tr>';
+      }
+    });
+    tableHtml += '</tbody></table></div>';
+    return tableHtml;
+  });
+
+  // Headers (h4, h3, h2, h1)
+  html = html.replace(/^#### (.*$)/gim, '<h4 class="report-h4">$1</h4>');
   html = html.replace(/^### (.*$)/gim, '<h3 class="report-h3">$1</h3>');
   html = html.replace(/^## (.*$)/gim, '<h2 class="report-h2">$1</h2>');
   html = html.replace(/^# (.*$)/gim, '<h1 class="report-h1">$1</h1>');
@@ -41,33 +70,13 @@ function markdownToHtml(md) {
   // Blockquotes
   html = html.replace(/^\> (.*$)/gim, '<blockquote class="report-quote">$1</blockquote>');
 
-  // Unordered list items
-  html = html.replace(/^\s*[\-\*]\s+(.*$)/gim, '<li class="report-li">$1</li>');
-  html = html.replace(/(<li class="report-li">.*<\/li>\n?)+/gim, '<ul class="report-ul">$&</ul>');
+  // Unordered list items (clean non-empty only)
+  html = html.replace(/^\s*[\-\*]\s+(.+)$/gim, '<li class="report-li">$1</li>');
+  html = html.replace(/(<li class="report-li">[\s\S]*?<\/li>\n?)+/gim, '<ul class="report-ul">$&</ul>');
 
-  // Ordered list items
-  html = html.replace(/^\s*(\d+)\.\s+(.*$)/gim, '<li class="report-oli">$1</li>');
-  html = html.replace(/(<li class="report-oli".*<\/li>\n?)+/gim, '<ol class="report-ol">$&</ol>');
-
-  // Markdown Tables
-  const tableRegex = /((?:\|.+?\|\r?\n)+)/g;
-  html = html.replace(tableRegex, (tableText) => {
-    const lines = tableText.trim().split('\n').map(l => l.trim()).filter(Boolean);
-    if (lines.length < 2) return tableText;
-    
-    let tableHtml = '<div class="table-wrapper"><table class="report-table">';
-    lines.forEach((line, idx) => {
-      if (line.includes('---')) return;
-      const cells = line.split('|').map(c => c.trim()).filter((_, i, arr) => i > 0 && i < arr.length - 1);
-      if (idx === 0) {
-        tableHtml += '<thead><tr>' + cells.map(c => `<th>${c}</th>`).join('') + '</tr></thead><tbody>';
-      } else {
-        tableHtml += '<tr>' + cells.map(c => `<td>${c}</td>`).join('') + '</tr>';
-      }
-    });
-    tableHtml += '</tbody></table></div>';
-    return tableHtml;
-  });
+  // Ordered list items (clean non-empty only)
+  html = html.replace(/^\s*(\d+)\.\s+(.+)$/gim, '<li class="report-oli">$2</li>');
+  html = html.replace(/(<li class="report-oli">[\s\S]*?<\/li>\n?)+/gim, '<ol class="report-ol">$&</ol>');
 
   // Paragraphs
   const paragraphs = html.split(/\n{2,}/);
@@ -77,7 +86,7 @@ function markdownToHtml(md) {
     if (p.startsWith('<h') || p.startsWith('<ul') || p.startsWith('<ol') || p.startsWith('<blockquote') || p.startsWith('<div class="table-wrapper"')) {
       return p;
     }
-    return `<p class="report-p">${p.replace(/\n/g, '<br/>')}</p>`;
+    return `<p class="report-p">${p.replace(/\n/g, ' ')}</p>`;
   }).join('\n');
 
   return html;
@@ -206,7 +215,7 @@ export function generateStandaloneHTMLReport({ message, filename = 'dataset.csv'
       .replace(/>/g, '&gt;');
     appendixHtml = `
       <section class="appendix-block" id="technical-appendix">
-        <h2 class="report-h2">Phụ lục Kỹ thuật: Mã nguồn Python Tổng hợp</h2>
+        <h2 class="report-h2">Phụ lục kỹ thuật: Mã nguồn Python tổng hợp</h2>
         <p class="report-p">Mã nguồn dưới đây tập hợp toàn bộ các bước xử lý và trực quan hóa dữ liệu. Bạn có thể sao chép để chạy độc lập trong môi trường Python, Google Colab hoặc Jupyter Notebook.</p>
         <div class="notebook-cell">
           <div class="cell-input">
@@ -231,7 +240,7 @@ export function generateStandaloneHTMLReport({ message, filename = 'dataset.csv'
   <!-- Google Fonts with full Vietnamese subset support -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   
   <!-- html2pdf.js for client-side PDF generation -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -255,19 +264,19 @@ export function generateStandaloneHTMLReport({ message, filename = 'dataset.csv'
     * { box-sizing: border-box; margin: 0; padding: 0; }
     
     body {
-      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background-color: var(--bg-page);
       color: var(--text-main);
-      line-height: 1.7;
-      font-size: 15px;
+      line-height: 1.6;
+      font-size: 14.5px;
       -webkit-font-smoothing: antialiased;
     }
 
     /* Outer Wrapper */
     .page-wrapper {
-      max-width: 980px;
-      margin: 32px auto;
-      padding: 0 16px 64px 16px;
+      max-width: 940px;
+      margin: 20px auto;
+      padding: 0 12px 48px 12px;
     }
 
     /* Action Bar (Screen Only) */
@@ -275,15 +284,15 @@ export function generateStandaloneHTMLReport({ message, filename = 'dataset.csv'
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 20px;
-      padding: 12px 20px;
+      margin-bottom: 16px;
+      padding: 10px 18px;
       background: #ffffff;
       border: 1px solid var(--border-light);
-      border-radius: 12px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+      border-radius: 10px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.03);
     }
     .top-controls-title {
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 700;
       color: var(--text-muted);
       text-transform: uppercase;
@@ -294,9 +303,9 @@ export function generateStandaloneHTMLReport({ message, filename = 'dataset.csv'
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 8px 16px;
-      border-radius: 8px;
-      font-size: 13px;
+      padding: 7px 14px;
+      border-radius: 7px;
+      font-size: 12.5px;
       font-weight: 600;
       cursor: pointer;
       border: 1px solid var(--border-dark);
@@ -313,42 +322,43 @@ export function generateStandaloneHTMLReport({ message, filename = 'dataset.csv'
     .report-paper {
       background: var(--bg-paper);
       border: 1px solid var(--border-light);
-      border-radius: 16px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-      padding: 48px 48px;
+      border-radius: 14px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      padding: 32px 36px;
     }
 
     /* Document Header */
     .doc-header {
-      border-bottom: 2px solid var(--border-light);
-      padding-bottom: 24px;
-      margin-bottom: 28px;
+      border-bottom: 1.5px solid var(--border-light);
+      padding-bottom: 18px;
+      margin-bottom: 22px;
     }
     .doc-badge {
       display: inline-block;
       background: var(--accent-soft);
       color: var(--accent);
-      font-size: 12px;
+      font-size: 11.5px;
       font-weight: 700;
-      padding: 4px 12px;
+      padding: 3px 10px;
       border-radius: 9999px;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
       text-transform: uppercase;
+      letter-spacing: 0.3px;
     }
     .doc-title {
-      font-size: 26px;
+      font-size: 23px;
       font-weight: 800;
       color: var(--text-main);
-      letter-spacing: -0.02em;
-      margin-bottom: 12px;
+      letter-spacing: -0.01em;
+      margin-bottom: 8px;
     }
     .doc-meta-grid {
       display: flex;
       flex-wrap: wrap;
-      gap: 16px;
-      font-size: 13px;
+      gap: 14px;
+      font-size: 12.5px;
       color: var(--text-muted);
-      margin-top: 12px;
+      margin-top: 8px;
     }
     .meta-item strong { color: var(--text-main); }
 
@@ -356,90 +366,97 @@ export function generateStandaloneHTMLReport({ message, filename = 'dataset.csv'
     .kpi-banner {
       background: #f8fafc;
       border: 1px solid var(--border-light);
-      border-radius: 12px;
-      padding: 20px 24px;
-      margin-bottom: 32px;
+      border-radius: 10px;
+      padding: 14px 18px;
+      margin-bottom: 22px;
     }
     .kpi-banner-title {
-      font-size: 12px;
+      font-size: 11.5px;
       font-weight: 700;
       color: var(--text-muted);
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      margin-bottom: 14px;
+      margin-bottom: 10px;
     }
     .kpi-flex-container {
       display: flex;
       flex-wrap: wrap;
-      gap: 12px;
+      gap: 10px;
     }
     .kpi-pill {
-      flex: 1 1 180px;
+      flex: 1 1 160px;
       background: #ffffff;
       border: 1px solid var(--border-light);
-      border-radius: 10px;
-      padding: 12px 16px;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+      border-radius: 8px;
+      padding: 10px 14px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.02);
     }
-    .kpi-label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
-    .kpi-value { font-size: 20px; font-weight: 800; color: var(--accent); margin: 2px 0; }
-    .kpi-subtext { font-size: 11.5px; color: var(--text-body); }
+    .kpi-label { font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
+    .kpi-value { font-size: 18px; font-weight: 800; color: var(--accent); margin: 2px 0; }
+    .kpi-subtext { font-size: 11px; color: var(--text-body); }
 
     /* Continuous Flow Typography */
     .article-text-block {
-      margin-bottom: 20px;
+      margin-bottom: 14px;
     }
     .report-h1 {
       font-size: 20px;
       font-weight: 800;
-      color: var(--text-main);
-      margin: 32px 0 14px 0;
+      color: #1e3a8a;
+      margin: 28px 0 12px 0;
       padding-bottom: 8px;
-      border-bottom: 1px solid var(--border-light);
+      border-bottom: 2px solid var(--accent);
     }
-    .report-h2 {
-      font-size: 17px;
+    .report-h2, .report-h3 {
+      font-size: 16px;
+      font-weight: 800;
+      color: #0f172a;
+      background: linear-gradient(90deg, #eff6ff 0%, #f8fafc 100%);
+      border-left: 4.5px solid var(--accent);
+      border-radius: 0 8px 8px 0;
+      padding: 9px 15px;
+      margin: 24px 0 12px 0;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+    }
+    .report-h4 {
+      font-size: 13.5px;
       font-weight: 700;
-      color: var(--text-main);
-      margin: 24px 0 10px 0;
-    }
-    .report-h3 {
-      font-size: 15px;
-      font-weight: 600;
-      color: var(--text-main);
-      margin: 18px 0 8px 0;
+      color: var(--accent);
+      margin: 16px 0 6px 0;
     }
     .report-p {
       color: var(--text-body);
-      margin-bottom: 14px;
-      text-align: justify;
+      margin-bottom: 10px;
+      text-align: left;
+      line-height: 1.6;
     }
     .report-quote {
-      border-left: 3px solid var(--accent);
-      padding: 8px 16px;
+      border-left: 3.5px solid var(--accent);
+      padding: 8px 14px;
       background: var(--accent-soft);
       color: var(--text-body);
-      border-radius: 0 8px 8px 0;
-      margin: 14px 0;
+      border-radius: 0 6px 6px 0;
+      margin: 10px 0;
+      font-size: 13.5px;
       font-style: italic;
     }
     .report-ul, .report-ol {
-      margin: 8px 0 16px 24px;
+      margin: 6px 0 12px 20px;
       color: var(--text-body);
     }
-    .report-li, .report-oli { margin-bottom: 6px; }
+    .report-li, .report-oli { margin-bottom: 4px; }
     .inline-code {
       font-family: 'JetBrains Mono', monospace;
       background: #f1f5f9;
       color: var(--accent);
-      padding: 2px 6px;
+      padding: 1px 5px;
       border-radius: 4px;
-      font-size: 13px;
+      font-size: 12.5px;
     }
 
     /* Tables */
     .table-wrapper {
-      margin: 16px 0;
+      margin: 12px 0;
       border: 1px solid var(--border-light);
       border-radius: 8px;
       overflow-x: auto;
@@ -447,18 +464,18 @@ export function generateStandaloneHTMLReport({ message, filename = 'dataset.csv'
     .report-table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 13px;
+      font-size: 12.5px;
     }
     .report-table th {
       background: #f8fafc;
       color: var(--text-main);
       font-weight: 700;
-      padding: 8px 12px;
+      padding: 7px 11px;
       border-bottom: 1px solid var(--border-light);
       text-align: left;
     }
     .report-table td {
-      padding: 8px 12px;
+      padding: 7px 11px;
       border-bottom: 1px solid var(--border-light);
       color: var(--text-body);
     }
@@ -535,9 +552,9 @@ export function generateStandaloneHTMLReport({ message, filename = 'dataset.csv'
       background: #ffffff;
       border: 1px solid var(--border-light);
       border-radius: 6px;
-      padding: 10px 14px;
+      padding: 8px 12px;
       font-family: 'JetBrains Mono', monospace;
-      font-size: 12px;
+      font-size: 11.5px;
       color: var(--text-body);
       overflow-x: auto;
     }
@@ -546,14 +563,14 @@ export function generateStandaloneHTMLReport({ message, filename = 'dataset.csv'
     .figures-flow {
       display: flex;
       flex-direction: column;
-      gap: 16px;
-      margin-top: 10px;
+      gap: 12px;
+      margin-top: 8px;
     }
     .figure-frame {
       background: #ffffff;
       border: 1px solid var(--border-light);
       border-radius: 8px;
-      padding: 12px;
+      padding: 10px;
       text-align: center;
     }
     .figure-frame img {
@@ -564,23 +581,23 @@ export function generateStandaloneHTMLReport({ message, filename = 'dataset.csv'
       margin: 0 auto;
     }
     .figure-label {
-      font-size: 12px;
+      font-size: 11.5px;
       color: var(--text-muted);
-      margin-top: 8px;
+      margin-top: 6px;
       font-weight: 600;
     }
 
     /* Appendix */
     .appendix-block {
-      border-top: 2px solid var(--border-light);
-      margin-top: 40px;
-      padding-top: 28px;
+      border-top: 1.5px solid var(--border-light);
+      margin-top: 28px;
+      padding-top: 20px;
     }
 
     .doc-footer {
       text-align: center;
-      margin-top: 36px;
-      font-size: 12px;
+      margin-top: 24px;
+      font-size: 11.5px;
       color: var(--text-muted);
       border-top: 1px solid var(--border-light);
       padding-top: 16px;
