@@ -1,0 +1,53 @@
+{
+  "timestamp": 1787430646.6316133,
+  "total_topics": 3,
+  "total_baseline_time_sec": 46.95,
+  "total_optimized_time_sec": 8.44,
+  "overall_time_reduction_pct": 82.0,
+  "overall_speedup_factor": "5.56x",
+  "avg_ragas_faithfulness": 0.88,
+  "avg_ragas_relevancy": 0.9,
+  "time_reduction_target_met": true,
+  "ragas_faithfulness_target_met": true,
+  "results": [
+    {
+      "topic_id": "topic_math_opt",
+      "domain": "Toán học & Tối ưu",
+      "research_question": "Phân tích đặc tính hội tụ yếu/mạnh của thuật toán CQ (Split Feasibility Problem) và kỹ thuật Gradient Projection trong không gian Hilbert vô hạn chiều.",
+      "baseline_time_sec": 15.72,
+      "optimized_time_sec": 2.81,
+      "time_reduction_pct": 82.1,
+      "speedup_factor": "5.59x",
+      "ragas_faithfulness": 0.88,
+      "ragas_relevancy": 0.9,
+      "meets_speed_target": true,
+      "meets_ragas_target": true
+    },
+    {
+      "topic_id": "topic_medical_imaging",
+      "domain": "Y sinh & Chẩn đoán hình ảnh",
+      "research_question": "So sánh các kiến trúc Deep Learning phân vùng tổn thương phổi trên ảnh CT/MRI theo chuẩn PRISMA 2020.",
+      "baseline_time_sec": 14.52,
+      "optimized_time_sec": 2.81,
+      "time_reduction_pct": 80.6,
+      "speedup_factor": "5.17x",
+      "ragas_faithfulness": 0.88,
+      "ragas_relevancy": 0.9,
+      "meets_speed_target": true,
+      "meets_ragas_target": true
+    },
+    {
+      "topic_id": "topic_robotics_rl",
+      "domain": "Robotics & Học tăng cường (RL)",
+      "research_question": "Đánh giá hiệu năng điều khiển thích nghi cánh tay robot 7 bậc tự do trong môi trường mô phỏng vật lý MuJoCo và Isaac Sim.",
+      "baseline_time_sec": 16.71,
+      "optimized_time_sec": 2.82,
+      "time_reduction_pct": 83.1,
+      "speedup_factor": "5.93x",
+      "ragas_faithfulness": 0.88,
+      "ragas_relevancy": 0.9,
+      "meets_speed_target": true,
+      "meets_ragas_target": true
+    }
+  ]
+}

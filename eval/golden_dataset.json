@@ -1,0 +1,258 @@
+[
+  {
+    "id": "f001",
+    "question": "According to the abstract of Xu (2010), the CQ algorithm of Byrne is shown to be a special case of which type of algorithm in convex minimization, and what convergence property does it have in infinite-dimensional Hilbert spaces?",
+    "ground_truth": "Byrne's CQ algorithm is shown to be a special case of the gradient-projection algorithm (GPM) in convex minimization, and it has only weak convergence (not strong/norm convergence) in general in infinite-dimensional Hilbert spaces.",
+    "expected_answer_contains": [
+      "gradient-projection",
+      "weak convergence"
+    ],
+    "expected_source_file": "5.-xu2010.pdf",
+    "expected_source_page": 2,
+    "type": "factual",
+    "category": "single_paper"
+  },
+  {
+    "id": "f002",
+    "question": "In Xu (2010)'s Theorem 3.1, what upper bound (in terms of the largest eigenvalue L or the norm of A) must the relaxation parameter gamma satisfy for the CQ algorithm to converge weakly to a solution of the SFP?",
+    "ground_truth": "The relaxation parameter gamma must satisfy 0 < gamma < 2/||A||^2, where ||A|| is the operator norm of A (equivalently, gamma less than twice the reciprocal of the largest eigenvalue of A*A), for the CQ algorithm to converge weakly to a solution of the SFP.",
+    "expected_answer_contains": [
+      "2",
+      "A"
+    ],
+    "expected_source_file": "5.-xu2010.pdf",
+    "expected_source_page": 7,
+    "type": "factual",
+    "category": "single_paper"
+  },
+  {
+    "id": "f003",
+    "question": "According to Proposition 2.2 in Xu (2010), what two properties do both the projection P_K and its complement I - P_K have?",
+    "ground_truth": "Both the projection P_K and its complement I - P_K are firmly nonexpansive and (1/2)-ism (i.e., 1/2-inverse strongly monotone).",
+    "expected_answer_contains": [
+      "firmly nonexpansive",
+      "ism"
+    ],
+    "expected_source_file": "5.-xu2010.pdf",
+    "expected_source_page": 4,
+    "type": "factual",
+    "category": "single_paper"
+  },
+  {
+    "id": "f004",
+    "question": "In Byrne (2002)'s Algorithm 1.1, what is the exact iterative update formula for x^(k+1) in the CQ algorithm?",
+    "ground_truth": "x^(k+1) = P_C(x^k + gamma * A^T (P_Q - I) A x^k), where P_C and P_Q are the orthogonal projections onto C and Q respectively, and gamma is the relaxation parameter.",
+    "expected_answer_contains": [
+      "P_C",
+      "gamma",
+      "A"
+    ],
+    "expected_source_file": "4.-byrne2002.pdf",
+    "expected_source_page": 3,
+    "type": "factual",
+    "category": "single_paper"
+  },
+  {
+    "id": "f005",
+    "question": "According to Byrne (2002), what quantity does L denote in the condition gamma in (0, 2/L), and what property of the matrix does it come from?",
+    "ground_truth": "L denotes the largest eigenvalue of the matrix A^T A (i.e., L = the largest eigenvalue of A-transpose times A).",
+    "expected_answer_contains": [
+      "largest eigenvalue",
+      "A"
+    ],
+    "expected_source_file": "4.-byrne2002.pdf",
+    "expected_source_page": 2,
+    "type": "factual",
+    "category": "single_paper"
+  },
+  {
+    "id": "f006",
+    "question": "According to Byrne (2002)'s abstract, which well-known image reconstruction technique is identified as a particular case of a block-iterative version of the CQ algorithm?",
+    "ground_truth": "The algebraic reconstruction technique (ART) of Gordon, Bender and Herman is identified as a particular case of a block-iterative version of the CQ algorithm (BICQ).",
+    "expected_answer_contains": [
+      "algebraic reconstruction technique"
+    ],
+    "expected_source_file": "4.-byrne2002.pdf",
+    "expected_source_page": 2,
+    "type": "factual",
+    "category": "single_paper"
+  },
+  {
+    "id": "f007",
+    "question": "According to the abstract of Xu et al. (2018), what optimization principle from computational statistics do the authors use to generalize the CQ algorithm to nonlinear split feasibility problems?",
+    "ground_truth": "The authors use the majorization-minimization (MM) principle from computational statistics to generalize the CQ algorithm to nonlinear split feasibility problems.",
+    "expected_answer_contains": [
+      "majorization",
+      "minimization"
+    ],
+    "expected_source_file": "6.-xu2018.pdf",
+    "expected_source_page": 1,
+    "type": "factual",
+    "category": "single_paper"
+  },
+  {
+    "id": "f008",
+    "question": "In Xu et al. (2018), what nonlinear mapping h(x1, x2) is used as the motivating toy example in section 2.1 to illustrate the MM algorithm?",
+    "ground_truth": "h(x1, x2) = (x1, x2, 2*x1^2 + 2*x2^2 + 1), a nonlinear mapping from R^2 to R^3 used as the motivating toy example to illustrate the MM algorithm.",
+    "expected_answer_contains": [
+      "x1",
+      "x2",
+      "2x1"
+    ],
+    "expected_source_file": "6.-xu2018.pdf",
+    "expected_source_page": 6,
+    "type": "factual",
+    "category": "single_paper"
+  },
+  {
+    "id": "f009",
+    "question": "According to Xu et al. (2018), what technique is highlighted as one of two application domains for their case study, alongside liver cancer?",
+    "ground_truth": "Intensity-modulated radiation therapy (IMRT) for prostate cancer is highlighted alongside liver cancer as one of the two application domains for their case study.",
+    "expected_answer_contains": [
+      "prostate cancer",
+      "intensity-modulated radiation therapy"
+    ],
+    "expected_source_file": "6.-xu2018.pdf",
+    "expected_source_page": 1,
+    "type": "factual",
+    "category": "single_paper"
+  },
+  {
+    "id": "s001",
+    "question": "Trong bài của Xu (2010), dãy lặp sinh bởi thuật toán CQ hội tụ yếu về nghiệm của bài toán SFP khi nào (điều kiện về tham số gamma)?",
+    "ground_truth": "Day lap CQ hoi tu yeu ve nghiem cua SFP khi tham so gamma thoa 0 < gamma < 2/||A||^2 (gamma nho hon hai lan nghich dao chuan toan tu cua A).",
+    "expected_answer_contains": [
+      "gamma",
+      "2"
+    ],
+    "expected_source_file": "5.-xu2010.pdf",
+    "expected_source_page": 7,
+    "type": "factual",
+    "category": "paraphrase_semantic"
+  },
+  {
+    "id": "s002",
+    "question": "What does Byrne (2002) identify as the main computational burden avoided by the CQ algorithm, compared to earlier iterative methods for the SFP that required computing an inverse operator?",
+    "ground_truth": "Byrne (2002) identifies matrix inverses as the main computational burden avoided: earlier iterative methods for the SFP required computing an inverse operator (A^-1) at each step, while the CQ algorithm involves only the orthogonal projections P_C and P_Q and no matrix inverses.",
+    "expected_answer_contains": [
+      "matrix inverses"
+    ],
+    "expected_source_file": "4.-byrne2002.pdf",
+    "expected_source_page": 2,
+    "type": "factual",
+    "category": "paraphrase_semantic"
+  },
+  {
+    "id": "s003",
+    "question": "What acceleration technique, based on approximating curvature from differences between iterates rather than computing the full Hessian, do Xu et al. (2018) apply to speed up their MM algorithm?",
+    "ground_truth": "Xu et al. (2018) apply quasi-Newton acceleration based on secants (approximating curvature from differences between successive iterates) instead of computing the full Hessian, to speed up convergence of the MM algorithm.",
+    "expected_answer_contains": [
+      "quasi-Newton",
+      "secant"
+    ],
+    "expected_source_file": "6.-xu2018.pdf",
+    "expected_source_page": 7,
+    "type": "factual",
+    "category": "paraphrase_semantic"
+  },
+  {
+    "id": "s004",
+    "question": "Theo Xu (2010), phep chieu P_K va phan bu cua no co tinh chat gi dac biet duoc neu trong Menh de 2.2 (lien quan den tinh khong gian)?",
+    "ground_truth": "Theo Menh de 2.2, phep chieu P_K va phan bu I - P_K deu la anh xa firmly nonexpansive va (1/2)-ism (1/2-inverse strongly monotone).",
+    "expected_answer_contains": [
+      "firmly nonexpansive"
+    ],
+    "expected_source_file": "5.-xu2010.pdf",
+    "expected_source_page": 4,
+    "type": "factual",
+    "category": "paraphrase_semantic"
+  },
+  {
+    "id": "c001",
+    "question": "Compare the setting in which Byrne (2002) originally proves convergence of the CQ algorithm with the setting Xu (2010) extends it to. What is the key dimensional difference, and how does it affect the convergence result (norm vs weak convergence)?",
+    "ground_truth": "Byrne (2002) proves convergence of the CQ algorithm in finite-dimensional Euclidean spaces (R^N and R^M), where the sequence {x^k} converges to a member of F; Xu (2010) extends the setting to infinite-dimensional real Hilbert spaces, where the CQ algorithm (viewed as a special case of the gradient-projection method) is shown to converge only weakly, not in norm/strongly, in general.",
+    "expected_answer_contains": [
+      "finite",
+      "infinite-dimensional"
+    ],
+    "expected_source_file": "4.-byrne2002.pdf",
+    "expected_source_page": 2,
+    "type": "synthesis",
+    "category": "cross_paper"
+  },
+  {
+    "id": "c002",
+    "question": "Byrne (2002) and Xu (2010) both assume the split feasibility problem's constraint map is linear (h(x) = Ax). How does Xu et al. (2018) extend this framework, and what tool from computational statistics do they use to handle the resulting non-convexity?",
+    "ground_truth": "Xu et al. (2018) generalize the split feasibility problem from the linear constraint map h(x) = Ax (assumed by Byrne 2002 and Xu 2010) to a smooth nonlinear mapping h(x), and use the majorization-minimization (MM) principle from computational statistics to handle the resulting non-convexity of the proximity function.",
+    "expected_answer_contains": [
+      "nonlinear",
+      "majorization-minimization"
+    ],
+    "expected_source_file": "6.-xu2018.pdf",
+    "expected_source_page": 1,
+    "type": "synthesis",
+    "category": "cross_paper"
+  },
+  {
+    "id": "c003",
+    "question": "All three papers (Byrne 2002, Xu 2010, Xu et al. 2018) build on the CQ algorithm. Which of the three papers proves convergence using fixed-point / averaged-mapping / nonexpansive-operator arguments, and which instead uses a majorization-minimization / surrogate-function argument?",
+    "ground_truth": "Byrne (2002) and Xu (2010) prove convergence of the CQ algorithm using fixed-point / averaged-mapping / nonexpansive-operator arguments (the CQ operator is shown to be an averaged, nonexpansive mapping with fixed points); Xu et al. (2018) instead use a majorization-minimization (MM) / surrogate-function argument to handle the nonlinear, non-convex case.",
+    "expected_answer_contains": [
+      "averaged",
+      "majorization"
+    ],
+    "expected_source_file": "5.-xu2010.pdf",
+    "expected_source_page": 6,
+    "type": "synthesis",
+    "category": "cross_paper"
+  },
+  {
+    "id": "c004",
+    "question": "Both Byrne (2002) and Xu (2010) discuss special cases of the CQ algorithm for solving linear equations Ax = b. Name the classical iterative method that both papers identify as such a special case.",
+    "ground_truth": "Both papers identify the Landweber method (and its projected variant, the projected Landweber method) as the classical iterative method obtained as a special case of the CQ algorithm for solving the linear equations Ax = b.",
+    "expected_answer_contains": [
+      "Landweber"
+    ],
+    "expected_source_file": "4.-byrne2002.pdf",
+    "expected_source_page": 7,
+    "type": "synthesis",
+    "category": "cross_paper"
+  },
+  {
+    "id": "d001",
+    "question": "Trong ba tai lieu, ai la tac gia de xuat dung nguyen ly majorization-minimization (MM) de mo rong thuat toan CQ sang anh xa phi tuyen, va bai do xuat ban nam nao? (Luu y: co hai tac gia khac nhau cung ho 'Xu' trong bo tai lieu nay.)",
+    "ground_truth": "Nguyen ly majorization-minimization (MM) duoc de xuat boi Jason Xu va cac dong tac gia (Jason Xu, Eric C. Chi, Meng Yang, Kenneth Lange) trong bai xuat ban nam 2018 — day la tac gia 'Xu' khac voi Hong-Kun Xu, tac gia bai nam 2010.",
+    "expected_answer_contains": [
+      "2018"
+    ],
+    "expected_source_file": "6.-xu2018.pdf",
+    "expected_source_page": 1,
+    "type": "factual",
+    "category": "distractor_same_author_name"
+  },
+  {
+    "id": "d002",
+    "question": "Dinh ly 2.1 trong bai cua Byrne (2002) phat bieu dieu gi ve su hoi tu cua day {x^k} sinh boi thuat toan CQ? (Luu y: ca Byrne 2002 va Xu 2010 deu co mot 'Theorem' ve hoi tu CQ danh so gan giong nhau - can xac dinh dung nguon.)",
+    "ground_truth": "Theorem 2.1 phat bieu: neu F (tap nghiem) khac rong, thi day {x^k} sinh boi thuat toan CQ (phuong trinh 1.1) hoi tu ve mot phan tu cua F, voi bat ky vector khoi tao x^0 nao. (Day la Theorem 2.1 trong bai Byrne 2002, khac voi Theorem 3.1 ve dieu kien gamma trong bai Xu 2010.)",
+    "expected_answer_contains": [
+      "converges",
+      "F"
+    ],
+    "expected_source_file": "4.-byrne2002.pdf",
+    "expected_source_page": 5,
+    "type": "factual",
+    "category": "distractor_similar_theorem_numbering"
+  },
+  {
+    "id": "d003",
+    "question": "Bai bao nao la bai GOC dau tien de xuat thuat toan CQ (khong phai bai mo rong/relax no)?",
+    "ground_truth": "Bai bao cua Byrne (2002), 'Iterative oblique projection onto convex sets and the split feasibility problem', la bai bao GOC dau tien de xuat thuat toan CQ; cac bai cua Xu (2010) va Xu et al. (2018) la cac bai mo rong/relax thuat toan nay.",
+    "expected_answer_contains": [
+      "Byrne"
+    ],
+    "expected_source_file": "4.-byrne2002.pdf",
+    "expected_source_page": 2,
+    "type": "factual",
+    "category": "distractor_original_vs_extension"
+  }
+]

@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 from typing import List
 
 from langchain_chroma import Chroma
@@ -25,9 +26,14 @@ def should_use_gemini_embeddings(settings) -> bool:
 
 
 def should_use_openai_embeddings(settings) -> bool:
-    return getattr(settings, "embedding_provider", "local") == "openai" and bool(
-        getattr(settings, "openai_api_key", "")
+    key = (
+        getattr(settings, "openai_embedding_api_key", "")
+        or getattr(settings, "openai_api_key", "")
+        or getattr(settings, "llm_api_key", "")
+        or os.getenv("OPENAI_EMBEDDING_API_KEY", "")
+        or os.getenv("OPENAI_API_KEY", "")
     )
+    return getattr(settings, "embedding_provider", "local") == "openai" and bool(key)
 
 
 class LightweightHashEmbeddings(Embeddings):
@@ -92,25 +98,63 @@ class VectorStoreService:
         # Pick the embedding provider the caller configured. If its key is
         # missing or throws error, keep the app robust with a lightweight fallback.
         if should_use_gemini_embeddings(settings):
-            model_name = settings.embedding_model
-            if model_name.startswith("models/"):
-                model_name = model_name.replace("models/", "")
-            primary = GoogleGenerativeAIEmbeddings(
-                model=model_name,
-                google_api_key=gemini_key,
-            )
-            fallback = LightweightHashEmbeddings()
-            fallback.dimension = 768
-            self.embeddings = ResilientEmbeddings(primary, fallback=fallback)
+            try:
+                model_name = settings.embedding_model
+                if model_name.startswith("models/"):
+                    model_name = model_name.replace("models/", "")
+                primary = GoogleGenerativeAIEmbeddings(
+                    model=model_name,
+                    google_api_key=gemini_key,
+                )
+                fallback = LightweightHashEmbeddings()
+                fallback.dimension = 768
+                self.embeddings = ResilientEmbeddings(primary, fallback=fallback)
+            except Exception as exc:
+                logging.getLogger(__name__).warning("Failed to initialize Gemini embeddings: %s; falling back to LightweightHashEmbeddings", exc)
+                self.embeddings = LightweightHashEmbeddings()
         elif should_use_openai_embeddings(settings):
-            primary = OpenAIEmbeddings(
-                model=settings.embedding_model,
-                api_key=settings.openai_api_key,
-                base_url=settings.get_api_base or None,
+            emb_key = (
+                getattr(settings, "openai_embedding_api_key", "")
+                or os.getenv("OPENAI_EMBEDDING_API_KEY", "")
+                or getattr(settings, "llm_api_key", "")
+                or os.getenv("LLM_API_KEY", "")
+                or settings.openai_api_key
+                or os.getenv("OPENAI_API_KEY", "")
             )
-            fallback = LightweightHashEmbeddings()
-            fallback.dimension = 1536
-            self.embeddings = ResilientEmbeddings(primary, fallback=fallback)
+            emb_base = (
+                getattr(settings, "openai_embedding_api_base", "")
+                or os.getenv("OPENAI_EMBEDDING_API_BASE", "")
+            )
+            emb_model = settings.embedding_model or "text-embedding-3-small"
+
+            if not emb_base:
+                if emb_key.startswith("sk-or-v1-"):
+                    emb_base = "https://openrouter.ai/api/v1"
+                elif emb_key.startswith("sk-proj-"):
+                    emb_base = "https://api.openai.com/v1"
+                else:
+                    emb_base = settings.get_api_base or None
+                    if emb_base and "xkiro.com" in emb_base:
+                        emb_base = "https://api.openai.com/v1"
+
+            if emb_base and "openrouter.ai" in emb_base and not ("/" in emb_model):
+                emb_model = f"openai/{emb_model}"
+
+            if not emb_key:
+                self.embeddings = LightweightHashEmbeddings()
+            else:
+                try:
+                    primary = OpenAIEmbeddings(
+                        model=emb_model,
+                        api_key=emb_key,
+                        base_url=emb_base,
+                    )
+                    fallback = LightweightHashEmbeddings()
+                    fallback.dimension = 1536
+                    self.embeddings = ResilientEmbeddings(primary, fallback=fallback)
+                except Exception as exc:
+                    logging.getLogger(__name__).warning("Failed to initialize OpenAIEmbeddings: %s; falling back to LightweightHashEmbeddings", exc)
+                    self.embeddings = LightweightHashEmbeddings()
         else:
             self.embeddings = LightweightHashEmbeddings()
 

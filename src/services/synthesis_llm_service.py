@@ -89,6 +89,7 @@ def create_synthesis_llm(
             model=g_model,
             google_api_key=gemini_key,
             temperature=settings.synthesis_temperature,
+            max_output_tokens=8192,
         )
 
     # 3. OpenAI / OpenAI-compatible (DeepSeek, OpenRouter, xkiro, vLLM, OpenAI, Ollama, etc.)
@@ -100,7 +101,7 @@ def create_synthesis_llm(
         "model": model_name or "gpt-4o-mini",
         "api_key": openai_key or "sk-placeholder",
         "temperature": settings.synthesis_temperature,
-        "max_tokens": 4096,
+        "max_tokens": 8192,
     }
     api_base = settings.get_api_base
     if api_base:

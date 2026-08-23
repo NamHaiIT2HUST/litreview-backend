@@ -33,6 +33,21 @@ body {
   background: #334155;
 }
 
+/* KaTeX Math Styling */
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.5rem 0;
+  margin: 0.75rem 0;
+}
+.katex {
+  font-size: 1.05em;
+  text-rendering: auto;
+}
+.dark .katex {
+  color: #f1f5f9;
+}
+
 /* ========================================================================= */
 /* 🚀 CINEMATIC DYNAMIC ANIMATIONS (VinDynamics & Deep-Tech Aesthetics) */
 /* ========================================================================= */
