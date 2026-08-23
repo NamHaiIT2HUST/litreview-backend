@@ -103,9 +103,15 @@ class Settings(BaseSettings):
     # vLLM adapter for when the backend itself runs on the GPU box. Must be
     # opted into explicitly; a typo fails loudly rather than silently
     # changing latency/cost.
-    fast_v2_generator: Literal["fake", "local_vllm", "remote_openscholar"] = "fake"
+    fast_v2_generator: Literal["fake", "local_vllm", "remote_openscholar", "hosted_api"] = "fake"
     # Required only when fast_v2_generator="remote_openscholar".
     fast_v2_openscholar_base_url: str = ""
+    # Required only when fast_v2_generator="hosted_api". Generic OpenAI-
+    # compatible chat-completions endpoint (base_url/api_key/model), so this
+    # is provider-agnostic -- no single vendor is hardcoded.
+    fast_v2_hosted_api_base_url: str = ""
+    fast_v2_hosted_api_key: str = ""
+    fast_v2_hosted_api_model: str = ""
 
     # Database
     database_url: str = "sqlite:///./data/app.db"
