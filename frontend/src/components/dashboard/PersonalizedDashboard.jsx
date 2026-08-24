@@ -683,7 +683,7 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
               
               {/* Card 1: + Tạo sổ ghi chú mới */}
               <button
-                onClick={onOpenNewProject}
+                onClick={() => setActiveTab('setup')}
                 className="h-52 sm:h-60 lg:h-68 2xl:h-72 rounded-3xl bg-[#202531]/60 hover:bg-[#202531] border-2 border-dashed border-slate-700/80 hover:border-blue-500 flex flex-col items-center justify-center p-6 sm:p-8 text-center transition-all group cursor-pointer shadow-md hover:shadow-xl"
               >
                 <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[#29303F] group-hover:bg-blue-600 text-slate-300 group-hover:text-white flex items-center justify-center mb-3.5 transition-all group-hover:scale-110 shadow-inner">
