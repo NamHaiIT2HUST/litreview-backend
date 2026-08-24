@@ -50,6 +50,7 @@ import {
 } from '../../utils/synthesis';
 import { reviewScrollClass, sectionEvidenceLabel } from '../../utils/reviewPresentation';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { useProject } from '../../contexts/ProjectContext';
 import { safeFetch } from '../../utils/apiConfig';
 
 const formatSessionTime = (isoString) => {
@@ -101,6 +102,8 @@ export default function SynthesisPanel({
   onSendToChat
 }) {
   const { t, language } = useLanguage();
+  const { activeProject, activeProjectId } = useProject();
+  const currentProjectId = activeProjectId || DEFAULT_PROJECT_ID;
   const isEn = language === 'en';
 
   const [sessionId, setSessionId] = useState(null);
@@ -111,11 +114,18 @@ export default function SynthesisPanel({
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   
   // Research Focus / Topic Input
-  const [researchTopic, setResearchTopic] = useState('');
+  const [researchTopic, setResearchTopic] = useState(() => activeProject?.research_question || '');
   const [copied, setCopied] = useState(false);
   const [bibtexCopied, setBibtexCopied] = useState(false);
   const [apaCopied, setApaCopied] = useState(false);
   const [refViewMode, setRefViewMode] = useState('standard'); // 'standard' | 'bibtex' | 'apa'
+  
+  // Update topic when activeProject changes
+  useEffect(() => {
+    if (activeProject?.research_question) {
+      setResearchTopic(activeProject.research_question);
+    }
+  }, [activeProject]);
   
   // Table search filter
   const [matrixSearchQuery, setMatrixSearchQuery] = useState('');
@@ -139,17 +149,17 @@ export default function SynthesisPanel({
 
   const fetchHistory = async (autoSelect = false) => {
     try {
-      const response = await safeFetch(`/projects/${DEFAULT_PROJECT_ID}/synthesis-sessions`);
+      const response = await safeFetch(`/projects/${currentProjectId}/synthesis-sessions`);
       if (response.ok) {
         const data = await response.json();
         setHistory(data);
         if (autoSelect && data.length > 0) {
-          const storedId = localStorage.getItem('litreview_active_synthesis_id');
+          const storedId = localStorage.getItem(`litreview_active_synthesis_id_${currentProjectId}`);
           const sessionToLoad = data.find(s => s.id === storedId) || data.find(s => s.status === 'done') || data[0];
           if (sessionToLoad && sessionToLoad.status !== 'failed') {
             setSessionId(sessionToLoad.id);
             setStatus(sessionToLoad.status);
-            localStorage.setItem('litreview_active_synthesis_id', sessionToLoad.id);
+            localStorage.setItem(`litreview_active_synthesis_id_${currentProjectId}`, sessionToLoad.id);
           } else {
             setSessionId(null);
             setStatus('idle');
@@ -163,7 +173,7 @@ export default function SynthesisPanel({
 
   useEffect(() => {
     fetchHistory(true);
-  }, []);
+  }, [currentProjectId]);
 
   useEffect(() => {
     if (!sessionId) return;
@@ -208,7 +218,7 @@ export default function SynthesisPanel({
     setResult(null);
 
     try {
-      const payload = buildSynthesisRequest(workspacePapers, DEFAULT_PROJECT_ID, researchTopic);
+      const payload = buildSynthesisRequest(workspacePapers, currentProjectId, researchTopic || activeProject?.research_question || '');
       const response = await safeFetch('/synthesis-sessions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -221,12 +231,14 @@ export default function SynthesisPanel({
       }
 
       const data = await response.json();
-      setSessionId(data.id);
-      localStorage.setItem('litreview_active_synthesis_id', data.id);
-      setStatus('starting');
+      setSessionId(data.session_id);
+      localStorage.setItem(`litreview_active_synthesis_id_${currentProjectId}`, data.session_id);
+      setStatus('queued');
+      fetchHistory(false);
     } catch (err) {
-      setError(err.message || t('synthesis.network_error'));
-      setStatus('failed');
+      console.error(err);
+      setError(err.message || t('synthesis.start_failed'));
+      setStatus('idle');
     }
   };
 

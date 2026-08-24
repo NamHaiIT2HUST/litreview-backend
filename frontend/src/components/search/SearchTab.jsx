@@ -9,7 +9,7 @@ import FilterSortBar from './FilterSortBar';
 import PaperTable from './PaperTable';
 import { exportPapersToExcel } from '../../utils/excelExport';
 import { useLanguage } from '../../contexts/LanguageContext';
-
+import { useProject } from '../../contexts/ProjectContext';
 import { API_BASE } from '../../utils/apiConfig';
 const DEFAULT_PROJECT_ID = '00000000-0000-0000-0000-000000000001';
 
@@ -36,6 +36,9 @@ function dbPaperToPaperSchema(dbPaper) {
 
 export default function SearchTab({ papers, setPapers, selectedPaperIds, selectedPapers = [], toggleSelectPaper, clearSelectedPapers, setActiveTab, darkMode }) {
   const { t } = useLanguage();
+  const { activeProject, activeProjectId } = useProject();
+  const currentProjectId = activeProjectId || DEFAULT_PROJECT_ID;
+
   const [apiKey, setApiKey] = useState(
     localStorage.getItem('litreview_serpapi_key') || ''
   );
@@ -385,15 +388,19 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
   useEffect(() => {
     const fetchProject = async () => {
       try {
-        const cached = localStorage.getItem('research_setup_data');
+        if (activeProject) {
+          setProjectData(activeProject);
+          return;
+        }
+        const cached = localStorage.getItem(`research_setup_data_${currentProjectId}`);
         if (cached) {
           setProjectData(JSON.parse(cached));
         }
-        const res = await fetch(`${API_BASE}/projects/${DEFAULT_PROJECT_ID}`);
+        const res = await fetch(`${API_BASE}/projects/${currentProjectId}`);
         if (res.ok) {
           const data = await res.json();
           setProjectData(data);
-          localStorage.setItem('research_setup_data', JSON.stringify(data));
+          localStorage.setItem(`research_setup_data_${currentProjectId}`, JSON.stringify(data));
         }
       } catch (err) {
         console.error("Error fetching project:", err);
@@ -403,13 +410,13 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
 
     window.addEventListener('research_setup_updated', fetchProject);
     return () => window.removeEventListener('research_setup_updated', fetchProject);
-  }, []);
+  }, [currentProjectId, activeProject]);
 
   // Tải lịch sử search từ backend
   const fetchHistory = useCallback(async () => {
     try {
       setHistoryLoading(true);
-      const res = await fetch(`${API_BASE}/projects/${DEFAULT_PROJECT_ID}/search-history`);
+      const res = await fetch(`${API_BASE}/projects/${currentProjectId}/search-history`);
       if (!res.ok) return;
       const data = await res.json();
       setHistory(data.history || []);
@@ -419,7 +426,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
     } finally {
       setHistoryLoading(false);
     }
-  }, []);
+  }, [currentProjectId]);
 
   // Tải papers của 1 lần search cụ thể từ backend
   const loadPapersForQuery = useCallback(async (queryId, queryString) => {
@@ -489,7 +496,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
     setError('');
 
     try {
-      const response = await fetch(`${API_BASE}/projects/${DEFAULT_PROJECT_ID}/search`, {
+      const response = await fetch(`${API_BASE}/projects/${currentProjectId}/search`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

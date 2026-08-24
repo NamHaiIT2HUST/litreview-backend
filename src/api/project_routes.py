@@ -91,16 +91,15 @@ async def list_projects(
     x_user_id: Optional[str] = Header(None),
     db: AsyncSession = Depends(get_db)
 ):
-    """Module 1: List research projects for the authenticated user (or default project)."""
+    """Module 1: List research projects for the authenticated user."""
     user_id, role = _extract_user_info(authorization, x_user_id)
-    DEFAULT_ID = UUID("00000000-0000-0000-0000-000000000001")
 
     if role == "admin":
         stmt = select(Project).order_by(Project.created_at.desc())
     elif user_id:
-        stmt = select(Project).where((Project.user_id == user_id) | (Project.id == DEFAULT_ID)).order_by(Project.created_at.desc())
+        stmt = select(Project).where(Project.user_id == user_id).order_by(Project.created_at.desc())
     else:
-        stmt = select(Project).order_by(Project.created_at.desc())
+        stmt = select(Project).where(Project.user_id.is_(None)).order_by(Project.created_at.desc())
 
     result = await db.execute(stmt)
     projects = result.scalars().all()
@@ -131,6 +130,31 @@ async def create_project(
         criteria_exclude=request.criteria_exclude,
     )
     db.add(project)
+    await db.commit()
+    await db.refresh(project)
+    return project
+
+
+@router.put("/projects/{project_id}", response_model=ProjectResponse)
+async def update_project(
+    project_id: UUID,
+    request: ProjectCreateRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """Module 1: Update research project details (scope, question, criteria)."""
+    result = await db.execute(select(Project).where(Project.id == project_id))
+    project = result.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    project.name = request.name
+    project.research_question = request.research_question
+    project.research_field = request.research_field
+    project.year_from = request.year_from
+    project.year_to = request.year_to
+    project.criteria_include = request.criteria_include
+    project.criteria_exclude = request.criteria_exclude
+
     await db.commit()
     await db.refresh(project)
     return project

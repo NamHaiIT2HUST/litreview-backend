@@ -7,6 +7,7 @@ import {
   downloadFile
 } from '../../utils/exportUtils';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { useProject } from '../../contexts/ProjectContext';
 import { 
   Download, Copy, Check, FileText, Database, 
   Code, BookOpen, Layers, History, Sparkles, CheckCircle2
@@ -17,6 +18,8 @@ const DEFAULT_PROJECT_ID = '00000000-0000-0000-0000-000000000001';
 
 export default function ExportTab({ papers = [], selectedPapers = [], workspacePapers = [], darkMode = false }) {
   const { t } = useLanguage();
+  const { activeProjectId } = useProject();
+  const currentProjectId = activeProjectId || DEFAULT_PROJECT_ID;
   // Scope selection: 'keep' | 'all' | 'workspace'
   const [scope, setScope] = useState('keep');
   
@@ -77,7 +80,7 @@ export default function ExportTab({ papers = [], selectedPapers = [], workspaceP
   useEffect(() => {
     const fetchExportHistory = async () => {
       try {
-        const response = await fetch(`${API_BASE}/projects/${DEFAULT_PROJECT_ID}/export/history`);
+        const response = await fetch(`${API_BASE}/projects/${currentProjectId}/export/history`);
         if (response.ok) {
           const data = await response.json();
           setExportHistory(prev => {
@@ -100,13 +103,13 @@ export default function ExportTab({ papers = [], selectedPapers = [], workspaceP
       }
     };
     fetchExportHistory();
-  }, []);
+  }, [currentProjectId]);
 
   // Fetch the latest successful synthesis session draft on mount to pre-populate customDraft
   useEffect(() => {
     const fetchLatestSynthesisDraft = async () => {
       try {
-        const response = await fetch(`${API_BASE}/projects/${DEFAULT_PROJECT_ID}/synthesis-sessions`);
+        const response = await fetch(`${API_BASE}/projects/${currentProjectId}/synthesis-sessions`);
         if (response.ok) {
           const sessions = await response.json();
           const latestDone = sessions.find(s => s.status === 'done');

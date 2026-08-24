@@ -9,36 +9,30 @@ import { normalizeResearchSetup } from '../../utils/researchSetup';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { API_BASE } from '../../utils/apiConfig';
 
-const DEFAULT_PROJECT_ID = '00000000-0000-0000-0000-000000000001';
+import { useProject } from '../../contexts/ProjectContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function ResearchSetupTab({ setActiveTab }) {
   const { t } = useLanguage();
+  const { activeProject, activeProjectId, updateProject, createProject } = useProject();
+  const { token, currentUser } = useAuth();
+
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
   
   const [projectData, setProjectData] = useState(() => {
-    return normalizeResearchSetup({});
+    return normalizeResearchSetup(activeProject || {});
   });
 
   const [newInclude, setNewInclude] = useState('');
   const [newExclude, setNewExclude] = useState('');
 
-  // Human-in-the-Loop (HITL) Gate Statuses
-  const [topicApproved, setTopicApproved] = useState(() => {
-    return localStorage.getItem('slr_gate1_topic_approved') === 'true';
-  });
-  const [criteriaApproved, setCriteriaApproved] = useState(() => {
-    return localStorage.getItem('slr_gate2_criteria_approved') === 'true';
-  });
+  // Human-in-the-Loop (HITL) Gate Statuses (Project-Scoped)
+  const [topicApproved, setTopicApproved] = useState(false);
+  const [criteriaApproved, setCriteriaApproved] = useState(false);
 
   // State: Agent 1 (Scope Optimizer)
-  const [scopeResult, setScopeResult] = useState(() => {
-    try {
-      const cached = localStorage.getItem('slr_scope_result');
-      if (cached) return JSON.parse(cached);
-    } catch (e) {}
-    return null;
-  });
+  const [scopeResult, setScopeResult] = useState(null);
   const [loadingScope, setLoadingScope] = useState(false);
   const [appliedTopicToast, setAppliedTopicToast] = useState(null);
 
@@ -47,27 +41,9 @@ export default function ResearchSetupTab({ setActiveTab }) {
   const [criteriaToast, setCriteriaToast] = useState(false);
 
   // State: Agent 3 (PICO & Keywords Finder)
-  const [suggestedKeywords, setSuggestedKeywords] = useState(() => {
-    try {
-      const cached = localStorage.getItem('suggested_keywords');
-      if (cached) return JSON.parse(cached);
-    } catch (e) {}
-    return [];
-  });
-  const [picoData, setPicoData] = useState(() => {
-    try {
-      const cached = localStorage.getItem('slr_pico_data');
-      if (cached) return JSON.parse(cached);
-    } catch (e) {}
-    return null;
-  });
-  const [gapMapData, setGapMapData] = useState(() => {
-    try {
-      const cached = localStorage.getItem('slr_gap_map');
-      if (cached) return JSON.parse(cached);
-    } catch (e) {}
-    return null;
-  });
+  const [suggestedKeywords, setSuggestedKeywords] = useState([]);
+  const [picoData, setPicoData] = useState(null);
+  const [gapMapData, setGapMapData] = useState(null);
   const [loadingKeywords, setLoadingKeywords] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
   const [copiedKeywords, setCopiedKeywords] = useState(false);
@@ -86,39 +62,78 @@ export default function ResearchSetupTab({ setActiveTab }) {
     }, 200);
   };
 
+  // Sync state when activeProject changes
   useEffect(() => {
-    const fetchProject = async () => {
+    if (activeProject) {
+      setProjectData(normalizeResearchSetup(activeProject));
+    } else {
+      setProjectData(normalizeResearchSetup({}));
+    }
+
+    if (activeProjectId) {
+      const g1 = localStorage.getItem(`slr_gate1_topic_approved_${activeProjectId}`);
+      setTopicApproved(g1 === 'true');
+
+      const g2 = localStorage.getItem(`slr_gate2_criteria_approved_${activeProjectId}`);
+      setCriteriaApproved(g2 === 'true');
+
       try {
-        const res = await fetch(`${API_BASE}/projects/${DEFAULT_PROJECT_ID}`);
-        if (res.ok) {
-          const data = await res.json();
-          const normalized = normalizeResearchSetup(data);
-          setProjectData(normalized);
-          localStorage.setItem('research_setup_data', JSON.stringify(normalized));
-        }
-      } catch (err) {
-        console.error("DB connection error:", err);
-      }
-    };
-    fetchProject();
-  }, []);
+        const cachedScope = localStorage.getItem(`slr_scope_result_${activeProjectId}`);
+        setScopeResult(cachedScope ? JSON.parse(cachedScope) : null);
+      } catch { setScopeResult(null); }
+
+      try {
+        const cachedKw = localStorage.getItem(`suggested_keywords_${activeProjectId}`);
+        setSuggestedKeywords(cachedKw ? JSON.parse(cachedKw) : []);
+      } catch { setSuggestedKeywords([]); }
+
+      try {
+        const cachedPico = localStorage.getItem(`slr_pico_data_${activeProjectId}`);
+        setPicoData(cachedPico ? JSON.parse(cachedPico) : null);
+      } catch { setPicoData(null); }
+
+      try {
+        const cachedGap = localStorage.getItem(`slr_gap_map_${activeProjectId}`);
+        setGapMapData(cachedGap ? JSON.parse(cachedGap) : null);
+      } catch { setGapMapData(null); }
+    } else {
+      setTopicApproved(false);
+      setCriteriaApproved(false);
+      setScopeResult(null);
+      setSuggestedKeywords([]);
+      setPicoData(null);
+      setGapMapData(null);
+    }
+  }, [activeProjectId, activeProject]);
 
   const handleSave = async (updatedData = projectData) => {
     setLoading(true);
     setSaved(false);
     setErrorMsg(null);
     try {
-      const res = await fetch(`${API_BASE}/projects/${DEFAULT_PROJECT_ID}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedData)
-      });
-      if (res.ok) {
-        setSaved(true);
-        localStorage.setItem('research_setup_data', JSON.stringify(updatedData));
-        setTimeout(() => setSaved(false), 3000);
+      if (activeProjectId) {
+        const res = await fetch(`${API_BASE}/projects/${activeProjectId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify(updatedData)
+        });
+        if (res.ok) {
+          const savedData = await res.json();
+          setSaved(true);
+          localStorage.setItem(`research_setup_data_${activeProjectId}`, JSON.stringify(updatedData));
+          setTimeout(() => setSaved(false), 3000);
+        } else {
+          setErrorMsg(t('setup.error_ai') || 'Save failed');
+        }
       } else {
-        setErrorMsg(t('setup.error_ai') || 'Save failed');
+        const created = await createProject(updatedData);
+        if (created) {
+          setSaved(true);
+          setTimeout(() => setSaved(false), 3000);
+        }
       }
     } catch (err) {
       console.error(err);
@@ -150,7 +165,9 @@ export default function ResearchSetupTab({ setActiveTab }) {
       if (res.ok) {
         const data = await res.json();
         setScopeResult(data);
-        localStorage.setItem('slr_scope_result', JSON.stringify(data));
+        if (activeProjectId) {
+          localStorage.setItem(`slr_scope_result_${activeProjectId}`, JSON.stringify(data));
+        }
         scrollToRef(scopeCardRef);
       } else {
         setErrorMsg(t('setup.error_ai') + ' (Agent 1 error)');
@@ -175,7 +192,9 @@ export default function ResearchSetupTab({ setActiveTab }) {
     const updated = { ...projectData, research_question: updatedQuestion };
     setProjectData(updated);
     setTopicApproved(true);
-    localStorage.setItem('slr_gate1_topic_approved', 'true');
+    if (activeProjectId) {
+      localStorage.setItem(`slr_gate1_topic_approved_${activeProjectId}`, 'true');
+    }
     await handleSave(updated);
     scrollToRef(criteriaCardRef);
   };
@@ -217,7 +236,9 @@ export default function ResearchSetupTab({ setActiveTab }) {
 
   const handleApproveCriteria = async () => {
     setCriteriaApproved(true);
-    localStorage.setItem('slr_gate2_criteria_approved', 'true');
+    if (activeProjectId) {
+      localStorage.setItem(`slr_gate2_criteria_approved_${activeProjectId}`, 'true');
+    }
     await handleSave(projectData);
     scrollToRef(step3CardRef);
   };
@@ -249,7 +270,9 @@ export default function ResearchSetupTab({ setActiveTab }) {
         
         if (data.pico) {
           setPicoData(data.pico);
-          localStorage.setItem('slr_pico_data', JSON.stringify(data.pico));
+          if (activeProjectId) {
+            localStorage.setItem(`slr_pico_data_${activeProjectId}`, JSON.stringify(data.pico));
+          }
           
           const rawKws = data.pico.search_keywords || [];
           const kwList = rawKws.filter(kw => 
@@ -258,21 +281,23 @@ export default function ResearchSetupTab({ setActiveTab }) {
           
           if (kwList.length > 0) {
             setSuggestedKeywords(kwList);
-            localStorage.setItem('suggested_keywords', JSON.stringify(kwList));
+            if (activeProjectId) {
+              localStorage.setItem(`suggested_keywords_${activeProjectId}`, JSON.stringify(kwList));
+            }
           }
           
           const boolQuery = kwList.length > 0 ? kwList.join(' ') : (data.pico.boolean_query || '');
-          if (boolQuery) {
-             localStorage.setItem('litreview_active_mesh_query', boolQuery);
+          if (boolQuery && activeProjectId) {
+             localStorage.setItem(`litreview_active_mesh_query_${activeProjectId}`, boolQuery);
              window.dispatchEvent(new Event('new_mesh_query_ready'));
           }
 
           scrollToRef(picoCardRef);
         }
         
-        if (data.gap_map) {
+        if (data.gap_map && activeProjectId) {
           setGapMapData(data.gap_map);
-          localStorage.setItem('slr_gap_map', JSON.stringify(data.gap_map));
+          localStorage.setItem(`slr_gap_map_${activeProjectId}`, JSON.stringify(data.gap_map));
         }
 
       } else {
