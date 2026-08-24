@@ -459,27 +459,27 @@ const TOPIC_PRESETS = {
 const DICTIONARY = {
   vi: {
     nav: {
-      simulator: 'Mô phỏng SLR',
-      agents: '4 Module AI',
-      matrix: 'Ma trận So sánh',
-      prisma: 'Quy trình PRISMA',
-      demoProfiles: 'Hồ sơ Mẫu',
-      faq: 'Hỏi đáp (FAQ)',
+      simulator: 'Mô phỏng',
+      agents: 'Quy trình 4 Bước',
+      matrix: 'So sánh Bài báo',
+      prisma: 'Chuẩn PRISMA',
+      demoProfiles: 'Tài khoản Mẫu',
+      faq: 'Hỏi đáp',
       login: 'Đăng nhập',
       startFree: 'Bắt đầu Miễn phí',
     },
     hero: {
-      badge: 'AI SYSTEMATIC LITERATURE REVIEW',
-      title1: 'Tự động hóa Tổng quan Tài liệu,',
-      titleHighlight: 'Chuẩn Scopus & PRISMA 2020',
+      badge: 'QUY TRÌNH TỔNG QUAN TÀI LIỆU KHOA HỌC (SLR)',
+      title1: 'Tự động hóa Tổng quan Tài liệu',
+      titleHighlight: 'Chuẩn Scopus & PRISMA',
       desc: 'Khai phóng hàng trăm giờ đọc thủ công: Tự động định hình PICO, sàng lọc Scopus, trích xuất PDF và dựng ma trận so sánh phương pháp 100% neo trên DOI thực tế.',
       btnDemo: 'Trải nghiệm Không gian Mẫu',
       btnSimulate: 'Xem Mô phỏng SLR',
       trust1: '100% DOI Thật',
-      trust2: 'Chuẩn PRISMA 2020',
+      trust2: 'Chuẩn mực PRISMA',
       trust3: 'Đối chiếu Scopus Q1',
       trust4: 'Xuất BibTeX / CSV',
-      previewBadge: 'LIVE SLR SESSION · PRISMA 2020',
+      previewBadge: 'PHIÊN TỔNG HỢP TRỰC QUAN · CHUẨN PRISMA',
       previewStatus: 'Scopus Q1 Verified',
       previewQuery: '1D-CNN + Spatial-Temporal Attention for Arrhythmia Detection',
       previewQuote: 'Kiến trúc 1D-CNN kết hợp Attention đạt độ nhạy 98.6% trên tập MIT-BIH, vượt trội hơn các mô hình phân loại truyền thống.',
@@ -491,7 +491,7 @@ const DICTIONARY = {
     demo: {
       badge: 'TRÌNH MÔ PHỎNG SÀNG LỌC & TỔNG HỢP THỜI GIAN THỰC',
       title: 'Trực quan hóa Quy trình Tự động hóa Systematic Review',
-      desc: 'Chọn một chủ đề nghiên cứu mẫu bên dưới để xem AI tự động phân tích khung PICO, đối chiếu Scopus và loại bỏ nguồn không đạt chuẩn:',
+      desc: 'Chọn một chủ đề nghiên cứu mẫu bên dưới để xem hệ thống phân tích khung PICO, đối chiếu Scopus và loại bỏ nguồn không đạt chuẩn:',
       queryLabel: 'CÂU HỎI TRUY VẤN ĐỀ TÀI (QUERY)',
       replayBtn: 'Chạy lại ↻',
       statusText: 'Đang trích xuất toàn văn PDF và đối chiếu cơ sở dữ liệu Scopus...',
@@ -505,17 +505,17 @@ const DICTIONARY = {
       stat3Num: '4', stat3Unit: ' phút', stat3Label: 'Thời gian hoàn thiện bản dự thảo Literature Review đầu tiên',
     },
     agents: {
-      badge: 'KIẾN TRÚC ĐA TÁC TỬ AI ĐỘT PHÁ',
-      title: 'Bốn Module Chuyên biệt Vận hành Chuẩn mực Học thuật',
-      desc: 'Bốn tác tử AI phối hợp chặt chẽ theo đúng chuẩn mực của một bài báo Systematic Literature Review quốc tế:',
-      a1Title: 'Module 1: Cố vấn Đề tài & Khung PICO',
+      badge: 'KIẾN TRÚC QUY TRÌNH HỌC THUẬT ĐA PHÂN HỆ',
+      title: 'Bốn Phân Hệ Chuyên Biệt Vận Hành Chuẩn Mực Nghiên Cứu',
+      desc: 'Bốn phân hệ phối hợp chặt chẽ theo đúng chuẩn mực của một bài báo Systematic Literature Review quốc tế:',
+      a1Title: 'Phân hệ 1: Cố vấn Đề tài & Khung PICO',
       a1Desc: 'Phân tích câu hỏi nghiên cứu, tự động thiết lập tiêu chí Đưa vào / Loại trừ (Inclusion/Exclusion) và tổng hợp chuỗi truy vấn Boolean tối ưu.',
-      a2Title: 'Module 2: Tra cứu & Đối chiếu Scopus',
+      a2Title: 'Phân hệ 2: Tra cứu & Đối chiếu Scopus',
       a2Desc: 'Tìm kiếm đa nguồn học thuật trên Google Scholar, tự động đối chiếu chỉ số Scopus (Q1–Q4), lọc trùng lặp và loại bỏ nguồn không đạt chuẩn.',
-      a3Title: 'Module 3: Sàng lọc PRISMA & Ma trận So sánh',
-      a3Desc: 'Đọc toàn văn bài báo, đánh giá độ phù hợp theo tiêu chuẩn PRISMA 2020 và tự động trích xuất bảng ma trận so sánh Dataset, Model, Metrics.',
-      a4Title: 'Module 4: Fact-Checking RAG & Khoảng trống Đề tài',
-      a4Desc: 'Phát hiện các điểm nghẽn và mâu thuẫn chưa giải quyết (Research Gaps) trong y văn; hỏi đáp RAG với trích dẫn số trang và câu trích nguyên bản 100%.',
+      a3Title: 'Phân hệ 3: Sàng lọc PRISMA & Ma trận So sánh',
+      a3Desc: 'Đọc toàn văn bài báo, đánh giá độ phù hợp theo tiêu chuẩn PRISMA và tự động trích xuất bảng ma trận so sánh Dataset, Model, Metrics.',
+      a4Title: 'Phân hệ 4: Thẩm định Y văn & Khoảng trống Đề tài',
+      a4Desc: 'Phát hiện các điểm nghẽn và mâu thuẫn chưa giải quyết (Research Gaps) trong y văn; hỏi đáp tra cứu với trích dẫn số trang và câu trích nguyên bản 100%.',
     },
     matrixSection: {
       badge: 'MA TRẬN PHƯƠNG PHÁP & RADAR KHOẢNG TRỐNG',
@@ -530,12 +530,12 @@ const DICTIONARY = {
     },
     prismaSection: {
       badge: 'TIÊU CHUẨN XUẤT BẢN QUỐC TẾ',
-      title: 'Lưu đồ Thu thập & Sàng lọc Chuẩn PRISMA 2020',
+      title: 'Lưu đồ Thu thập & Sàng lọc Chuẩn PRISMA',
       desc: 'Toàn bộ quy trình thu thập và sàng lọc tài liệu được ghi nhận minh bạch theo đúng tiêu chuẩn xuất bản quốc tế:',
       s1Num: '01', s1Title: 'Nhận diện (Identification)', s1Desc: 'Thu thập tất cả bản ghi từ Google Scholar và các nguồn học thuật uy tín.',
       s2Num: '02', s2Title: 'Đối chiếu Scopus (Verification)', s2Desc: 'Lọc trùng lặp tự động và xác minh trạng thái chỉ mục Scopus (Q1–Q4).',
       s3Num: '03', s3Title: 'Sàng lọc Tiêu chí (Screening)', s3Desc: 'Chấm điểm độ phù hợp theo tiêu chí Inclusion & Exclusion đã thiết lập.',
-      s4Num: '04', s4Title: 'Đưa vào Tổng hợp (Included)', s4Desc: 'Trích xuất toàn văn PDF, nạp vào Ma trận So sánh và Không gian Chat RAG.',
+      s4Num: '04', s4Title: 'Đưa vào Tổng hợp (Included)', s4Desc: 'Trích xuất toàn văn PDF, nạp vào Ma trận So sánh và Không gian Chat tra cứu.',
     },
     demoAccounts: {
       badge: 'TRẢI NGHIỆM TỨC THÌ',
@@ -556,45 +556,45 @@ const DICTIONARY = {
       badge: 'HỎI ĐÁP THƯỜNG GẶP',
       title: 'Những Thắc mắc Phổ biến về Nền tảng',
       q1: 'Hệ thống hỗ trợ những định dạng xuất bản nào?',
-      a1: 'LitReview AI hỗ trợ xuất bản gói trích dẫn BibTeX (.bib) chuẩn cho LaTeX/Overleaf, bảng tính CSV, tài liệu Markdown (.md) và định dạng JSON có cấu trúc.',
-      q2: 'Cơ chế chống ảo giác (Anti-hallucination) hoạt động ra sao?',
-      a2: 'Mọi câu trả lời từ AI trong Workspace đều neo trực tiếp vào số trang và đoạn trích nguyên bản từ các file PDF đã tải lên. Hệ thống không bịa nguồn hay sử dụng các bài báo không có thật.',
+      a1: 'LitReview hỗ trợ xuất bản gói trích dẫn BibTeX (.bib) chuẩn cho LaTeX/Overleaf, bảng tính CSV, tài liệu Markdown (.md) và định dạng JSON có cấu trúc.',
+      q2: 'Cơ chế chống ảo giác và trích dẫn chuẩn xác hoạt động ra sao?',
+      a2: 'Mọi câu trả lời trong Workspace đều neo trực tiếp vào số trang và đoạn trích nguyên bản từ các file PDF đã tải lên. Hệ thống không bịa nguồn hay sử dụng các bài báo không có thật.',
       q3: 'Làm thế nào để hệ thống lọc được các bài báo Scopus?',
       a3: 'Hệ thống tích hợp quy trình đối chiếu tên tạp chí và nhà xuất bản với danh mục Scopus chính thức, chỉ giữ lại các bài báo đã được xác minh chỉ số.',
       q4: 'Tôi có thể tải lên tài liệu PDF của riêng mình không?',
-      a4: 'Có. Trong WorkspaceTab, bạn có thể tải lên trực tiếp các file PDF tài liệu toàn văn để hệ thống trích xuất nội dung, đưa vào ma trận so sánh và hỏi đáp RAG.',
+      a4: 'Có. Trong WorkspaceTab, bạn có thể tải lên trực tiếp các file PDF tài liệu toàn văn để hệ thống trích xuất nội dung, đưa vào ma trận so sánh và phân tích chuyên sâu.',
     },
     final: {
       title: 'Bản tổng quan tài liệu tiếp theo của bạn, hoàn thành nhanh gấp 5 lần.',
-      desc: 'Trải nghiệm ngay quy trình tổng quan tài liệu khoa học chuẩn mực PRISMA 2020.',
+      desc: 'Trải nghiệm ngay quy trình tổng quan tài liệu khoa học chuẩn mực PRISMA.',
       btn: 'Bắt đầu Nghiên cứu Miễn phí',
-      footerTagline: 'LitReview AI — Nền tảng Tự động hóa Tổng quan Tài liệu Khoa học Chuẩn Quốc tế.',
+      footerTagline: 'LitReview — Nền tảng Tự động hóa Tổng quan Tài liệu Khoa học Chuẩn Quốc tế.',
       footerSub: 'VinUni AI Team 165. Built for High-Impact Scientific Research.',
     }
   },
   en: {
     nav: {
-      simulator: 'Live Simulator',
-      agents: '4 AI Modules',
-      matrix: 'Synthesis Matrix',
-      prisma: 'PRISMA Flow',
+      simulator: 'Live Simulation',
+      agents: '4-Step Workflow',
+      matrix: 'Literature Matrix',
+      prisma: 'PRISMA Standard',
       demoProfiles: 'Demo Profiles',
       faq: 'FAQ',
       login: 'Sign In',
       startFree: 'Start Free',
     },
     hero: {
-      badge: 'AI SYSTEMATIC LITERATURE REVIEW',
-      title1: 'Automate Literature Reviews,',
-      titleHighlight: 'PRISMA 2020 & Scopus Grounded',
+      badge: 'ACADEMIC SYSTEMATIC LITERATURE REVIEW',
+      title1: 'Automate Literature Reviews',
+      titleHighlight: 'PRISMA & Scopus Grounded',
       desc: 'Eliminate hundreds of hours of manual reading: Automate PICO scoping, Scopus screening, PDF extraction, and methodology synthesis matrices — 100% grounded on real DOIs.',
       btnDemo: 'Explore Demo Workspace',
       btnSimulate: 'Watch Live Simulator',
       trust1: '100% Real DOIs',
-      trust2: 'PRISMA 2020 Protocol',
+      trust2: 'PRISMA Protocol',
       trust3: 'Scopus Q1 Verified',
       trust4: 'BibTeX / CSV Export',
-      previewBadge: 'LIVE SLR SESSION · PRISMA 2020',
+      previewBadge: 'LIVE SLR SESSION · PRISMA PROTOCOL',
       previewStatus: 'Scopus Q1 Verified',
       previewQuery: '1D-CNN + Spatial-Temporal Attention for Arrhythmia Detection',
       previewQuote: 'Spatial-temporal attention combined with 1D-CNN achieves 98.6% sensitivity on MIT-BIH, significantly outperforming legacy SVM classifiers.',
@@ -605,8 +605,8 @@ const DICTIONARY = {
     },
     demo: {
       badge: 'REAL-TIME SLR SCREENING & SYNTHESIS SIMULATOR',
-      title: 'Experience AI-Powered Systematic Literature Review',
-      desc: 'Select a research sample topic below to watch the AI decompose the PICO framework, verify Scopus sources, and synthesize verified evidence:',
+      title: 'Experience Systematic Literature Review Workflow',
+      desc: 'Select a research sample topic below to watch the workflow decompose the PICO framework, verify Scopus sources, and synthesize verified evidence:',
       queryLabel: 'RESEARCH QUESTION / QUERY',
       replayBtn: 'Replay ↻',
       statusText: 'Extracting full-text PDFs and cross-referencing Scopus database...',
@@ -620,16 +620,16 @@ const DICTIONARY = {
       stat3Num: '4', stat3Unit: ' mins', stat3Label: 'Time to generate first grounded synthesis draft',
     },
     agents: {
-      badge: 'MULTI-AGENT AI ARCHITECTURE',
+      badge: 'MULTI-MODULE WORKFLOW ARCHITECTURE',
       title: 'Four Specialized Modules Executing Rigorous Academic SLR',
-      desc: 'Four specialized agents collaborate strictly following systematic literature review standards:',
-      a1Title: 'Module 1: Topic Refiner & PICO Synthesis',
+      desc: 'Four specialized modules collaborate strictly following systematic literature review standards:',
+      a1Title: 'Module 1: Topic Refiner & PICO Scoping',
       a1Desc: 'Analyzes research questions, sets PRISMA inclusion/exclusion criteria, and synthesizes optimal Boolean query strings.',
       a2Title: 'Module 2: Search & Scopus Verification',
       a2Desc: 'Searches multi-academic sources, verifies Scopus indexing (Q1–Q4), removes duplicates, and filters unverified venues.',
       a3Title: 'Module 3: PRISMA Screening & Comparison Matrix',
       a3Desc: 'Evaluates full-text eligibility based on PRISMA standards and automatically builds methodology comparison tables (Dataset, Model, Metrics).',
-      a4Title: 'Module 4: Grounded RAG & Gap Discovery',
+      a4Title: 'Module 4: Evidence Synthesis & Gap Discovery',
       a4Desc: 'Discovers unsolved bottlenecks and research opportunities in literature; answers inquiries with exact page quotes and 100% DOI grounding.',
     },
     matrixSection: {
@@ -645,12 +645,12 @@ const DICTIONARY = {
     },
     prismaSection: {
       badge: 'INTERNATIONAL PUBLICATION STANDARDS',
-      title: 'PRISMA 2020 Identification & Screening Flowchart',
-      desc: 'Every step of document retrieval and screening is transparently tracked according to PRISMA 2020 standards:',
+      title: 'PRISMA Identification & Screening Flowchart',
+      desc: 'Every step of document retrieval and screening is transparently tracked according to PRISMA standards:',
       s1Num: '01', s1Title: 'Identification', s1Desc: 'Retrieve candidate records from Google Scholar and academic databases.',
       s2Num: '02', s2Title: 'Scopus Verification', s2Desc: 'Automatically filter duplicates and verify Scopus indexing status (Q1–Q4).',
       s3Num: '03', s3Title: 'Criteria Screening', s3Desc: 'Score relevance against established Inclusion & Exclusion criteria.',
-      s4Num: '04', s4Title: 'Included in Synthesis', s4Desc: 'Extract full text, populate synthesis matrix, and feed RAG workspace.',
+      s4Num: '04', s4Title: 'Included in Synthesis', s4Desc: 'Extract full text, populate synthesis matrix, and feed analysis workspace.',
     },
     demoAccounts: {
       badge: 'INSTANT ONBOARDING',
@@ -671,9 +671,9 @@ const DICTIONARY = {
       badge: 'FREQUENTLY ASKED QUESTIONS',
       title: 'Everything You Need to Know',
       q1: 'Which export formats are supported?',
-      a1: 'LitReview AI supports standard BibTeX (.bib) packages for LaTeX/Overleaf, CSV tables, Markdown (.md) reports, and structured JSON.',
+      a1: 'LitReview supports standard BibTeX (.bib) packages for LaTeX/Overleaf, CSV tables, Markdown (.md) reports, and structured JSON.',
       q2: 'How does the anti-hallucination mechanism work?',
-      a2: 'All AI responses in the Workspace are anchored directly to specific page numbers and verbatim text quotes from uploaded PDFs. No synthetic references are ever generated.',
+      a2: 'All responses in the Workspace are anchored directly to specific page numbers and verbatim text quotes from uploaded PDFs. No synthetic references are ever generated.',
       q3: 'How does the platform verify Scopus indexing?',
       a3: 'The system cross-references journal names, ISSNs, and publisher metadata against verified Scopus databases, retaining only confirmed publications.',
       q4: 'Can I upload my own PDF documents directly?',
@@ -681,9 +681,9 @@ const DICTIONARY = {
     },
     final: {
       title: 'Your next systematic literature review, completed 5x faster.',
-      desc: 'Experience the gold standard in academic literature review with PRISMA 2020 protocol.',
+      desc: 'Experience the gold standard in academic literature review with PRISMA protocol.',
       btn: 'Start Your Review Free',
-      footerTagline: 'LitReview AI — International Academic Systematic Literature Review Platform.',
+      footerTagline: 'LitReview — International Academic Systematic Literature Review Platform.',
       footerSub: 'VinUni AI Team 165. Built for High-Impact Scientific Research.',
     }
   }
@@ -785,7 +785,7 @@ export default function PublicLandingPage({ onOpenAuth }) {
       setCockpitTab('screening');
       setAutoStatusText(
         language === 'vi'
-          ? '🟢 ĐANG TỰ ĐỘNG CHẠY: [Bước 2/4] Sàng lọc PRISMA 2020 & đối chiếu Scopus Q1...'
+          ? '🟢 ĐANG TỰ ĐỘNG CHẠY: [Bước 2/4] Sàng lọc PRISMA & đối chiếu Scopus Q1...'
           : '🟢 AUTOPLAY: [Step 2/4] PRISMA Screening & Scopus Verification...'
       );
       setScreeningRowsShown(topic.rows.length);
@@ -937,72 +937,69 @@ export default function PublicLandingPage({ onOpenAuth }) {
       <AcademicConstellationCanvas darkMode={darkMode} scrollY={scrollY} />
 
       {/* ── 1. Top Glassmorphic Navigation Bar ─────────────────────────── */}
-      <header className="sticky top-0 z-50 bg-white/80 dark:bg-surface-900/80 backdrop-blur-xl border-b border-surface-200/80 dark:border-surface-800/80 transition-colors">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4 relative z-10">
+      <header className="sticky top-0 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-800/80 transition-colors shadow-2xs">
+        <div className="max-w-[1680px] mx-auto px-4 sm:px-6 lg:px-10 h-18 sm:h-20 flex items-center justify-between gap-6 relative z-10">
           
           {/* Brand */}
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary-600 to-indigo-700 flex items-center justify-center text-white shadow-primary-sm">
+          <div className="flex items-center gap-3 cursor-pointer select-none group shrink-0" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform">
               <BookOpen className="w-5 h-5" />
             </div>
             <div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-display font-bold text-base text-surface-900 dark:text-white leading-none">
-                  LitReview
-                </span>
-                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-primary-50 text-primary-700 dark:bg-primary-950 dark:text-primary-300 uppercase tracking-widest flex items-center gap-1">
-                  <Sparkles className="w-2.5 h-2.5" />AI
-                </span>
-              </div>
-              <p className="text-[10px] text-surface-400 mt-0.5 leading-none">PRISMA 2020 SLR Platform</p>
+              <span className="font-display font-extrabold text-lg text-slate-900 dark:text-white leading-none tracking-tight block">
+                LitReview
+              </span>
+              <p className="text-[11.5px] font-semibold text-blue-600 dark:text-blue-400 mt-1 leading-none whitespace-nowrap">
+                {language === 'vi' ? 'Nền tảng Nghiên cứu & Tổng quan Tài liệu' : 'Academic Literature Review Platform'}
+              </p>
             </div>
           </div>
 
           {/* Desktop Nav Links */}
-          <nav className="hidden lg:flex items-center gap-6 text-xs font-semibold text-surface-600 dark:text-surface-400">
-            <a href="#simulator" className="hover:text-primary-600 dark:hover:text-primary-400 transition-colors">{d.nav.simulator}</a>
-            <a href="#agents" className="hover:text-primary-600 dark:hover:text-primary-400 transition-colors">{d.nav.agents}</a>
-            <a href="#matrix" className="hover:text-primary-600 dark:hover:text-primary-400 transition-colors">{d.nav.matrix}</a>
-            <a href="#prisma" className="hover:text-primary-600 dark:hover:text-primary-400 transition-colors">{d.nav.prisma}</a>
-            <a href="#demo-accounts" className="hover:text-primary-600 dark:hover:text-primary-400 transition-colors">{d.nav.demoProfiles}</a>
-            <a href="#faq" className="hover:text-primary-600 dark:hover:text-primary-400 transition-colors">{d.nav.faq}</a>
+          <nav className="hidden lg:flex items-center gap-6 xl:gap-8 text-sm xl:text-[14.5px] font-bold text-slate-700 dark:text-slate-200 whitespace-nowrap">
+            <a href="#simulator" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1">{d.nav.simulator}</a>
+            <a href="#agents" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1">{d.nav.agents}</a>
+            <a href="#matrix" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1">{d.nav.matrix}</a>
+            <a href="#prisma" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1">{d.nav.prisma}</a>
+            <a href="#demo-accounts" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1">{d.nav.demoProfiles}</a>
+            <a href="#faq" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1">{d.nav.faq}</a>
           </nav>
 
           {/* Controls & Actions */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5 shrink-0">
             
             {/* Language Switch */}
             <button
               onClick={() => setLanguage(language === 'vi' ? 'en' : 'vi')}
-              className="px-2.5 py-1.5 rounded-xl bg-surface-100 dark:bg-surface-800 hover:bg-surface-200 dark:hover:bg-surface-700 transition-all text-xs font-bold flex items-center gap-1.5 border border-surface-200 dark:border-surface-700 cursor-pointer"
+              className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all text-xs font-bold flex items-center gap-1.5 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer shadow-2xs"
               title="Chuyển đổi ngôn ngữ / Switch language"
             >
-              <Languages className="w-3.5 h-3.5 text-primary-600 dark:text-primary-400" />
+              <Languages className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
               <span className="uppercase font-mono">{language}</span>
             </button>
 
             {/* Dark Mode Switch */}
             <button
               onClick={() => setDarkMode(!darkMode)}
-              className="p-2 rounded-xl bg-surface-100 dark:bg-surface-800 hover:bg-surface-200 dark:hover:bg-surface-700 transition-all text-surface-500 border border-surface-200 dark:border-surface-700 cursor-pointer"
+              className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 cursor-pointer shadow-2xs"
               title="Giao diện Sáng/Tối"
             >
-              {darkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-indigo-400" />}
+              {darkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-blue-600" />}
             </button>
 
             {/* Auth Buttons */}
             <button
               onClick={() => onOpenAuth('login')}
-              className="btn btn-secondary btn-sm"
+              className="btn btn-secondary px-4 py-2 text-xs sm:text-sm font-bold cursor-pointer"
             >
               {d.nav.login}
             </button>
 
             <button
               onClick={() => onOpenAuth('demo')}
-              className="btn btn-primary btn-sm shadow-primary-sm hidden sm:inline-flex"
+              className="btn btn-primary px-5 py-2 text-xs sm:text-sm font-bold shadow-md shadow-blue-500/20 hidden sm:inline-flex items-center gap-1.5 cursor-pointer hover:scale-105 transition-all"
             >
-              <Sparkles className="w-3.5 h-3.5" />
+              <BookOpen className="w-4 h-4" />
               <span>{d.nav.startFree}</span>
             </button>
           </div>
@@ -1017,44 +1014,45 @@ export default function PublicLandingPage({ onOpenAuth }) {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center w-full py-6">
             
             {/* Left Column: Prestigious Value Proposition */}
-            <ScrollReveal variant="left" className="lg:col-span-6 space-y-6 text-left" delay={50}>
+            <ScrollReveal variant="left" className="lg:col-span-7 space-y-6 text-left" delay={50}>
               
               {/* Badge */}
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-primary-50 dark:bg-primary-950/70 border border-primary-200 dark:border-primary-800/80 shadow-xs backdrop-blur-md">
-                <ShieldCheck className="w-3.5 h-3.5 text-primary-600 dark:text-primary-400" />
-                <span className="text-[11px] font-bold text-primary-700 dark:text-primary-300 uppercase tracking-wider">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 dark:bg-blue-950/70 border border-blue-200 dark:border-blue-800/80 shadow-xs backdrop-blur-md">
+                <ShieldCheck className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                <span className="text-[11px] font-extrabold text-blue-700 dark:text-blue-300 uppercase tracking-wider">
                   {d.hero.badge}
                 </span>
               </div>
 
               {/* Headline */}
-              <h1 className="font-display font-extrabold text-3xl sm:text-4xl lg:text-[42px] xl:text-[46px] text-surface-900 dark:text-white tracking-tight leading-[1.18]">
-                {d.hero.title1}
-                <br />
-                <span className="gradient-text text-shimmer">{d.hero.titleHighlight}</span>
+              <h1 className="font-display font-extrabold text-3xl sm:text-4xl lg:text-[40px] xl:text-[45px] text-slate-900 dark:text-white tracking-tight leading-[1.32] space-y-2">
+                <span className="block">{d.hero.title1}</span>
+                <span className="block text-shimmer gradient-text pb-1">
+                  {d.hero.titleHighlight}
+                </span>
               </h1>
 
               {/* Subtitle */}
-              <p className="text-sm sm:text-base text-surface-600 dark:text-surface-300 max-w-xl leading-relaxed">
+              <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 max-w-xl leading-relaxed pt-1">
                 {d.hero.desc}
               </p>
 
               {/* Action Buttons */}
-              <div className="flex flex-wrap items-center gap-3.5 pt-1">
+              <div className="flex flex-wrap items-center gap-3.5 pt-2">
                 <button
                   onClick={() => onOpenAuth('demo')}
-                  className="btn btn-primary btn-lg shadow-primary-md hover:scale-105 transition-all cursor-pointer"
+                  className="btn btn-primary btn-lg shadow-primary-md hover:scale-105 transition-all cursor-pointer font-bold"
                 >
-                  <Sparkles className="w-4 h-4" />
+                  <BookOpen className="w-4 h-4" />
                   <span>{d.hero.btnDemo}</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
                 
                 <a
                   href="#simulator"
-                  className="btn btn-secondary btn-lg flex items-center gap-2"
+                  className="btn btn-secondary btn-lg flex items-center gap-2 font-semibold"
                 >
-                  <Play className="w-4 h-4 text-primary-600" />
+                  <Play className="w-4 h-4 text-blue-600" />
                   <span>{d.hero.btnSimulate}</span>
                 </a>
               </div>
@@ -1063,7 +1061,7 @@ export default function PublicLandingPage({ onOpenAuth }) {
               <div className="pt-2 flex flex-wrap items-center gap-2.5">
                 {[
                   { icon: ShieldCheck, text: d.hero.trust1, color: 'text-emerald-500' },
-                  { icon: CheckCircle2, text: d.hero.trust2, color: 'text-primary-500' },
+                  { icon: CheckCircle2, text: d.hero.trust2, color: 'text-blue-500' },
                   { icon: Database, text: d.hero.trust3, color: 'text-sky-500' },
                   { icon: FileCode, text: d.hero.trust4, color: 'text-amber-500' },
                 ].map((pill, i) => {
@@ -1071,7 +1069,7 @@ export default function PublicLandingPage({ onOpenAuth }) {
                   return (
                     <div
                       key={i}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/90 dark:bg-surface-900/90 backdrop-blur-md border border-surface-200 dark:border-surface-800 text-xs font-medium text-surface-700 dark:text-surface-300 shadow-xs hover:border-primary-400 transition-colors"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200 dark:border-slate-800 text-xs font-medium text-slate-700 dark:text-slate-300 shadow-xs hover:border-blue-400 transition-colors"
                     >
                       <Icon className={`w-3.5 h-3.5 ${pill.color}`} />
                       <span>{pill.text}</span>
@@ -1083,7 +1081,7 @@ export default function PublicLandingPage({ onOpenAuth }) {
             </ScrollReveal>
 
             {/* Right Column: Hero Interactive 3D Preview Card */}
-            <ScrollReveal variant="right" className="lg:col-span-6 relative" delay={150}>
+            <ScrollReveal variant="right" className="lg:col-span-5 relative" delay={150}>
               
               {/* Ambient halo behind preview card */}
               <div className="absolute -inset-3 bg-gradient-to-r from-primary-500/25 to-indigo-600/25 rounded-3xl blur-2xl -z-10 animate-pulse" />
@@ -1599,7 +1597,7 @@ export default function PublicLandingPage({ onOpenAuth }) {
                       <div className="p-5 rounded-xl bg-surface-50/80 dark:bg-surface-800/60 border border-surface-200 dark:border-surface-700 space-y-3">
                         <div className="flex items-center justify-between text-xs text-primary-600 dark:text-primary-400 font-mono font-bold uppercase tracking-wider">
                           <span>{language === 'vi' ? 'BẢN TỔNG HỢP LUẬN ĐIỂM CHUẨN HÓA DOI (100% GROUNDED SYNTHESIS)' : 'GROUNDED EVIDENCE SYNTHESIS'}</span>
-                          <span className="badge badge-success text-[9px]">PRISMA 2020 INCLUDED</span>
+                          <span className="badge badge-success text-[9px]">PRISMA INCLUDED</span>
                         </div>
 
                         <p className="font-display text-sm sm:text-base text-surface-900 dark:text-white leading-relaxed">

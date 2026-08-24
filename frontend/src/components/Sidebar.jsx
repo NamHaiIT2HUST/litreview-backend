@@ -6,7 +6,7 @@ import {
   PanelLeftClose, PanelLeft, ChevronLeft, ChevronDown,
   Plus, LogOut, Check, FolderKanban,
   Pin, PinOff, Pencil, Share2, Trash2, Copy, AlertTriangle,
-  MoreHorizontal, MoreVertical
+  MoreHorizontal, MoreVertical, LayoutList
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
@@ -28,6 +28,7 @@ export default function Sidebar({
   onOpenNewProject,
   onStartTour,
   paperCount = 0, selectedCount = 0,
+  layoutMode = 'vertical', setLayoutMode,
 }) {
   const { currentUser, logout } = useAuth();
   const { 
@@ -193,16 +194,12 @@ export default function Sidebar({
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <span className="font-display font-bold text-sm text-surface-900 dark:text-white truncate">
+                    <span className="font-display font-extrabold text-sm text-surface-900 dark:text-white truncate">
                       LitReview
-                    </span>
-                    <span className="badge badge-primary text-[9px] px-1.5 py-0">
-                      <Sparkles className="w-2.5 h-2.5 mr-0.5" />
-                      AI
                     </span>
                   </div>
                   <p className="text-[10px] text-surface-400 dark:text-surface-500 truncate leading-none mt-0.5 font-medium">
-                    Academic SLR Platform
+                    {isVietnamese ? 'Nền tảng Nghiên cứu & Tổng quan' : 'Academic Literature Platform'}
                   </p>
                 </div>
               </button>
@@ -591,6 +588,32 @@ export default function Sidebar({
             )}
           </button>
 
+          {/* Layout Mode Toggle (Switch to Horizontal Navbar) */}
+          <button
+            type="button"
+            onClick={() => {
+              const next = layoutMode === 'horizontal' ? 'vertical' : 'horizontal';
+              if (setLayoutMode) setLayoutMode(next);
+              localStorage.setItem('litreview_layout_mode', next);
+            }}
+            className={`group relative flex items-center rounded-xl text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 hover:text-surface-900 dark:hover:text-white transition-colors text-sm font-medium cursor-pointer ${
+              isCollapsed ? 'w-full justify-center h-9 p-0' : 'w-full gap-3 px-3 py-2'
+            }`}
+            title={isCollapsed ? (isVietnamese ? 'Chuyển sang Thanh ngang (Navbar)' : 'Switch to Horizontal Navbar') : undefined}
+          >
+            <LayoutList className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+            {!isCollapsed && (
+              <span className="truncate text-xs font-semibold">
+                {isVietnamese ? 'Đổi sang Thanh ngang' : 'Horizontal Navbar'}
+              </span>
+            )}
+            {isCollapsed && (
+              <span className="tooltip left-full ml-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                {isVietnamese ? 'Thanh ngang' : 'Horizontal'}
+              </span>
+            )}
+          </button>
+
           {/* Theme Toggle */}
           <button
             onClick={() => setDarkMode(!darkMode)}
@@ -634,11 +657,11 @@ export default function Sidebar({
                       </div>
                     )}
                     <div className="min-w-0 flex-1">
-                      <p className="font-bold text-xs text-surface-900 dark:text-white truncate">
+                      <p className="font-bold text-xs text-slate-900 dark:text-white truncate" title={currentUser.name}>
                         {currentUser.name}
                       </p>
-                      <p className="text-[10px] text-surface-400 truncate uppercase tracking-wider font-mono">
-                        {currentUser.email?.split('@')[1] || currentUser.role}
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate font-normal leading-tight lowercase" title={currentUser.email}>
+                        {currentUser.email || currentUser.role}
                       </p>
                     </div>
                   </div>

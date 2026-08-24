@@ -831,10 +831,10 @@ export default function ResearchSetupTab({ setActiveTab }) {
               
               <ul className="space-y-2">
                 {projectData.criteria_include.map((item, idx) => (
-                  <li key={idx} className="group flex justify-between items-start bg-emerald-50/50 dark:bg-emerald-950/20 p-3 rounded-xl text-xs font-medium border border-emerald-100 dark:border-emerald-900/30 text-surface-700 dark:text-surface-300">
+                  <li key={idx} className="group flex justify-between items-start bg-emerald-50/70 dark:bg-emerald-950/30 p-3.5 rounded-xl text-xs font-semibold border border-emerald-200/70 dark:border-emerald-900/40 text-slate-800 dark:text-slate-100 shadow-2xs">
                     <span className="pr-3 leading-relaxed">{item}</span>
                     {!criteriaApproved && (
-                      <button onClick={() => setProjectData(p => ({...p, criteria_include: p.criteria_include.filter((_, i) => i !== idx)}))} className="text-surface-400 hover:text-rose-500 transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0">
+                      <button onClick={() => setProjectData(p => ({...p, criteria_include: p.criteria_include.filter((_, i) => i !== idx)}))} className="text-slate-400 hover:text-rose-500 transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0 cursor-pointer">
                         <X className="w-3.5 h-3.5"/>
                       </button>
                     )}
@@ -873,10 +873,10 @@ export default function ResearchSetupTab({ setActiveTab }) {
               
               <ul className="space-y-2">
                 {projectData.criteria_exclude.map((item, idx) => (
-                  <li key={idx} className="group flex justify-between items-start bg-rose-50/50 dark:bg-rose-950/20 p-3 rounded-xl text-xs font-medium border border-rose-100 dark:border-rose-900/30 text-surface-700 dark:text-surface-300">
+                  <li key={idx} className="group flex justify-between items-start bg-rose-50/70 dark:bg-rose-950/30 p-3.5 rounded-xl text-xs font-semibold border border-rose-200/70 dark:border-rose-900/40 text-slate-800 dark:text-slate-100 shadow-2xs">
                     <span className="pr-3 leading-relaxed">{item}</span>
                     {!criteriaApproved && (
-                      <button onClick={() => setProjectData(p => ({...p, criteria_exclude: p.criteria_exclude.filter((_, i) => i !== idx)}))} className="text-surface-400 hover:text-rose-500 transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0">
+                      <button onClick={() => setProjectData(p => ({...p, criteria_exclude: p.criteria_exclude.filter((_, i) => i !== idx)}))} className="text-slate-400 hover:text-rose-500 transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0 cursor-pointer">
                         <X className="w-3.5 h-3.5"/>
                       </button>
                     )}
@@ -922,27 +922,27 @@ export default function ResearchSetupTab({ setActiveTab }) {
             <button
               type="button"
               onClick={() => scrollToRef(criteriaCardRef)}
-              className="btn btn-sm btn-ghost text-xs text-surface-500 hover:text-surface-900 dark:hover:text-white flex items-center gap-1.5 font-semibold"
+              className="btn btn-sm btn-ghost text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white flex items-center gap-1.5 font-semibold cursor-pointer"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               <span>{isVi ? 'Quay lại Bước 2: Tiêu chí sàng lọc' : 'Back to Step 2: Criteria'}</span>
             </button>
           </div>
 
-          <div className="card p-7 sm:p-9 text-center rounded-3xl bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-950 text-white space-y-5 shadow-2xl border border-indigo-500/20">
-            <div className="w-14 h-14 mx-auto rounded-2xl bg-indigo-500/15 border border-indigo-400/20 flex items-center justify-center shadow-inner">
-              <svg className="w-7 h-7 text-indigo-300 animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 3a9 9 0 0 1 9 9c0 3.87-2.45 7.17-5.9 8.44L12 21l-3.1-1.56A8.99 8.99 0 0 1 3 12a9 9 0 0 1 9-9z" className="fill-indigo-400/25 stroke-indigo-300" />
-                <path d="M12 7v5l3 3" className="stroke-indigo-200 stroke-[2]" />
-                <circle cx="12" cy="12" r="1.5" className="fill-white" />
+          <div className="card p-7 sm:p-9 text-center rounded-2xl bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 space-y-5 shadow-sm border border-slate-200 dark:border-slate-800">
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-blue-50 dark:bg-blue-950/60 border border-blue-100 dark:border-blue-800/80 flex items-center justify-center shadow-xs">
+              <svg className="w-7 h-7 text-blue-600 dark:text-blue-400 animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 3a9 9 0 0 1 9 9c0 3.87-2.45 7.17-5.9 8.44L12 21l-3.1-1.56A8.99 8.99 0 0 1 3 12a9 9 0 0 1 9-9z" className="fill-blue-500/10 stroke-blue-600 dark:stroke-blue-400" />
+                <path d="M12 7v5l3 3" className="stroke-blue-600 dark:stroke-blue-400 stroke-[2]" />
+                <circle cx="12" cy="12" r="1.5" className="fill-blue-600 dark:fill-blue-400" />
               </svg>
             </div>
             
             <div className="max-w-2xl mx-auto space-y-2">
-              <h3 className="font-display font-bold text-xl sm:text-2xl text-white tracking-tight">
+              <h3 className="font-display font-extrabold text-xl sm:text-2xl text-slate-900 dark:text-white tracking-tight">
                 {isVi ? 'Phân tích Khung PICO và bộ từ khóa tìm kiếm' : 'PICO Framework & Academic Search Keywords'}
               </h3>
-              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-medium">
+              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
                 {isVi 
                   ? 'Khung PICO (Đối tượng, Can thiệp, So sánh, Kết quả) giúp cấu trúc hóa câu hỏi nghiên cứu và trích xuất các từ khóa học thuật tiếng Anh chuẩn xác nhất để tìm kiếm bài báo trên Google Scholar & Scopus.'
                   : 'The PICO framework (Population, Intervention, Comparison, Outcome) structures your research question and extracts the most accurate academic search keywords for literature discovery.'}
@@ -953,17 +953,17 @@ export default function ResearchSetupTab({ setActiveTab }) {
               <button 
                 onClick={handleSuggestKeywords} 
                 disabled={loadingKeywords}
-                className="btn bg-white text-slate-900 hover:bg-slate-100 hover:scale-105 transition-all text-sm font-bold shadow-xl px-7 py-3 rounded-2xl flex items-center gap-2 cursor-pointer"
+                className="btn btn-primary text-sm font-bold shadow-md px-7 py-3 rounded-xl flex items-center gap-2 cursor-pointer hover:scale-105 transition-all"
               >
                 {loadingKeywords ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
-                    <span>{isVi ? 'Thinking... Đang phân tích & tra cứu' : 'Thinking... Analyzing & Synthesizing'}</span>
+                    <Loader2 className="w-4 h-4 animate-spin text-white" />
+                    <span>{isVi ? 'Đang phân tích & tra cứu...' : 'Analyzing & Synthesizing...'}</span>
                   </>
                 ) : (
                   <>
-                    <Sparkles className="w-4 h-4 text-amber-500" />
-                    <span>{picoData ? (isVi ? 'Tra cứu lại' : 'Re-synthesize') : (isVi ? 'Tra cứu' : 'Synthesize')}</span>
+                    <Search className="w-4 h-4" />
+                    <span>{picoData ? (isVi ? 'Tra cứu lại' : 'Re-synthesize') : (isVi ? 'Tra cứu PICO' : 'Synthesize PICO')}</span>
                   </>
                 )}
               </button>
@@ -971,18 +971,18 @@ export default function ResearchSetupTab({ setActiveTab }) {
           </div>
 
           {picoData && (
-            <div ref={picoCardRef} className="card p-6 sm:p-8 space-y-6 animate-slide-up border-purple-500/20 bg-purple-500/5 shadow-md">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-surface-200 dark:border-surface-800">
+            <div ref={picoCardRef} className="card p-6 sm:p-8 space-y-6 animate-slide-up bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-purple-100 dark:bg-purple-950/60 border border-purple-500/30 flex items-center justify-center text-purple-600 dark:text-purple-300 shadow-xs">
-                    <Sparkles className="w-5 h-5 animate-pulse" />
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-100 dark:border-blue-800 flex items-center justify-center text-blue-600 dark:text-blue-400 shadow-xs">
+                    <BookOpen className="w-5 h-5" />
                   </div>
                   <div>
-                    <h4 className="font-display font-bold text-lg text-surface-900 dark:text-white">
+                    <h4 className="font-display font-extrabold text-lg text-slate-900 dark:text-white">
                       {isVi ? 'Kết quả phân tích Khung PICO' : 'PICO Analysis Results'}
                     </h4>
-                    <p className="text-xs text-surface-500 dark:text-surface-400 font-medium">
-                      {isVi ? 'Đã phân tích và tra cứu thành công' : 'Analysis and synthesis completed successfully'}
+                    <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                      {isVi ? 'Đã phân tích và trích xuất cấu trúc đề tài thành công' : 'Analysis and scoping completed successfully'}
                     </p>
                   </div>
                 </div>
@@ -992,7 +992,7 @@ export default function ResearchSetupTab({ setActiveTab }) {
                   type="button"
                   onClick={() => handleSave()}
                   disabled={loading}
-                  className="btn bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white self-start sm:self-auto flex items-center gap-2 font-bold shadow-md shadow-emerald-500/20 px-4 py-2.5 rounded-xl border border-emerald-400/30 transition-all hover:scale-105"
+                  className="btn btn-primary self-start sm:self-auto flex items-center gap-2 font-bold shadow-md px-5 py-2.5 rounded-xl transition-all hover:scale-105 cursor-pointer"
                 >
                   {saved ? (
                     <>
@@ -1010,57 +1010,57 @@ export default function ResearchSetupTab({ setActiveTab }) {
 
               {/* 4 PICO Blocks */}
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-                <div className="p-4 rounded-2xl bg-white dark:bg-surface-800/90 border border-primary-100 dark:border-primary-900/30 shadow-xs space-y-1.5">
-                  <span className="section-label text-primary-600 dark:text-primary-400 block font-bold text-xs">
+                <div className="p-4 rounded-xl bg-blue-50/50 dark:bg-slate-800/80 border border-blue-100 dark:border-slate-700 shadow-xs space-y-1.5">
+                  <span className="section-label text-blue-700 dark:text-blue-400 block font-bold text-xs">
                     [P] {isVi ? 'Đối tượng nghiên cứu' : 'Population / Problem'}:
                   </span>
-                  <p className="text-xs font-semibold text-surface-900 dark:text-surface-100 leading-relaxed">
+                  <p className="text-xs font-semibold text-slate-800 dark:text-slate-100 leading-relaxed">
                     {picoData.population || 'N/A'}
                   </p>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-white dark:bg-surface-800/90 border border-indigo-100 dark:border-indigo-900/30 shadow-xs space-y-1.5">
-                  <span className="section-label text-indigo-600 dark:text-indigo-400 block font-bold text-xs">
+                <div className="p-4 rounded-xl bg-indigo-50/50 dark:bg-slate-800/80 border border-indigo-100 dark:border-slate-700 shadow-xs space-y-1.5">
+                  <span className="section-label text-indigo-700 dark:text-indigo-400 block font-bold text-xs">
                     [I] {isVi ? 'Giải pháp & Phương pháp' : 'Intervention / Method'}:
                   </span>
-                  <p className="text-xs font-semibold text-surface-900 dark:text-surface-100 leading-relaxed">
+                  <p className="text-xs font-semibold text-slate-800 dark:text-slate-100 leading-relaxed">
                     {picoData.intervention || 'N/A'}
                   </p>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-white dark:bg-surface-800/90 border border-amber-100 dark:border-amber-900/30 shadow-xs space-y-1.5">
-                  <span className="section-label text-amber-600 dark:text-amber-400 block font-bold text-xs">
+                <div className="p-4 rounded-xl bg-amber-50/50 dark:bg-slate-800/80 border border-amber-100 dark:border-slate-700 shadow-xs space-y-1.5">
+                  <span className="section-label text-amber-700 dark:text-amber-400 block font-bold text-xs">
                     [C] {isVi ? 'Tiêu chuẩn đối chiếu' : 'Comparison'}:
                   </span>
-                  <p className="text-xs font-semibold text-surface-900 dark:text-surface-100 leading-relaxed">
+                  <p className="text-xs font-semibold text-slate-800 dark:text-slate-100 leading-relaxed">
                     {picoData.comparison || 'N/A'}
                   </p>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-white dark:bg-surface-800/90 border border-emerald-100 dark:border-emerald-900/30 shadow-xs space-y-1.5">
-                  <span className="section-label text-emerald-600 dark:text-emerald-400 block font-bold text-xs">
+                <div className="p-4 rounded-xl bg-emerald-50/50 dark:bg-slate-800/80 border border-emerald-100 dark:border-slate-700 shadow-xs space-y-1.5">
+                  <span className="section-label text-emerald-700 dark:text-emerald-400 block font-bold text-xs">
                     [O] {isVi ? 'Kết quả kỳ vọng' : 'Outcome'}:
                   </span>
-                  <p className="text-xs font-semibold text-surface-900 dark:text-surface-100 leading-relaxed">
+                  <p className="text-xs font-semibold text-slate-800 dark:text-slate-100 leading-relaxed">
                     {picoData.outcome || 'N/A'}
                   </p>
                 </div>
               </div>
 
               {/* Keywords & Boolean Query Container */}
-              <div className="p-5 sm:p-6 rounded-2xl bg-surface-900 dark:bg-surface-950 text-white space-y-4 shadow-xl border border-surface-800">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/10">
-                  <span className="text-xs font-bold uppercase tracking-wider text-primary-300 flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-amber-400" />
+              <div className="p-5 sm:p-6 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white space-y-4 shadow-xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-700">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                    <Search className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                     {isVi ? 'Bộ từ khóa học thuật đề xuất' : 'Academic Search Keywords'}
                   </span>
 
                   {picoData.search_keywords && picoData.search_keywords.length > 0 && (
                     <button
                       onClick={handleCopyKeywords}
-                      className="btn btn-sm btn-ghost text-xs text-white hover:bg-white/10 self-start sm:self-auto flex items-center gap-1.5 font-semibold"
+                      className="btn btn-sm btn-secondary text-xs flex items-center gap-1.5 font-semibold cursor-pointer"
                     >
-                      {copiedKeywords ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                      {copiedKeywords ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                       <span>{copiedKeywords ? (isVi ? 'Đã sao chép!' : 'Copied!') : (isVi ? 'Sao chép chuỗi tìm kiếm' : 'Copy Search String')}</span>
                     </button>
                   )}
@@ -1070,7 +1070,7 @@ export default function ResearchSetupTab({ setActiveTab }) {
                   {(picoData.search_keywords || []).map((kw, i) => (
                     <span 
                       key={i} 
-                      className="px-3.5 py-1.5 rounded-xl bg-primary-500/20 text-primary-200 text-xs font-semibold border border-primary-500/30 shadow-xs"
+                      className="px-3 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 text-xs font-bold border border-blue-200/80 dark:border-blue-800 shadow-xs"
                     >
                       {kw}
                     </span>

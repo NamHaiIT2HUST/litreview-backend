@@ -1,24 +1,17 @@
-<<<<<<< HEAD
-import React from 'react';
-import { Search, Sparkles, Sun, Moon, Home, Settings, Library, Download, Languages, LayoutDashboard } from 'lucide-react';
-import { useLanguage } from '../contexts/LanguageContext';
-import { useAuth } from '../contexts/AuthContext';
-
-export default function Navbar({ activeTab, setActiveTab, darkMode, setDarkMode, onLoginClick, onRegisterClick }) {
-  const { language, setLanguage, t } = useLanguage();
-  const { user, logout } = useAuth();
-=======
 import React, { useState, useEffect } from 'react';
 import { 
   Search, Sun, Moon, Home, Settings, Library, Download, 
-  Languages, Menu, X, Sparkles, GraduationCap, ShieldCheck, ChevronDown, Check 
+  Languages, Menu, X, GraduationCap, ShieldCheck, ChevronDown, Check,
+  LayoutDashboard
 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useDarkMode } from '../contexts/DarkModeContext';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Navbar({ activeTab, setActiveTab }) {
   const { language, setLanguage, t } = useLanguage();
   const { darkMode, setDarkMode } = useDarkMode();
+  const { user, logout } = useAuth();
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -39,7 +32,6 @@ export default function Navbar({ activeTab, setActiveTab }) {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
->>>>>>> develop
 
   const userNavItems = [
     { id: 'overview', label: t('nav.overview'), icon: Home },
@@ -58,7 +50,6 @@ export default function Navbar({ activeTab, setActiveTab }) {
 
   return (
     <>
-      {/* Spacer to prevent layout shift due to fixed header */}
       <div className="h-16 md:h-20" />
 
       <header 
@@ -70,7 +61,7 @@ export default function Navbar({ activeTab, setActiveTab }) {
       >
         <div className="max-w-[1920px] mx-auto px-4 md:px-6 lg:px-8 h-16 md:h-20 flex items-center justify-between">
           
-          {/* Left: Brand / Logo */}
+          {/* Brand */}
           <div 
             onClick={() => setActiveTab('overview')}
             className="flex items-center gap-3 cursor-pointer group select-none relative z-10"
@@ -83,27 +74,15 @@ export default function Navbar({ activeTab, setActiveTab }) {
                 <h1 className="font-display font-black text-base md:text-lg tracking-tight leading-none text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                   LITREVIEW
                 </h1>
-                <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-sky-400 font-display font-bold text-[9px] md:text-[10px] tracking-widest uppercase border border-blue-200/50 dark:border-blue-800/50 flex items-center gap-1">
-                  <Sparkles className="w-3 h-3" />
-                  WORKSPACE
-                </span>
               </div>
               <span className="text-[10px] md:text-[11px] font-medium text-slate-500 dark:text-slate-400 tracking-wide whitespace-nowrap">
-                Enterprise Academic Intelligence
+                {isEn ? 'Academic Literature Platform' : 'Nền tảng Nghiên cứu & Tổng quan Tài liệu'}
               </span>
             </div>
           </div>
 
-<<<<<<< HEAD
-        {/* Center Navigation Tabs */}
-        {user && (
-          <nav className={`hidden md:flex items-center gap-1 p-1 rounded-2xl border ${
-            darkMode ? 'bg-slate-900 border-slate-800' : 'bg-slate-100/80 border-slate-200'
-          }`}>
-=======
-          {/* Center: Desktop Navigation */}
+          {/* Center Navigation */}
           <nav className="hidden lg:flex items-center absolute left-1/2 -translate-x-1/2 bg-slate-100/50 dark:bg-slate-900/50 p-1 rounded-2xl border border-slate-200/50 dark:border-slate-800/50 backdrop-blur-md">
->>>>>>> develop
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
@@ -111,24 +90,7 @@ export default function Navbar({ activeTab, setActiveTab }) {
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-<<<<<<< HEAD
-                  className={`flex items-center gap-2 px-4 py-2 text-xs font-display font-bold rounded-xl transition-all ${
-                    isActive
-                      ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                      : darkMode
-                        ? 'text-slate-400 hover:text-white hover:bg-slate-800/80'
-                        : 'text-slate-600 hover:text-slate-950 hover:bg-white/80'
-                  }`}
-                >
-                  <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : ''}`} />
-                  <span>{item.label}</span>
-                  {item.count !== undefined && item.count > 0 && (
-                    <span className="w-4 h-4 bg-amber-400 text-slate-950 rounded-full text-[10px] flex items-center justify-center font-bold ml-1">
-                      {item.count}
-                    </span>
-                  )}
-=======
-                  className={`relative flex items-center gap-2 px-5 py-2.5 text-[13px] font-display font-bold rounded-xl transition-all duration-300 overflow-hidden ${
+                  className={`relative flex items-center gap-2 px-5 py-2.5 text-[13px] font-display font-bold rounded-xl transition-all duration-300 overflow-hidden cursor-pointer ${
                     isActive
                       ? 'text-white shadow-md shadow-blue-500/20'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-white/80 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800/80'
@@ -139,18 +101,14 @@ export default function Navbar({ activeTab, setActiveTab }) {
                   )}
                   <Icon className={`w-4 h-4 relative z-10 ${isActive ? 'text-white' : ''}`} />
                   <span className="relative z-10 tracking-wide">{item.label}</span>
->>>>>>> develop
                 </button>
               );
             })}
           </nav>
-<<<<<<< HEAD
-        )}
-=======
 
-          {/* Right: Controls & Profile */}
+          {/* Right Controls */}
           <div className="flex items-center gap-2 md:gap-3 relative z-10">
-            {/* User Role Switcher Dropdown */}
+            {/* User Role Switcher */}
             <div className="relative">
               <button
                 onClick={() => setShowRoleMenu(!showRoleMenu)}
@@ -173,7 +131,6 @@ export default function Navbar({ activeTab, setActiveTab }) {
                 </span>
                 <ChevronDown className="w-3 h-3 opacity-60" />
               </button>
->>>>>>> develop
 
               {showRoleMenu && (
                 <div 
@@ -185,7 +142,7 @@ export default function Navbar({ activeTab, setActiveTab }) {
                   </div>
                   <button
                     onClick={() => setUserRole('researcher')}
-                    className={`w-full px-3 py-2 text-left flex items-center justify-between transition-colors ${
+                    className={`w-full px-3 py-2 text-left flex items-center justify-between transition-colors cursor-pointer ${
                       userRole === 'researcher' 
                         ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 font-bold' 
                         : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
@@ -203,7 +160,7 @@ export default function Navbar({ activeTab, setActiveTab }) {
 
                   <button
                     onClick={() => setUserRole('reviewer')}
-                    className={`w-full px-3 py-2 text-left flex items-center justify-between transition-colors ${
+                    className={`w-full px-3 py-2 text-left flex items-center justify-between transition-colors cursor-pointer ${
                       userRole === 'reviewer' 
                         ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 font-bold' 
                         : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
@@ -222,32 +179,10 @@ export default function Navbar({ activeTab, setActiveTab }) {
               )}
             </div>
 
-<<<<<<< HEAD
-          {user ? (
-            <div className="flex items-center gap-3 ml-2">
-              <div className="flex flex-col items-end">
-                <span className="text-xs font-bold text-slate-900 dark:text-white leading-none">{user.username}</span>
-                <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase">{user.role}</span>
-              </div>
-              <button onClick={logout} className="text-xs font-bold text-slate-500 hover:text-red-500 transition-colors">
-                Đăng xuất
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 ml-2">
-              <button onClick={onLoginClick} className="px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
-                Đăng nhập
-              </button>
-              <button onClick={onRegisterClick} className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-colors shadow-sm">
-                Đăng ký
-              </button>
-            </div>
-          )}
-=======
             {/* Language Toggle */}
             <button
               onClick={() => setLanguage(language === 'vi' ? 'en' : 'vi')}
-              className="w-9 h-9 md:w-10 md:h-10 rounded-xl flex items-center justify-center transition-all bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 dark:bg-slate-900 dark:hover:bg-slate-800 dark:border-slate-800 dark:text-slate-300 group"
+              className="w-9 h-9 md:w-10 md:h-10 rounded-xl flex items-center justify-center transition-all bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 dark:bg-slate-900 dark:hover:bg-slate-800 dark:border-slate-800 dark:text-slate-300 group cursor-pointer"
               title={t('nav.toggle_language')}
             >
               <Languages className={`w-4 h-4 md:w-4.5 md:h-4.5 transition-transform group-hover:scale-110 ${language === 'vi' ? 'text-emerald-500' : 'text-blue-500'}`} />
@@ -256,7 +191,7 @@ export default function Navbar({ activeTab, setActiveTab }) {
             {/* Dark Mode Toggle */}
             <button
               onClick={() => setDarkMode(!darkMode)}
-              className="w-9 h-9 md:w-10 md:h-10 rounded-xl flex items-center justify-center transition-all bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 dark:bg-slate-900 dark:hover:bg-slate-800 dark:border-slate-800 dark:text-slate-300 group"
+              className="w-9 h-9 md:w-10 md:h-10 rounded-xl flex items-center justify-center transition-all bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 dark:bg-slate-900 dark:hover:bg-slate-800 dark:border-slate-800 dark:text-slate-300 group cursor-pointer"
               title={t('nav.toggle_theme')}
             >
               <div className="relative w-4 h-4 md:w-4.5 md:h-4.5 flex items-center justify-center overflow-hidden">
@@ -265,52 +200,32 @@ export default function Navbar({ activeTab, setActiveTab }) {
               </div>
             </button>
 
-            {/* User Avatar */}
-            <div className="hidden sm:flex ml-2 w-9 h-9 md:w-10 md:h-10 rounded-xl bg-gradient-to-br from-slate-800 to-slate-950 dark:from-slate-700 dark:to-slate-800 text-white font-bold text-xs md:text-sm items-center justify-center shadow-inner border border-slate-700/50 cursor-pointer hover:shadow-md transition-shadow">
-              {userRole === 'reviewer' ? 'REV' : 'RES'}
-            </div>
+            {/* User Profile / Logout */}
+            {user ? (
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-gradient-to-br from-slate-800 to-slate-950 dark:from-slate-700 dark:to-slate-800 text-white font-bold text-xs md:text-sm flex items-center justify-center shadow-inner border border-slate-700/50">
+                  {user.name ? user.name.slice(0, 2).toUpperCase() : (userRole === 'reviewer' ? 'REV' : 'RES')}
+                </div>
+                <button
+                  onClick={logout}
+                  className="text-xs font-semibold text-slate-500 hover:text-red-500 transition-colors hidden sm:inline"
+                >
+                  {isEn ? 'Logout' : 'Đăng xuất'}
+                </button>
+              </div>
+            ) : null}
 
             {/* Mobile Menu Toggle */}
             <button 
-              className="lg:hidden ml-1 w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300"
+              className="lg:hidden ml-1 w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 cursor-pointer"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
->>>>>>> develop
         </div>
       </header>
 
-<<<<<<< HEAD
-      </div>
-
-      {/* Mobile Navigation Bar */}
-      {user && (
-        <div className={`md:hidden border-t p-2 flex justify-around ${
-          darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-        }`}>
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = activeTab === item.id;
-          const mobileLabel = item.label.includes('.') ? item.label.split('.')[1] : item.label;
-          return (
-            <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              className={`p-2 rounded-xl text-xs font-bold flex flex-col items-center gap-1 ${
-                isActive ? 'text-blue-600 dark:text-sky-400 font-extrabold' : 'text-slate-400'
-              }`}
-            >
-              <Icon className="w-5 h-5" />
-              <span className="text-[11px]">{mobileLabel}</span>
-            </button>
-          );
-        })}
-      </div>
-      )}
-    </header>
-=======
       {/* Mobile Drawer */}
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-40 bg-slate-900/20 backdrop-blur-sm lg:hidden animate-in fade-in duration-200">
@@ -325,7 +240,7 @@ export default function Navbar({ activeTab, setActiveTab }) {
                     setActiveTab(item.id);
                     setMobileMenuOpen(false);
                   }}
-                  className={`flex items-center gap-3 px-4 py-3.5 text-sm font-display font-bold rounded-2xl transition-all ${
+                  className={`flex items-center gap-3 px-4 py-3.5 text-sm font-display font-bold rounded-2xl transition-all cursor-pointer ${
                     isActive
                       ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800/80'
@@ -340,6 +255,5 @@ export default function Navbar({ activeTab, setActiveTab }) {
         </div>
       )}
     </>
->>>>>>> develop
   );
 }

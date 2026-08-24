@@ -211,49 +211,77 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
         )}
       </div>
 
-      {/* ── 2. Real-time KPI Analytics Grid ────────────────────────────── */}
+      {/* ── 2. Real-time KPI Analytics Grid (Modernize Style) ── */}
       <div id="tour-quick-stats" className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         
-        <div className="card p-5 space-y-1">
+        <div className="card p-5 space-y-3 bg-white dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 shadow-xs hover:shadow-sm transition-all rounded-2xl">
           <div className="flex items-center justify-between">
-            <span className="section-label">{isVietnamese ? 'Đề tài Nghiên cứu' : 'Research Projects'}</span>
-            <FolderKanban className="w-4 h-4 text-primary-500" />
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{isVietnamese ? 'Đề tài Nghiên cứu' : 'Research Projects'}</span>
+            <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+              <FolderKanban className="w-5 h-5" />
+            </div>
           </div>
-          <p className="text-2xl sm:text-3xl font-bold font-mono text-surface-900 dark:text-white">{totalProjects}</p>
-          <p className="text-[11px] text-surface-400">{isVietnamese ? 'Đang quản lý độc lập' : 'Independently managed'}</p>
+          <div>
+            <p className="text-2xl sm:text-3xl font-extrabold font-display text-slate-800 dark:text-white leading-none">{totalProjects}</p>
+            <div className="mt-2 flex items-center gap-1.5">
+              <span className="badge badge-primary text-[10px]">{isVietnamese ? 'Độc lập' : 'Active'}</span>
+              <span className="text-[11px] text-slate-400">{isVietnamese ? 'Đang quản lý' : 'Managed'}</span>
+            </div>
+          </div>
         </div>
 
-        <div className="card p-5 space-y-1">
+        <div className="card p-5 space-y-3 bg-white dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 shadow-xs hover:shadow-sm transition-all rounded-2xl">
           <div className="flex items-center justify-between">
-            <span className="section-label">{isVietnamese ? 'Bài báo Scopus' : 'Scopus Papers'}</span>
-            <Database className="w-4 h-4 text-sky-500" />
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{isVietnamese ? 'Bài báo Scopus' : 'Scopus Papers'}</span>
+            <div className="w-10 h-10 rounded-xl bg-cyan-50 dark:bg-cyan-950/60 text-cyan-600 dark:text-cyan-400 flex items-center justify-center">
+              <Database className="w-5 h-5" />
+            </div>
           </div>
-          <p className="text-2xl sm:text-3xl font-bold font-mono text-surface-900 dark:text-white">{totalPapers}</p>
-          <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">
-            {totalPapers > 0 ? (isVietnamese ? '100% Đã xác minh chỉ số' : '100% Verified index') : (isVietnamese ? 'Chưa có bài báo' : 'No papers yet')}
-          </p>
+          <div>
+            <p className="text-2xl sm:text-3xl font-extrabold font-display text-slate-800 dark:text-white leading-none">{totalPapers}</p>
+            <div className="mt-2 flex items-center gap-1.5">
+              <span className="badge badge-success text-[10px]">{totalPapers > 0 ? 'Verified' : '0'}</span>
+              <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">
+                {totalPapers > 0 ? (isVietnamese ? '100% Đã xác minh' : '100% Verified') : (isVietnamese ? 'Chưa nạp bài' : 'No papers')}
+              </span>
+            </div>
+          </div>
         </div>
 
-        <div className="card p-5 space-y-1">
+        <div className="card p-5 space-y-3 bg-white dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 shadow-xs hover:shadow-sm transition-all rounded-2xl">
           <div className="flex items-center justify-between">
-            <span className="section-label">{isVietnamese ? 'Đã Sàng lọc PRISMA' : 'PRISMA Screened'}</span>
-            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{isVietnamese ? 'Đã Sàng lọc PRISMA' : 'PRISMA Screened'}</span>
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+              <CheckCircle2 className="w-5 h-5" />
+            </div>
           </div>
-          <p className="text-2xl sm:text-3xl font-bold font-mono text-surface-900 dark:text-white">{totalScreened}</p>
-          <p className="text-[11px] text-surface-400">
-            {totalScreened > 0 ? (isVietnamese ? 'Đạt tiêu chuẩn Inclusion' : 'Met Inclusion criteria') : (isVietnamese ? 'Chưa sàng lọc' : 'Not screened')}
-          </p>
+          <div>
+            <p className="text-2xl sm:text-3xl font-extrabold font-display text-slate-800 dark:text-white leading-none">{totalScreened}</p>
+            <div className="mt-2 flex items-center gap-1.5">
+              <span className="badge badge-success text-[10px]">{totalScreened > 0 ? 'Included' : '0'}</span>
+              <span className="text-[11px] text-slate-400">
+                {totalScreened > 0 ? (isVietnamese ? 'Đạt tiêu chuẩn' : 'Met criteria') : (isVietnamese ? 'Chưa sàng lọc' : 'Not screened')}
+              </span>
+            </div>
+          </div>
         </div>
 
-        <div className="card p-5 space-y-1">
+        <div className="card p-5 space-y-3 bg-white dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 shadow-xs hover:shadow-sm transition-all rounded-2xl">
           <div className="flex items-center justify-between">
-            <span className="section-label">{isVietnamese ? 'Khoảng trống Đề tài' : 'Research Gaps'}</span>
-            <Target className="w-4 h-4 text-violet-500" />
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{isVietnamese ? 'Khoảng trống Đề tài' : 'Research Gaps'}</span>
+            <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+              <Target className="w-5 h-5" />
+            </div>
           </div>
-          <p className="text-2xl sm:text-3xl font-bold font-mono text-surface-900 dark:text-white">{totalGaps}</p>
-          <p className="text-[11px] text-violet-600 dark:text-violet-400 font-semibold">
-            {totalGaps > 0 ? (isVietnamese ? 'Cơ hội nghiên cứu mới' : 'New research gaps') : (isVietnamese ? 'Chưa bóc tách' : 'Not extracted')}
-          </p>
+          <div>
+            <p className="text-2xl sm:text-3xl font-extrabold font-display text-slate-800 dark:text-white leading-none">{totalGaps}</p>
+            <div className="mt-2 flex items-center gap-1.5">
+              <span className="badge badge-warning text-[10px]">{totalGaps > 0 ? 'Extracted' : '0'}</span>
+              <span className="text-[11px] text-amber-600 dark:text-amber-400 font-semibold">
+                {totalGaps > 0 ? (isVietnamese ? 'Cơ hội mới' : 'New angles') : (isVietnamese ? 'Chưa bóc tách' : 'Pending')}
+              </span>
+            </div>
+          </div>
         </div>
 
       </div>
@@ -348,7 +376,7 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
               <div className="flex items-center gap-2">
                 <ShieldCheck className="w-5 h-5 text-primary-600 dark:text-primary-400" />
                 <h3 className="font-display font-bold text-sm text-surface-900 dark:text-white">
-                  {isVietnamese ? 'Sơ đồ Phễu Sàng lọc PRISMA 2020 (Dự án Hiện tại)' : 'PRISMA 2020 Screening Funnel (Active Project)'}
+                  {isVietnamese ? 'Sơ đồ Phễu Sàng lọc PRISMA (Dự án Hiện tại)' : 'PRISMA Screening Funnel (Active Project)'}
                 </h3>
               </div>
               <span className="badge badge-primary text-[10px]">

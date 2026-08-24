@@ -82,7 +82,7 @@ export default function NewProjectModal({ isOpen, onClose }) {
             </div>
             <div>
               <h3 className="font-display font-bold text-sm text-surface-900 dark:text-white">Khởi tạo Đề tài Nghiên cứu Mới</h3>
-              <p className="text-[10px] text-surface-400">Thiết lập phạm vi dự án SLR theo chuẩn PRISMA 2020</p>
+              <p className="text-[10px] text-surface-400">Thiết lập phạm vi dự án SLR theo chuẩn PRISMA</p>
             </div>
           </div>
           <button

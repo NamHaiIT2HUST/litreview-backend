@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
+import HorizontalNavbar from './components/navigation/HorizontalNavbar';
 import SearchTab from './components/search/SearchTab';
 import WorkspaceTab from './components/workspace/WorkspaceTab';
 import PersonalizedDashboard from './components/dashboard/PersonalizedDashboard';
@@ -20,6 +21,15 @@ function MainAppShell() {
   const { isAuthenticated, currentUser } = useAuth();
   const { activeProject, activeProjectId } = useProject();
   const { darkMode } = useDarkMode();
+
+  // ── Layout Mode: horizontal navbar (like image 2) vs vertical sidebar ──
+  const [layoutMode, setLayoutMode] = useState(() => {
+    return localStorage.getItem('litreview_layout_mode') || 'horizontal';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('litreview_layout_mode', layoutMode);
+  }, [layoutMode]);
 
   // ── First-time User Onboarding Tour ─────────────────────────────────────
   const [isTourOpen, setIsTourOpen] = useState(false);
@@ -214,6 +224,91 @@ function MainAppShell() {
     setSelectedPapers([]);
   };
 
+  // ── Main Content Tab Dispatcher ─────────────────────────────────────────
+  const renderMainContent = () => (
+    <ErrorBoundary>
+      <div className="animate-slide-up w-full">
+
+        {/* Admin Dashboard */}
+        {(activeTab === 'admin' || (currentUser?.role === 'admin' && activeTab === 'overview')) && (
+          <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-10 py-6">
+            <AdminDashboard darkMode={darkMode} />
+          </div>
+        )}
+
+        {/* Overview / Personalized Dashboard (for regular users) */}
+        {activeTab === 'overview' && currentUser?.role !== 'admin' && (
+          <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-10 py-6">
+            <PersonalizedDashboard
+              setActiveTab={setActiveTab}
+              onOpenNewProject={() => setNewProjectModalOpen(true)}
+              onStartTour={handleStartTour}
+            />
+          </div>
+        )}
+
+        {/* Research Setup Tab */}
+        {activeTab === 'setup' && (
+          <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-10 py-6">
+            <ResearchSetupTab setActiveTab={setActiveTab} />
+          </div>
+        )}
+
+        {/* Search & Paper Discovery Tab */}
+        {activeTab === 'search' && (
+          <div className="w-full">
+            <SearchTab
+              papers={papers}
+              setPapers={setPapers}
+              searchResults={searchResults}
+              setSearchResults={setSearchResults}
+              searchMeta={searchMeta}
+              setSearchMeta={setSearchMeta}
+              selectedPaperIds={selectedPaperIds}
+              toggleSelectPaper={toggleSelectPaper}
+              clearSelectedPapers={clearSelectedPapers}
+              selectedPapers={selectedPapers}
+              workspacePapers={workspacePapers}
+              setWorkspacePapers={setWorkspacePapers}
+              setActiveTab={setActiveTab}
+            />
+          </div>
+        )}
+
+        {/* AI Workspace & Synthesis Tab */}
+        {activeTab === 'synthesis' && (
+          <div className="w-full">
+            <WorkspaceTab
+              papers={papers}
+              setPapers={setPapers}
+              selectedPapers={selectedPapers}
+              setSelectedPapers={setSelectedPapers}
+              setSelectedPaperIds={setSelectedPaperIds}
+              workspacePapers={workspacePapers}
+              setWorkspacePapers={setWorkspacePapers}
+              chatMessages={chatMessages}
+              setChatMessages={setChatMessages}
+              activeCitation={activeCitation}
+              setActiveCitation={setActiveCitation}
+            />
+          </div>
+        )}
+
+        {/* Export & Report Generation Tab */}
+        {activeTab === 'export' && (
+          <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-10 py-6">
+            <ExportTab
+              papers={papers}
+              selectedPapers={selectedPapers}
+              workspacePapers={workspacePapers}
+            />
+          </div>
+        )}
+
+      </div>
+    </ErrorBoundary>
+  );
+
   // ── RENDER: Public Landing Page for unauthenticated visitors ───────────
   if (!isAuthenticated) {
     return (
@@ -233,114 +328,55 @@ function MainAppShell() {
 
   // ── RENDER: Authenticated Workspace Shell ───────────────────────────────
   return (
-    <div className={`app-shell ${darkMode ? 'dark' : ''}`}>
-      
-      {/* ── Sidebar ──────────────────────────────────────────────────── */}
-      <Sidebar
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        mobileOpen={mobileSidebarOpen}
-        setMobileOpen={setMobileSidebarOpen}
-        isCollapsed={isSidebarCollapsed}
-        setIsCollapsed={setIsSidebarCollapsed}
-        onOpenNewProject={() => setNewProjectModalOpen(true)}
-        onStartTour={handleStartTour}
-        paperCount={papers.length}
-        selectedCount={selectedPapers.length}
-      />
+    <>
+      {layoutMode === 'horizontal' ? (
+        <div className={`min-h-screen bg-[#F4F6F9] dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 ${darkMode ? 'dark' : ''}`}>
+          {/* ── Top Horizontal Navbar ─────────────────────────────────── */}
+          <HorizontalNavbar
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            onOpenNewProject={() => setNewProjectModalOpen(true)}
+            layoutMode={layoutMode}
+            setLayoutMode={setLayoutMode}
+          />
 
-      {/* ── Mobile Overlay ────────────────────────────────────────────── */}
-      {mobileSidebarOpen && (
-        <div
-          className="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm lg:hidden"
-          onClick={() => setMobileSidebarOpen(false)}
-        />
+          {/* ── Main Content Area (Full width) ────────────────────────── */}
+          <main className="w-full min-h-[calc(100vh-4rem)]">
+            {renderMainContent()}
+          </main>
+        </div>
+      ) : (
+        <div className={`app-shell ${darkMode ? 'dark' : ''}`}>
+          {/* ── Vertical Sidebar ───────────────────────────────────────── */}
+          <Sidebar
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            mobileOpen={mobileSidebarOpen}
+            setMobileOpen={setMobileSidebarOpen}
+            isCollapsed={isSidebarCollapsed}
+            setIsCollapsed={setIsSidebarCollapsed}
+            onOpenNewProject={() => setNewProjectModalOpen(true)}
+            onStartTour={handleStartTour}
+            paperCount={papers.length}
+            selectedCount={selectedPapers.length}
+            layoutMode={layoutMode}
+            setLayoutMode={setLayoutMode}
+          />
+
+          {/* ── Mobile Overlay ─────────────────────────────────────────── */}
+          {mobileSidebarOpen && (
+            <div
+              className="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm lg:hidden"
+              onClick={() => setMobileSidebarOpen(false)}
+            />
+          )}
+
+          {/* ── Main Content Area (Sidebar Offset) ─────────────────────── */}
+          <main className={`app-content ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+            {renderMainContent()}
+          </main>
+        </div>
       )}
-
-      {/* ── Main Content Area ─────────────────────────────────────────── */}
-      <main className={`app-content ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
-        <ErrorBoundary>
-          <div className="animate-slide-up w-full">
-
-            {/* Admin Dashboard */}
-            {(activeTab === 'admin' || (currentUser?.role === 'admin' && activeTab === 'overview')) && (
-              <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-10 py-6">
-                <AdminDashboard darkMode={darkMode} />
-              </div>
-            )}
-
-            {/* Overview / Personalized Dashboard (for regular users) */}
-            {activeTab === 'overview' && currentUser?.role !== 'admin' && (
-              <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-10 py-6">
-                <PersonalizedDashboard
-                  setActiveTab={setActiveTab}
-                  onOpenNewProject={() => setNewProjectModalOpen(true)}
-                  onStartTour={handleStartTour}
-                />
-              </div>
-            )}
-
-            {/* Research Setup Tab */}
-            {activeTab === 'setup' && (
-              <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-10 py-6">
-                <ResearchSetupTab setActiveTab={setActiveTab} />
-              </div>
-            )}
-
-            {/* Search & Paper Discovery Tab */}
-            {activeTab === 'search' && (
-              <div className="w-full">
-                <SearchTab
-                  papers={papers}
-                  setPapers={setPapers}
-                  searchResults={searchResults}
-                  setSearchResults={setSearchResults}
-                  searchMeta={searchMeta}
-                  setSearchMeta={setSearchMeta}
-                  selectedPaperIds={selectedPaperIds}
-                  toggleSelectPaper={toggleSelectPaper}
-                  clearSelectedPapers={clearSelectedPapers}
-                  selectedPapers={selectedPapers}
-                  workspacePapers={workspacePapers}
-                  setWorkspacePapers={setWorkspacePapers}
-                  setActiveTab={setActiveTab}
-                />
-              </div>
-            )}
-
-            {/* AI Workspace & Synthesis Tab */}
-            {activeTab === 'synthesis' && (
-              <div className="w-full">
-                <WorkspaceTab
-                  papers={papers}
-                  setPapers={setPapers}
-                  selectedPapers={selectedPapers}
-                  setSelectedPapers={setSelectedPapers}
-                  setSelectedPaperIds={setSelectedPaperIds}
-                  workspacePapers={workspacePapers}
-                  setWorkspacePapers={setWorkspacePapers}
-                  chatMessages={chatMessages}
-                  setChatMessages={setChatMessages}
-                  activeCitation={activeCitation}
-                  setActiveCitation={setActiveCitation}
-                />
-              </div>
-            )}
-
-            {/* Export & Report Generation Tab */}
-            {activeTab === 'export' && (
-              <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-10 py-6">
-                <ExportTab
-                  papers={papers}
-                  selectedPapers={selectedPapers}
-                  workspacePapers={workspacePapers}
-                />
-              </div>
-            )}
-
-          </div>
-        </ErrorBoundary>
-      </main>
 
       {/* First-time User Product Onboarding Tour */}
       <OnboardingTour
@@ -362,7 +398,7 @@ function MainAppShell() {
         onClose={() => setAuthModalOpen(false)}
         initialMode={authModalMode}
       />
-    </div>
+    </>
   );
 }
 
