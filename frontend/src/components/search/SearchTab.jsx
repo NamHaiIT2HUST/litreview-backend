@@ -1635,127 +1635,225 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                   <p className="text-sm font-bold">{isVi ? `Đang quét toàn văn ${papers.length} bài báo để phân tích khoảng trống nghiên cứu...` : `Scanning full text of ${papers.length} papers to analyze research gaps...`}</p>
                 </div>
               ) : gapMapData && gapMapData.cells && gapMapData.cells.length > 0 ? (
-                <div className="space-y-6">
-                  
-                  {/* Legend & Summary Cards */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800">
-                      <span className="font-bold text-xs text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5 mb-1">
-                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span> 
-                        {isVi ? 'Khoảng trống mới (0 bài)' : 'Open Research Gap (0 papers)'}
-                      </span>
-                      <p className="text-[11px] text-emerald-900/80 dark:text-emerald-300/80 leading-relaxed">
-                        {isVi ? 'Chưa có công trình nào trong tập kết quả khai thác → Cơ hội đề tài mới tiềm năng cao!' : 'No papers found exploring this intersection → High publication potential!'}
-                      </p>
-                    </div>
+                (() => {
+                  const totalCells = gapMapData.cells.length;
+                  const emptyCount = gapMapData.cells.filter(c => c.saturation === 'empty').length;
+                  const sparseCount = gapMapData.cells.filter(c => c.saturation === 'sparse').length;
+                  const saturatedCount = gapMapData.cells.filter(c => c.saturation === 'saturated').length;
+                  const emptyPct = Math.round((emptyCount / totalCells) * 100);
+                  const sparsePct = Math.round((sparseCount / totalCells) * 100);
+                  const saturatedPct = 100 - emptyPct - sparsePct;
 
-                    <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800">
-                      <span className="font-bold text-xs text-amber-700 dark:text-amber-400 flex items-center gap-1.5 mb-1">
-                        <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span> 
-                        {isVi ? 'Đang phát triển (< 3 bài)' : 'Emerging Topic (< 3 papers)'}
-                      </span>
-                      <p className="text-[11px] text-amber-900/80 dark:text-amber-300/80 leading-relaxed">
-                        {isVi ? 'Có 1-2 nghiên cứu sơ khai → Rất tiềm năng để mở rộng và hoàn thiện phương pháp.' : 'Few initial studies found → High opportunity to extend and optimize methodologies.'}
-                      </p>
-                    </div>
+                  // Group by Dimension X (Architecture / Method)
+                  const archDistribution = {};
+                  gapMapData.cells.forEach(c => {
+                    archDistribution[c.dimension_x] = (archDistribution[c.dimension_x] || 0) + (c.paper_count || 0);
+                  });
+                  const maxArchPapers = Math.max(...Object.values(archDistribution), 1);
 
-                    <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800">
-                      <span className="font-bold text-xs text-rose-700 dark:text-rose-400 flex items-center gap-1.5 mb-1">
-                        <span className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block"></span> 
-                        {isVi ? 'Bão hoà (Nhiều bài)' : 'Saturated Topic (Multiple papers)'}
-                      </span>
-                      <p className="text-[11px] text-rose-900/80 dark:text-rose-300/80 leading-relaxed">
-                        {isVi ? 'Đã có nhiều nghiên cứu tập trung vào hướng này → Cần tránh trùng lặp ý tưởng.' : 'Heavily researched topic → Recommend novel angles to avoid duplication.'}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* 1. Grid Matrix */}
-                  <div className="space-y-2.5">
-                    <h4 className="text-xs font-display font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      {isVi ? '1. Ma Trận Phân Bố Đề Tài (Topic Intersections)' : '1. Topic Intersections Matrix'}
-                    </h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {gapMapData.cells.map((c, idx) => (
-                        <div 
-                          key={idx} 
-                          className={`p-4 rounded-2xl border transition-all ${
-                            c.saturation === 'saturated' 
-                              ? 'bg-rose-50/70 border-rose-200 dark:bg-rose-950/30 dark:border-rose-800/80' 
-                              : c.saturation === 'sparse' 
-                                ? 'bg-amber-50/70 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800/80' 
-                                : 'bg-emerald-50/70 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800/80'
-                          }`}
-                        >
-                          <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider mb-2">
-                            <span className={`px-2 py-0.5 rounded-md ${
-                              c.saturation === 'saturated' ? 'bg-rose-200/80 text-rose-800 dark:bg-rose-900/60 dark:text-rose-300' :
-                              c.saturation === 'sparse' ? 'bg-amber-200/80 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300' :
-                              'bg-emerald-200/80 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300'
-                            }`}>
-                              {c.saturation === 'empty' ? (isVi ? 'Khoảng trống mới' : 'Open Gap') : c.saturation === 'sparse' ? (isVi ? 'Còn dư địa' : 'Emerging') : (isVi ? 'Đã bão hoà' : 'Saturated')}
-                            </span>
-                            <span className="font-bold text-slate-600 dark:text-slate-300">
-                              {c.paper_count} {isVi ? 'bài báo' : 'papers'}
+                  return (
+                    <div className="space-y-6">
+                      
+                      {/* 1. VISUAL SATURATION SPECTRUM & ANALYTICS BAR */}
+                      <div className="p-4 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 space-y-3 shadow-xs">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <Activity className="w-4 h-4 text-blue-600 dark:text-sky-400" />
+                            <span className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200">
+                              {isVi ? 'Phổ Phân Bố Mức Độ Bão Hòa Đề Tài (Gap Spectrum)' : 'Research Saturation Spectrum & Opportunity Index'}
                             </span>
                           </div>
-                          <div className="font-bold text-sm text-slate-900 dark:text-slate-100 leading-snug">
-                            {c.dimension_x} <span className="text-blue-600 dark:text-sky-400">&</span> {c.dimension_y}
+                          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                            {isVi ? `Tổng cộng ${totalCells} giao điểm nghiên cứu` : `Total ${totalCells} topic intersections`}
+                          </span>
+                        </div>
+
+                        {/* Multi-segment Spectrum Progress Bar */}
+                        <div className="h-4 w-full rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden flex shadow-inner">
+                          {emptyPct > 0 && (
+                            <div 
+                              style={{ width: `${emptyPct}%` }} 
+                              className="h-full bg-emerald-500 hover:brightness-110 transition-all cursor-help relative group"
+                              title={`${isVi ? 'Khoảng trống mới' : 'Open Gaps'}: ${emptyCount} ô (${emptyPct}%)`}
+                            />
+                          )}
+                          {sparsePct > 0 && (
+                            <div 
+                              style={{ width: `${sparsePct}%` }} 
+                              className="h-full bg-amber-500 hover:brightness-110 transition-all cursor-help relative group"
+                              title={`${isVi ? 'Đang phát triển' : 'Emerging'}: ${sparseCount} ô (${sparsePct}%)`}
+                            />
+                          )}
+                          {saturatedPct > 0 && (
+                            <div 
+                              style={{ width: `${saturatedPct}%` }} 
+                              className="h-full bg-rose-500 hover:brightness-110 transition-all cursor-help relative group"
+                              title={`${isVi ? 'Đã bão hòa' : 'Saturated'}: ${saturatedCount} ô (${saturatedPct}%)`}
+                            />
+                          )}
+                        </div>
+
+                        {/* Legend Cards */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 pt-1">
+                          <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="w-3 h-3 rounded-full bg-emerald-500 inline-block shadow-xs"></span>
+                              <span className="font-bold text-xs text-emerald-800 dark:text-emerald-300">
+                                {isVi ? 'Khoảng trống mới' : 'Open Gap (0 papers)'}
+                              </span>
+                            </div>
+                            <span className="text-xs font-extrabold text-emerald-700 dark:text-emerald-400 bg-white dark:bg-emerald-900/60 px-2 py-0.5 rounded-lg border border-emerald-300/40">
+                              {emptyCount} ô ({emptyPct}%)
+                            </span>
+                          </div>
+
+                          <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="w-3 h-3 rounded-full bg-amber-500 inline-block shadow-xs"></span>
+                              <span className="font-bold text-xs text-amber-800 dark:text-amber-300">
+                                {isVi ? 'Đang phát triển' : 'Emerging (< 3 papers)'}
+                              </span>
+                            </div>
+                            <span className="text-xs font-extrabold text-amber-700 dark:text-amber-400 bg-white dark:bg-amber-900/60 px-2 py-0.5 rounded-lg border border-amber-300/40">
+                              {sparseCount} ô ({sparsePct}%)
+                            </span>
+                          </div>
+
+                          <div className="p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="w-3 h-3 rounded-full bg-rose-500 inline-block shadow-xs"></span>
+                              <span className="font-bold text-xs text-rose-800 dark:text-rose-300">
+                                {isVi ? 'Đã bão hoà' : 'Saturated (> 3 papers)'}
+                              </span>
+                            </div>
+                            <span className="text-xs font-extrabold text-rose-700 dark:text-rose-400 bg-white dark:bg-rose-900/60 px-2 py-0.5 rounded-lg border border-rose-300/40">
+                              {saturatedCount} ô ({saturatedPct}%)
+                            </span>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* 2. Deep Analytical Breakdown (Phân tích kỹ càng & Đề xuất hướng đi) */}
-                  <div className="space-y-4 pt-2 border-t border-slate-200 dark:border-slate-800">
-                    <h4 className="text-xs font-display font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      {isVi ? '2. Phân Tích Chuyên Sâu & Đề Xuất Đột Phá' : '2. In-Depth Analysis & Breakthrough Directions'}
-                    </h4>
-
-                    {/* Limitations of current papers */}
-                    <div className={`p-4 rounded-2xl border ${'bg-slate-50 border-slate-200 dark:bg-slate-800/50 dark:border-slate-700'} space-y-2`}>
-                      <div className="flex items-center gap-2 text-xs font-bold text-amber-700 dark:text-amber-400">
-                        <AlertCircle className="w-4 h-4" />
-                        <span>{isVi ? 'Điểm nghẽn chưa được giải quyết trong các bài báo hiện tại:' : 'Unresolved bottlenecks in current literature:'}</span>
                       </div>
-                      <ul className="text-xs text-slate-600 dark:text-slate-300 space-y-1.5 pl-4 list-disc leading-relaxed">
-                        <li>{isVi ? 'Phần lớn các công trình tập trung vào các mô hình đơn lẻ, thiếu cơ chế kiểm chứng đối chiếu chéo (Cross-verification).' : 'Most works focus on isolated models without cross-verification mechanisms.'}</li>
-                        <li>{isVi ? 'Chưa có nhiều nghiên cứu đánh giá toàn diện độ tin cậy và khả năng giải thích được (Explainability) trên tập dữ liệu thực tế lớn.' : 'Limited empirical benchmarks evaluating reliability and explainability on real-world datasets.'}</li>
-                        <li>{isVi ? 'Chi phí tính toán và độ trễ xử lý tài liệu dài (Long-context reasoning) vẫn là rào cản lớn chưa được tối ưu triệt để.' : 'Computational complexity and inference latency remain significant bottlenecks for long-context tasks.'}</li>
-                      </ul>
-                    </div>
 
-                    {/* 3 Novel Research Directions */}
-                    <div className={`p-4 rounded-2xl border ${'bg-blue-50/50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-800/60'} space-y-3`}>
-                      <div className="flex items-center gap-2 text-xs font-bold text-blue-700 dark:text-sky-300">
-                        <Sparkles className="w-4 h-4" />
-                        <span>{isVi ? '3 Hướng đề tài đề xuất có tiềm năng công bố cao:' : '3 Proposed High-Impact Research Directions:'}</span>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
-                        <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-blue-100 dark:border-blue-900 space-y-1">
-                          <p className="font-bold text-xs text-blue-600 dark:text-sky-400">{isVi ? 'Hướng 1: Multi-Agent Tri thức' : 'Direction 1: Multi-Agent Knowledge'}</p>
-                          <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
-                            {isVi ? 'Xây dựng hệ thống Swarm phân tầng để trích xuất và đối chiếu bằng chứng chéo giữa các bài báo.' : 'Hierarchical multi-agent swarm architecture for multi-document synthesis and cross-evidence verification.'}
-                          </p>
+                      {/* 2. TOPIC DISTRIBUTION CHART (Biểu đồ mật độ theo kiến trúc phương pháp) */}
+                      <div className="p-4 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-xs font-display font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                            <Sparkles className="w-3.5 h-3.5 text-blue-500" />
+                            <span>{isVi ? 'Mật Độ Bài Báo Theo Trục Kiến Trúc & Phương Pháp' : 'Paper Density by Method & Architecture Axis'}</span>
+                          </h4>
+                          <span className="text-[11px] font-semibold text-slate-500">
+                            {isVi ? 'Phân loại từ tập kết quả' : 'Categorized from corpus'}
+                          </span>
                         </div>
-                        <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-blue-100 dark:border-blue-900 space-y-1">
-                          <p className="font-bold text-xs text-blue-600 dark:text-sky-400">{isVi ? 'Hướng 2: Giảm Thiểu Ảo Giác' : 'Direction 2: Hallucination Mitigation'}</p>
-                          <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
-                            {isVi ? 'Cơ chế Grounding 100% với trích dẫn DOI trực tiếp từ PDF toàn văn để đảm bảo tính liêm chính học thuật.' : '100% grounded claim-evidence mapping with verifiable DOI & page-level citation anchors.'}
-                          </p>
-                        </div>
-                        <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-blue-100 dark:border-blue-900 space-y-1">
-                          <p className="font-bold text-xs text-blue-600 dark:text-sky-400">{isVi ? 'Hướng 3: Tối Ưu Chi Phí & Tốc Độ' : 'Direction 3: Cost & Latency Optimization'}</p>
-                          <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
-                            {isVi ? 'Áp dụng kỹ thuật phân đoạn thông minh và Embedding phân cấp để xử lý hàng trăm trang tài liệu trong vài giây.' : 'Smart chunking and hierarchical embeddings to process hundreds of pages in real time.'}
-                          </p>
+
+                        <div className="space-y-2.5">
+                          {Object.entries(archDistribution).map(([archName, count], idx) => {
+                            const barWidth = Math.round((count / maxArchPapers) * 100);
+                            return (
+                              <div key={idx} className="space-y-1">
+                                <div className="flex justify-between text-xs font-semibold">
+                                  <span className="text-slate-800 dark:text-slate-200 font-medium">{archName}</span>
+                                  <span className="font-bold text-blue-600 dark:text-sky-400">{count} {isVi ? 'bài báo' : 'papers'}</span>
+                                </div>
+                                <div className="h-2.5 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                                  <div 
+                                    style={{ width: `${Math.max(barWidth, 8)}%` }} 
+                                    className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full transition-all duration-500"
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
-                    </div>
-                  </div>
 
-                </div>
+                      {/* 3. GRID MATRIX (Chi tiết 16 ô giao điểm) */}
+                      <div className="space-y-2.5">
+                        <h4 className="text-xs font-display font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                          {isVi ? '3. Chi Tiết Các Ô Giao Điểm Nghiên Cứu (Topic Intersections Matrix)' : '3. Topic Intersections Matrix Breakdown'}
+                        </h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                          {gapMapData.cells.map((c, idx) => (
+                            <div 
+                              key={idx} 
+                              className={`p-4 rounded-2xl border transition-all hover:scale-[1.02] duration-200 ${
+                                c.saturation === 'saturated' 
+                                  ? 'bg-rose-50/70 border-rose-200 dark:bg-rose-950/30 dark:border-rose-800/80' 
+                                  : c.saturation === 'sparse' 
+                                    ? 'bg-amber-50/70 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800/80' 
+                                    : 'bg-emerald-50/70 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800/80'
+                              }`}
+                            >
+                              <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider mb-2">
+                                <span className={`px-2 py-0.5 rounded-md ${
+                                  c.saturation === 'saturated' ? 'bg-rose-200/80 text-rose-800 dark:bg-rose-900/60 dark:text-rose-300' :
+                                  c.saturation === 'sparse' ? 'bg-amber-200/80 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300' :
+                                  'bg-emerald-200/80 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300'
+                                }`}>
+                                  {c.saturation === 'empty' ? (isVi ? 'Khoảng trống mới' : 'Open Gap') : c.saturation === 'sparse' ? (isVi ? 'Còn dư địa' : 'Emerging') : (isVi ? 'Đã bão hoà' : 'Saturated')}
+                                </span>
+                                <span className="font-bold text-slate-600 dark:text-slate-300">
+                                  {c.paper_count} {isVi ? 'bài báo' : 'papers'}
+                                </span>
+                              </div>
+                              <div className="font-bold text-sm text-slate-900 dark:text-slate-100 leading-snug">
+                                {c.dimension_x} <span className="text-blue-600 dark:text-sky-400">&</span> {c.dimension_y}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* 4. DEEP ANALYTICAL BREAKDOWN & 3 NOVEL DIRECTIONS */}
+                      <div className="space-y-4 pt-2 border-t border-slate-200 dark:border-slate-800">
+                        <h4 className="text-xs font-display font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                          {isVi ? '4. Phân Tích Chuyên Sâu & Đề Xuất Đột Phá' : '4. In-Depth Analysis & Breakthrough Directions'}
+                        </h4>
+
+                        {/* Limitations */}
+                        <div className={`p-4 rounded-2xl border ${'bg-slate-50 border-slate-200 dark:bg-slate-800/50 dark:border-slate-700'} space-y-2`}>
+                          <div className="flex items-center gap-2 text-xs font-bold text-amber-700 dark:text-amber-400">
+                            <AlertCircle className="w-4 h-4" />
+                            <span>{isVi ? 'Điểm nghẽn chưa được giải quyết trong các bài báo hiện tại:' : 'Unresolved bottlenecks in current literature:'}</span>
+                          </div>
+                          <ul className="text-xs text-slate-600 dark:text-slate-300 space-y-1.5 pl-4 list-disc leading-relaxed">
+                            <li>{isVi ? 'Phần lớn các công trình tập trung vào các mô hình đơn lẻ, thiếu cơ chế kiểm chứng đối chiếu chéo (Cross-verification).' : 'Most works focus on isolated models without cross-verification mechanisms.'}</li>
+                            <li>{isVi ? 'Chưa có nhiều nghiên cứu đánh giá toàn diện độ tin cậy và khả năng giải thích được (Explainability) trên tập dữ liệu thực tế lớn.' : 'Limited empirical benchmarks evaluating reliability and explainability on real-world datasets.'}</li>
+                            <li>{isVi ? 'Chi phí tính toán và độ trễ xử lý tài liệu dài (Long-context reasoning) vẫn là rào cản lớn chưa được tối ưu triệt để.' : 'Computational complexity and inference latency remain significant bottlenecks for long-context tasks.'}</li>
+                          </ul>
+                        </div>
+
+                        {/* 3 Novel Research Directions */}
+                        <div className={`p-4 rounded-2xl border ${'bg-blue-50/50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-800/60'} space-y-3`}>
+                          <div className="flex items-center gap-2 text-xs font-bold text-blue-700 dark:text-sky-300">
+                            <Sparkles className="w-4 h-4" />
+                            <span>{isVi ? '3 Hướng đề tài đề xuất có tiềm năng công bố cao:' : '3 Proposed High-Impact Research Directions:'}</span>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+                            <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-blue-100 dark:border-blue-900 space-y-1">
+                              <p className="font-bold text-xs text-blue-600 dark:text-sky-400">{isVi ? 'Hướng 1: Multi-Agent Tri thức' : 'Direction 1: Multi-Agent Knowledge'}</p>
+                              <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+                                {isVi ? 'Xây dựng hệ thống Swarm phân tầng để trích xuất và đối chiếu bằng chứng chéo giữa các bài báo.' : 'Hierarchical multi-agent swarm architecture for multi-document synthesis and cross-evidence verification.'}
+                              </p>
+                            </div>
+                            <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-blue-100 dark:border-blue-900 space-y-1">
+                              <p className="font-bold text-xs text-blue-600 dark:text-sky-400">{isVi ? 'Hướng 2: Giảm Thiểu Ảo Giác' : 'Direction 2: Hallucination Mitigation'}</p>
+                              <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+                                {isVi ? 'Cơ chế Grounding 100% với trích dẫn DOI trực tiếp từ PDF toàn văn để đảm bảo tính liêm chính học thuật.' : '100% grounded claim-evidence mapping with verifiable DOI & page-level citation anchors.'}
+                              </p>
+                            </div>
+                            <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-blue-100 dark:border-blue-900 space-y-1">
+                              <p className="font-bold text-xs text-blue-600 dark:text-sky-400">{isVi ? 'Hướng 3: Tối Ưu Chi Phí & Tốc Độ' : 'Direction 3: Cost & Latency Optimization'}</p>
+                              <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+                                {isVi ? 'Áp dụng kỹ thuật phân đoạn thông minh và Embedding phân cấp để xử lý hàng trăm trang tài liệu trong vài giây.' : 'Smart chunking and hierarchical embeddings to process hundreds of pages in real time.'}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                    </div>
+                  );
+                })()
               ) : (
                 <div className="py-16 text-center text-slate-400 text-sm">
                   {isVi ? 'Chưa có dữ liệu khoảng trống. Hãy bấm tìm kiếm bài báo trước!' : 'No research gap data yet. Please search for papers first!'}
@@ -1763,13 +1861,22 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
               )}
             </div>
 
-            {/* Footer */}
-            <div className="border-t pt-4 border-slate-200 dark:border-slate-800 flex justify-end">
+            {/* Clean Modal Footer (Action Oriented without redundant close button) */}
+            <div className="border-t pt-4 border-slate-200 dark:border-slate-800 flex items-center justify-between">
+              <span className="text-xs text-slate-400">
+                {isVi ? '💡 Gợi ý: Chọn các ô màu xanh ngọc để tối đa hóa tính mới khi viết bài báo' : '💡 Tip: Target emerald gap cells to maximize novelty in your paper'}
+              </span>
               <button
-                onClick={() => setShowGapModal(false)}
-                className="px-6 py-2.5 rounded-xl text-xs font-bold bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 transition-colors"
+                onClick={() => {
+                  navigator.clipboard.writeText(
+                    `3 Hướng Đề Tài Nghiên Cứu Đột Phá:\n1. Multi-Agent Tri thức\n2. Giảm Thiểu Ảo Giác với DOI Grounding\n3. Tối Ưu Chi Phí & Tốc Độ Xử Lý`
+                  );
+                  alert(isVi ? 'Đã sao chép 3 hướng đề tài vào clipboard!' : 'Copied 3 research directions to clipboard!');
+                }}
+                className="px-5 py-2 rounded-xl text-xs font-bold bg-primary-600 hover:bg-primary-700 text-white transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
               >
-                {isVi ? 'Đóng (X)' : 'Close (X)'}
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>{isVi ? 'Sao chép 3 hướng đề tài' : 'Copy Research Directions'}</span>
               </button>
             </div>
           </div>
