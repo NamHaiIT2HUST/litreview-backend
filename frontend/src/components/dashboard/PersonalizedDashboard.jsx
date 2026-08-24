@@ -488,20 +488,7 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
 
                 {/* Actions List */}
                 <div className="py-2 space-y-1">
-                  {onStartTour && (
-                    <button
-                      onClick={() => {
-                        setIsProfileMenuOpen(false);
-                        onStartTour();
-                      }}
-                      className="w-full px-3 py-2.5 rounded-xl hover:bg-slate-700/50 flex items-center gap-3 text-xs sm:text-sm font-semibold transition-colors cursor-pointer text-slate-200"
-                    >
-                      <Sparkles className="w-4 h-4 text-blue-400" />
-                      <span>{isVietnamese ? 'Hướng dẫn sử dụng (Tour)' : 'Product Guide (Tour)'}</span>
-                    </button>
-                  )}
-
-                  <div className="px-3 py-2 text-[11px] text-slate-400 flex items-center justify-between">
+                  <div className="px-3 py-2 text-xs text-slate-400 flex items-center justify-between">
                     <span>{isVietnamese ? 'Ngôn ngữ hệ thống' : 'Language'}</span>
                     <span className="font-bold text-slate-200">{isVietnamese ? 'Tiếng Việt (VI)' : 'English (EN)'}</span>
                   </div>
@@ -529,8 +516,8 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
         </div>
       </header>
 
-      {/* ── Main Hub Content Area (Proportional Scaling & Spacious Margins) ── */}
-      <main className="flex-1 w-full max-w-[96vw] 2xl:max-w-[1840px] mx-auto px-4 sm:px-8 lg:px-12 py-6 sm:py-8 lg:py-10 space-y-8 sm:space-y-10 lg:space-y-12 relative z-10">
+      {/* ── Main Hub Content Area (Full-Width Edge-to-Edge Responsive Layout) ── */}
+      <main className="flex-1 w-full px-4 sm:px-8 lg:px-12 2xl:px-16 py-6 sm:py-8 lg:py-10 space-y-8 sm:space-y-10 lg:space-y-12 relative z-10">
         
         {/* ── 2. Filter Category Pills (All, Mine, Featured, Shared, Collections) ── */}
         <div className="flex items-center gap-2.5 sm:gap-3.5 overflow-x-auto custom-scrollbar pb-1 text-xs sm:text-sm font-semibold">
