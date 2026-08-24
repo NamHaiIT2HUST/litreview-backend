@@ -204,7 +204,7 @@ export default function ResearchSetupTab({ setActiveTab }) {
     }
   }, [activeProjectId, activeProject]);
 
-  const handleSave = async (updatedData = projectData) => {
+  const handleSave = async (updatedData = projectData, options = {}) => {
     setLoading(true);
     setSaved(false);
     setErrorMsg(null);
@@ -218,8 +218,12 @@ export default function ResearchSetupTab({ setActiveTab }) {
 
         // 2. Persist to localStorage
         localStorage.setItem(`research_setup_data_${pId}`, JSON.stringify(updatedData));
-        localStorage.setItem(`slr_gate1_topic_approved_${pId}`, topicApproved ? 'true' : 'false');
-        localStorage.setItem(`slr_gate2_criteria_approved_${pId}`, criteriaApproved ? 'true' : 'false');
+        
+        const g1Val = options.topicApproved !== undefined ? options.topicApproved : topicApproved;
+        const g2Val = options.criteriaApproved !== undefined ? options.criteriaApproved : criteriaApproved;
+        
+        localStorage.setItem(`slr_gate1_topic_approved_${pId}`, g1Val ? 'true' : 'false');
+        localStorage.setItem(`slr_gate2_criteria_approved_${pId}`, g2Val ? 'true' : 'false');
 
         // 3. Sync to backend API
         const res = await fetch(`${API_BASE}/projects/${pId}`, {
@@ -308,7 +312,7 @@ export default function ResearchSetupTab({ setActiveTab }) {
     if (pId) {
       localStorage.setItem(`slr_gate1_topic_approved_${pId}`, 'true');
     }
-    await handleSave(updated);
+    await handleSave(updated, { topicApproved: true });
     scrollToRef(criteriaCardRef);
   };
 
@@ -353,7 +357,7 @@ export default function ResearchSetupTab({ setActiveTab }) {
     if (pId) {
       localStorage.setItem(`slr_gate2_criteria_approved_${pId}`, 'true');
     }
-    await handleSave(projectData);
+    await handleSave(projectData, { topicApproved: true, criteriaApproved: true });
     scrollToRef(step3CardRef);
   };
 

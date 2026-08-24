@@ -60,8 +60,29 @@ export function ProjectProvider({ children }) {
   const userId = currentUser?.id || 'guest';
   const isDemoUser = Boolean(currentUser?.id && (currentUser.id === 'user_researcher_01' || currentUser.id === 'user_student_02' || currentUser.id.startsWith('user_')));
 
-  const [projects, setProjects] = useState([]);
-  const [activeProjectId, setActiveProjectId] = useState(null);
+  const [projects, setProjects] = useState(() => {
+    try {
+      const saved = localStorage.getItem(`litreview_projects_${userId}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {}
+    return isDemoUser ? INITIAL_DEMO_PROJECTS : [];
+  });
+
+  const [activeProjectId, setActiveProjectId] = useState(() => {
+    try {
+      const savedActiveId = localStorage.getItem(`litreview_active_project_id_${userId}`);
+      if (savedActiveId) return savedActiveId;
+      const saved = localStorage.getItem(`litreview_projects_${userId}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed[0]?.id) return parsed[0].id;
+      }
+    } catch {}
+    return isDemoUser ? INITIAL_DEMO_PROJECTS[0].id : null;
+  });
 
   // Switch project state when switching user
   useEffect(() => {
