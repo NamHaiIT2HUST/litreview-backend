@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
-  Search, Download, ExternalLink, PlusCircle, CheckCircle2, Key, Loader2, AlertCircle, 
+  Search, Download, ExternalLink, Plus, PlusCircle, CheckCircle2, Key, Loader2, AlertCircle, 
   ChevronDown, ChevronUp, ShieldCheck, ShieldAlert, Activity, Check, X, HelpCircle,
   BookOpen, Sparkles, Trash2, Target, GitFork, FileText
 } from 'lucide-react';
