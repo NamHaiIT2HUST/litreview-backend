@@ -176,7 +176,7 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
     deleteProject, duplicateProject, shareProject,
     createProject
   } = useProject();
-  const { t, language } = useLanguage();
+  const { t, language, setLanguage } = useLanguage();
 
   const isVietnamese = language === 'vi';
 
@@ -436,6 +436,20 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
             <span>{isVietnamese ? 'Tạo mới' : 'New Notebook'}</span>
           </button>
 
+          {/* Quick Language Toggle Button */}
+          <button
+            onClick={() => {
+              const nextLang = language === 'vi' ? 'en' : 'vi';
+              setLanguage(nextLang);
+              showToast(nextLang === 'vi' ? 'Đã đổi sang Tiếng Việt' : 'Switched to English');
+            }}
+            className="px-3 sm:px-3.5 py-2 sm:py-2.5 rounded-full bg-[#161B26] hover:bg-[#232938] border border-slate-700/70 text-xs sm:text-sm font-extrabold text-slate-200 flex items-center gap-1.5 transition-all shadow-inner cursor-pointer"
+            title={isVietnamese ? 'Chuyển sang Tiếng Anh' : 'Switch to Vietnamese'}
+          >
+            <Globe className="w-3.5 h-3.5 text-blue-400" />
+            <span>{language === 'vi' ? 'VI' : 'EN'}</span>
+          </button>
+
           {/* Profile & Settings Dropdown Trigger */}
           <div className="relative" ref={profileMenuRef}>
             <button
@@ -486,12 +500,24 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
                   </div>
                 </div>
 
-                {/* Actions List */}
+                {/* Actions List with Language Toggle */}
                 <div className="py-2 space-y-1">
-                  <div className="px-3 py-2 text-xs text-slate-400 flex items-center justify-between">
-                    <span>{isVietnamese ? 'Ngôn ngữ hệ thống' : 'Language'}</span>
-                    <span className="font-bold text-slate-200">{isVietnamese ? 'Tiếng Việt (VI)' : 'English (EN)'}</span>
-                  </div>
+                  <button
+                    onClick={() => {
+                      const nextLang = language === 'vi' ? 'en' : 'vi';
+                      setLanguage(nextLang);
+                      showToast(nextLang === 'vi' ? 'Đã đổi sang Tiếng Việt' : 'Switched to English');
+                    }}
+                    className="w-full px-3 py-2.5 rounded-xl hover:bg-slate-700/50 flex items-center justify-between text-xs sm:text-sm font-semibold transition-colors cursor-pointer text-slate-200"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Globe className="w-4 h-4 text-blue-400" />
+                      <span>{isVietnamese ? 'Ngôn ngữ' : 'Language'}</span>
+                    </div>
+                    <div className="px-2.5 py-1 rounded-lg bg-blue-500/20 text-blue-300 font-extrabold text-xs">
+                      {language === 'vi' ? '🇻🇳 Tiếng Việt' : '🇺🇸 English'}
+                    </div>
+                  </button>
                 </div>
 
                 {/* Logout Action */}

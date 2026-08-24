@@ -625,6 +625,27 @@ export default function Sidebar({
             )}
           </button>
 
+          {/* Language Switcher */}
+          <button
+            onClick={() => setLanguage(language === 'vi' ? 'en' : 'vi')}
+            className={`group relative flex items-center rounded-xl text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 hover:text-surface-900 dark:hover:text-white transition-colors text-sm font-medium cursor-pointer ${
+              isCollapsed ? 'w-full justify-center h-9 p-0' : 'w-full gap-3 px-3 py-2'
+            }`}
+            title={isVietnamese ? 'Chuyển sang Tiếng Anh' : 'Switch to Vietnamese'}
+          >
+            <Languages className="w-4 h-4 text-blue-500 flex-shrink-0" />
+            {!isCollapsed && (
+              <span className="truncate text-xs font-bold text-slate-700 dark:text-slate-200">
+                {language === 'vi' ? 'Tiếng Việt (VI)' : 'English (EN)'}
+              </span>
+            )}
+            {isCollapsed && (
+              <span className="tooltip left-full ml-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                {language === 'vi' ? 'VI' : 'EN'}
+              </span>
+            )}
+          </button>
+
           {/* Theme Toggle */}
           <button
             onClick={() => setDarkMode(!darkMode)}
