@@ -464,6 +464,7 @@ const DICTIONARY = {
       matrix: 'So sánh Bài báo',
       prisma: 'Chuẩn PRISMA',
       demoProfiles: 'Tài khoản Mẫu',
+      team: 'Đội ngũ',
       faq: 'Hỏi đáp',
       login: 'Đăng nhập',
       startFree: 'Bắt đầu Miễn phí',
@@ -564,6 +565,53 @@ const DICTIONARY = {
       q4: 'Tôi có thể tải lên tài liệu PDF của riêng mình không?',
       a4: 'Có. Trong WorkspaceTab, bạn có thể tải lên trực tiếp các file PDF tài liệu toàn văn để hệ thống trích xuất nội dung, đưa vào ma trận so sánh và phân tích chuyên sâu.',
     },
+    team: {
+      badge: 'ĐỘI NGŨ PHÁT TRIỂN',
+      title: 'Đội ngũ Phát triển Sản phẩm',
+      desc: 'Dự án Nghiên cứu & Phát triển thuộc Khóa 3 — Chương trình AI Thực Chiến',
+      members: [
+        {
+          name: 'Nguyễn Đình Liêm',
+          studentId: '2A202601421',
+          role: 'Học viên khóa 3',
+          course: 'Chương trình AI thực chiến',
+          img: '/src/assets/member1.png',
+          imgPublic: '/member1.png',
+          initials: 'NL',
+          color: 'from-blue-600 to-indigo-700'
+        },
+        {
+          name: 'Tạ Thị Nga',
+          studentId: '2A202601125',
+          role: 'Học viên khóa 3',
+          course: 'Chương trình AI thực chiến',
+          img: '/src/assets/member2.png',
+          imgPublic: '/member2.png',
+          initials: 'TN',
+          color: 'from-purple-600 to-pink-600'
+        },
+        {
+          name: 'Nguyễn Văn Hưng',
+          studentId: '2A202601970',
+          role: 'Học viên khóa 3',
+          course: 'Chương trình AI thực chiến',
+          img: '/src/assets/member3.png',
+          imgPublic: '/member3.png',
+          initials: 'NH',
+          color: 'from-emerald-600 to-teal-700'
+        },
+        {
+          name: 'Nguyễn Đào Nam Hải',
+          studentId: '2A202601037',
+          role: 'Học viên khóa 3',
+          course: 'Chương trình AI thực chiến',
+          img: '/src/assets/member4.png',
+          imgPublic: '/member4.png',
+          initials: 'NH',
+          color: 'from-primary-600 to-cyan-700'
+        }
+      ]
+    },
     final: {
       title: 'Bản tổng quan tài liệu tiếp theo của bạn, hoàn thành nhanh gấp 5 lần.',
       desc: 'Trải nghiệm ngay quy trình tổng quan tài liệu khoa học chuẩn mực PRISMA.',
@@ -579,6 +627,7 @@ const DICTIONARY = {
       matrix: 'Literature Matrix',
       prisma: 'PRISMA Standard',
       demoProfiles: 'Demo Profiles',
+      team: 'Team',
       faq: 'FAQ',
       login: 'Sign In',
       startFree: 'Start Free',
@@ -678,6 +727,53 @@ const DICTIONARY = {
       a3: 'The system cross-references journal names, ISSNs, and publisher metadata against verified Scopus databases, retaining only confirmed publications.',
       q4: 'Can I upload my own PDF documents directly?',
       a4: 'Yes. In the WorkspaceTab, you can directly upload full-text PDF files to extract structured tables, populate the comparison matrix, and query via grounded RAG.',
+    },
+    team: {
+      badge: 'DEVELOPMENT TEAM',
+      title: 'Product Development Team',
+      desc: 'Research & Development Project under AI Engineering Cohort 3 Program',
+      members: [
+        {
+          name: 'Nguyễn Đình Liêm',
+          studentId: '2A202601421',
+          role: 'Cohort 3 Student',
+          course: 'AI Engineering Program',
+          img: '/src/assets/member1.png',
+          imgPublic: '/member1.png',
+          initials: 'NL',
+          color: 'from-blue-600 to-indigo-700'
+        },
+        {
+          name: 'Tạ Thị Nga',
+          studentId: '2A202601125',
+          role: 'Cohort 3 Student',
+          course: 'AI Engineering Program',
+          img: '/src/assets/member2.png',
+          imgPublic: '/member2.png',
+          initials: 'TN',
+          color: 'from-purple-600 to-pink-600'
+        },
+        {
+          name: 'Nguyễn Văn Hưng',
+          studentId: '2A202601970',
+          role: 'Cohort 3 Student',
+          course: 'AI Engineering Program',
+          img: '/src/assets/member3.png',
+          imgPublic: '/member3.png',
+          initials: 'NH',
+          color: 'from-emerald-600 to-teal-700'
+        },
+        {
+          name: 'Nguyễn Đào Nam Hải',
+          studentId: '2A202601037',
+          role: 'Cohort 3 Student',
+          course: 'AI Engineering Program',
+          img: '/src/assets/member4.png',
+          imgPublic: '/member4.png',
+          initials: 'NH',
+          color: 'from-primary-600 to-cyan-700'
+        }
+      ]
     },
     final: {
       title: 'Your next systematic literature review, completed 5x faster.',
@@ -908,7 +1004,8 @@ export default function PublicLandingPage({ onOpenAuth }) {
           { id: 'matrix', label: language === 'vi' ? '04 Ma trận So sánh' : '04 Methodology Matrix' },
           { id: 'prisma', label: language === 'vi' ? '05 Chuẩn PRISMA' : '05 PRISMA Protocol' },
           { id: 'demo-accounts', label: language === 'vi' ? '06 Tài khoản Mẫu' : '06 Demo Profiles' },
-          { id: 'faq', label: language === 'vi' ? '07 Hỏi đáp (FAQ)' : '07 FAQ' },
+          { id: 'team', label: language === 'vi' ? '07 Đội ngũ' : '07 Team' },
+          { id: 'faq', label: language === 'vi' ? '08 Hỏi đáp (FAQ)' : '08 FAQ' },
         ].map((item) => {
           const isActive = activeSection === item.id;
           return (
@@ -956,12 +1053,13 @@ export default function PublicLandingPage({ onOpenAuth }) {
           </div>
 
           {/* Desktop Nav Links */}
-          <nav className="hidden lg:flex items-center gap-6 xl:gap-8 text-sm xl:text-[14.5px] font-bold text-slate-700 dark:text-slate-200 whitespace-nowrap">
+          <nav className="hidden lg:flex items-center gap-5 xl:gap-7 text-sm xl:text-[14.5px] font-bold text-slate-700 dark:text-slate-200 whitespace-nowrap">
             <a href="#simulator" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1">{d.nav.simulator}</a>
             <a href="#agents" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1">{d.nav.agents}</a>
             <a href="#matrix" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1">{d.nav.matrix}</a>
             <a href="#prisma" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1">{d.nav.prisma}</a>
             <a href="#demo-accounts" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1">{d.nav.demoProfiles}</a>
+            <a href="#team" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1">{d.nav.team}</a>
             <a href="#faq" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1">{d.nav.faq}</a>
           </nav>
 
@@ -2024,7 +2122,77 @@ export default function PublicLandingPage({ onOpenAuth }) {
         </div>
       </section>
 
-      {/* ── 8. FAQ Accordion ───────────────────────────────────────────── */}
+      {/* ── 8. Product Development Team ─────────────────────────────────── */}
+      <section id="team" className="py-20 bg-surface-100/60 dark:bg-surface-900/40 border-y border-surface-200 dark:border-surface-800 relative z-10 morph-section-bridge">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+          
+          <ScrollReveal variant="morph" className="text-center space-y-2">
+            <span className="section-label block">{d.team.badge}</span>
+            <h2 className="font-display font-bold text-2xl sm:text-3xl text-surface-900 dark:text-white">
+              <span className="text-shimmer">{d.team.title}</span>
+            </h2>
+            <p className="text-xs sm:text-sm text-surface-500 max-w-2xl mx-auto">
+              {d.team.desc}
+            </p>
+          </ScrollReveal>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {d.team.members.map((member, idx) => (
+              <ScrollReveal key={idx} variant="cascade" delay={idx * 100}>
+                <div className="card p-6 flex flex-col items-center text-center space-y-4 hover:border-primary-500 hover:shadow-2xl transition-all group backdrop-blur-md scrolly-card relative overflow-hidden">
+                  
+                  {/* Subtle top glow bar */}
+                  <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${member.color} opacity-80`} />
+
+                  {/* Avatar / Photo Container */}
+                  <div className="relative w-28 h-28 rounded-2xl overflow-hidden shadow-lg border-2 border-surface-200/80 dark:border-surface-700/80 group-hover:scale-105 group-hover:border-primary-400 transition-all duration-300 bg-surface-100 dark:bg-surface-800 flex items-center justify-center">
+                    <img
+                      src={member.img}
+                      alt={member.name}
+                      onError={(e) => {
+                        if (e.target.src.includes('/src/assets/')) {
+                          e.target.src = member.imgPublic;
+                        } else {
+                          e.target.style.display = 'none';
+                          const fallback = e.target.parentElement.querySelector('.member-fallback');
+                          if (fallback) fallback.style.display = 'flex';
+                        }
+                      }}
+                      className="w-full h-full object-cover object-center"
+                    />
+                    {/* Fallback Initials (shown if image is not yet uploaded) */}
+                    <div className={`member-fallback w-full h-full bg-gradient-to-br ${member.color} text-white font-bold text-2xl flex items-center justify-center shadow-inner`} style={{ display: 'none' }}>
+                      {member.initials}
+                    </div>
+                  </div>
+
+                  {/* Name and Info */}
+                  <div className="space-y-1.5 w-full">
+                    <h3 className="font-display font-bold text-base text-surface-900 dark:text-white leading-snug group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+                      {member.name}
+                    </h3>
+                    
+                    <div className="flex items-center justify-center gap-1.5 pt-1">
+                      <span className="badge badge-primary font-mono text-[10px] px-2.5 py-0.5 font-bold shadow-2xs">
+                        ID: {member.studentId}
+                      </span>
+                    </div>
+
+                    <div className="pt-2 text-xs text-surface-600 dark:text-surface-300 font-medium">
+                      <span className="block text-primary-700 dark:text-primary-300 font-semibold">{member.role}</span>
+                      <span className="text-[11px] text-surface-400 dark:text-surface-400">{member.course}</span>
+                    </div>
+                  </div>
+
+                </div>
+              </ScrollReveal>
+            ))}
+          </div>
+
+        </div>
+      </section>
+
+      {/* ── 9. FAQ Accordion ───────────────────────────────────────────── */}
       <section id="faq" className="py-20 max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 relative z-10 morph-section-bridge">
         <ScrollReveal variant="morph" className="text-center space-y-2">
           <span className="section-label block">{d.faq.badge}</span>
