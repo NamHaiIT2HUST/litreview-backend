@@ -9,7 +9,7 @@ export const getApiBase = () => {
       return `http://${hostname}:8000/api/v1`;
     }
   }
-  return 'https://litreview-backend-5u4q.onrender.com/api/v1';
+  return 'https://litreview-backend-production-0298.up.railway.app/api/v1';
 };
 
 export const API_BASE = getApiBase();
@@ -42,7 +42,7 @@ export const safeFetch = async (urlOrEndpoint, options = {}) => {
     if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
       const path = primaryUrl.includes('/api/v1') ? primaryUrl.split('/api/v1')[1] : '';
       if (path) {
-        const fallbackUrl = `https://litreview-backend-5u4q.onrender.com/api/v1${path}`;
+        const fallbackUrl = `https://litreview-backend-production-0298.up.railway.app/api/v1${path}`;
         try {
           return await fetch(fallbackUrl, options);
         } catch (fallbackErr) {
