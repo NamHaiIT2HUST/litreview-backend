@@ -224,22 +224,61 @@ export default function HorizontalNavbar({
             )}
           </button>
 
-          {/* User Profile Avatar Pill */}
+          {/* User Profile Pill with Avatar Image, Full Name & Email */}
           <div className="relative" ref={profileDropdownRef}>
             <button
               onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-              className="w-9 h-9 rounded-xl bg-slate-900 dark:bg-slate-800 text-white font-extrabold text-xs flex items-center justify-center shadow-sm hover:ring-2 hover:ring-blue-500/40 transition-all cursor-pointer ml-1"
+              className="flex items-center gap-2 py-1 pl-1 pr-2 sm:pr-2.5 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 transition-all cursor-pointer shadow-xs ml-1 max-w-[220px]"
               title={currentUser?.name || 'User Profile'}
             >
-              {userInitials}
+              {currentUser?.picture ? (
+                <img
+                  src={currentUser.picture}
+                  alt={currentUser.name}
+                  className="w-8 h-8 rounded-lg object-cover ring-1 ring-blue-500/30 flex-shrink-0"
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-700 text-white font-extrabold text-xs flex items-center justify-center flex-shrink-0 shadow-xs">
+                  {userInitials}
+                </div>
+              )}
+              <div className="hidden lg:block text-left min-w-0 flex-1">
+                <p className="font-bold text-xs text-slate-800 dark:text-white truncate leading-tight">
+                  {currentUser?.name || 'Researcher'}
+                </p>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate leading-tight lowercase">
+                  {currentUser?.email || currentUser?.role || 'user@research.edu'}
+                </p>
+              </div>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 hidden sm:block" />
             </button>
 
             {profileDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl py-2 z-50 animate-slide-up text-xs">
-                <div className="px-4 py-2 border-b border-slate-100 dark:border-slate-800">
-                  <p className="font-bold text-slate-900 dark:text-white truncate">{currentUser?.name || 'Researcher'}</p>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{currentUser?.email || 'name@university.edu'}</p>
-                  <span className="badge badge-primary text-[9px] mt-1.5 font-mono uppercase">{currentUser?.role || 'Senior Researcher'}</span>
+              <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl py-2 z-50 animate-slide-up text-xs">
+                <div className="px-4 py-2.5 border-b border-slate-100 dark:border-slate-800 space-y-1.5">
+                  <div className="flex items-center gap-2.5">
+                    {currentUser?.picture ? (
+                      <img
+                        src={currentUser.picture}
+                        alt={currentUser.name}
+                        className="w-9 h-9 rounded-xl object-cover ring-1 ring-blue-500/30 flex-shrink-0"
+                      />
+                    ) : (
+                      <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white font-bold flex items-center justify-center text-xs flex-shrink-0">
+                        {userInitials}
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold text-slate-900 dark:text-white truncate">{currentUser?.name || 'Researcher'}</p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate lowercase">{currentUser?.email || 'name@university.edu'}</p>
+                    </div>
+                  </div>
+                  <div className="pt-1 flex items-center gap-1.5">
+                    <span className="badge badge-primary text-[9.5px] uppercase">{currentUser?.role || 'Senior Researcher'}</span>
+                    {currentUser?.institution && (
+                      <span className="text-[10px] text-slate-400 truncate">{currentUser.institution}</span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="p-1 space-y-0.5">
