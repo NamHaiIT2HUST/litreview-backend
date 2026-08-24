@@ -151,7 +151,7 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }) {
 
   if (!isOpen) return null;
 
-  const handleLoginSubmit = (e) => {
+  const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setError('');
     if (!email.trim()) {
@@ -163,11 +163,14 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }) {
       return;
     }
     setLoading(true);
-    setTimeout(() => {
-      login(email, password);
+    try {
+      await login(email, password);
       setLoading(false);
       onClose();
-    }, 450);
+    } catch (err) {
+      setError(err?.message || 'Đăng nhập không thành công. Vui lòng kiểm tra lại thông tin.');
+      setLoading(false);
+    }
   };
 
   const handleGoogleSignIn = async () => {
@@ -183,15 +186,15 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }) {
     }
   };
 
-  const handleRegisterSubmit = (e) => {
+  const handleRegisterSubmit = async (e) => {
     e.preventDefault();
     setError('');
     if (!name.trim() || !email.trim()) {
       setError(t.errFields);
       return;
     }
-    if (password.length < 8) {
-      setError(t.errPasswordLength);
+    if (password.length < 6) {
+      setError(language === 'vi' ? 'Mật khẩu phải có ít nhất 6 ký tự.' : 'Password must be at least 6 characters.');
       return;
     }
     if (password !== confirmPassword) {
@@ -199,11 +202,14 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }) {
       return;
     }
     setLoading(true);
-    setTimeout(() => {
-      register({ name, email, password, institution, role });
+    try {
+      await register({ name, email, password, institution, role });
       setLoading(false);
       onClose();
-    }, 450);
+    } catch (err) {
+      setError(err?.message || 'Đăng ký không thành công. Vui lòng thử lại.');
+      setLoading(false);
+    }
   };
 
   const handleForgotSubmit = async (e) => {

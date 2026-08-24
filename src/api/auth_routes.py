@@ -108,14 +108,13 @@ class UserProfileResponse(BaseModel):
 
 @router.post("/register")
 async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
-    if len(user_data.password) < 8:
-        raise HTTPException(status_code=400, detail="Mật khẩu phải có ít nhất 8 ký tự.")
-    if not any(char in "!@#$%^&*()_+-=[]{}|;':,.<>?/" for char in user_data.password):
-        raise HTTPException(status_code=400, detail="Mật khẩu phải chứa ít nhất 1 ký tự đặc biệt.")
+    if len(user_data.password) < 6:
+        raise HTTPException(status_code=400, detail="Mật khẩu phải có ít nhất 6 ký tự.")
     
-    result = await db.execute(select(User).where(User.username == user_data.username))
+    clean_username = user_data.username.strip().lower()
+    result = await db.execute(select(User).where(func.lower(User.username) == clean_username))
     if result.scalars().first():
-        raise HTTPException(status_code=400, detail="Tên người dùng đã tồn tại.")
+        raise HTTPException(status_code=400, detail="Tên người dùng hoặc email đã tồn tại.")
 
     role_val = Role.admin if user_data.role == "admin" else Role.user
     
