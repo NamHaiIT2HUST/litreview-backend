@@ -22,11 +22,15 @@ import {
   BookOpen,
   PanelLeftClose,
   PanelLeft,
+  PanelRightClose,
+  PanelRight,
   Plus,
   BarChart2,
   MessageSquare,
   ShieldCheck,
-  Clock
+  Clock,
+  Layers,
+  ChevronRight
 } from 'lucide-react';
 
 import { API_BASE, safeFetch } from '../../utils/apiConfig';
@@ -281,6 +285,13 @@ export default function WorkspaceTab({
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = React.useRef(null);
 
+  // Right Studio States (Google NotebookLM 3-column architecture)
+  const [isStudioOpen, setIsStudioOpen] = useState(() => typeof window !== 'undefined' ? window.innerWidth >= 1280 : true);
+  const [activeStudioTab, setActiveStudioTab] = useState('synthesis'); // 'synthesis' | 'analyze'
+  const [studioWidth, setStudioWidth] = useState(480);
+  const [isStudioResizing, setIsStudioResizing] = useState(false);
+  const studioRef = React.useRef(null);
+
   const [verificationWidth, setVerificationWidth] = useState(380);
   const [isVerifResizing, setIsVerifResizing] = useState(false);
   const verifRef = React.useRef(null);
@@ -311,6 +322,35 @@ export default function WorkspaceTab({
       document.body.style.userSelect = 'auto';
     };
   }, [isResizing]);
+
+  // Studio Resizer Effect
+  React.useEffect(() => {
+    if (!isStudioResizing) return;
+    const handleMouseMove = (e) => {
+      if (studioRef.current) {
+        const rightEdge = studioRef.current.getBoundingClientRect().right;
+        const newWidth = rightEdge - e.clientX;
+        if (newWidth >= 340 && newWidth <= 950) {
+          setStudioWidth(newWidth);
+        }
+      }
+    };
+    const handleMouseUp = () => {
+      setIsStudioResizing(false);
+      document.body.style.cursor = 'default';
+      document.body.style.userSelect = 'auto';
+    };
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'default';
+      document.body.style.userSelect = 'auto';
+    };
+  }, [isStudioResizing]);
 
   React.useEffect(() => {
     if (!isVerifResizing) return;
@@ -748,93 +788,145 @@ export default function WorkspaceTab({
         )}
       </div>
 
-      {/* ── RIGHT: Active Workspace Panel ── */}
-      <div className="flex-1 flex gap-4 h-full min-h-0 overflow-hidden relative">
-        {/* Main Content Area (Chat/Synthesis/Data) */}
-        <div className="card flex-1 flex flex-col overflow-hidden">
-            {/* ── Workspace Header ── */}
-            <div className="flex items-center justify-between px-5 h-14 border-b border-surface-100 dark:border-surface-800 shrink-0 gap-3">
-              
-              {/* Left: Brand / Title */}
-              <div className="flex items-center gap-2.5 shrink-0">
-                <div className="w-8 h-8 rounded-xl overflow-hidden shrink-0 shadow-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center justify-center p-0.5">
-                  <img src="/AI.png" alt="AI Assistant" className="w-full h-full object-cover rounded-[10px]" />
-                </div>
-                <div className="hidden sm:block">
-                  <span className="font-display font-semibold text-xs text-surface-900 dark:text-white block leading-none">
-                    {t('workspace.ai_assistant')}
-                  </span>
-                  <span className="section-label mt-0.5 block">
-                    Workspace Mode
-                  </span>
-                </div>
+      {/* ── CENTER & RIGHT: Google NotebookLM 3-Column Architecture ── */}
+      <div className="flex-1 flex gap-3 h-full min-h-0 overflow-hidden relative">
+        
+        {/* ── 1. CENTER COLUMN: Chat with Sources (Primary Workspace) ── */}
+        <div className="card flex-1 flex flex-col overflow-hidden min-w-0">
+          
+          {/* Center Chat Header */}
+          <div className="flex items-center justify-between px-5 h-14 border-b border-surface-100 dark:border-surface-800 shrink-0 gap-3">
+            
+            {/* Left: Brand / Title */}
+            <div className="flex items-center gap-2.5 shrink-0">
+              <div className="w-8 h-8 rounded-xl overflow-hidden shrink-0 shadow-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center justify-center p-0.5">
+                <img src="/AI.png" alt="AI Assistant" className="w-full h-full object-cover rounded-[10px]" />
               </div>
-
-              {/* Center / Right: The 3 Main Workspace Navigation Tabs */}
-              <div className="flex items-center gap-2">
-                <div id="tour-workspace-tabs" className="flex items-center bg-surface-100 dark:bg-surface-800 p-1 rounded-xl border border-surface-200 dark:border-surface-700">
-                  {[
-                    { id: 'chat', label: t('workspace.tab_chat'), Icon: MessageSquare },
-                    { id: 'synthesis', label: t('workspace.tab_synthesis'), Icon: FileText },
-                    { id: 'analyze', label: t('workspace.tab_analyze'), Icon: BarChart2 },
-                  ].map(({ id, label, Icon }) => {
-                    const isActive = activeWorkspaceTab === id;
-                    return (
-                      <button
-                        key={id}
-                        type="button"
-                        onClick={() => setActiveWorkspaceTab(id)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all select-none cursor-pointer ${
-                          isActive
-                            ? 'bg-white dark:bg-surface-700 text-primary-600 dark:text-primary-400 shadow-xs'
-                            : 'text-surface-500 hover:text-surface-800 dark:hover:text-surface-200'
-                        }`}
-                      >
-                        <Icon className="w-3.5 h-3.5" />
-                        <span className="hidden lg:inline">{label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {activeWorkspaceTab === 'chat' && (
-                  <button
-                    onClick={() => {
-                      const isVi = true;
-                      if (window.confirm(isVi ? 'Bạn có muốn làm mới toàn bộ đoạn chat cho đề tài này không?' : 'Do you want to reset the chat conversation for this project?')) {
-                        const welcomeText = activeProject?.name
-                          ? `Chào mừng bạn đến với **Không gian Phân tích** cho đề tài **${activeProject.name}**! Hãy chọn các bài báo từ phần *Tìm kiếm* để bắt đầu tổng hợp y văn có dẫn nguồn, hoặc tải lên tập tin PDF toàn văn để trích xuất sâu.`
-                          : `Chào mừng bạn đến với **LitReview Agent**! Hãy tìm kiếm trên Google Scholar, hệ thống sẽ tự động đối chiếu Scopus và chỉ giữ các bài đã xác minh.`;
-                        const freshMsg = [{ sender: 'ai', text: welcomeText }];
-                        setChatMessages(freshMsg);
-                        if (currentProjectId) {
-                          localStorage.setItem(`litreview_workspace_chat_${currentProjectId}`, JSON.stringify(freshMsg));
-                        }
-                      }
-                    }}
-                    className="p-2 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
-                    title="Làm mới đoạn chat cho đề tài này"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                )}
+              <div>
+                <span className="font-display font-bold text-xs sm:text-sm text-surface-900 dark:text-white block leading-none">
+                  {t('workspace.ai_assistant')}
+                </span>
+                <span className="text-[10px] text-blue-500 font-semibold mt-0.5 block">
+                  {scopedPapers.length} {isVietnamese ? 'nguồn được chọn' : 'sources active'}
+                </span>
               </div>
             </div>
-            
-            <div className="flex-1 min-h-0 flex flex-col relative z-0">
-              {activeWorkspaceTab === 'chat' && (
-                <ChatPanel
-                  workspacePapers={scopedPapers}
-                  selectedSourceIds={selectedPaperIds}
-                  chatMessages={chatMessages}
-                  setChatMessages={setChatMessages}
-                  activeCitation={activeCitation}
-                  setActiveCitation={setActiveCitation}
-                  darkMode={darkMode}
-                />
-              )}
 
-              {activeWorkspaceTab === 'synthesis' && (
+            {/* Right: Controls (Clear Chat & Toggle Studio) */}
+            <div className="flex items-center gap-2">
+              
+              {/* Clear Chat Button */}
+              <button
+                onClick={() => {
+                  const isVi = true;
+                  if (window.confirm(isVi ? 'Bạn có muốn làm mới toàn bộ đoạn chat cho đề tài này không?' : 'Do you want to reset the chat conversation for this project?')) {
+                    const welcomeText = activeProject?.name
+                      ? `Chào mừng bạn đến với **Không gian Phân tích** cho đề tài **${activeProject.name}**! Hãy chọn các bài báo từ phần *Tìm kiếm* để bắt đầu tổng hợp y văn có dẫn nguồn, hoặc tải lên tập tin PDF toàn văn để trích xuất sâu.`
+                      : `Chào mừng bạn đến với **LitReview Agent**! Hãy tìm kiếm trên Google Scholar, hệ thống sẽ tự động đối chiếu Scopus và chỉ giữ các bài đã xác minh.`;
+                    const freshMsg = [{ sender: 'ai', text: welcomeText }];
+                    setChatMessages(freshMsg);
+                    if (currentProjectId) {
+                      localStorage.setItem(`litreview_workspace_chat_${currentProjectId}`, JSON.stringify(freshMsg));
+                    }
+                  }
+                }}
+                className="p-2 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
+                title={isVietnamese ? "Làm mới đoạn chat cho đề tài này" : "Reset chat"}
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+
+              {/* Studio Panel Toggle Pill */}
+              <button
+                onClick={() => setIsStudioOpen(!isStudioOpen)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 border transition-all cursor-pointer shadow-xs ${
+                  isStudioOpen
+                    ? 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800'
+                    : 'bg-surface-50 text-surface-600 border-surface-200 hover:bg-surface-100 dark:bg-surface-800 dark:text-surface-300 dark:border-surface-700'
+                }`}
+                title={isStudioOpen ? (isVietnamese ? 'Thu gọn Studio' : 'Collapse Studio') : (isVietnamese ? 'Mở rộng Studio (Tổng quan & Phân tích)' : 'Open Studio')}
+              >
+                <Sparkles className="w-3.5 h-3.5 text-blue-500" />
+                <span className="hidden sm:inline">{isVietnamese ? 'Studio' : 'Studio'}</span>
+                {isStudioOpen ? <PanelRightClose className="w-3.5 h-3.5" /> : <PanelRight className="w-3.5 h-3.5" />}
+              </button>
+            </div>
+          </div>
+          
+          {/* Chat Panel Body */}
+          <div className="flex-1 min-h-0 flex flex-col relative z-0">
+            <ChatPanel
+              workspacePapers={scopedPapers}
+              selectedSourceIds={selectedPaperIds}
+              chatMessages={chatMessages}
+              setChatMessages={setChatMessages}
+              activeCitation={activeCitation}
+              setActiveCitation={setActiveCitation}
+              darkMode={darkMode}
+            />
+          </div>
+        </div>
+
+        {/* ── 2. RIGHT COLUMN: NotebookLM Studio (Synthesis & Data Analysis) ── */}
+        {isStudioOpen ? (
+          <div
+            ref={studioRef}
+            className="card shrink-0 flex flex-col overflow-hidden relative shadow-lg transition-all duration-150"
+            style={{ width: Math.min(studioWidth, typeof window !== 'undefined' ? window.innerWidth * 0.55 : 550) }}
+          >
+            {/* Left resizer handle for Studio */}
+            <div 
+              className="hidden lg:flex absolute -left-2 top-0 bottom-0 w-4 cursor-col-resize z-20 items-center justify-center group"
+              onMouseDown={(e) => { e.preventDefault(); setIsStudioResizing(true); }}
+            >
+              <div className={`w-0.5 h-12 rounded-full opacity-0 group-hover:opacity-100 transition-opacity bg-surface-300 dark:bg-surface-600 ${isStudioResizing ? 'opacity-100 bg-primary-500' : ''}`} />
+            </div>
+
+            {/* Studio Header (Tabs & Close) */}
+            <div className="flex items-center justify-between px-4 h-14 border-b border-surface-100 dark:border-surface-800 shrink-0 gap-2">
+              
+              {/* Studio Tabs */}
+              <div className="flex items-center bg-surface-100 dark:bg-surface-800 p-1 rounded-xl border border-surface-200 dark:border-surface-700">
+                <button
+                  type="button"
+                  onClick={() => setActiveStudioTab('synthesis')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all select-none cursor-pointer ${
+                    activeStudioTab === 'synthesis'
+                      ? 'bg-white dark:bg-surface-700 text-blue-600 dark:text-blue-400 shadow-xs font-bold'
+                      : 'text-surface-500 hover:text-surface-800 dark:hover:text-surface-200'
+                  }`}
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>{isVietnamese ? 'Tổng quan tài liệu' : 'Synthesis'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveStudioTab('analyze')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all select-none cursor-pointer ${
+                    activeStudioTab === 'analyze'
+                      ? 'bg-white dark:bg-surface-700 text-blue-600 dark:text-blue-400 shadow-xs font-bold'
+                      : 'text-surface-500 hover:text-surface-800 dark:hover:text-surface-200'
+                  }`}
+                >
+                  <BarChart2 className="w-3.5 h-3.5" />
+                  <span>{isVietnamese ? 'Phân tích dữ liệu' : 'Data Analysis'}</span>
+                </button>
+              </div>
+
+              {/* Close Studio Button */}
+              <button
+                onClick={() => setIsStudioOpen(false)}
+                className="p-1.5 rounded-lg text-surface-400 hover:text-surface-600 dark:hover:text-surface-200 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors cursor-pointer"
+                title={isVietnamese ? 'Đóng Studio' : 'Close Studio'}
+              >
+                <PanelRightClose className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Studio Body Content */}
+            <div className="flex-1 min-h-0 flex flex-col overflow-y-auto custom-scrollbar">
+              {activeStudioTab === 'synthesis' && (
                 <SynthesisPanel
                   workspacePapers={scopedPapers}
                   setActiveCitation={setActiveCitation}
@@ -842,7 +934,7 @@ export default function WorkspaceTab({
                   onSendToChat={handleSendToChat}
                 />
               )}
-              {activeWorkspaceTab === 'analyze' && (
+              {activeStudioTab === 'analyze' && (
                 <DataAnalysisPanel 
                   workspacePapers={scopedPapers}
                   darkMode={darkMode}
@@ -856,12 +948,50 @@ export default function WorkspaceTab({
               )}
             </div>
           </div>
+        ) : (
+          /* Collapsed Studio Vertical Bar */
+          <div className="card shrink-0 w-12 flex flex-col items-center py-4 gap-4 h-full border border-surface-200 dark:border-surface-800">
+            <button
+              onClick={() => setIsStudioOpen(true)}
+              className="p-2 rounded-xl text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors cursor-pointer"
+              title={isVietnamese ? 'Mở rộng Studio' : 'Expand Studio'}
+            >
+              <PanelRight className="w-4 h-4" />
+            </button>
+            
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => { setActiveStudioTab('synthesis'); setIsStudioOpen(true); }}
+                className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors cursor-pointer ${
+                  activeStudioTab === 'synthesis'
+                    ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
+                    : 'text-surface-400 hover:text-surface-600 hover:bg-surface-100 dark:hover:bg-surface-800'
+                }`}
+                title={isVietnamese ? 'Tổng quan tài liệu' : 'Synthesis'}
+              >
+                <FileText className="w-4 h-4" />
+              </button>
+
+              <button
+                onClick={() => { setActiveStudioTab('analyze'); setIsStudioOpen(true); }}
+                className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors cursor-pointer ${
+                  activeStudioTab === 'analyze'
+                    ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
+                    : 'text-surface-400 hover:text-surface-600 hover:bg-surface-100 dark:hover:bg-surface-800'
+                }`}
+                title={isVietnamese ? 'Phân tích dữ liệu' : 'Data Analysis'}
+              >
+                <BarChart2 className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Citation Verification Panel — slide-in overlay từ phải khi user click citation */}
         {activeCitation && (
           <div 
             ref={verifRef}
-            className="shrink-0 h-full overflow-visible card border-primary-200 dark:border-primary-800 animate-slide-up relative flex"
+            className="shrink-0 h-full overflow-visible card border-primary-200 dark:border-primary-800 animate-slide-up relative flex z-30"
             style={{ width: verificationWidth }}
           >
             {/* Left handle for verification panel */}

@@ -977,6 +977,28 @@ async def workspace_chat(
             except Exception:
                 chunks = []
 
+        # Fallback: If DB/Vector store has no chunks for these papers, construct rich documents from request.papers_data
+        if not chunks and getattr(request, "papers_data", None):
+            for idx, p in enumerate(request.papers_data):
+                p_title = p.get("title") or f"Paper #{idx+1}"
+                p_abstract = p.get("abstract") or p.get("summary") or ""
+                p_authors = p.get("authors") or ""
+                p_year = p.get("year") or ""
+                p_journal = p.get("journal") or ""
+                text = f"Title: {p_title}\nAuthors: {p_authors} ({p_year})\nJournal: {p_journal}\nAbstract: {p_abstract}"
+                doc = Document(
+                    page_content=text,
+                    metadata={
+                        "paper_id": str(p.get("id") or idx),
+                        "paper_title": p_title,
+                        "page": 1,
+                        "source": f"paper_{idx+1}.pdf",
+                        "page_char_start": 0,
+                        "page_char_end": len(text)
+                    }
+                )
+                chunks.append(doc)
+
         # Bước 2: Sinh câu trả lời dựa trên context (có structured citation metadata)
         result = await rag_service.generate_answer_with_citations(request.message, chunks)
 

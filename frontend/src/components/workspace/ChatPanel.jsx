@@ -52,11 +52,24 @@ export default function ChatPanel({
       const paperIds = selectedSourceIds && selectedSourceIds.length > 0 
         ? selectedSourceIds 
         : (workspacePapers ? workspacePapers.map(p => p.id) : []);
+
+      const papersPayload = (workspacePapers || []).map((p, idx) => ({
+        id: p.id || `paper_${idx}`,
+        title: p.title || p.filename || 'Untitled Document',
+        abstract: p.abstract || p.summary || '',
+        authors: p.authors || '',
+        year: p.year || 2024,
+        journal: p.journal || ''
+      }));
         
       const response = await safeFetch('/workspace/chat', {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: question, paper_ids: paperIds }),
+        body: JSON.stringify({ 
+          message: question, 
+          paper_ids: paperIds,
+          papers_data: papersPayload 
+        }),
       });
 
       if (!response.ok) {
