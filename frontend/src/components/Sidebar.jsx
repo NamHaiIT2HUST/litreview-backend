@@ -657,11 +657,11 @@ export default function Sidebar({
                       </div>
                     )}
                     <div className="min-w-0 flex-1">
-                      <p className="font-bold text-xs text-surface-900 dark:text-white truncate">
+                      <p className="font-bold text-xs text-slate-900 dark:text-white truncate" title={currentUser.name}>
                         {currentUser.name}
                       </p>
-                      <p className="text-[10px] text-surface-400 truncate uppercase tracking-wider font-mono">
-                        {currentUser.email?.split('@')[1] || currentUser.role}
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate font-normal leading-tight lowercase" title={currentUser.email}>
+                        {currentUser.email || currentUser.role}
                       </p>
                     </div>
                   </div>
