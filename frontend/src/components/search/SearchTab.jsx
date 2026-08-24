@@ -81,11 +81,11 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
 
   const [suggestedKeywords, setSuggestedKeywords] = useState(() => getProjectKeywords());
   const [searchQuery, setSearchQuery] = useState(() => {
-    const kws = getProjectKeywords();
     const saved = localStorage.getItem(`last_search_query_${currentProjectId}`) || localStorage.getItem('last_search_query');
     if (saved) return saved;
-    if (kws.length > 0) return kws.join(' ');
-    return '';
+    const kws = getProjectKeywords();
+    if (kws.length > 0) return kws[0];
+    return 'large language models mobile robot navigation';
   });
 
   // Sync keywords and restore cached search papers when activeProject or currentProjectId changes
@@ -97,7 +97,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
     if (savedQ) {
       setSearchQuery(savedQ);
     } else if (kws.length > 0) {
-      setSearchQuery(kws.join(' '));
+      setSearchQuery(kws[0]);
     }
 
     // Restore cached papers for this project if available
@@ -122,8 +122,8 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
       const kws = getProjectKeywords();
       if (kws.length > 0) {
         setSuggestedKeywords(kws);
-        setSearchQuery(kws.join(' '));
-        localStorage.setItem(`last_search_query_${currentProjectId}`, kws.join(' '));
+        setSearchQuery(kws[0]);
+        localStorage.setItem(`last_search_query_${currentProjectId}`, kws[0]);
       }
     };
     window.addEventListener('new_mesh_query_ready', handleMeshQuery);
@@ -885,16 +885,6 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                   <button
                     type="button"
                     onClick={() => {
-                      setSearchQuery(suggestedKeywords.join(' '));
-                    }}
-                    className="text-[11px] font-bold text-primary-600 dark:text-primary-400 hover:underline cursor-pointer"
-                  >
-                    {isVi ? 'Điền tất cả vào ô tìm kiếm' : 'Apply all keywords'}
-                  </button>
-                  <span className="text-surface-300 dark:text-surface-700">•</span>
-                  <button
-                    type="button"
-                    onClick={() => {
                       navigator.clipboard.writeText(suggestedKeywords.join(' '));
                     }}
                     className="text-[11px] font-semibold text-surface-500 dark:text-surface-400 hover:text-surface-700 dark:hover:text-surface-200 cursor-pointer"
@@ -906,35 +896,87 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
 
               <div className="flex flex-wrap gap-2">
                 {suggestedKeywords.map((kw, idx) => {
-                  const isIncluded = searchQuery.toLowerCase().includes(kw.toLowerCase());
+                  const isSelected = searchQuery === kw || searchQuery.includes(kw);
                   return (
                     <button
                       key={idx}
                       type="button"
                       onClick={() => {
-                        if (isIncluded) {
-                          const regex = new RegExp(`\\b${kw}\\b`, 'gi');
-                          const updated = searchQuery.replace(regex, '').replace(/\s+/g, ' ').trim();
-                          setSearchQuery(updated);
-                        } else {
-                          setSearchQuery(prev => prev ? `${prev} ${kw}`.trim() : kw);
-                        }
+                        setSearchQuery(kw);
                       }}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border shadow-xs ${
-                        isIncluded
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border shadow-xs cursor-pointer ${
+                        isSelected
                           ? 'bg-primary-600 text-white border-primary-500 shadow-primary-sm scale-105'
                           : 'bg-surface-100 hover:bg-surface-200 dark:bg-surface-800/80 dark:hover:bg-surface-800 text-surface-700 dark:text-surface-300 border-surface-200 dark:border-surface-700/60'
                       }`}
-                      title={isIncluded ? (isVi ? 'Nhấn để bỏ chọn' : 'Click to deselect') : (isVi ? 'Nhấn để thêm vào ô tìm kiếm' : 'Click to add')}
+                      title={isVi ? 'Nhấn để tìm kiếm theo từ khóa này' : 'Click to search this keyword'}
                     >
                       <span>{kw}</span>
-                      {isIncluded ? <Check className="w-3 h-3 stroke-[2.5]" /> : <PlusCircle className="w-3 h-3 text-surface-400" />}
+                      {isSelected ? <Check className="w-3 h-3 stroke-[2.5]" /> : null}
                     </button>
                   );
                 })}
               </div>
             </div>
           )}
+
+          {/* Search & Screening Criteria (Tiêu chí Tìm kiếm & Sàng lọc Đề tài) */}
+          <div className="pt-3 border-t border-surface-100 dark:border-surface-800 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-surface-700 dark:text-surface-300 flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                <span>{isVi ? 'Các tiêu chí tìm kiếm & Sàng lọc đề tài (PRISMA):' : 'Topic Search & Screening Criteria (PRISMA):'}</span>
+              </span>
+
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-semibold text-surface-500 dark:text-surface-400 bg-surface-100 dark:bg-surface-800 px-2 py-0.5 rounded-md">
+                  📅 {projectData?.year_from || 2018} – {projectData?.year_to || 2026}
+                </span>
+                <span className="text-[11px] font-semibold text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-950/60 px-2 py-0.5 rounded-md border border-primary-200 dark:border-primary-800">
+                  🏷️ {projectData?.research_field || (isVi ? 'Robotics & Tự hành' : 'Robotics & Autonomous Systems')}
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+              {/* Inclusion Criteria Chips */}
+              <div className="p-3 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30 space-y-1.5">
+                <div className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>{isVi ? 'Tiêu chí chọn vào (Inclusion)' : 'Inclusion Criteria'}</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {(projectData?.criteria_include && projectData.criteria_include.length > 0 ? projectData.criteria_include : [
+                    isVi ? 'Mô hình LLM mã nguồn mở (Llama, Mistral, Gemma...)' : 'Open-source LLM models',
+                    isVi ? 'Lập kế hoạch và điều hướng Robot di động' : 'Mobile robot task planning & navigation',
+                    isVi ? 'Có kết quả đối chuẩn thực nghiệm (Benchmark)' : 'Empirical benchmark evaluations'
+                  ]).map((crit, i) => (
+                    <span key={i} className="px-2.5 py-1 rounded-lg bg-white dark:bg-surface-800 text-emerald-800 dark:text-emerald-300 text-[11px] font-medium border border-emerald-200/60 dark:border-emerald-800/40 shadow-2xs">
+                      ✓ {crit}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Exclusion Criteria Chips */}
+              <div className="p-3 rounded-2xl bg-rose-50/50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/30 space-y-1.5">
+                <div className="text-[11px] font-bold text-rose-700 dark:text-rose-400 uppercase tracking-wider flex items-center gap-1">
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  <span>{isVi ? 'Tiêu chí loại trừ (Exclusion)' : 'Exclusion Criteria'}</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {(projectData?.criteria_exclude && projectData.criteria_exclude.length > 0 ? projectData.criteria_exclude : [
+                    isVi ? 'Bài tổng quan/khảo sát thuần túy không có thực nghiệm' : 'Pure survey without empirical data',
+                    isVi ? 'Công bố ngoài giai đoạn 2018 - 2026' : 'Published outside 2018 - 2026'
+                  ]).map((crit, i) => (
+                    <span key={i} className="px-2.5 py-1 rounded-lg bg-white dark:bg-surface-800 text-rose-800 dark:text-rose-300 text-[11px] font-medium border border-rose-200/60 dark:border-rose-800/40 shadow-2xs">
+                      ✕ {crit}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
         </form>
 
         {/* Mobile History (shown below search on small screens) */}
