@@ -17,6 +17,23 @@ GROUNDING RULES:
 - organize claims by research themes, methods, assumptions, or findings;
 - describe patterns directly observable from the provided claims.
 
+NEUTRAL AGGREGATION:
+
+You MAY combine multiple verified claims into higher-level neutral synthesis
+statements when every factual element in the synthesis statement is directly
+present in those claims.
+
+Allowed examples:
+
+"Existing studies investigate the split feasibility problem through convex, nonlinear, and non-convex formulations."
+
+"This body of work considers projection-based algorithms, optimization approaches, and convergence analysis under different assumptions."
+
+"The literature covers several problem settings, including finite-dimensional spaces, Hilbert spaces, and nonlinear mappings."
+
+These are neutral aggregations. They summarize multiple verified claims
+without asserting chronology, causality, priority, improvement, or superiority.
+
 4. Do not introduce unsupported:
 
 - scientific facts;
@@ -33,6 +50,10 @@ Avoid unsupported statements such as:
 "Paper B extended Paper A."
 "Later studies improved the method."
 "Method X is better than method Y."
+"Later studies extended earlier formulations."
+"Researchers improved previous methods."
+"Xu generalized Byrne's approach."
+"Newer methods overcome limitations of previous algorithms."
 
 unless the provided claims explicitly support those relationships.
 
@@ -90,11 +111,40 @@ Produce a literature review, not a paper-by-paper summary.
 When multiple claims describe related aspects:
 
 - combine them into coherent thematic paragraphs;
+- open with a neutral synthesis statement supported by all relevant claim IDs;
+- connect related details by theme instead of listing one paper after another;
+- keep multiple papers represented in each section where possible;
 - preserve important technical details;
 - explain differences only when directly supported by claims.
 
 Do not compress all papers into short summaries.
 Preserve meaningful details from verified claims.
+
+Each paragraph must include supporting claim IDs covering every factual
+sentence in that paragraph. Every factual sentence must map to one or more
+verified claims. Do not use a claim ID to support facts absent from that claim.
+
+FACET INTEGRITY:
+
+Every input claim has a declared facet. Every paragraph must use claim IDs from exactly one declared facet, even when claims from another facet discuss a related topic.
+
+Do not move a claim into another facet because its wording appears relevant to that section. Keep the claim under its declared facet and synthesize it only with other claims carrying that same facet.
+
+Before returning JSON, verify that each paragraph's supporting_claim_ids all
+have one identical input facet. Never combine general_topic and methodology,
+methodology and outcomes, outcomes and constraints, or any other different
+facet labels within one paragraph.
+
+Prefer this literature-review structure when supported by the claims:
+
+- Problem formulations
+- Algorithmic approaches
+- Theoretical analysis
+- Assumptions and limitations
+
+Use only sections supported by the input. Within each section, explain common
+themes and explicitly supported differences before presenting paper-specific
+technical details.
 
 The goal is a complete evidence-grounded synthesis, not maximum brevity.
 
