@@ -139,6 +139,38 @@ function MainAppShell() {
     }
   });
 
+  const [activeCitation, setActiveCitation] = useState(null);
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchMeta, setSearchMeta] = useState({
+    provider: 'google_scholar',
+    limit: 20,
+    total_found: 0,
+    total_confirmed: 0,
+    total_undetermined: 0,
+    duplicates: 0,
+  });
+
+  const getDefaultWelcomeMessage = (projectName) => [
+    {
+      sender: 'ai',
+      text: projectName
+        ? `Chào mừng bạn đến với **Không gian Phân tích** cho đề tài **${projectName}**! Hãy chọn các bài báo từ phần *Tìm kiếm* để bắt đầu tổng hợp y văn có dẫn nguồn, hoặc tải lên tập tin PDF toàn văn để trích xuất sâu.`
+        : `Chào mừng bạn đến với **LitReview Workspace**! Hãy chọn các bài báo từ phần *Tìm kiếm* để bắt đầu tổng hợp y văn có dẫn nguồn, hoặc tải lên tập tin PDF toàn văn để trích xuất sâu.`,
+    },
+  ];
+
+  const [chatMessages, setChatMessages] = useState(() => {
+    const saved = localStorage.getItem(chatMessagesKey);
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error('Failed to parse saved chat messages:', e);
+      }
+    }
+    return getDefaultWelcomeMessage(activeProject?.name);
+  });
+
   // Switch project data when active project changes
   useEffect(() => {
     try {
@@ -153,57 +185,46 @@ function MainAppShell() {
 
       const savedWs = localStorage.getItem(workspacePapersKey);
       setWorkspacePapers(savedWs ? JSON.parse(savedWs) : []);
+
+      const savedChat = localStorage.getItem(chatMessagesKey);
+      if (savedChat) {
+        setChatMessages(JSON.parse(savedChat));
+      } else {
+        setChatMessages(getDefaultWelcomeMessage(activeProject?.name));
+      }
     } catch {
       // ignore
     }
-  }, [activeProjectId]);
+  }, [activeProjectId, chatMessagesKey, papersStorageKey, selectedIdsKey, selectedPapersKey, workspacePapersKey]);
 
   useEffect(() => {
-    localStorage.setItem(papersStorageKey, JSON.stringify(papers));
+    if (papersStorageKey) {
+      localStorage.setItem(papersStorageKey, JSON.stringify(papers));
+    }
   }, [papers, papersStorageKey]);
 
   useEffect(() => {
-    localStorage.setItem(selectedIdsKey, JSON.stringify(selectedPaperIds));
+    if (selectedIdsKey) {
+      localStorage.setItem(selectedIdsKey, JSON.stringify(selectedPaperIds));
+    }
   }, [selectedPaperIds, selectedIdsKey]);
 
   useEffect(() => {
-    localStorage.setItem(selectedPapersKey, JSON.stringify(selectedPapers));
+    if (selectedPapersKey) {
+      localStorage.setItem(selectedPapersKey, JSON.stringify(selectedPapers));
+    }
   }, [selectedPapers, selectedPapersKey]);
 
   useEffect(() => {
-    localStorage.setItem(workspacePapersKey, JSON.stringify(workspacePapers));
+    if (workspacePapersKey) {
+      localStorage.setItem(workspacePapersKey, JSON.stringify(workspacePapers));
+    }
   }, [workspacePapers, workspacePapersKey]);
 
-  const [activeCitation, setActiveCitation] = useState(null);
-  const [searchResults, setSearchResults] = useState([]);
-  const [searchMeta, setSearchMeta] = useState({
-    provider: 'google_scholar',
-    limit: 20,
-    total_found: 0,
-    total_confirmed: 0,
-    total_undetermined: 0,
-    duplicates: 0,
-  });
-
-  const [chatMessages, setChatMessages] = useState(() => {
-    const saved = localStorage.getItem(chatMessagesKey);
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error('Failed to parse saved chat messages:', e);
-      }
-    }
-    return [
-      {
-        sender: 'ai',
-        text: `Chào mừng bạn đến với **LitReview AI Workspace**! Hãy chọn các bài báo từ phần *Tìm kiếm* để bắt đầu tổng hợp y văn có dẫn nguồn, hoặc tải lên tập tin PDF toàn văn để trích xuất sâu.`,
-      },
-    ];
-  });
-
   useEffect(() => {
-    localStorage.setItem(chatMessagesKey, JSON.stringify(chatMessages));
+    if (chatMessagesKey && chatMessages) {
+      localStorage.setItem(chatMessagesKey, JSON.stringify(chatMessages));
+    }
   }, [chatMessages, chatMessagesKey]);
 
   const toggleSelectPaper = (id) => {
