@@ -161,13 +161,13 @@ export function ProjectProvider({ children }) {
 
   const activeProject = projects.find(p => p.id === activeProjectId) || projects[0] || null;
 
-  const createProject = async (projectData) => {
+  const createProject = async (projectData = {}) => {
     const newId = `proj_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
     const newProject = {
       id: newId,
-      name: projectData.name || 'Dự án Nghiên cứu Mới',
+      name: projectData.name !== undefined ? projectData.name : '',
       research_question: projectData.research_question || '',
-      research_field: projectData.research_field || 'Khác',
+      research_field: projectData.research_field || '',
       year_from: projectData.year_from || 2020,
       year_to: projectData.year_to || new Date().getFullYear(),
       criteria_include: projectData.criteria_include || [],
