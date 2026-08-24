@@ -282,15 +282,15 @@ export default function WorkspaceTab({
   const [isSourcesOpen, setIsSourcesOpen] = useState(true);
   const [isHarnessOpen, setIsHarnessOpen] = useState(false);
   
-  // Resizable Sidebar States
-  const [sidebarWidth, setSidebarWidth] = useState(360);
+  // Resizable Left Sources States (compact and clean)
+  const [sidebarWidth, setSidebarWidth] = useState(260);
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = React.useRef(null);
 
-  // Right Studio States (Google NotebookLM 3-column architecture)
+  // Right Studio States (spacious and clear without cramped text)
   const [isStudioOpen, setIsStudioOpen] = useState(() => typeof window !== 'undefined' ? window.innerWidth >= 1280 : true);
   const [activeStudioTab, setActiveStudioTab] = useState('synthesis'); // 'synthesis' | 'analyze'
-  const [studioWidth, setStudioWidth] = useState(480);
+  const [studioWidth, setStudioWidth] = useState(520);
   const [isStudioResizing, setIsStudioResizing] = useState(false);
   const studioRef = React.useRef(null);
 
@@ -303,7 +303,7 @@ export default function WorkspaceTab({
     const handleMouseMove = (e) => {
       if (sidebarRef.current) {
         const newWidth = e.clientX - sidebarRef.current.getBoundingClientRect().left;
-        if (newWidth >= 260 && newWidth <= 800) {
+        if (newWidth >= 200 && newWidth <= 450) {
           setSidebarWidth(newWidth);
         }
       }
@@ -332,7 +332,7 @@ export default function WorkspaceTab({
       if (studioRef.current) {
         const rightEdge = studioRef.current.getBoundingClientRect().right;
         const newWidth = rightEdge - e.clientX;
-        if (newWidth >= 340 && newWidth <= 950) {
+        if (newWidth >= 360 && newWidth <= 1100) {
           setStudioWidth(newWidth);
         }
       }
