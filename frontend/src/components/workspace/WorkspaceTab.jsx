@@ -342,6 +342,18 @@ export default function WorkspaceTab({
     if (setSelectedPapers) setSelectedPapers((prev) => (prev || []).filter((p) => String(p.id) !== strId));
     setSelectedPaperIds((prev) => (prev || []).filter((paperId) => String(paperId) !== strId));
   };
+
+  const handleRemoveSource = removeSource;
+
+  const togglePaperSelection = (id) => {
+    setSelectedPaperIds((prev) => {
+      const current = prev || [];
+      return current.includes(id)
+        ? current.filter((item) => item !== id)
+        : [...current, id];
+    });
+  };
+
   const handleSelectAll = () => {
     if (selectedPaperIds.length === allSources.length) {
       setSelectedPaperIds([]);
