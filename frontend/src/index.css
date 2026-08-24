@@ -685,3 +685,18 @@ body {
     animation: none !important;
   }
 }
+
+
+/* React-PDF Highlight Styles */
+.pdf-highlight-rect {
+  position: absolute;
+  background: rgba(251, 191, 36, 0.45); /* amber-400 with opacity */
+  border: 1px solid rgba(245, 158, 11, 0.6);
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 2; /* above text layer */
+}
+
+.react-pdf__Page__textContent {
+  z-index: 1 !important;
+}
