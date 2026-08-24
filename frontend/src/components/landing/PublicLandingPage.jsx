@@ -1049,14 +1049,14 @@ export default function PublicLandingPage({ onOpenAuth }) {
           </div>
 
           {/* Desktop Nav Links */}
-          <nav className="hidden xl:flex items-center gap-2 2xl:gap-4 text-xs 2xl:text-[13px] font-bold text-slate-700 dark:text-slate-200 whitespace-nowrap">
+          <nav className="hidden xl:flex items-center gap-2.5 2xl:gap-4 text-xs 2xl:text-[13px] font-bold text-slate-700 dark:text-slate-200 whitespace-nowrap">
             <a href="#simulator" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1 px-1.5">{d.nav.simulator}</a>
             <a href="#agents" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1 px-1.5">{d.nav.agents}</a>
-            <a href="#matrix" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1 px-1.5">{d.nav.matrix}</a>
+            <a href="#matrix" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1 px-1.5 hidden 2xl:inline-block">{d.nav.matrix}</a>
             <a href="#prisma" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1 px-1.5">{d.nav.prisma}</a>
-            <a href="#demo-accounts" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1 px-1.5">{d.nav.demoProfiles}</a>
+            <a href="#demo-accounts" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1 px-1.5 hidden 2xl:inline-block">{d.nav.demoProfiles}</a>
             <a href="#faq" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1 px-1.5">{d.nav.faq}</a>
-            <a href="#team" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1 px-1.5">{d.nav.team}</a>
+            <a href="#team" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1 px-1.5 hidden 2xl:inline-block">{d.nav.team}</a>
             <a href="#acknowledgments" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1 px-1.5 hidden 2xl:inline-block">{d.nav.acknowledgments}</a>
           </nav>
 
