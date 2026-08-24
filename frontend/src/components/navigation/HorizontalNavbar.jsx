@@ -65,32 +65,32 @@ export default function HorizontalNavbar({
 
   return (
     <header className="sticky top-0 z-40 w-full bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors shadow-xs">
-      <div className="max-w-[1680px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      <div className="w-full max-w-[1920px] mx-auto px-3 sm:px-4 lg:px-6 h-16 flex items-center justify-between gap-2 sm:gap-4">
         
         {/* ── 1. Left: Brand Logo & Title ──────────────────────────────── */}
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <div 
             onClick={() => setActiveTab('overview')}
-            className="flex items-center gap-3 cursor-pointer group select-none"
+            className="flex items-center gap-2.5 cursor-pointer group select-none"
           >
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-display font-extrabold text-base flex items-center justify-center shadow-md shadow-blue-500/20 group-hover:scale-105 transition-all">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-display font-extrabold text-sm sm:text-base flex items-center justify-center shadow-md shadow-blue-500/20 group-hover:scale-105 transition-all shrink-0">
               LR
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-display font-extrabold text-base text-slate-900 dark:text-white tracking-tight leading-none">
+                <span className="font-display font-extrabold text-sm sm:text-base text-slate-900 dark:text-white tracking-tight leading-none">
                   LitReview Agent
                 </span>
               </div>
-              <p className="text-[10.5px] font-semibold text-blue-600 dark:text-blue-400 mt-1 leading-none">
-                {isVi ? 'Nền tảng Nghiên cứu & Tổng quan Tài liệu' : 'Closed-Domain RAG System'}
+              <p className="hidden md:block text-[10px] font-semibold text-blue-600 dark:text-blue-400 mt-0.5 leading-none">
+                {isVi ? 'Nền tảng Nghiên cứu & Tổng quan' : 'Academic Literature Platform'}
               </p>
             </div>
           </div>
         </div>
 
         {/* ── 2. Center: Primary Horizontal Navigation Tabs ─────────────── */}
-        <nav className="hidden md:flex items-center p-1 rounded-2xl bg-slate-100/70 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 backdrop-blur-sm">
+        <nav className="hidden md:flex items-center p-0.5 sm:p-1 rounded-2xl bg-slate-100/70 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 backdrop-blur-sm shrink-0">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
@@ -98,7 +98,7 @@ export default function HorizontalNavbar({
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
-                className={`relative flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer ${
+                className={`relative flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer ${
                   isActive
                     ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/30'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-white/80 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-700/60'
@@ -112,13 +112,13 @@ export default function HorizontalNavbar({
         </nav>
 
         {/* ── 3. Right: Project Switcher, Layout Toggle, Theme, Profile ─── */}
-        <div className="flex items-center gap-2 sm:gap-2.5">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           
           {/* Project Switcher Dropdown */}
           <div className="relative" ref={projectDropdownRef}>
             <button
               onClick={() => setProjectDropdownOpen(!projectDropdownOpen)}
-              className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/80 hover:bg-slate-100 dark:hover:bg-slate-750 text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2 transition-all cursor-pointer shadow-xs max-w-[200px]"
+              className="px-2.5 sm:px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/80 hover:bg-slate-100 dark:hover:bg-slate-750 text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5 sm:gap-2 transition-all cursor-pointer shadow-xs max-w-[120px] sm:max-w-[160px] lg:max-w-[200px]"
               title={isVi ? 'Đổi đề tài nghiên cứu' : 'Switch Project'}
             >
               <FolderKanban className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
@@ -226,22 +226,61 @@ export default function HorizontalNavbar({
             )}
           </button>
 
-          {/* User Profile Avatar Pill */}
+          {/* User Profile Pill with Avatar Image, Full Name & Email */}
           <div className="relative" ref={profileDropdownRef}>
             <button
               onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-              className="w-9 h-9 rounded-xl bg-slate-900 dark:bg-slate-800 text-white font-extrabold text-xs flex items-center justify-center shadow-sm hover:ring-2 hover:ring-blue-500/40 transition-all cursor-pointer ml-1"
+              className="flex items-center gap-2 py-1 pl-1 pr-2 sm:pr-2.5 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 transition-all cursor-pointer shadow-xs ml-1 max-w-[220px]"
               title={currentUser?.name || 'User Profile'}
             >
-              {userInitials}
+              {currentUser?.picture ? (
+                <img
+                  src={currentUser.picture}
+                  alt={currentUser.name}
+                  className="w-8 h-8 rounded-lg object-cover ring-1 ring-blue-500/30 flex-shrink-0"
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-700 text-white font-extrabold text-xs flex items-center justify-center flex-shrink-0 shadow-xs">
+                  {userInitials}
+                </div>
+              )}
+              <div className="hidden lg:block text-left min-w-0 flex-1">
+                <p className="font-bold text-xs text-slate-800 dark:text-white truncate leading-tight">
+                  {currentUser?.name || 'Researcher'}
+                </p>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate leading-tight lowercase">
+                  {currentUser?.email || currentUser?.role || 'user@research.edu'}
+                </p>
+              </div>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 hidden sm:block" />
             </button>
 
             {profileDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl py-2 z-50 animate-slide-up text-xs">
-                <div className="px-4 py-2 border-b border-slate-100 dark:border-slate-800">
-                  <p className="font-bold text-slate-900 dark:text-white truncate">{currentUser?.name || 'Researcher'}</p>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{currentUser?.email || 'name@university.edu'}</p>
-                  <span className="badge badge-primary text-[9px] mt-1.5 font-mono uppercase">{currentUser?.role || 'Senior Researcher'}</span>
+              <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl py-2 z-50 animate-slide-up text-xs">
+                <div className="px-4 py-2.5 border-b border-slate-100 dark:border-slate-800 space-y-1.5">
+                  <div className="flex items-center gap-2.5">
+                    {currentUser?.picture ? (
+                      <img
+                        src={currentUser.picture}
+                        alt={currentUser.name}
+                        className="w-9 h-9 rounded-xl object-cover ring-1 ring-blue-500/30 flex-shrink-0"
+                      />
+                    ) : (
+                      <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white font-bold flex items-center justify-center text-xs flex-shrink-0">
+                        {userInitials}
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold text-slate-900 dark:text-white truncate">{currentUser?.name || 'Researcher'}</p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate lowercase">{currentUser?.email || 'name@university.edu'}</p>
+                    </div>
+                  </div>
+                  <div className="pt-1 flex items-center gap-1.5">
+                    <span className="badge badge-primary text-[9.5px] uppercase">{currentUser?.role || 'Senior Researcher'}</span>
+                    {currentUser?.institution && (
+                      <span className="text-[10px] text-slate-400 truncate">{currentUser.institution}</span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="p-1 space-y-0.5">

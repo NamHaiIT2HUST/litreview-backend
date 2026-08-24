@@ -592,17 +592,50 @@ export default function ResearchSetupTab({ setActiveTab }) {
 
         <div className="space-y-4">
           <div>
-            <label className="section-label block mb-1.5 font-bold text-xs">
-              {isVi ? 'Tên đề tài nghiên cứu' : 'Project Name'}
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="section-label font-bold text-xs">
+                {isVi ? 'Tên đề tài nghiên cứu *' : 'Project Name *'}
+              </label>
+              {!topicApproved && (
+                <span className="text-[11px] text-slate-400">
+                  {isVi ? 'Hỗ trợ tự do mọi chủ đề nghiên cứu khoa học' : 'Supports any academic research domain'}
+                </span>
+              )}
+            </div>
             <input 
               type="text" 
               value={projectData.name}
               onChange={e => setProjectData({...projectData, name: e.target.value})}
-              placeholder={isVi ? 'Ví dụ: Đánh giá hiệu năng LLM cho Robot di động...' : 'E.g., Benchmarking Open Source LLMs for Mobile Robots...'}
+              placeholder={isVi ? 'Nhập bất kỳ đề tài nào: AI, Y tế, Năng lượng, Robotics, Xã hội học...' : 'Enter any research topic: AI, Biomedicine, Energy, Robotics, Social Sciences...'}
               disabled={topicApproved}
               className="input input-sm disabled:opacity-60 font-medium"
             />
+            {!topicApproved && (
+              <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
+                <span className="text-[11px] text-slate-400 font-semibold">{isVi ? 'Gợi ý nhanh:' : 'Quick ideas:'}</span>
+                {[
+                  { label: isVi ? 'AI trong Y tế' : 'Healthcare AI', name: isVi ? 'Ứng dụng Học sâu trong Chẩn đoán Hình ảnh Y tế' : 'Deep Learning in Medical Image Diagnostics', field: 'Y sinh & Chẩn đoán Y tế' },
+                  { label: isVi ? 'LLM Reasoning' : 'LLM Reasoning', name: isVi ? 'Khảo sát Chuỗi tư duy (CoT) trên Mô hình Ngôn ngữ Lớn' : 'Chain-of-Thought Reasoning in Large Language Models', field: 'Xử lý Ngôn ngữ Tự nhiên & LLM' },
+                  { label: isVi ? 'Robot Tự hành' : 'Autonomous Robots', name: isVi ? 'Học tăng cường sâu trong Điều hướng Robot Tự hành' : 'Deep Reinforcement Learning in Autonomous Robotics', field: 'Robotics & Hệ thống Tự hành' },
+                  { label: isVi ? 'Năng lượng Tái tạo' : 'Renewable Energy', name: isVi ? 'Tối ưu hóa Lưới điện Thông minh bằng Học máy' : 'Machine Learning for Smart Grid Optimization', field: 'Khoa học Môi trường & Năng lượng' },
+                ].map((item, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => {
+                      setProjectData({
+                        ...projectData,
+                        name: item.name,
+                        research_field: item.field
+                      });
+                    }}
+                    className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-950/40 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 border border-slate-200/80 dark:border-slate-700/80 text-[11px] transition-colors cursor-pointer"
+                  >
+                    + {item.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -632,10 +665,15 @@ export default function ResearchSetupTab({ setActiveTab }) {
                   className="input input-sm disabled:opacity-60 cursor-pointer appearance-none font-medium text-xs"
                 >
                   <option value="">{isVi ? '-- Chọn lĩnh vực nghiên cứu chuyên sâu --' : '-- Select research domain --'}</option>
-                  <option value="Toán học & Tối ưu hóa">{isVi ? 'Toán học & Tối ưu hóa' : 'Mathematics & Optimization'}</option>
-                  <option value="Y tế & Chẩn đoán Y sinh">{isVi ? 'Y tế & Chẩn đoán Y sinh' : 'Healthcare & Biomedicine'}</option>
-                  <option value="Robotics & Tự hành">{isVi ? 'Robotics & Tự hành' : 'Robotics & Autonomous Systems'}</option>
-                  <option value="Khác">{isVi ? 'Khác / Tổng quan' : 'General Academic'}</option>
+                  <option value="Khoa học Máy tính & Trí tuệ Nhân tạo">{isVi ? 'Khoa học Máy tính & Trí tuệ Nhân tạo' : 'Computer Science & AI'}</option>
+                  <option value="Y sinh & Chẩn đoán Y tế">{isVi ? 'Y sinh & Chẩn đoán Y tế' : 'Healthcare & Biomedicine'}</option>
+                  <option value="Robotics & Hệ thống Tự hành">{isVi ? 'Robotics & Hệ thống Tự hành' : 'Robotics & Autonomous Systems'}</option>
+                  <option value="Xử lý Ngôn ngữ Tự nhiên & LLM">{isVi ? 'Xử lý Ngôn ngữ Tự nhiên & LLM' : 'NLP & Large Language Models'}</option>
+                  <option value="Toán học, Thống kê & Tối ưu hóa">{isVi ? 'Toán học, Thống kê & Tối ưu hóa' : 'Mathematics & Optimization'}</option>
+                  <option value="Khoa học Môi trường & Năng lượng">{isVi ? 'Khoa học Môi trường & Năng lượng' : 'Environment & Renewable Energy'}</option>
+                  <option value="Kinh tế, Tài chính & Quản trị">{isVi ? 'Kinh tế, Tài chính & Quản trị' : 'Economics & Business Administration'}</option>
+                  <option value="Khoa học Xã hội & Giáo dục">{isVi ? 'Khoa học Xã hội & Giáo dục' : 'Social Sciences & Education'}</option>
+                  <option value="Nghiên cứu Liên ngành Khác">{isVi ? 'Nghiên cứu Liên ngành Khác' : 'Interdisciplinary / Other'}</option>
                 </select>
               </div>
 

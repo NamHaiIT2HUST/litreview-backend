@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Sidebar from './components/Sidebar';
 import HorizontalNavbar from './components/navigation/HorizontalNavbar';
 import SearchTab from './components/search/SearchTab';
@@ -103,6 +103,8 @@ function MainAppShell() {
     ? `litreview_workspace_chat_${activeProjectId}`
     : 'litreview_workspace_chat_messages';
 
+  const loadedProjectIdRef = useRef(activeProjectId);
+
   const [papers, setPapers] = useState(() => {
     try {
       const saved = localStorage.getItem(papersStorageKey);
@@ -139,41 +141,6 @@ function MainAppShell() {
     }
   });
 
-  // Switch project data when active project changes
-  useEffect(() => {
-    try {
-      const savedPapers = localStorage.getItem(papersStorageKey);
-      setPapers(savedPapers ? JSON.parse(savedPapers) : []);
-
-      const savedIds = localStorage.getItem(selectedIdsKey);
-      setSelectedPaperIds(savedIds ? JSON.parse(savedIds) : []);
-
-      const savedSelected = localStorage.getItem(selectedPapersKey);
-      setSelectedPapers(savedSelected ? JSON.parse(savedSelected) : []);
-
-      const savedWs = localStorage.getItem(workspacePapersKey);
-      setWorkspacePapers(savedWs ? JSON.parse(savedWs) : []);
-    } catch {
-      // ignore
-    }
-  }, [activeProjectId]);
-
-  useEffect(() => {
-    localStorage.setItem(papersStorageKey, JSON.stringify(papers));
-  }, [papers, papersStorageKey]);
-
-  useEffect(() => {
-    localStorage.setItem(selectedIdsKey, JSON.stringify(selectedPaperIds));
-  }, [selectedPaperIds, selectedIdsKey]);
-
-  useEffect(() => {
-    localStorage.setItem(selectedPapersKey, JSON.stringify(selectedPapers));
-  }, [selectedPapers, selectedPapersKey]);
-
-  useEffect(() => {
-    localStorage.setItem(workspacePapersKey, JSON.stringify(workspacePapers));
-  }, [workspacePapers, workspacePapersKey]);
-
   const [activeCitation, setActiveCitation] = useState(null);
   const [searchResults, setSearchResults] = useState([]);
   const [searchMeta, setSearchMeta] = useState({
@@ -185,6 +152,15 @@ function MainAppShell() {
     duplicates: 0,
   });
 
+  const getDefaultWelcomeMessage = (projectName) => [
+    {
+      sender: 'ai',
+      text: projectName
+        ? `Chào mừng bạn đến với **Không gian Phân tích** cho đề tài **${projectName}**! Hãy chọn các bài báo từ phần *Tìm kiếm* để bắt đầu tổng hợp y văn có dẫn nguồn, hoặc tải lên tập tin PDF toàn văn để trích xuất sâu.`
+        : `Chào mừng bạn đến với **LitReview Workspace**! Hãy chọn các bài báo từ phần *Tìm kiếm* để bắt đầu tổng hợp y văn có dẫn nguồn, hoặc tải lên tập tin PDF toàn văn để trích xuất sâu.`,
+    },
+  ];
+
   const [chatMessages, setChatMessages] = useState(() => {
     const saved = localStorage.getItem(chatMessagesKey);
     if (saved) {
@@ -194,18 +170,71 @@ function MainAppShell() {
         console.error('Failed to parse saved chat messages:', e);
       }
     }
-    return [
-      {
-        sender: 'ai',
-        isWelcome: true,
-        text: ""
-      },
-    ];
+    return getDefaultWelcomeMessage(activeProject?.name);
   });
 
+  // Switch project data when active project changes
   useEffect(() => {
-    localStorage.setItem(chatMessagesKey, JSON.stringify(chatMessages));
-  }, [chatMessages, chatMessagesKey]);
+    loadedProjectIdRef.current = activeProjectId;
+    try {
+      const pKey = activeProjectId ? `litreview_papers_${activeProjectId}` : 'litreview_papers';
+      const sIdsKey = activeProjectId ? `litreview_selected_ids_${activeProjectId}` : 'litreview_selected_ids';
+      const sPapersKey = activeProjectId ? `litreview_selected_papers_${activeProjectId}` : 'litreview_selected_papers';
+      const wsKey = activeProjectId ? `litreview_workspace_papers_${activeProjectId}` : 'litreview_workspace_papers';
+      const cKey = activeProjectId ? `litreview_workspace_chat_${activeProjectId}` : 'litreview_workspace_chat_messages';
+
+      const savedPapers = localStorage.getItem(pKey);
+      setPapers(savedPapers ? JSON.parse(savedPapers) : []);
+
+      const savedIds = localStorage.getItem(sIdsKey);
+      setSelectedPaperIds(savedIds ? JSON.parse(savedIds) : []);
+
+      const savedSelected = localStorage.getItem(sPapersKey);
+      setSelectedPapers(savedSelected ? JSON.parse(savedSelected) : []);
+
+      const savedWs = localStorage.getItem(wsKey);
+      setWorkspacePapers(savedWs ? JSON.parse(savedWs) : []);
+
+      const savedChat = localStorage.getItem(cKey);
+      if (savedChat) {
+        setChatMessages(JSON.parse(savedChat));
+      } else {
+        setChatMessages(getDefaultWelcomeMessage(activeProject?.name));
+      }
+    } catch {
+      // ignore
+    }
+  }, [activeProjectId, activeProject?.name]);
+
+  useEffect(() => {
+    if (loadedProjectIdRef.current === activeProjectId && papersStorageKey) {
+      localStorage.setItem(papersStorageKey, JSON.stringify(papers));
+    }
+  }, [papers, papersStorageKey, activeProjectId]);
+
+  useEffect(() => {
+    if (loadedProjectIdRef.current === activeProjectId && selectedIdsKey) {
+      localStorage.setItem(selectedIdsKey, JSON.stringify(selectedPaperIds));
+    }
+  }, [selectedPaperIds, selectedIdsKey, activeProjectId]);
+
+  useEffect(() => {
+    if (loadedProjectIdRef.current === activeProjectId && selectedPapersKey) {
+      localStorage.setItem(selectedPapersKey, JSON.stringify(selectedPapers));
+    }
+  }, [selectedPapers, selectedPapersKey, activeProjectId]);
+
+  useEffect(() => {
+    if (loadedProjectIdRef.current === activeProjectId && workspacePapersKey) {
+      localStorage.setItem(workspacePapersKey, JSON.stringify(workspacePapers));
+    }
+  }, [workspacePapers, workspacePapersKey, activeProjectId]);
+
+  useEffect(() => {
+    if (loadedProjectIdRef.current === activeProjectId && chatMessagesKey && chatMessages) {
+      localStorage.setItem(chatMessagesKey, JSON.stringify(chatMessages));
+    }
+  }, [chatMessages, chatMessagesKey, activeProjectId]);
 
   const toggleSelectPaper = (id) => {
     if (selectedPaperIds.includes(id)) {
@@ -231,19 +260,18 @@ function MainAppShell() {
       <div className="animate-slide-up w-full">
 
         {/* Admin Dashboard */}
-        {(activeTab === 'admin' || (currentUser?.role === 'admin' && activeTab === 'overview')) && (
+        {activeTab === 'admin' && (
           <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-10 py-6">
             <AdminDashboard darkMode={darkMode} />
           </div>
         )}
 
-        {/* Overview / Personalized Dashboard (for regular users) */}
-        {activeTab === 'overview' && currentUser?.role !== 'admin' && (
-          <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-10 py-6">
+        {/* Overview / Personalized Dashboard */}
+        {activeTab === 'overview' && (
+          <div className="w-full min-h-screen">
             <PersonalizedDashboard
               setActiveTab={setActiveTab}
               onOpenNewProject={() => setNewProjectModalOpen(true)}
-              onStartTour={handleStartTour}
             />
           </div>
         )}
@@ -280,6 +308,7 @@ function MainAppShell() {
         {activeTab === 'synthesis' && (
           <div className="w-full">
             <WorkspaceTab
+              key={`workspace_${activeProjectId || 'default'}`}
               papers={papers}
               setPapers={setPapers}
               selectedPapers={selectedPapers}
@@ -327,12 +356,14 @@ function MainAppShell() {
     );
   }
 
+  const isOverviewHub = activeTab === 'overview';
+
   // ── RENDER: Authenticated Workspace Shell ───────────────────────────────
   return (
-    <>
-      {layoutMode === 'horizontal' ? (
-        <div className={`min-h-screen bg-[#F4F6F9] dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 ${darkMode ? 'dark' : ''}`}>
-          {/* ── Top Horizontal Navbar ─────────────────────────────────── */}
+    <div className={isOverviewHub ? `min-h-screen w-full bg-[#171A21] text-slate-100 ${darkMode ? 'dark' : ''}` : layoutMode === 'horizontal' ? `min-h-screen bg-[#F4F6F9] dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 ${darkMode ? 'dark' : ''}` : `app-shell ${darkMode ? 'dark' : ''}`}>
+      {!isOverviewHub && (
+        layoutMode === 'horizontal' ? (
+          /* ── Top Horizontal Navbar ─────────────────────────────────── */
           <HorizontalNavbar
             activeTab={activeTab}
             setActiveTab={setActiveTab}
@@ -340,44 +371,37 @@ function MainAppShell() {
             layoutMode={layoutMode}
             setLayoutMode={setLayoutMode}
           />
-
-          {/* ── Main Content Area (Full width) ────────────────────────── */}
-          <main className="w-full min-h-[calc(100vh-4rem)]">
-            {renderMainContent()}
-          </main>
-        </div>
-      ) : (
-        <div className={`app-shell ${darkMode ? 'dark' : ''}`}>
-          {/* ── Vertical Sidebar ───────────────────────────────────────── */}
-          <Sidebar
-            activeTab={activeTab}
-            setActiveTab={setActiveTab}
-            mobileOpen={mobileSidebarOpen}
-            setMobileOpen={setMobileSidebarOpen}
-            isCollapsed={isSidebarCollapsed}
-            setIsCollapsed={setIsSidebarCollapsed}
-            onOpenNewProject={() => setNewProjectModalOpen(true)}
-            onStartTour={handleStartTour}
-            paperCount={papers.length}
-            selectedCount={selectedPapers.length}
-            layoutMode={layoutMode}
-            setLayoutMode={setLayoutMode}
-          />
-
-          {/* ── Mobile Overlay ─────────────────────────────────────────── */}
-          {mobileSidebarOpen && (
-            <div
-              className="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm lg:hidden"
-              onClick={() => setMobileSidebarOpen(false)}
+        ) : (
+          /* ── Vertical Sidebar ───────────────────────────────────────── */
+          <>
+            <Sidebar
+              activeTab={activeTab}
+              setActiveTab={setActiveTab}
+              mobileOpen={mobileSidebarOpen}
+              setMobileOpen={setMobileSidebarOpen}
+              isCollapsed={isSidebarCollapsed}
+              setIsCollapsed={setIsSidebarCollapsed}
+              onOpenNewProject={() => setNewProjectModalOpen(true)}
+              onStartTour={handleStartTour}
+              paperCount={papers.length}
+              selectedCount={selectedPapers.length}
+              layoutMode={layoutMode}
+              setLayoutMode={setLayoutMode}
             />
-          )}
-
-          {/* ── Main Content Area (Sidebar Offset) ─────────────────────── */}
-          <main className={`app-content ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
-            {renderMainContent()}
-          </main>
-        </div>
+            {mobileSidebarOpen && (
+              <div
+                className="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm lg:hidden"
+                onClick={() => setMobileSidebarOpen(false)}
+              />
+            )}
+          </>
+        )
       )}
+
+      {/* ── Main Content Area (Preserved across layout toggles) ─────── */}
+      <main className={isOverviewHub ? "w-full min-h-screen" : layoutMode === 'horizontal' ? "w-full min-h-[calc(100vh-4rem)]" : `app-content ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+        {renderMainContent()}
+      </main>
 
       {/* First-time User Product Onboarding Tour */}
       <OnboardingTour
@@ -399,7 +423,7 @@ function MainAppShell() {
         onClose={() => setAuthModalOpen(false)}
         initialMode={authModalMode}
       />
-    </>
+    </div>
   );
 }
 
