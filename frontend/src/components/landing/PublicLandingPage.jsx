@@ -583,6 +583,7 @@ const DICTIONARY = {
           course: 'Chương trình AI thực chiến',
           img: member1Img,
           imgPublic: '/assets/member1.jpeg',
+          imgPosition: 'center 8%',
           initials: 'NL',
           color: 'from-blue-600 to-indigo-700'
         },
@@ -593,6 +594,7 @@ const DICTIONARY = {
           course: 'Chương trình AI thực chiến',
           img: member2Img,
           imgPublic: '/assets/member2.jpg',
+          imgPosition: 'center 15%',
           initials: 'TN',
           color: 'from-purple-600 to-pink-600'
         },
@@ -603,6 +605,7 @@ const DICTIONARY = {
           course: 'Chương trình AI thực chiến',
           img: member3Img,
           imgPublic: '/assets/member3.JPG',
+          imgPosition: 'center 15%',
           initials: 'NH',
           color: 'from-emerald-600 to-teal-700'
         },
@@ -613,6 +616,7 @@ const DICTIONARY = {
           course: 'Chương trình AI thực chiến',
           img: member4Img,
           imgPublic: '/assets/member4.jpg',
+          imgPosition: 'center 20%',
           initials: 'NH',
           color: 'from-primary-600 to-cyan-700'
         }
@@ -755,6 +759,7 @@ const DICTIONARY = {
           course: 'AI Engineering Program',
           img: member1Img,
           imgPublic: '/assets/member1.jpeg',
+          imgPosition: 'center 8%',
           initials: 'NL',
           color: 'from-blue-600 to-indigo-700'
         },
@@ -765,6 +770,7 @@ const DICTIONARY = {
           course: 'AI Engineering Program',
           img: member2Img,
           imgPublic: '/assets/member2.jpg',
+          imgPosition: 'center 15%',
           initials: 'TN',
           color: 'from-purple-600 to-pink-600'
         },
@@ -775,6 +781,7 @@ const DICTIONARY = {
           course: 'AI Engineering Program',
           img: member3Img,
           imgPublic: '/assets/member3.JPG',
+          imgPosition: 'center 15%',
           initials: 'NH',
           color: 'from-emerald-600 to-teal-700'
         },
@@ -785,6 +792,7 @@ const DICTIONARY = {
           course: 'AI Engineering Program',
           img: member4Img,
           imgPublic: '/assets/member4.jpg',
+          imgPosition: 'center 20%',
           initials: 'NH',
           color: 'from-primary-600 to-cyan-700'
         }
@@ -2214,6 +2222,7 @@ export default function PublicLandingPage({ onOpenAuth }) {
                     <img
                       src={member.img}
                       alt={member.name}
+                      style={{ objectPosition: member.imgPosition || 'center 15%' }}
                       onError={(e) => {
                         if (e.target.src !== member.imgPublic) {
                           e.target.src = member.imgPublic;
@@ -2223,7 +2232,7 @@ export default function PublicLandingPage({ onOpenAuth }) {
                           if (fallback) fallback.style.display = 'flex';
                         }
                       }}
-                      className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                     {/* Fallback Initials */}
                     <div className={`member-fallback w-full h-full bg-gradient-to-br ${member.color} text-white font-bold text-2xl flex items-center justify-center shadow-inner`} style={{ display: 'none' }}>
