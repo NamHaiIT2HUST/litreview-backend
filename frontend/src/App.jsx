@@ -357,46 +357,50 @@ function MainAppShell() {
     );
   }
 
+  const isOverviewHub = activeTab === 'overview' && currentUser?.role !== 'admin';
+
   // ── RENDER: Authenticated Workspace Shell ───────────────────────────────
   return (
-    <div className={layoutMode === 'horizontal' ? `min-h-screen bg-[#F4F6F9] dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 ${darkMode ? 'dark' : ''}` : `app-shell ${darkMode ? 'dark' : ''}`}>
-      {layoutMode === 'horizontal' ? (
-        /* ── Top Horizontal Navbar ─────────────────────────────────── */
-        <HorizontalNavbar
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          onOpenNewProject={() => setNewProjectModalOpen(true)}
-          layoutMode={layoutMode}
-          setLayoutMode={setLayoutMode}
-        />
-      ) : (
-        /* ── Vertical Sidebar ───────────────────────────────────────── */
-        <>
-          <Sidebar
+    <div className={isOverviewHub ? `min-h-screen bg-[#171A21] text-slate-100 ${darkMode ? 'dark' : ''}` : layoutMode === 'horizontal' ? `min-h-screen bg-[#F4F6F9] dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 ${darkMode ? 'dark' : ''}` : `app-shell ${darkMode ? 'dark' : ''}`}>
+      {!isOverviewHub && (
+        layoutMode === 'horizontal' ? (
+          /* ── Top Horizontal Navbar ─────────────────────────────────── */
+          <HorizontalNavbar
             activeTab={activeTab}
             setActiveTab={setActiveTab}
-            mobileOpen={mobileSidebarOpen}
-            setMobileOpen={setMobileSidebarOpen}
-            isCollapsed={isSidebarCollapsed}
-            setIsCollapsed={setIsSidebarCollapsed}
             onOpenNewProject={() => setNewProjectModalOpen(true)}
-            onStartTour={handleStartTour}
-            paperCount={papers.length}
-            selectedCount={selectedPapers.length}
             layoutMode={layoutMode}
             setLayoutMode={setLayoutMode}
           />
-          {mobileSidebarOpen && (
-            <div
-              className="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm lg:hidden"
-              onClick={() => setMobileSidebarOpen(false)}
+        ) : (
+          /* ── Vertical Sidebar ───────────────────────────────────────── */
+          <>
+            <Sidebar
+              activeTab={activeTab}
+              setActiveTab={setActiveTab}
+              mobileOpen={mobileSidebarOpen}
+              setMobileOpen={setMobileSidebarOpen}
+              isCollapsed={isSidebarCollapsed}
+              setIsCollapsed={setIsSidebarCollapsed}
+              onOpenNewProject={() => setNewProjectModalOpen(true)}
+              onStartTour={handleStartTour}
+              paperCount={papers.length}
+              selectedCount={selectedPapers.length}
+              layoutMode={layoutMode}
+              setLayoutMode={setLayoutMode}
             />
-          )}
-        </>
+            {mobileSidebarOpen && (
+              <div
+                className="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm lg:hidden"
+                onClick={() => setMobileSidebarOpen(false)}
+              />
+            )}
+          </>
+        )
       )}
 
       {/* ── Main Content Area (Preserved across layout toggles) ─────── */}
-      <main className={layoutMode === 'horizontal' ? "w-full min-h-[calc(100vh-4rem)]" : `app-content ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+      <main className={isOverviewHub ? "w-full min-h-screen" : layoutMode === 'horizontal' ? "w-full min-h-[calc(100vh-4rem)]" : `app-content ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
         {renderMainContent()}
       </main>
 

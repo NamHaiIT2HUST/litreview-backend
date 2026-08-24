@@ -5,29 +5,113 @@ import {
   Plus, Target, BarChart2, TrendingUp, Clock, Copy, Trash2,
   ExternalLink, ArrowUpRight, Filter, AlertCircle, RefreshCw,
   FolderKanban, Award, Compass, PieChart, FolderPlus, HelpCircle,
-  Pin, PinOff, Pencil, Share2, AlertTriangle, X, MoreVertical
+  Pin, PinOff, Pencil, Share2, AlertTriangle, X, MoreVertical,
+  LayoutGrid, List, Settings, Globe, Cpu, Mic, Heart, Lightbulb,
+  Laptop, Activity, SlidersHorizontal
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useProject } from '../../contexts/ProjectContext';
 import { useLanguage } from '../../contexts/LanguageContext';
+
+// Curated Featured Notebooks inspired by Google NotebookLM
+const FEATURED_NOTEBOOKS = [
+  {
+    id: 'feat_medical_ai',
+    title: 'Đôi mắt có thể tiết lộ sức khỏe tổng quát: AI trong Chẩn đoán Y sinh',
+    source: 'Google Research',
+    date: '3 thg 7, 2026',
+    sourcesCount: 14,
+    image: 'https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=800&auto=format&fit=crop&q=80',
+    field: 'Y sinh & Chẩn đoán Y tế',
+    question: 'Ứng dụng các kiến trúc Vision-Language Models và Deep Learning trong phân tích hình ảnh và chẩn đoán y sinh học.'
+  },
+  {
+    id: 'feat_llm_reasoning',
+    title: 'Chuỗi Tư duy (Chain-of-Thought) & Multi-Agent Reasoning trên LLM',
+    source: 'OpenStax & Stanford',
+    date: '31 thg 1, 2026',
+    sourcesCount: 13,
+    image: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80',
+    field: 'Xử lý Ngôn ngữ Tự nhiên & LLM',
+    question: 'Cơ chế kích hoạt tư duy (Chain-of-Thought) và multi-agent reasoning trong giải quyết bài toán phức tạp trên mô hình ngôn ngữ lớn.'
+  },
+  {
+    id: 'feat_robotics',
+    title: 'SLAM & Deep Reinforcement Learning cho Robot Tự hành',
+    source: 'U.S. National Archives with Google',
+    date: '18 thg 2, 2026',
+    sourcesCount: 39,
+    image: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800&auto=format&fit=crop&q=80',
+    field: 'Robotics & Hệ thống Tự hành',
+    question: 'Thuật toán học tăng cường sâu (Deep RL) và SLAM trong điều hướng tự chủ và thao tác robot trong môi trường không xác định.'
+  },
+  {
+    id: 'feat_climate_energy',
+    title: 'Mô hình Học máy Tối ưu hóa Lưới điện & Năng lượng Tái tạo',
+    source: 'The Atlantic',
+    date: '11 thg 4, 2026',
+    sourcesCount: 71,
+    image: 'https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?w=800&auto=format&fit=crop&q=80',
+    field: 'Khoa học Môi trường & Năng lượng',
+    question: 'Ứng dụng học máy và mô hình dự báo chuỗi thời gian trong tối ưu hóa lưới điện thông minh và năng lượng tái tạo.'
+  },
+  {
+    id: 'feat_multimodal_vision',
+    title: 'Bản Thiết Kế Multimodal RAG & Zero-shot Object Detection 3D',
+    source: 'Founders & MIT AI',
+    date: '17 thg 4, 2026',
+    sourcesCount: 44,
+    image: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&auto=format&fit=crop&q=80',
+    field: 'Khoa học Máy tính & Trí tuệ Nhân tạo',
+    question: 'Kiến trúc Multimodal RAG và Zero-shot Object Detection trong giám sát không gian 3D và xử lý video tốc độ cao.'
+  }
+];
+
+// Helper to get nice Notebook icons matching NotebookLM
+const getNotebookIcon = (title = '', field = '') => {
+  const text = (title + ' ' + field).toLowerCase();
+  if (text.includes('robot') || text.includes('tự hành')) {
+    return <Bot className="w-5 h-5 text-indigo-400" />;
+  }
+  if (text.includes('y tế') || text.includes('sức khỏe') || text.includes('tim') || text.includes('med')) {
+    return <Heart className="w-5 h-5 text-rose-400" />;
+  }
+  if (text.includes('mạng') || text.includes('chip') || text.includes('embedded') || text.includes('nhúng')) {
+    return <Cpu className="w-5 h-5 text-emerald-400" />;
+  }
+  if (text.includes('interview') || text.includes('audio') || text.includes('tiếng') || text.includes('thoại')) {
+    return <Mic className="w-5 h-5 text-purple-400" />;
+  }
+  if (text.includes('toán') || text.includes('lý thuyết') || text.includes('suy luận') || text.includes('llm')) {
+    return <Lightbulb className="w-5 h-5 text-amber-400" />;
+  }
+  if (text.includes('dữ liệu') || text.includes('data') || text.includes('cấu trúc')) {
+    return <Laptop className="w-5 h-5 text-cyan-400" />;
+  }
+  return <BookOpen className="w-5 h-5 text-blue-400" />;
+};
 
 export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, onStartTour }) {
   const { currentUser } = useAuth();
   const { 
     projects, activeProject, activeProjectId, 
     switchProject, togglePinProject, renameProject, 
-    deleteProject, duplicateProject, shareProject 
+    deleteProject, duplicateProject, shareProject,
+    createProject
   } = useProject();
   const { t, language } = useLanguage();
 
-  const [copiedGap, setCopiedGap] = useState(null);
+  const isVietnamese = language === 'vi';
+
+  const [activeFilter, setActiveFilter] = useState('all'); // 'all' | 'mine' | 'featured' | 'shared' | 'collections'
+  const [searchQuery, setSearchQuery] = useState('');
+  const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list'
+  const [sortBy, setSortBy] = useState('recent'); // 'recent' | 'name' | 'sources'
+
   const [activeMenuProjectId, setActiveMenuProjectId] = useState(null);
   const [editingProjectId, setEditingProjectId] = useState(null);
   const [editingName, setEditingName] = useState('');
-  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   const [dashboardToast, setDashboardToast] = useState(null);
-
-  const isVietnamese = language === 'vi';
 
   // Close menus on outside click
   useEffect(() => {
@@ -43,6 +127,31 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
     setTimeout(() => setDashboardToast(null), 2500);
   };
 
+  const handleOpenNotebook = (proj) => {
+    switchProject(proj.id);
+    setActiveTab('synthesis'); // Open workspace
+  };
+
+  const handleOpenFeatured = async (feat) => {
+    const existing = projects.find(p => p.name.toLowerCase().includes(feat.field.toLowerCase()) || p.name === feat.title);
+    if (existing) {
+      switchProject(existing.id);
+      setActiveTab('synthesis');
+      return;
+    }
+
+    const newProj = await createProject({
+      name: feat.title,
+      research_question: feat.question,
+      research_field: feat.field,
+      year_from: 2020,
+      year_to: 2026,
+      paper_count: feat.sourcesCount,
+    });
+    switchProject(newProj.id);
+    setActiveTab('synthesis');
+  };
+
   const handleStartRename = (e, proj) => {
     e.stopPropagation();
     setActiveMenuProjectId(null);
@@ -54,7 +163,7 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
     e.stopPropagation();
     if (editingName.trim()) {
       renameProject(projId, editingName.trim());
-      showToast(isVietnamese ? 'Đã đổi tên đề tài thành công!' : 'Project renamed successfully!');
+      showToast(isVietnamese ? 'Đã đổi tên sổ ghi chú thành công!' : 'Notebook renamed successfully!');
     }
     setEditingProjectId(null);
   };
@@ -68,678 +177,406 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
     e.stopPropagation();
     setActiveMenuProjectId(null);
     togglePinProject(projId);
-    showToast(
-      isPinned 
-        ? (isVietnamese ? 'Đã bỏ ghim đề tài.' : 'Project unpinned.') 
-        : (isVietnamese ? 'Đã ghim đề tài lên đầu!' : 'Project pinned to top!')
-    );
+    showToast(isPinned ? (isVietnamese ? 'Đã bỏ ghim sổ ghi chú.' : 'Unpinned.') : (isVietnamese ? 'Đã ghim lên đầu!' : 'Pinned to top!'));
   };
 
   const handleShare = async (e, proj) => {
     e.stopPropagation();
     setActiveMenuProjectId(null);
     await shareProject(proj.id);
-    showToast(isVietnamese ? 'Đã sao chép liên kết đề tài vào bộ nhớ tạm!' : 'Project link copied to clipboard!');
+    showToast(isVietnamese ? 'Đã sao chép liên kết vào bộ nhớ tạm!' : 'Link copied to clipboard!');
   };
 
   const handleDelete = (e, projId) => {
     e.stopPropagation();
     setActiveMenuProjectId(null);
     deleteProject(projId);
-    setDeleteConfirmId(null);
-    showToast(isVietnamese ? 'Đã xóa đề tài thành công.' : 'Project deleted successfully.');
+    showToast(isVietnamese ? 'Đã xóa sổ ghi chú.' : 'Notebook deleted.');
   };
 
-  // Compute aggregated real-time stats
-  const totalProjects = projects.length;
-  const totalPapers = projects.reduce((acc, p) => acc + (p.paper_count || 0), 0);
-  const totalScreened = projects.reduce((acc, p) => acc + (p.screened_count || 0), 0);
-  const totalGaps = projects.reduce((acc, p) => acc + (p.gaps_count || 0), 0);
+  // Filter and Sort user projects
+  const filteredProjects = projects.filter(p => {
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      return p.name.toLowerCase().includes(q) || (p.research_field || '').toLowerCase().includes(q);
+    }
+    return true;
+  }).sort((a, b) => {
+    if (a.is_pinned && !b.is_pinned) return -1;
+    if (!a.is_pinned && b.is_pinned) return 1;
+    if (sortBy === 'name') return a.name.localeCompare(b.name);
+    if (sortBy === 'sources') return (b.paper_count || 0) - (a.paper_count || 0);
+    return new Date(b.updated_at || 0) - new Date(a.updated_at || 0);
+  });
 
-  const handleCopyGap = (gapText, i) => {
-    navigator.clipboard.writeText(gapText);
-    setCopiedGap(i);
-    setTimeout(() => setCopiedGap(null), 2000);
-  };
-
-  const greeting = isVietnamese ? 'Xin chào' : 'Welcome';
-  const userName = currentUser?.name?.trim() || currentUser?.email?.split('@')[0] || (isVietnamese ? 'Nhà Nghiên cứu' : 'Researcher');
-
-  // Dynamic gaps from active project if available
-  const activeGaps = activeProject?.research_gaps && activeProject.research_gaps.length > 0
-    ? activeProject.research_gaps
-    : [];
+  const userInitials = currentUser?.name 
+    ? currentUser.name.split(' ').map(n => n[0]).join('').slice(-2).toUpperCase() 
+    : 'NH';
 
   return (
-    <div className="space-y-8 pb-16 relative">
+    <div className="min-h-screen bg-[#171A21] text-slate-100 font-sans selection:bg-blue-600 selection:text-white flex flex-col">
       
-      {/* Toast Notification */}
+      {/* ── Toast Notification (NotebookLM style bottom pill) ── */}
       {dashboardToast && (
-        <div className="fixed bottom-6 right-6 z-50 p-3 px-4 rounded-xl bg-surface-900/95 dark:bg-white text-white dark:text-surface-900 text-xs font-semibold shadow-2xl flex items-center gap-2 animate-slide-up border border-white/10">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400 dark:text-emerald-600 shrink-0" />
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl bg-slate-900 text-white text-xs font-semibold shadow-2xl flex items-center gap-3 border border-slate-700/80 animate-slide-up">
+          <CheckCircle2 className="w-4 h-4 text-blue-400 shrink-0" />
           <span>{dashboardToast}</span>
         </div>
       )}
-
-      {/* ── 1. Welcome & Active Project Header (Crisp Contrast in both Light & Dark Mode) ── */}
-      <div id="tour-dashboard-hero" className="p-6 md:p-8 bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 dark:from-slate-900 dark:via-blue-950 dark:to-slate-950 text-white relative overflow-hidden shadow-xl border border-blue-800/40 dark:border-blue-900/40 rounded-2xl">
-        <div className="absolute -top-24 -right-24 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+      
+      {/* ── 1. Top NotebookLM Header Bar ── */}
+      <header className="sticky top-0 z-40 w-full bg-[#171A21]/95 backdrop-blur-md border-b border-slate-800/80 px-4 sm:px-8 py-3.5 flex items-center justify-between gap-4">
         
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          
-          {/* User Info */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-xs text-blue-200 font-semibold uppercase tracking-wider">
-              <span className="w-2 h-2 rounded-full bg-emerald-400" />
-              <span>{currentUser?.institution || (isVietnamese ? 'Nền tảng Nghiên cứu Khoa học' : 'Academic Literature Platform')}</span>
-              <span>•</span>
-              <span className="text-blue-100">{currentUser?.role || (isVietnamese ? 'Nghiên cứu viên' : 'Senior Researcher')}</span>
-            </div>
-            
-            <h1 className="font-display font-extrabold text-2xl sm:text-3xl text-white tracking-tight">
-              {greeting}, {userName}!
-            </h1>
-            
-            {totalProjects > 0 && activeProject ? (
-              <p className="text-xs sm:text-sm text-blue-100/90 max-w-2xl leading-relaxed">
-                {isVietnamese ? 'Đề tài đang nghiên cứu:' : 'Active research topic:'}{' '}
-                <strong className="text-white font-bold underline decoration-blue-400 underline-offset-4">{activeProject.name}</strong>
-              </p>
-            ) : (
-              <p className="text-xs sm:text-sm text-blue-100/90 max-w-2xl leading-relaxed">
-                {isVietnamese
-                  ? 'Chào mừng bạn đến với LitReview. Bạn chưa có đề tài nghiên cứu nào. Hãy khởi tạo đề tài đầu tiên để bắt đầu quy trình Tổng quan tài liệu có hệ thống (SLR) chuẩn PRISMA.'
-                  : 'Welcome to LitReview. You have no active research projects yet. Create your first project to begin the PRISMA-compliant SLR workflow.'}
-              </p>
-            )}
+        {/* Left: Brand Logo & Notebook Title */}
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
+            <BookOpen className="w-5 h-5" />
           </div>
-
-          {/* Quick Actions in Header */}
-          <div className="flex flex-wrap items-center gap-2.5">
-            {onStartTour && (
-              <button
-                onClick={onStartTour}
-                className="btn btn-sm bg-white/10 hover:bg-white/20 text-white border border-white/20 font-semibold flex items-center gap-1.5 cursor-pointer shadow-xs"
-                title={t('tour.btn_restart')}
-              >
-                <Compass className="w-3.5 h-3.5 text-blue-200" />
-                <span>{t('tour.btn_restart')}</span>
-              </button>
-            )}
-            <button
-              onClick={onOpenNewProject}
-              className="btn btn-sm bg-white text-slate-900 hover:bg-slate-100 font-bold shadow-sm cursor-pointer flex items-center gap-1.5"
-            >
-              <Plus className="w-4 h-4 text-blue-600" />
-              <span>{isVietnamese ? 'Tạo đề tài mới' : 'New Project'}</span>
-            </button>
-            {totalProjects > 0 && (
-              <button
-                onClick={() => setActiveTab('synthesis')}
-                className="btn btn-sm bg-blue-600 hover:bg-blue-500 text-white font-bold shadow-md shadow-blue-500/30 cursor-pointer flex items-center gap-1.5"
-              >
-                <Layers className="w-4 h-4" />
-                <span>{isVietnamese ? 'Không gian Phân tích' : 'Analysis Workspace'}</span>
-              </button>
-            )}
-          </div>
-
+          <span className="font-display font-bold text-lg text-white tracking-tight">
+            LitReview Notebook
+          </span>
         </div>
 
-        {/* Active Project Meta & Status Bar (Only if project exists) */}
-        {totalProjects > 0 && activeProject && (
-          <div className="mt-6 pt-6 border-t border-white/15 flex flex-wrap items-center justify-between gap-4 text-xs">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="px-3 py-1.5 rounded-lg bg-white/10 backdrop-blur-md text-blue-100 font-bold text-[11px] flex items-center gap-1.5 border border-white/10">
-                <FolderKanban className="w-3.5 h-3.5 text-blue-300" />
-                <span>{activeProject?.research_field || (isVietnamese ? 'Lĩnh vực học thuật' : 'Academic Field')}</span>
-              </span>
-              <span className="px-3 py-1.5 rounded-lg bg-white/10 backdrop-blur-md text-slate-100 font-mono text-[11px] border border-white/10">
-                {isVietnamese ? 'Năm' : 'Years'}: {activeProject?.year_from || 2020} – {activeProject?.year_to || 2026}
-              </span>
-              <span className="px-3 py-1.5 rounded-lg bg-emerald-500/20 backdrop-blur-md text-emerald-300 font-bold text-[11px] flex items-center gap-1 border border-emerald-500/30">
-                <Check className="w-3.5 h-3.5 text-emerald-400" />
-                <span>{activeProject?.paper_count > 0 ? `${activeProject.paper_count} ${isVietnamese ? 'bài báo đã nạp' : 'papers loaded'}` : (isVietnamese ? 'Chưa nạp bài báo' : 'No papers loaded')}</span>
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2 text-blue-200 text-xs">
-              <Clock className="w-3.5 h-3.5 text-blue-300" />
-              <span>{isVietnamese ? 'Cập nhật gần nhất:' : 'Last updated:'} <strong className="text-white">{isVietnamese ? 'Hôm nay' : 'Today'}</strong></span>
-            </div>
+        {/* Right: Controls, Search, View Mode, + Tạo mới, Profile */}
+        <div className="flex items-center gap-3">
+          
+          {/* Search Input */}
+          <div className="relative hidden md:block w-48 lg:w-64">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder={isVietnamese ? 'Tìm kiếm sổ ghi chú...' : 'Search notebooks...'}
+              className="w-full pl-9 pr-3 py-1.5 rounded-full bg-[#232834] border border-slate-700/70 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+            />
           </div>
-        )}
-      </div>
 
-      {/* ── 2. Real-time KPI Analytics Grid (Modernize Style) ── */}
-      <div id="tour-quick-stats" className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Grid / List Toggle */}
+          <div className="flex items-center bg-[#232834] p-0.5 rounded-full border border-slate-700/70">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`p-1.5 rounded-full transition-all cursor-pointer ${viewMode === 'grid' ? 'bg-[#313848] text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'}`}
+              title="Chế độ Lưới"
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-1.5 rounded-full transition-all cursor-pointer ${viewMode === 'list' ? 'bg-[#313848] text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'}`}
+              title="Chế độ Danh sách"
+            >
+              <List className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          {/* Sort Dropdown */}
+          <select
+            value={sortBy}
+            onChange={e => setSortBy(e.target.value)}
+            className="hidden sm:block px-3 py-1.5 rounded-full bg-[#232834] border border-slate-700/70 text-xs text-slate-200 focus:outline-none cursor-pointer"
+          >
+            <option value="recent">{isVietnamese ? 'Gần đây nhất' : 'Most recent'}</option>
+            <option value="name">{isVietnamese ? 'Tên A - Z' : 'Name A - Z'}</option>
+            <option value="sources">{isVietnamese ? 'Số lượng nguồn' : 'Most sources'}</option>
+          </select>
+
+          {/* + Tạo mới Button */}
+          <button
+            onClick={onOpenNewProject}
+            className="px-4 py-1.5 rounded-full bg-white hover:bg-slate-100 text-slate-900 font-bold text-xs flex items-center gap-1.5 shadow-md hover:scale-105 transition-all cursor-pointer"
+          >
+            <Plus className="w-4 h-4 text-slate-900 stroke-[2.5]" />
+            <span>{isVietnamese ? 'Tạo mới' : 'New Notebook'}</span>
+          </button>
+
+          {/* Tour / Settings / Pro */}
+          {onStartTour && (
+            <button
+              onClick={onStartTour}
+              className="p-2 rounded-full text-slate-400 hover:text-white hover:bg-[#232834] transition-colors cursor-pointer"
+              title="Hướng dẫn sử dụng"
+            >
+              <Compass className="w-4 h-4" />
+            </button>
+          )}
+
+          <div className="px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-400 text-[10px] font-mono font-bold tracking-wider uppercase border border-blue-500/30">
+            PRO
+          </div>
+
+          {/* User Profile Avatar */}
+          {currentUser?.picture ? (
+            <img
+              src={currentUser.picture}
+              alt={currentUser.name}
+              className="w-8 h-8 rounded-full object-cover ring-2 ring-blue-500/40 shrink-0"
+            />
+          ) : (
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
+              {userInitials}
+            </div>
+          )}
+
+        </div>
+      </header>
+
+      {/* ── Main Hub Content Area ── */}
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-8 py-6 space-y-8">
         
-        <div className="card p-5 space-y-3 bg-white dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 shadow-xs hover:shadow-sm transition-all rounded-2xl">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{isVietnamese ? 'Đề tài Nghiên cứu' : 'Research Projects'}</span>
-            <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shadow-2xs">
-              <FolderKanban className="w-5 h-5" />
-            </div>
-          </div>
-          <div>
-            <p className="text-2xl sm:text-3xl font-extrabold font-display text-slate-800 dark:text-white leading-none">{totalProjects}</p>
-            <div className="mt-2 flex items-center gap-1.5">
-              <span className="badge badge-primary text-[10px]">{isVietnamese ? 'Độc lập' : 'Active'}</span>
-              <span className="text-[11px] text-slate-400">{isVietnamese ? 'Đang quản lý' : 'Managed'}</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="card p-5 space-y-3 bg-white dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 shadow-xs hover:shadow-sm transition-all rounded-2xl">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{isVietnamese ? 'Bài báo Scopus & Scholar' : 'Indexed Papers'}</span>
-            <div className="w-10 h-10 rounded-xl bg-cyan-50 dark:bg-cyan-950/60 text-cyan-600 dark:text-cyan-400 flex items-center justify-center shadow-2xs">
-              <BookOpen className="w-5 h-5" />
-            </div>
-          </div>
-          <div>
-            <p className="text-2xl sm:text-3xl font-extrabold font-display text-slate-800 dark:text-white leading-none">{totalPapers}</p>
-            <div className="mt-2 flex items-center gap-1.5">
-              <span className="badge badge-success text-[10px]">{totalPapers > 0 ? 'Verified' : '0'}</span>
-              <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">
-                {totalPapers > 0 ? (isVietnamese ? 'Đã xác thực chỉ mục' : '100% Verified') : (isVietnamese ? 'Chưa nạp bài' : 'No papers')}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className="card p-5 space-y-3 bg-white dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 shadow-xs hover:shadow-sm transition-all rounded-2xl">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{isVietnamese ? 'Đã Sàng lọc PRISMA' : 'PRISMA Screened'}</span>
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-2xs">
-              <CheckCircle2 className="w-5 h-5" />
-            </div>
-          </div>
-          <div>
-            <p className="text-2xl sm:text-3xl font-extrabold font-display text-slate-800 dark:text-white leading-none">{totalScreened}</p>
-            <div className="mt-2 flex items-center gap-1.5">
-              <span className="badge badge-success text-[10px]">{totalScreened > 0 ? 'Included' : '0'}</span>
-              <span className="text-[11px] text-slate-400">
-                {totalScreened > 0 ? (isVietnamese ? 'Đạt tiêu chuẩn' : 'Met criteria') : (isVietnamese ? 'Chưa sàng lọc' : 'Not screened')}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className="card p-5 space-y-3 bg-white dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 shadow-xs hover:shadow-sm transition-all rounded-2xl">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{isVietnamese ? 'Khoảng trống Đề tài (Gaps)' : 'Research Gaps'}</span>
-            <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shadow-2xs">
-              <Compass className="w-5 h-5" />
-            </div>
-          </div>
-          <div>
-            <p className="text-2xl sm:text-3xl font-extrabold font-display text-slate-800 dark:text-white leading-none">{totalGaps}</p>
-            <div className="mt-2 flex items-center gap-1.5">
-              <span className="badge badge-warning text-[10px]">{totalGaps > 0 ? (isVietnamese ? 'Đã phát hiện' : 'Identified') : '0'}</span>
-              <span className="text-[11px] text-amber-600 dark:text-amber-400 font-semibold">
-                {totalGaps > 0 ? (isVietnamese ? 'Hướng mở rộng mới' : 'New angles') : (isVietnamese ? 'Chưa bóc tách' : 'Pending')}
-              </span>
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-      {/* ── 3. IF NO PROJECTS: Show Empty State Onboarding Guide ───────── */}
-      {totalProjects === 0 ? (
-        <div className="card p-8 md:p-12 text-center space-y-6 bg-surface-50/50 dark:bg-surface-900/40 border-dashed border-2 border-surface-200 dark:border-surface-800 rounded-2xl">
-          <div className="w-16 h-16 rounded-2xl bg-primary-100 dark:bg-primary-950/60 text-primary-600 dark:text-primary-400 flex items-center justify-center mx-auto shadow-sm">
-            <FolderPlus className="w-8 h-8" />
-          </div>
-
-          <div className="max-w-md mx-auto space-y-2">
-            <h2 className="font-display font-bold text-lg text-surface-900 dark:text-white">
-              {isVietnamese ? 'Bắt đầu đề tài nghiên cứu đầu tiên của bạn' : 'Start Your First Literature Review Project'}
-            </h2>
-            <p className="text-xs text-surface-500 dark:text-surface-400 leading-relaxed">
-              {isVietnamese
-                ? 'Hệ thống hỗ trợ toàn bộ quy trình SLR khép kín: từ phân tích khung PICO, tra cứu Scopus Q1–Q4, sàng lọc PRISMA đến bóc tách ma trận so sánh phương pháp.'
-                : 'Automate the end-to-end SLR pipeline: PICO scoping, Scopus Q1–Q4 discovery, PRISMA screening, and cross-paper matrix synthesis.'}
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+        {/* ── 2. Filter Category Pills (All, Mine, Featured, Shared, Collections) ── */}
+        <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar pb-1 text-xs font-semibold">
+          {[
+            { id: 'all', label: isVietnamese ? 'Tất cả' : 'All' },
+            { id: 'mine', label: isVietnamese ? 'Sổ ghi chú của tôi' : 'My notebooks' },
+            { id: 'featured', label: isVietnamese ? 'Sổ ghi chú nổi bật' : 'Featured' },
+            { id: 'shared', label: isVietnamese ? 'Được chia sẻ với tôi' : 'Shared with me' },
+            { id: 'collections', label: isVietnamese ? 'Tuyển tập' : 'Collections' },
+          ].map(tab => (
             <button
-              onClick={onOpenNewProject}
-              className="btn btn-primary px-6 py-2.5 font-bold shadow-primary-sm cursor-pointer flex items-center gap-2"
+              key={tab.id}
+              onClick={() => setActiveFilter(tab.id)}
+              className={`px-4 py-1.5 rounded-full transition-all whitespace-nowrap cursor-pointer ${
+                activeFilter === tab.id
+                  ? 'bg-white text-slate-900 font-bold shadow-sm'
+                  : 'bg-[#232834] text-slate-300 hover:bg-[#2e3444] hover:text-white border border-slate-700/60'
+              }`}
             >
-              <Plus className="w-4 h-4" />
-              <span>{isVietnamese ? 'Tạo đề tài nghiên cứu đầu tiên' : 'Create First Project'}</span>
+              {tab.label}
             </button>
-            <button
-              onClick={() => setActiveTab('setup')}
-              className="btn btn-secondary px-5 py-2.5 font-semibold cursor-pointer flex items-center gap-2"
-            >
-              <span>{isVietnamese ? 'Khám phá Cấu hình PICO' : 'Explore PICO Setup'}</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* 3 Steps Guide */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-8 text-left border-t border-surface-200 dark:border-surface-800">
-            <div className="p-4 rounded-xl bg-white dark:bg-surface-800 border border-surface-100 dark:border-surface-700 space-y-2">
-              <div className="w-7 h-7 rounded-lg bg-primary-100 dark:bg-primary-950 text-primary-600 dark:text-primary-400 font-bold text-xs flex items-center justify-center">
-                1
-              </div>
-              <p className="font-bold text-xs text-surface-900 dark:text-white">
-                {isVietnamese ? 'Thiết lập PICO & Tiêu chí' : 'PICO & Protocol Setup'}
-              </p>
-              <p className="text-[11px] text-surface-500 dark:text-surface-400">
-                {isVietnamese
-                  ? 'Nhập câu hỏi nghiên cứu, AI tự động gợi ý tiêu chí Chọn / Loại chuẩn PRISMA.'
-                  : 'Define research questions; AI suggests PRISMA Inclusion/Exclusion criteria.'}
-              </p>
-            </div>
-
-            <div className="p-4 rounded-xl bg-white dark:bg-surface-800 border border-surface-100 dark:border-surface-700 space-y-2">
-              <div className="w-7 h-7 rounded-lg bg-sky-100 dark:bg-sky-950 text-sky-600 dark:text-sky-400 font-bold text-xs flex items-center justify-center">
-                2
-              </div>
-              <p className="font-bold text-xs text-surface-900 dark:text-white">
-                {isVietnamese ? 'Tra cứu & Xác minh Scopus' : 'Search & Scopus Validation'}
-              </p>
-              <p className="text-[11px] text-surface-500 dark:text-surface-400">
-                {isVietnamese
-                  ? 'Tra cứu hàng trăm bài báo Google Scholar, kiểm tra chỉ số Q1–Q4 và phát hiện bài trùng.'
-                  : 'Search Google Scholar, verify Scopus quartiles, and filter duplicates.'}
-              </p>
-            </div>
-
-            <div className="p-4 rounded-xl bg-white dark:bg-surface-800 border border-surface-100 dark:border-surface-700 space-y-2">
-              <div className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 font-bold text-xs flex items-center justify-center">
-                3
-              </div>
-              <p className="font-bold text-xs text-surface-900 dark:text-white">
-                {isVietnamese ? 'Bóc tách Ma trận & Xuất bản' : 'Matrix Synthesis & Export'}
-              </p>
-              <p className="text-[11px] text-surface-500 dark:text-surface-400">
-                {isVietnamese
-                  ? 'Tự động trích xuất bảng so sánh phương pháp, phát hiện Research Gaps và xuất BibTeX.'
-                  : 'Extract methodology matrix, identify research gaps, and export BibTeX.'}
-              </p>
-            </div>
-          </div>
+          ))}
         </div>
-      ) : (
-        /* ── 4. IF USER HAS PROJECTS: Real PRISMA Funnel & Gaps ─────────── */
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          
-          {/* Left (7 cols): Real PRISMA 2020 Funnel */}
-          <div className="lg:col-span-7 card p-6 space-y-5 bg-white dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xs">
+
+        {/* ── 3. Section: Sổ ghi chú nổi bật (Featured Notebooks) ── */}
+        {(activeFilter === 'all' || activeFilter === 'featured') && (
+          <section className="space-y-4">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                <h3 className="font-display font-bold text-sm text-slate-800 dark:text-white">
-                  {isVietnamese ? 'Sơ đồ Phễu Sàng lọc PRISMA' : 'PRISMA Screening Funnel'}
-                </h3>
-              </div>
-              <span className="badge badge-primary text-[10px] max-w-[200px] truncate">
-                {activeProject?.name}
-              </span>
-            </div>
-
-            <div className="space-y-3">
-              
-              {/* Step 1: Identification */}
-              <div className="p-3.5 rounded-xl bg-slate-50/80 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/70 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="w-7 h-7 rounded-lg bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 font-bold text-xs flex items-center justify-center">
-                    1
-                  </span>
-                  <div>
-                    <p className="text-xs font-bold text-slate-800 dark:text-white">
-                      {isVietnamese ? 'Giai đoạn Nhận diện (Identification)' : 'Identification Phase'}
-                    </p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                      {isVietnamese ? 'Tra cứu Google Scholar & Scopus API' : 'Google Scholar & Scopus Search'}
-                    </p>
-                  </div>
-                </div>
-                <span className="font-mono font-bold text-sm text-slate-800 dark:text-white">
-                  {activeProject?.paper_count || 0} {isVietnamese ? 'bản ghi' : 'records'}
-                </span>
-              </div>
-
-              {/* Step 2: Screening */}
-              <div className="p-3.5 rounded-xl bg-slate-50/80 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/70 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="w-7 h-7 rounded-lg bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 font-bold text-xs flex items-center justify-center">
-                    2
-                  </span>
-                  <div>
-                    <p className="text-xs font-bold text-slate-800 dark:text-white">
-                      {isVietnamese ? 'Lọc Trùng lặp & Xác minh Scopus' : 'Deduplication & Scopus Verification'}
-                    </p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                      {isVietnamese ? 'Kiểm tra xếp hạng Q1–Q4' : 'Verified Scopus rankings'}
-                    </p>
-                  </div>
-                </div>
-                <span className="font-mono font-bold text-sm text-emerald-600 dark:text-emerald-400">
-                  {activeProject?.paper_count || 0} {isVietnamese ? 'đã xác minh' : 'verified'}
-                </span>
-              </div>
-
-              {/* Step 3: Eligibility */}
-              <div className="p-3.5 rounded-xl bg-slate-50/80 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/70 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="w-7 h-7 rounded-lg bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-bold text-xs flex items-center justify-center">
-                    3
-                  </span>
-                  <div>
-                    <p className="text-xs font-bold text-slate-800 dark:text-white">
-                      {isVietnamese ? 'Sàng lọc Tiêu chí Đạt yêu cầu (Inclusion)' : 'Eligibility & Inclusion Screening'}
-                    </p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                      {isVietnamese ? 'Đối chiếu bộ tiêu chuẩn PICO đã thiết lập' : 'Filtered against PICO criteria'}
-                    </p>
-                  </div>
-                </div>
-                <span className="font-mono font-bold text-sm text-slate-800 dark:text-white">
-                  {activeProject?.screened_count || 0} {isVietnamese ? 'đạt chuẩn' : 'passed'}
-                </span>
-              </div>
-
-              {/* Step 4: Included */}
-              <div className="p-3.5 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="w-7 h-7 rounded-lg bg-emerald-600 text-white font-bold text-xs flex items-center justify-center shadow-xs">
-                    4
-                  </span>
-                  <div>
-                    <p className="text-xs font-bold text-emerald-900 dark:text-emerald-200">
-                      {isVietnamese ? 'Đưa vào Tổng hợp & Bóc tách Ma trận' : 'Included for Synthesis'}
-                    </p>
-                    <p className="text-[11px] text-emerald-700/80 dark:text-emerald-400">
-                      {isVietnamese ? 'Nạp vào Không gian phân tích và lập bảng đối sánh' : 'Loaded into Synthesis Matrix'}
-                    </p>
-                  </div>
-                </div>
-                <span className="font-mono font-bold text-sm text-emerald-700 dark:text-emerald-300">
-                  {activeProject?.screened_count || 0} {isVietnamese ? 'nghiên cứu' : 'studies'}
-                </span>
-              </div>
-
-            </div>
-
-            <div className="pt-2 flex justify-end">
+              <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">
+                {isVietnamese ? 'Sổ ghi chú nổi bật' : 'Featured Notebooks'}
+              </h2>
               <button
-                onClick={() => setActiveTab('search')}
-                className="btn btn-secondary btn-sm flex items-center gap-1.5 cursor-pointer font-semibold"
+                onClick={() => setActiveFilter('featured')}
+                className="text-xs font-semibold text-slate-400 hover:text-blue-400 flex items-center gap-1 transition-colors cursor-pointer"
               >
-                <span>{isVietnamese ? 'Tiếp tục tìm kiếm bài báo' : 'Continue Paper Search'}</span>
-                <ArrowRight className="w-3.5 h-3.5" />
+                <span>{isVietnamese ? 'Xem tất cả' : 'View all'}</span>
+                <ChevronRight className="w-3.5 h-3.5" />
               </button>
             </div>
-          </div>
 
-          {/* Right (5 cols): Research Gaps Discovered */}
-          <div className="lg:col-span-5 card p-6 space-y-4 bg-white dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xs">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Compass className="w-5 h-5 text-amber-500" />
-                <h3 className="font-display font-bold text-sm text-slate-800 dark:text-white">
-                  {isVietnamese ? 'Khoảng trống Nghiên cứu' : 'Research Gaps'}
-                </h3>
-              </div>
-              <span className="badge badge-warning text-[10px]">
-                {activeGaps.length > 0 ? (isVietnamese ? 'Đã phát hiện' : 'Identified') : (isVietnamese ? 'Đang chờ' : 'Pending')}
-              </span>
-            </div>
-
-            {activeGaps.length > 0 ? (
-              <div className="space-y-3">
-                {activeGaps.map((gap, i) => (
-                  <div
-                    key={i}
-                    className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 hover:border-amber-400 transition-all space-y-1.5 relative group"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="badge badge-secondary text-[9px] font-mono">
-                        {gap.tag || 'Gap'}
-                      </span>
-                      <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">
-                        {gap.impact || 'High Priority'}
-                      </span>
-                    </div>
-                    <p className="font-bold text-xs text-slate-800 dark:text-white leading-snug">
-                      {gap.title}
-                    </p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed line-clamp-2">
-                      {gap.desc}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="p-6 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-700/70 text-center space-y-3 my-auto">
-                <Compass className="w-9 h-9 text-slate-400 dark:text-slate-500 mx-auto" />
-                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                  {isVietnamese
-                    ? 'Chưa ghi nhận khoảng trống nghiên cứu cho đề tài này. Hãy nạp thêm bài báo khoa học và mở Không gian Phân tích để hệ thống tổng hợp bảng so sánh.'
-                    : 'No research gaps extracted yet for this project. Load papers and open Synthesis Workspace to analyze.'}
-                </p>
-                <button
-                  onClick={() => setActiveTab('synthesis')}
-                  className="btn btn-secondary btn-sm mx-auto cursor-pointer flex items-center gap-1.5 font-bold"
-                >
-                  <Layers className="w-3.5 h-3.5 text-blue-600" />
-                  <span>{isVietnamese ? 'Mở Không gian Phân tích' : 'Open Workspace'}</span>
-                </button>
-              </div>
-            )}
-          </div>
-
-        </div>
-      )}
-
-      {/* ── 5. Project Management List (With Clean "..." 3-Dot Menu) ─────── */}
-      {totalProjects > 0 && (
-        <div className="card p-6 space-y-4 bg-white dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xs">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-display font-bold text-base text-slate-900 dark:text-white">
-                {isVietnamese ? 'Danh sách Đề tài Nghiên cứu Đang Quản lý' : 'Managed Research Projects'}
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                {isVietnamese ? 'Ghim lên đầu, chỉnh sửa tên, chia sẻ liên kết hoặc xóa đề tài độc lập' : 'Pin to top, rename, share links, or delete projects'}
-              </p>
-            </div>
-            <button
-              onClick={onOpenNewProject}
-              className="btn btn-primary btn-sm flex items-center gap-1.5 cursor-pointer font-bold"
-            >
-              <Plus className="w-4 h-4" />
-              <span>{isVietnamese ? 'Tạo đề tài mới' : 'New Project'}</span>
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
-            {projects.map((proj) => {
-              const isActive = proj.id === activeProjectId;
-              const isEditing = editingProjectId === proj.id;
-              const isConfirmingDelete = deleteConfirmId === proj.id;
-              const isMenuOpen = activeMenuProjectId === proj.id;
-
-              return (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
+              {FEATURED_NOTEBOOKS.map(feat => (
                 <div
-                  key={proj.id}
-                  onClick={() => !isEditing && !isConfirmingDelete && switchProject(proj.id)}
-                  className={`p-4 rounded-xl border transition-all space-y-3 relative group ${
-                    isActive
-                      ? 'bg-blue-50/60 dark:bg-blue-950/40 border-blue-500 shadow-xs ring-1 ring-blue-500/20'
-                      : 'bg-white dark:bg-slate-900/60 border-slate-200/80 dark:border-slate-800 hover:border-blue-400 cursor-pointer'
-                  }`}
+                  key={feat.id}
+                  onClick={() => handleOpenFeatured(feat)}
+                  className="group relative rounded-2xl overflow-hidden bg-[#202531] border border-slate-800 hover:border-blue-500/80 shadow-md hover:shadow-xl hover:shadow-blue-500/10 transition-all duration-300 cursor-pointer flex flex-col h-56"
                 >
-                  {/* Top Bar on Card */}
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-1.5">
-                      {proj.is_pinned && (
-                        <span className="badge bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 text-[10px] flex items-center gap-1">
-                          <Pin className="w-3 h-3 fill-blue-600" />
-                          <span>{isVietnamese ? 'Đã ghim' : 'Pinned'}</span>
-                        </span>
-                      )}
-                      <span className="badge badge-primary text-[10px]">
-                        {proj.research_field || (isVietnamese ? 'Nghiên cứu' : 'Research')}
+                  {/* Cover Image */}
+                  <div className="h-28 w-full relative overflow-hidden bg-slate-800 shrink-0">
+                    <img
+                      src={feat.image}
+                      alt={feat.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 filter brightness-90 contrast-110"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#202531] via-transparent to-transparent" />
+                  </div>
+
+                  {/* Body Content */}
+                  <div className="p-3.5 flex flex-col justify-between flex-1 min-w-0">
+                    <div>
+                      <div className="flex items-center gap-1 text-[10px] font-semibold text-blue-400 truncate">
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />
+                        <span className="truncate">{feat.source}</span>
+                      </div>
+                      <h3 className="font-bold text-xs text-white group-hover:text-blue-300 transition-colors line-clamp-2 mt-1 leading-snug">
+                        {feat.title}
+                      </h3>
+                    </div>
+
+                    {/* Footer Meta */}
+                    <div className="flex items-center justify-between text-[10.5px] text-slate-400 pt-1 border-t border-slate-800/60 mt-auto">
+                      <span className="truncate">{feat.date}</span>
+                      <span className="flex items-center gap-1 text-slate-300 font-medium shrink-0">
+                        {feat.sourcesCount} nguồn <Globe className="w-3 h-3 text-slate-400" />
                       </span>
                     </div>
-
-                    {/* Single Clean "..." Action Button */}
-                    <div className="relative" onClick={e => e.stopPropagation()}>
-                      <button
-                        type="button"
-                        onClick={e => {
-                          e.stopPropagation();
-                          setActiveMenuProjectId(isMenuOpen ? null : proj.id);
-                        }}
-                        className={`p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer ${
-                          isMenuOpen ? 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-white' : ''
-                        }`}
-                        title={isVietnamese ? 'Tùy chọn đề tài' : 'Project options'}
-                      >
-                        <MoreVertical className="w-4 h-4" />
-                      </button>
-
-                      {/* Floating Action Menu for Card */}
-                      {isMenuOpen && (
-                        <div
-                          className="absolute right-0 top-full mt-1 z-50 w-44 rounded-xl shadow-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 py-1 space-y-0.5 animate-slide-up text-left"
-                        >
-                          {/* 1. Pin / Unpin */}
-                          <button
-                            type="button"
-                            onClick={e => handleTogglePin(e, proj.id, proj.is_pinned)}
-                            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-950/50 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer transition-colors"
-                          >
-                            {proj.is_pinned ? <PinOff className="w-3.5 h-3.5 text-blue-500" /> : <Pin className="w-3.5 h-3.5" />}
-                            <span>{proj.is_pinned ? (isVietnamese ? 'Bỏ ghim đề tài' : 'Unpin project') : (isVietnamese ? 'Ghim lên đầu' : 'Pin to top')}</span>
-                          </button>
-
-                          {/* 2. Rename */}
-                          <button
-                            type="button"
-                            onClick={e => handleStartRename(e, proj)}
-                            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-950/50 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer transition-colors"
-                          >
-                            <Pencil className="w-3.5 h-3.5" />
-                            <span>{isVietnamese ? 'Đổi tên đề tài' : 'Rename project'}</span>
-                          </button>
-
-                          {/* 3. Share */}
-                          <button
-                            type="button"
-                            onClick={e => handleShare(e, proj)}
-                            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-950/50 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer transition-colors"
-                          >
-                            <Share2 className="w-3.5 h-3.5" />
-                            <span>{isVietnamese ? 'Chia sẻ liên kết' : 'Share link'}</span>
-                          </button>
-
-                          <div className="border-t border-slate-100 dark:border-slate-800 my-0.5" />
-
-                          {/* 4. Delete */}
-                          <button
-                            type="button"
-                            onClick={e => {
-                              e.stopPropagation();
-                              setActiveMenuProjectId(null);
-                              setDeleteConfirmId(proj.id);
-                            }}
-                            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 cursor-pointer transition-colors"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                            <span>{isVietnamese ? 'Xóa đề tài' : 'Delete project'}</span>
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Project Name or Inline Edit */}
-                  {isEditing ? (
-                    <div className="space-y-2 pt-1" onClick={e => e.stopPropagation()}>
-                      <input
-                        type="text"
-                        value={editingName}
-                        onChange={e => setEditingName(e.target.value)}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter') handleSaveRename(e, proj.id);
-                          if (e.key === 'Escape') handleCancelRename(e);
-                        }}
-                        className="input input-sm w-full text-xs font-semibold"
-                        autoFocus
-                      />
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={handleCancelRename}
-                          className="btn btn-secondary btn-xs cursor-pointer"
-                        >
-                          {isVietnamese ? 'Hủy' : 'Cancel'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={e => handleSaveRename(e, proj.id)}
-                          className="btn btn-primary btn-xs cursor-pointer"
-                        >
-                          {isVietnamese ? 'Lưu' : 'Save'}
-                        </button>
-                      </div>
-                    </div>
-                  ) : isConfirmingDelete ? (
-                    <div className="p-2.5 space-y-2 bg-red-50 dark:bg-red-950/40 rounded-xl border border-red-200 dark:border-red-800" onClick={e => e.stopPropagation()}>
-                      <p className="text-xs font-semibold text-red-700 dark:text-red-300 flex items-center gap-1.5">
-                        <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
-                        <span>{isVietnamese ? 'Bạn có chắc chắn muốn xóa đề tài này không?' : 'Are you sure you want to delete this project?'}</span>
-                      </p>
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setDeleteConfirmId(null)}
-                          className="px-2.5 py-1 text-xs rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 cursor-pointer"
-                        >
-                          {isVietnamese ? 'Hủy' : 'Cancel'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={e => handleDelete(e, proj.id)}
-                          className="px-2.5 py-1 text-xs rounded-lg bg-red-600 text-white font-bold hover:bg-red-700 cursor-pointer"
-                        >
-                          {isVietnamese ? 'Xóa vĩnh viễn' : 'Delete'}
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div>
-                      <h4 className="font-bold text-xs text-slate-900 dark:text-white line-clamp-2 leading-snug">
-                        {proj.name}
-                      </h4>
-                      {isActive && (
-                        <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1 mt-1">
-                          <Check className="w-3 h-3" />
-                          <span>{isVietnamese ? 'Đang chọn làm việc' : 'Currently Active'}</span>
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800">
-                    <span>{proj.paper_count || 0} {isVietnamese ? 'bài báo' : 'papers'}</span>
-                    <span>{proj.year_from || 2020} – {proj.year_to || 2026}</span>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* ── 4. Section: Sổ ghi chú gần đây (Recent User Notebooks) ── */}
+        {(activeFilter === 'all' || activeFilter === 'mine') && (
+          <section className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">
+                {isVietnamese ? 'Sổ ghi chú gần đây' : 'Recent Notebooks'}
+              </h2>
+              <span className="text-xs text-slate-400">
+                {filteredProjects.length} {isVietnamese ? 'sổ ghi chú' : 'notebooks'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              
+              {/* Card 1: + Tạo sổ ghi chú mới */}
+              <button
+                onClick={onOpenNewProject}
+                className="h-44 rounded-2xl bg-[#202531]/60 hover:bg-[#202531] border border-dashed border-slate-700/80 hover:border-blue-500 flex flex-col items-center justify-center p-6 text-center transition-all group cursor-pointer shadow-sm hover:shadow-md"
+              >
+                <div className="w-12 h-12 rounded-full bg-[#29303F] group-hover:bg-blue-600 text-slate-300 group-hover:text-white flex items-center justify-center mb-3 transition-all group-hover:scale-110 shadow-inner">
+                  <Plus className="w-6 h-6 stroke-[2.5]" />
+                </div>
+                <span className="font-bold text-xs sm:text-sm text-slate-200 group-hover:text-white transition-colors">
+                  {isVietnamese ? 'Tạo sổ ghi chú mới' : 'Create new notebook'}
+                </span>
+                <span className="text-[11px] text-slate-400 mt-0.5">
+                  {isVietnamese ? 'Chuẩn PRISMA & RAG' : 'PRISMA & RAG-ready'}
+                </span>
+              </button>
+
+              {/* User Projects Cards */}
+              {filteredProjects.map((proj) => {
+                const isEditing = editingProjectId === proj.id;
+                const isMenuOpen = activeMenuProjectId === proj.id;
+                const updatedDate = proj.updated_at 
+                  ? new Date(proj.updated_at).toLocaleDateString('vi-VN', { day: 'numeric', month: 'short', year: 'numeric' })
+                  : (isVietnamese ? 'Hôm nay' : 'Today');
+
+                return (
+                  <div
+                    key={proj.id}
+                    onClick={() => handleOpenNotebook(proj)}
+                    className={`group relative h-44 rounded-2xl bg-[#202531] border transition-all duration-200 cursor-pointer p-4 flex flex-col justify-between shadow-sm hover:shadow-lg ${
+                      proj.is_pinned
+                        ? 'border-blue-500/70 hover:border-blue-400 bg-gradient-to-b from-[#202531] to-[#1c2438]'
+                        : 'border-slate-800/90 hover:border-slate-700'
+                    }`}
+                  >
+                    {/* Card Top: Icon & 3-Dot Action Menu */}
+                    <div className="flex items-center justify-between shrink-0">
+                      <div className="w-9 h-9 rounded-xl bg-[#29303F] border border-slate-700/60 flex items-center justify-center">
+                        {getNotebookIcon(proj.name, proj.research_field)}
+                      </div>
+
+                      <div className="flex items-center gap-1">
+                        {proj.is_pinned && (
+                          <Pin className="w-3.5 h-3.5 text-blue-400 fill-blue-400/40" />
+                        )}
+                        
+                        {/* 3-Dot Button */}
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveMenuProjectId(isMenuOpen ? null : proj.id);
+                            }}
+                            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-[#2E3647] transition-colors cursor-pointer opacity-80 group-hover:opacity-100"
+                            title="Tùy chọn sổ ghi chú"
+                          >
+                            <MoreVertical className="w-4 h-4" />
+                          </button>
+
+                          {/* Action Dropdown Menu */}
+                          {isMenuOpen && (
+                            <div
+                              onClick={(e) => e.stopPropagation()}
+                              className="absolute right-0 top-full mt-1.5 w-44 rounded-xl bg-[#1E2330] border border-slate-700/80 shadow-2xl p-1 z-50 animate-slide-up text-xs font-semibold text-slate-200"
+                            >
+                              <button
+                                onClick={(e) => handleStartRename(e, proj)}
+                                className="w-full px-3 py-2 rounded-lg text-left hover:bg-[#2A3142] flex items-center gap-2 transition-colors cursor-pointer"
+                              >
+                                <Pencil className="w-3.5 h-3.5 text-slate-400" />
+                                <span>{isVietnamese ? 'Đổi tên' : 'Rename'}</span>
+                              </button>
+
+                              <button
+                                onClick={(e) => handleTogglePin(e, proj.id, proj.is_pinned)}
+                                className="w-full px-3 py-2 rounded-lg text-left hover:bg-[#2A3142] flex items-center gap-2 transition-colors cursor-pointer"
+                              >
+                                {proj.is_pinned ? <PinOff className="w-3.5 h-3.5 text-slate-400" /> : <Pin className="w-3.5 h-3.5 text-slate-400" />}
+                                <span>{proj.is_pinned ? (isVietnamese ? 'Bỏ ghim' : 'Unpin') : (isVietnamese ? 'Ghim lên đầu' : 'Pin to top')}</span>
+                              </button>
+
+                              <button
+                                onClick={(e) => handleShare(e, proj)}
+                                className="w-full px-3 py-2 rounded-lg text-left hover:bg-[#2A3142] flex items-center gap-2 transition-colors cursor-pointer"
+                              >
+                                <Share2 className="w-3.5 h-3.5 text-slate-400" />
+                                <span>{isVietnamese ? 'Sao chép liên kết' : 'Copy link'}</span>
+                              </button>
+
+                              <div className="my-1 border-t border-slate-700/60" />
+
+                              <button
+                                onClick={(e) => handleDelete(e, proj.id)}
+                                className="w-full px-3 py-2 rounded-lg text-left hover:bg-rose-950/50 text-rose-400 font-bold flex items-center gap-2 transition-colors cursor-pointer"
+                              >
+                                <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                                <span>{isVietnamese ? 'Xóa sổ ghi chú' : 'Delete'}</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Card Body: Title (or Inline Editing Input) */}
+                    <div className="my-auto min-w-0">
+                      {isEditing ? (
+                        <div onClick={e => e.stopPropagation()} className="space-y-1.5">
+                          <input
+                            type="text"
+                            autoFocus
+                            value={editingName}
+                            onChange={e => setEditingName(e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') handleSaveRename(e, proj.id);
+                              if (e.key === 'Escape') handleCancelRename(e);
+                            }}
+                            className="w-full px-2.5 py-1 text-xs rounded-lg bg-[#2E3647] border border-blue-500 text-white font-bold focus:outline-none"
+                          />
+                          <div className="flex items-center gap-1 justify-end">
+                            <button
+                              onClick={(e) => handleSaveRename(e, proj.id)}
+                              className="px-2 py-0.5 rounded bg-blue-600 hover:bg-blue-500 text-[10px] font-bold text-white"
+                            >
+                              Lưu
+                            </button>
+                            <button
+                              onClick={handleCancelRename}
+                              className="px-2 py-0.5 rounded bg-slate-700 hover:bg-slate-600 text-[10px] text-slate-300"
+                            >
+                              Hủy
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <h3 className="font-bold text-xs sm:text-sm text-white group-hover:text-blue-300 transition-colors line-clamp-2 leading-snug">
+                          {proj.name}
+                        </h3>
+                      )}
+                    </div>
+
+                    {/* Card Footer: Date & Source Count */}
+                    <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400 shrink-0">
+                      <span className="truncate">{updatedDate}</span>
+                      <span className="font-medium text-slate-300 shrink-0">
+                        {proj.paper_count || 0} {isVietnamese ? 'nguồn' : 'sources'}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+
+            </div>
+          </section>
+        )}
+
+      </main>
 
     </div>
   );
