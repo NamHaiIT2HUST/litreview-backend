@@ -6,6 +6,7 @@ import SynthesisPanel from './SynthesisPanel';
 import DataAnalysisPanel from './DataAnalysisPanel';
 import RAGEvalHarnessModal from './RAGEvalHarnessModal';
 import { reconcileSelectedPaperIds, selectedPapersFromIds } from '../../utils/workspaceScope';
+import { useProject } from '../../contexts/ProjectContext';
 
 import { useLanguage } from '../../contexts/LanguageContext';
 import {
@@ -213,11 +214,18 @@ export default function WorkspaceTab({
     };
   }, [isResizing]);
 
+  const { activeProject } = useProject();
+  const currentProjectId = activeProject?.id;
+
   React.useEffect(() => {
     let cancelled = false;
     const restoreUploads = async () => {
+      if (!currentProjectId) {
+        setWorkspacePapers?.([]);
+        return;
+      }
       try {
-        const response = await fetch(`${API_BASE}/projects/00000000-0000-0000-0000-000000000001/papers?include_unverified=true`);
+        const response = await fetch(`${API_BASE}/projects/${currentProjectId}/papers?include_unverified=true`);
         if (!response.ok) return;
         const persisted = persistedDirectUploadSources(await response.json());
         if (cancelled) return;
@@ -228,7 +236,7 @@ export default function WorkspaceTab({
     };
     restoreUploads();
     return () => { cancelled = true; };
-  }, [setWorkspacePapers]);
+  }, [currentProjectId, setWorkspacePapers]);
 
   // Lọc và gộp danh sách nguồn tài liệu
   const allSources = React.useMemo(() => {
@@ -286,6 +294,9 @@ export default function WorkspaceTab({
       const formData = new FormData();
       formData.append('file', item.file);
       formData.append('title', item.filename.replace(/\.pdf$/i, ''));
+      if (currentProjectId) {
+        formData.append('project_id', currentProjectId);
+      }
       try {
         const res = await fetch(`${API_BASE}/workspace/direct-upload`, { method: 'POST', body: formData });
         const data = await res.json();
@@ -320,13 +331,15 @@ export default function WorkspaceTab({
     setDeletedPaperIds((prev) => new Set([...prev, strId]));
 
     try {
-      const savedWs = JSON.parse(localStorage.getItem('litreview_workspace_papers') || '[]');
+      const wsKey = currentProjectId ? `litreview_workspace_papers_${currentProjectId}` : 'litreview_workspace_papers';
+      const papersKey = currentProjectId ? `litreview_papers_${currentProjectId}` : 'litreview_papers';
+      const savedWs = JSON.parse(localStorage.getItem(wsKey) || '[]');
       const filteredWs = savedWs.filter((p) => String(p.id) !== strId);
-      localStorage.setItem('litreview_workspace_papers', JSON.stringify(filteredWs));
+      localStorage.setItem(wsKey, JSON.stringify(filteredWs));
 
-      const savedPapers = JSON.parse(localStorage.getItem('litreview_papers') || '[]');
+      const savedPapers = JSON.parse(localStorage.getItem(papersKey) || '[]');
       const filteredPapers = savedPapers.filter((p) => String(p.id) !== strId);
-      localStorage.setItem('litreview_papers', JSON.stringify(filteredPapers));
+      localStorage.setItem(papersKey, JSON.stringify(filteredPapers));
     } catch (e) {
       console.error('LocalStorage sync error:', e);
     }
