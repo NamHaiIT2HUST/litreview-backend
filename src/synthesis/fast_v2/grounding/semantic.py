@@ -7,8 +7,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from enum import Enum
+import json
 import time
-from typing import Any, Mapping, Protocol, Sequence, runtime_checkable
+from typing import Any, Callable, Mapping, Protocol, Sequence, runtime_checkable
 from uuid import UUID
 
 from src.synthesis.fast_v2.evidence.bank import GroundedEvidenceBank
@@ -25,6 +26,16 @@ class SemanticVerdict(str, Enum):
     partial = "partial"
     unsupported = "unsupported"
     unverified = "unverified"
+
+
+def parse_semantic_verdict(value: Any) -> SemanticVerdict:
+    """Parse provider label formatting without changing verdict semantics."""
+    if not isinstance(value, str):
+        raise ValueError("semantic verdict must be a string")
+    verdict = SemanticVerdict(value.strip().casefold())
+    if verdict is SemanticVerdict.unverified:
+        raise ValueError("provider must not return unverified")
+    return verdict
 
 
 @dataclass(frozen=True)
@@ -60,6 +71,30 @@ class SemanticVerifier(Protocol):
         statements: tuple[SemanticStatementInput, ...],
     ) -> Sequence[StatementVerificationResult]:
         ...
+
+
+class SemanticVerifierError(RuntimeError):
+    """Hosted semantic verification failed without exposing request secrets."""
+
+
+SEMANTIC_VERIFIER_MAX_TOKENS = 4000
+SEMANTIC_VERIFIER_INSTRUCTIONS = (
+    "Evaluate every statement strictly against the COMPLETE SET of evidence "
+    "items declared for that statement, considered jointly. Do not require "
+    "each evidence item to entail the whole statement. Use supported only "
+    "when all substantive factual content is supported by the combined "
+    "evidence. Use partial when some substantive content is supported but "
+    "some is absent, stronger than, or not established by the evidence. Use "
+    "unsupported when the claim is not supported or is contradicted. Do not "
+    "use outside knowledge. For each statement, resolve every value in its "
+    "evidence_ids array to the evidence_units catalog entry having that exact "
+    "evidence_id; ignore catalog entries not referenced by that statement. "
+    "Return exactly one result for each input key. Verdict labels are exactly "
+    "supported, partial, or unsupported. Return JSON only: "
+    '{"results":[{"claim_index":0,"statement_index":0,'
+    '"verdict":"supported|partial|unsupported",'
+    '"reason":"concise evidence-based reason"}]}'
+)
 
 
 def build_semantic_verifier_context(
@@ -105,6 +140,137 @@ def build_semantic_verifier_context(
         "statements": statement_payload,
         "evidence_units": evidence_units,
     }
+
+
+class HostedBatchSemanticVerifier:
+    """One OpenAI-compatible verification call for all provenance statements."""
+
+    def __init__(
+        self,
+        *,
+        base_url: str,
+        api_key: str,
+        model: str,
+        connect_timeout_s: float = 10.0,
+        verification_timeout_s: float = 240.0,
+        http_client_factory: Callable[[], Any] | None = None,
+    ) -> None:
+        missing = [
+            name
+            for name, value in (
+                ("base_url", base_url),
+                ("api_key", api_key),
+                ("model", model),
+            )
+            if not value
+        ]
+        if missing:
+            raise ValueError(
+                "HostedBatchSemanticVerifier requires " + ", ".join(missing)
+            )
+        self.base_url = base_url.rstrip("/")
+        self.api_key = api_key
+        self.model = model
+        self.connect_timeout_s = connect_timeout_s
+        self.verification_timeout_s = verification_timeout_s
+        self.http_client_factory = http_client_factory
+        self.calls = 0
+        self.latency_ms: float | None = None
+        self.token_usage: dict[str, Any] = {}
+        self.finish_reason: str | None = None
+        self.last_inputs: tuple[SemanticStatementInput, ...] = ()
+        self.last_results: tuple[StatementVerificationResult, ...] = ()
+
+    def _client(self) -> Any:
+        if self.http_client_factory is not None:
+            return self.http_client_factory()
+        import httpx
+
+        return httpx.Client(
+            timeout=httpx.Timeout(
+                connect=self.connect_timeout_s,
+                read=self.verification_timeout_s,
+                write=self.verification_timeout_s,
+                pool=self.connect_timeout_s,
+            )
+        )
+
+    def verify_batch(
+        self,
+        statements: tuple[SemanticStatementInput, ...],
+    ) -> tuple[StatementVerificationResult, ...]:
+        if self.calls:
+            raise SemanticVerifierError("semantic verifier may be called only once")
+        self.calls += 1
+        self.last_inputs = statements
+        context = build_semantic_verifier_context(statements)
+        payload = {
+            "model": self.model,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "You are a strict scientific claim-evidence verifier.",
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        SEMANTIC_VERIFIER_INSTRUCTIONS
+                        + "\n\nSTATEMENTS:\n"
+                        + json.dumps(
+                            context,
+                            ensure_ascii=False,
+                            separators=(",", ":"),
+                        )
+                    ),
+                },
+            ],
+            "temperature": 0.0,
+            "max_tokens": SEMANTIC_VERIFIER_MAX_TOKENS,
+            "response_format": {"type": "json_object"},
+        }
+
+        started = time.perf_counter()
+        try:
+            response = self._client().post(
+                f"{self.base_url}/chat/completions",
+                json=payload,
+                headers={"Authorization": f"Bearer {self.api_key}"},
+            )
+        except Exception as exc:
+            raise SemanticVerifierError(
+                f"semantic verifier request failed: {type(exc).__name__}"
+            ) from exc
+        self.latency_ms = (time.perf_counter() - started) * 1000.0
+        if response.status_code != 200:
+            raise SemanticVerifierError(
+                f"semantic verifier returned HTTP {response.status_code}"
+            )
+
+        try:
+            data = response.json()
+            choice = data["choices"][0]
+            self.finish_reason = choice.get("finish_reason")
+            self.token_usage = dict(data.get("usage") or {})
+            content = choice["message"]["content"]
+            parsed = json.loads(content)
+            rows = parsed.get("results")
+            if not isinstance(rows, list):
+                raise ValueError("missing results list")
+            results = tuple(
+                StatementVerificationResult(
+                    claim_index=int(row["claim_index"]),
+                    statement_index=int(row["statement_index"]),
+                    verdict=parse_semantic_verdict(row["verdict"]),
+                    reason=str(row.get("reason") or ""),
+                )
+                for row in rows
+            )
+        except (KeyError, IndexError, TypeError, ValueError, json.JSONDecodeError) as exc:
+            raise SemanticVerifierError(
+                "semantic verifier returned malformed response"
+            ) from exc
+        self.last_results = results
+        return results
 
 
 class DeterministicFakeSemanticVerifier:

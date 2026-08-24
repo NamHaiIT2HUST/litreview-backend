@@ -83,8 +83,10 @@ def test_composition_root_selects_hosted_api_generator_from_settings(monkeypatch
     from src import config as config_module
     from src.synthesis.fast_v2.evidence.chroma_retriever import FastV2ChromaEvidenceRetriever
     from src.synthesis.fast_v2.generator.hosted_api import HostedApiGenerator
+    from src.synthesis.fast_v2.grounding.semantic import HostedBatchSemanticVerifier
     from src.synthesis.fast_v2.runtime import build_fast_v2_pipeline
     from src.synthesis.fast_v2.selection.rerank import IdentityReranker
+    from src.synthesis.fast_v2.writer import HostedGroundedLiteratureWriter
 
     monkeypatch.setattr(config_module, "get_settings", lambda: _hosted_api_settings())
 
@@ -92,6 +94,9 @@ def test_composition_root_selects_hosted_api_generator_from_settings(monkeypatch
 
     assert isinstance(pipeline.generator, HostedApiGenerator)
     assert pipeline.generator.model == "openai/gpt-oss-120b"
+    assert isinstance(pipeline.semantic_verifier, HostedBatchSemanticVerifier)
+    assert pipeline.semantic_verifier.model == "openai/gpt-oss-120b"
+    assert isinstance(pipeline.literature_writer, HostedGroundedLiteratureWriter)
     assert isinstance(pipeline.retriever, FastV2ChromaEvidenceRetriever)
     # fast_v2_reranker defaults to "identity" unless FAST_V2_RERANKER=cross_encoder.
     assert isinstance(pipeline.reranker, IdentityReranker)

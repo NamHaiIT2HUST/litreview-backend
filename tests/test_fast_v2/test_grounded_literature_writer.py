@@ -23,7 +23,9 @@ from src.synthesis.fast_v2.grounding.semantic import (
 from src.synthesis.fast_v2.writer import (
     DeterministicFakeLiteratureWriter,
     HostedGroundedLiteratureWriter,
+    WRITER_PROMPT_PATH,
     WriterClaim,
+    WriterValidationError,
     _parse_and_validate,
     apply_grounded_literature_writer,
 )
@@ -543,6 +545,72 @@ def test_hosted_writer_makes_one_call_with_claim_metadata_only():
     assert "EvidenceUnit" not in user_content
     assert generation.input_tokens == 88
     assert generation.output_tokens == 12
+
+
+def test_writer_prompt_explicitly_allows_grounded_neutral_aggregation():
+    prompt = WRITER_PROMPT_PATH.read_text(encoding="utf-8")
+
+    assert "MAY combine multiple verified claims" in prompt
+    assert (
+        "Existing studies investigate the split feasibility problem through "
+        "convex, nonlinear, and non-convex formulations."
+    ) in prompt
+    assert (
+        "The literature covers several problem settings, including "
+        "finite-dimensional spaces, Hilbert spaces, and nonlinear mappings."
+    ) in prompt
+
+
+def test_writer_prompt_forbids_unsupported_relationships_while_requesting_synthesis():
+    prompt = WRITER_PROMPT_PATH.read_text(encoding="utf-8")
+
+    assert "Later studies extended earlier formulations." in prompt
+    assert "Xu generalized Byrne's approach." in prompt
+    assert "multiple papers represented in each section where possible" in prompt
+
+
+def test_writer_prompt_requires_one_declared_facet_per_paragraph():
+    prompt = WRITER_PROMPT_PATH.read_text(encoding="utf-8")
+
+    assert "Every paragraph must use claim IDs from exactly one declared facet" in prompt
+    assert "Do not move a claim into another facet" in prompt
+
+
+def test_writer_rejects_exact_cross_facet_paragraph_regression():
+    claims = (
+        WriterClaim(
+            claim_id="claim_0_1",
+            facet="general_topic",
+            claim_text="Presented the CQ algorithm for solving the SFP.",
+            paper_id=PAPER_A,
+            paper_title="Byrne 2002",
+        ),
+        WriterClaim(
+            claim_id="claim_1_0",
+            facet="methodology",
+            claim_text="Used a multiprojection algorithm with oblique projections.",
+            paper_id=PAPER_B,
+            paper_title="Censor 1994",
+        ),
+    )
+    content = json.dumps(
+        {
+            "sections": [
+                {
+                    "title": "Methodological Approaches",
+                    "paragraphs": [
+                        {
+                            "text": "The studies use CQ and multiprojection algorithms.",
+                            "supporting_claim_ids": ["claim_0_1", "claim_1_0"],
+                        }
+                    ],
+                }
+            ]
+        }
+    )
+
+    with pytest.raises(WriterValidationError, match="mixed_facet_paragraph"):
+        _parse_and_validate(content, claims)
 
 
 def test_hosted_writer_request_failure_does_not_expose_authorization_secret():

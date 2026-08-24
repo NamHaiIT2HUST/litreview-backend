@@ -51,6 +51,7 @@ from src.synthesis.fast_v2.dimensions.facets import (
 from src.synthesis.fast_v2.evidence.chroma_retriever import FastV2ChromaEvidenceRetriever
 from src.synthesis.fast_v2.evidence.semantic_index import FastV2SemanticIndex
 from src.synthesis.fast_v2.generator.factory import build_generator
+from src.synthesis.fast_v2.grounding.semantic import HostedBatchSemanticVerifier
 from src.synthesis.fast_v2.pipeline import FastSynthesisV2Pipeline, FastSynthesisV2Result
 from src.synthesis.fast_v2.selection.factory import build_reranker
 from src.synthesis.fast_v2.selection.policy import EvidenceSelectionPolicy
@@ -141,8 +142,14 @@ def build_fast_v2_pipeline(*, paper_ids: Sequence[uuid.UUID]) -> FastSynthesisV2
     retriever = FastV2ChromaEvidenceRetriever(get_fast_v2_index(), paper_ids=paper_ids)
     reranker = get_fast_v2_reranker()
     generator = build_generator()
+    semantic_verifier = None
     literature_writer = None
     if settings.fast_v2_generator == "hosted_api":
+        semantic_verifier = HostedBatchSemanticVerifier(
+            base_url=settings.fast_v2_hosted_api_base_url,
+            api_key=settings.fast_v2_hosted_api_key,
+            model=settings.fast_v2_hosted_api_model,
+        )
         literature_writer = HostedGroundedLiteratureWriter(
             base_url=settings.fast_v2_hosted_api_base_url,
             api_key=settings.fast_v2_hosted_api_key,
@@ -157,6 +164,7 @@ def build_fast_v2_pipeline(*, paper_ids: Sequence[uuid.UUID]) -> FastSynthesisV2
         generator=generator,
         reranker=reranker,
         planner=QuestionFacetDimensionQueryPlanner(paper_ids=paper_ids),
+        semantic_verifier=semantic_verifier,
         literature_writer=literature_writer,
         selection_policy=selection_policy,
         candidates_per_dimension=settings.fast_v2_candidates_per_dimension,
