@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Sidebar from './components/Sidebar';
 import HorizontalNavbar from './components/navigation/HorizontalNavbar';
 import SearchTab from './components/search/SearchTab';
@@ -103,6 +103,8 @@ function MainAppShell() {
     ? `litreview_workspace_chat_${activeProjectId}`
     : 'litreview_workspace_chat_messages';
 
+  const loadedProjectIdRef = useRef(activeProjectId);
+
   const [papers, setPapers] = useState(() => {
     try {
       const saved = localStorage.getItem(papersStorageKey);
@@ -173,20 +175,27 @@ function MainAppShell() {
 
   // Switch project data when active project changes
   useEffect(() => {
+    loadedProjectIdRef.current = activeProjectId;
     try {
-      const savedPapers = localStorage.getItem(papersStorageKey);
+      const pKey = activeProjectId ? `litreview_papers_${activeProjectId}` : 'litreview_papers';
+      const sIdsKey = activeProjectId ? `litreview_selected_ids_${activeProjectId}` : 'litreview_selected_ids';
+      const sPapersKey = activeProjectId ? `litreview_selected_papers_${activeProjectId}` : 'litreview_selected_papers';
+      const wsKey = activeProjectId ? `litreview_workspace_papers_${activeProjectId}` : 'litreview_workspace_papers';
+      const cKey = activeProjectId ? `litreview_workspace_chat_${activeProjectId}` : 'litreview_workspace_chat_messages';
+
+      const savedPapers = localStorage.getItem(pKey);
       setPapers(savedPapers ? JSON.parse(savedPapers) : []);
 
-      const savedIds = localStorage.getItem(selectedIdsKey);
+      const savedIds = localStorage.getItem(sIdsKey);
       setSelectedPaperIds(savedIds ? JSON.parse(savedIds) : []);
 
-      const savedSelected = localStorage.getItem(selectedPapersKey);
+      const savedSelected = localStorage.getItem(sPapersKey);
       setSelectedPapers(savedSelected ? JSON.parse(savedSelected) : []);
 
-      const savedWs = localStorage.getItem(workspacePapersKey);
+      const savedWs = localStorage.getItem(wsKey);
       setWorkspacePapers(savedWs ? JSON.parse(savedWs) : []);
 
-      const savedChat = localStorage.getItem(chatMessagesKey);
+      const savedChat = localStorage.getItem(cKey);
       if (savedChat) {
         setChatMessages(JSON.parse(savedChat));
       } else {
@@ -195,37 +204,37 @@ function MainAppShell() {
     } catch {
       // ignore
     }
-  }, [activeProjectId, chatMessagesKey, papersStorageKey, selectedIdsKey, selectedPapersKey, workspacePapersKey]);
+  }, [activeProjectId, activeProject?.name]);
 
   useEffect(() => {
-    if (papersStorageKey) {
+    if (loadedProjectIdRef.current === activeProjectId && papersStorageKey) {
       localStorage.setItem(papersStorageKey, JSON.stringify(papers));
     }
-  }, [papers, papersStorageKey]);
+  }, [papers, papersStorageKey, activeProjectId]);
 
   useEffect(() => {
-    if (selectedIdsKey) {
+    if (loadedProjectIdRef.current === activeProjectId && selectedIdsKey) {
       localStorage.setItem(selectedIdsKey, JSON.stringify(selectedPaperIds));
     }
-  }, [selectedPaperIds, selectedIdsKey]);
+  }, [selectedPaperIds, selectedIdsKey, activeProjectId]);
 
   useEffect(() => {
-    if (selectedPapersKey) {
+    if (loadedProjectIdRef.current === activeProjectId && selectedPapersKey) {
       localStorage.setItem(selectedPapersKey, JSON.stringify(selectedPapers));
     }
-  }, [selectedPapers, selectedPapersKey]);
+  }, [selectedPapers, selectedPapersKey, activeProjectId]);
 
   useEffect(() => {
-    if (workspacePapersKey) {
+    if (loadedProjectIdRef.current === activeProjectId && workspacePapersKey) {
       localStorage.setItem(workspacePapersKey, JSON.stringify(workspacePapers));
     }
-  }, [workspacePapers, workspacePapersKey]);
+  }, [workspacePapers, workspacePapersKey, activeProjectId]);
 
   useEffect(() => {
-    if (chatMessagesKey && chatMessages) {
+    if (loadedProjectIdRef.current === activeProjectId && chatMessagesKey && chatMessages) {
       localStorage.setItem(chatMessagesKey, JSON.stringify(chatMessages));
     }
-  }, [chatMessages, chatMessagesKey]);
+  }, [chatMessages, chatMessagesKey, activeProjectId]);
 
   const toggleSelectPaper = (id) => {
     if (selectedPaperIds.includes(id)) {
@@ -300,6 +309,7 @@ function MainAppShell() {
         {activeTab === 'synthesis' && (
           <div className="w-full">
             <WorkspaceTab
+              key={`workspace_${activeProjectId || 'default'}`}
               papers={papers}
               setPapers={setPapers}
               selectedPapers={selectedPapers}
