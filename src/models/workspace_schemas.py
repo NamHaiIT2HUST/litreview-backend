@@ -17,6 +17,7 @@ class EvidenceCoordsRequest(BaseModel):
 
 
 class RectCoord(BaseModel):
+    page: int | None = None
     x: float
     y: float
     width: float

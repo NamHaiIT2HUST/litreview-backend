@@ -1546,92 +1546,134 @@ async def get_evidence_coords(
             return EvidenceCoordsResponse(rects=[])
         doc = fitz.open(file_path)
 
-        # fitz is 0-indexed, UI is 1-indexed (usually, though the UI sends the actual page number from the source)
-        page_index = max(0, request.page - 1)
-        if page_index >= len(doc):
+        start_page = max(0, request.page - 1)
+        if start_page >= len(doc):
             return EvidenceCoordsResponse(rects=[])
-
-        page = doc[page_index]
-        page_rect = page.rect
-        page_width = page_rect.width
-        page_height = page_rect.height
 
         search_text = request.snippet.strip()
         rects = []
-
-        # Robust word-level matching
         import re
+        import difflib
         def clean_word(w):
             return re.sub(r'\W+', '', w).lower()
+        
+        words = search_text.split()
+        search_words_list = [clean_word(w) for w in words if clean_word(w)]
 
-        search_words = [clean_word(w) for w in search_text.split() if clean_word(w)]
-        page_words = page.get_text("words")
+        pages_to_search = [start_page]
+        if start_page + 1 < len(doc):
+            pages_to_search.append(start_page + 1)
 
-        if search_words and page_words:
-            best_start = 0
-            best_end = 0
-            max_matches = -1
+        total_matched_words = 0
 
-            window_size = min(len(search_words) + 15, len(page_words))
+        for p_idx in pages_to_search:
+            page = doc[p_idx]
+            page_rect = page.rect
+            page_width = page_rect.width
+            page_height = page_rect.height
+            page_num = p_idx + 1
 
-            for i in range(len(page_words) - window_size + 1):
-                p_ptr = i
-                s_ptr = 0
-                matches = 0
-                while p_ptr < i + window_size and s_ptr < len(search_words):
-                    cw = clean_word(page_words[p_ptr][4])
-                    if not cw:
-                        p_ptr += 1
-                        continue
-
-                    # look ahead in search_words
-                    for lookahead in range(4):
-                        if s_ptr + lookahead < len(search_words) and cw == search_words[s_ptr + lookahead]:
-                            matches += 1
-                            s_ptr += lookahead + 1
-                            break
-                    p_ptr += 1
-
-                if matches > max_matches:
-                    max_matches = matches
-                    best_start = i
-                    best_end = p_ptr - 1
-
-            # Long snippets are often clipped/normalized differently by PDF
-            # extraction (especially scanned PDFs). Keep useful partial
-            # matches instead of returning no coordinates at all.
-            minimum_matches = max(3, min(len(search_words), int(len(search_words) * 0.05)))
-            if max_matches >= minimum_matches:
-                # Collect bounding boxes for these words
-                for i in range(best_start, best_end + 1):
-                    w = page_words[i]
+            # 1. Native PyMuPDF search
+            hits = page.search_for(search_text)
+            if hits:
+                for hit in hits:
                     rects.append(RectCoord(
-                        x=w[0] / page_width,
-                        y=w[1] / page_height,
-                        width=(w[2] - w[0]) / page_width,
-                        height=(w[3] - w[1]) / page_height
+                        page=page_num,
+                        x=hit.x0 / page_width,
+                        y=hit.y0 / page_height,
+                        width=(hit.x1 - hit.x0) / page_width,
+                        height=(hit.y1 - hit.y0) / page_height
                     ))
-
+                # If we found a perfect match natively, we don't need to search the next page
                 return EvidenceCoordsResponse(rects=rects)
 
-            # Fallback for PDFs whose line wrapping/OCR tokenization prevents
-            # a contiguous window match. Highlight matching words on this
-            # already-selected page rather than reporting no evidence.
-            search_word_set = set(search_words)
-            fallback_rects = [
-                RectCoord(
-                    x=w[0] / page_width,
-                    y=w[1] / page_height,
-                    width=(w[2] - w[0]) / page_width,
-                    height=(w[3] - w[1]) / page_height,
-                )
-                for w in page_words
-                if clean_word(w[4]) in search_word_set
-            ]
-            if fallback_rects:
-                return EvidenceCoordsResponse(rects=fallback_rects)
+            # 2. Sub-snippet search
+            chunk_matched = False
+            for chunk_start in range(0, len(words), 10):
+                chunk = " ".join(words[chunk_start:chunk_start + 15])
+                if len(chunk) > 3:
+                    hits = page.search_for(chunk)
+                    for hit in hits:
+                        rects.append(RectCoord(
+                            page=page_num,
+                            x=hit.x0 / page_width,
+                            y=hit.y0 / page_height,
+                            width=(hit.x1 - hit.x0) / page_width,
+                            height=(hit.y1 - hit.y0) / page_height
+                        ))
+                        chunk_matched = True
+            
+            if chunk_matched:
+                # If chunks matched, we consider it a hit. We'll still check the next page if it spilled over.
+                pass
 
+            # 3. Fallback: difflib sequence matching
+            page_words = page.get_text("words", sort=True)
+            page_clean_words = [clean_word(w[4]) for w in page_words]
+            
+            if search_words_list and page_clean_words:
+                matcher = difflib.SequenceMatcher(None, page_clean_words, search_words_list)
+                blocks = matcher.get_matching_blocks()
+                
+                min_block_size = 2 if len(search_words_list) > 3 else 1
+                valid_blocks = [b for b in blocks if b.size >= min_block_size]
+                
+                if valid_blocks:
+                    matched_count = sum(b.size for b in valid_blocks)
+                    total_matched_words += matched_count
 
+                    start_idx = valid_blocks[0].a
+                    end_idx = valid_blocks[-1].a + valid_blocks[-1].size
+                    
+                    def merge_rects(word_list):
+                        merged = []
+                        current_rect = None
+                        def is_same_line(r1, r2):
+                            overlap = max(0, min(r1[3], r2[3]) - max(r1[1], r2[1]))
+                            return overlap > 0.5 * min(r1[3]-r1[1], r2[3]-r2[1])
+                            
+                        for w in word_list:
+                            r = [w[0], w[1], w[2], w[3]]
+                            if current_rect is None:
+                                current_rect = r
+                            else:
+                                if is_same_line(current_rect, r):
+                                    current_rect[0] = min(current_rect[0], r[0])
+                                    current_rect[2] = max(current_rect[2], r[2])
+                                    current_rect[1] = min(current_rect[1], r[1])
+                                    current_rect[3] = max(current_rect[3], r[3])
+                                else:
+                                    merged.append(current_rect)
+                                    current_rect = r
+                        if current_rect:
+                            merged.append(current_rect)
+                        return merged
+
+                    if (end_idx - start_idx) <= len(search_words_list) * 2.5:
+                        words_to_merge = [page_words[i] for i in range(start_idx, end_idx)]
+                    else:
+                        words_to_merge = []
+                        for b in valid_blocks:
+                            for i in range(b.a, b.a + b.size):
+                                words_to_merge.append(page_words[i])
+                                
+                    merged_rects = merge_rects(words_to_merge)
+                    for mr in merged_rects:
+                        rects.append(RectCoord(
+                            page=page_num,
+                            x=mr[0] / page_width,
+                            y=mr[1] / page_height,
+                            width=(mr[2] - mr[0]) / page_width,
+                            height=(mr[3] - mr[1]) / page_height
+                        ))
+            
+            # If we've found enough matches on the first page, do not process the next page
+            # to avoid false positives (e.g. difflib matching stop words on the next page).
+            if rects and not chunk_matched and total_matched_words >= len(search_words_list) * 0.8:
+                break
+            if chunk_matched and p_idx == start_page:
+                # if chunk matched, let it process the next page just in case it spans.
+                pass
 
         return EvidenceCoordsResponse(rects=rects)
     except Exception as e:

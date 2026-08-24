@@ -465,7 +465,7 @@ export default function Sidebar({
         )}
 
         {/* ── Navigation Items ─────────────────────────────────────────── */}
-        <nav className={`flex-1 overflow-y-auto py-3 space-y-1.5 ${isCollapsed ? 'px-2' : 'px-3'}`}>
+        <nav className={`flex-1 overflow-y-auto py-3 space-y-1.5 ${isCollapsed ? 'px-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]' : 'px-3'}`}>
 
           {/* Section: Overview Dashboard */}
           <NavItem
@@ -504,7 +504,7 @@ export default function Sidebar({
 
           {/* Session Stats */}
           {paperCount > 0 && (
-            <div className="pt-3 mt-3 border-t border-surface-100 dark:border-surface-800">
+            <div className="pt-2 mt-1 border-t border-surface-100 dark:border-surface-800">
               {!isCollapsed ? (
                 <div className="px-3 space-y-2 animate-fade-in">
                   <p className="section-label mb-2">{isVietnamese ? 'Phiên làm việc' : 'Session Stats'}</p>
@@ -520,12 +520,12 @@ export default function Sidebar({
                   )}
                 </div>
               ) : (
-                <div className="flex flex-col items-center gap-1.5 py-1">
+                <div className="flex flex-col items-center py-1">
                   <div className="group relative">
-                    <span className="w-8 h-8 rounded-lg bg-surface-100 dark:bg-surface-800 flex items-center justify-center text-[11px] font-bold text-surface-700 dark:text-surface-300 font-mono">
+                    <span className="w-10 h-10 mx-auto rounded-xl bg-surface-100 dark:bg-surface-800 flex items-center justify-center text-[11px] font-bold text-surface-700 dark:text-surface-300 font-mono">
                       {paperCount}
                     </span>
-                    <span className="tooltip left-full ml-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span className="tooltip left-full ml-3 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
                       {paperCount} {isVietnamese ? 'bài báo' : 'papers'} ({selectedCount} {isVietnamese ? 'đã chọn' : 'selected'})
                     </span>
                   </div>
@@ -599,17 +599,28 @@ export default function Sidebar({
             className={`group relative flex items-center rounded-xl text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 hover:text-surface-900 dark:hover:text-white transition-colors text-sm font-medium cursor-pointer ${
               isCollapsed ? 'w-full justify-center h-9 p-0' : 'w-full gap-3 px-3 py-2'
             }`}
-            title={isCollapsed ? (isVietnamese ? 'Chuyển sang Thanh ngang (Navbar)' : 'Switch to Horizontal Navbar') : undefined}
           >
-            <LayoutList className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+            {layoutMode === 'horizontal' ? (
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+                <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+                <path d="M9 3v18" />
+                <path d="M3 5a2 2 0 0 1 2-2h4v18H5a2 2 0 0 1-2-2V5z" fill="currentColor" stroke="none" />
+              </svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+                <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+                <path d="M3 9h18" />
+                <path d="M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4H3V5z" fill="currentColor" stroke="none" />
+              </svg>
+            )}
             {!isCollapsed && (
               <span className="truncate text-xs font-semibold">
-                {isVietnamese ? 'Đổi sang Thanh ngang' : 'Horizontal Navbar'}
+                {isVietnamese ? 'Đổi giao diện' : 'Switch Layout'}
               </span>
             )}
             {isCollapsed && (
               <span className="tooltip left-full ml-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                {isVietnamese ? 'Thanh ngang' : 'Horizontal'}
+                {isVietnamese ? 'Đổi giao diện' : 'Switch Layout'}
               </span>
             )}
           </button>
@@ -629,12 +640,12 @@ export default function Sidebar({
             )}
             {!isCollapsed && (
               <span className="truncate text-xs">
-                {darkMode ? 'Dark Mode' : 'Light Mode'}
+                {darkMode ? (isVietnamese ? 'Chế độ Tối' : 'Dark Mode') : (isVietnamese ? 'Chế độ Sáng' : 'Light Mode')}
               </span>
             )}
             {isCollapsed && (
               <span className="tooltip left-full ml-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                {darkMode ? t('nav.light') : t('nav.dark')}
+                {darkMode ? (isVietnamese ? 'Chế độ Tối' : 'Dark Mode') : (isVietnamese ? 'Chế độ Sáng' : 'Light Mode')}
               </span>
             )}
           </button>
@@ -705,11 +716,15 @@ function NavItem({ item, isActive, status, isCollapsed, onClick, t }) {
     <button
       type="button"
       onClick={onClick}
-      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer group relative ${
+      className={`group relative flex items-center transition-all cursor-pointer text-xs font-semibold ${
+        isCollapsed 
+          ? 'justify-center w-10 h-10 mx-auto rounded-xl px-0' 
+          : 'justify-between w-full px-3 py-2.5 rounded-xl'
+      } ${
         isActive
           ? 'bg-primary-50 text-primary-700 dark:bg-primary-950/80 dark:text-primary-300 font-bold shadow-xs border border-primary-200 dark:border-primary-800'
           : 'text-surface-600 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-800 hover:text-surface-900 dark:hover:text-white border border-transparent'
-      } ${isCollapsed ? 'justify-center px-0 h-10 w-10 mx-auto' : ''}`}
+      }`}
       title={isCollapsed ? label : undefined}
     >
       <div className={`flex items-center gap-2.5 min-w-0 ${isCollapsed ? 'justify-center' : ''}`}>

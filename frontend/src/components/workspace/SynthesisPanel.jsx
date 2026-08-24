@@ -555,7 +555,7 @@ export default function SynthesisPanel({
                               deleteSession(session.id);
                             }}
                             className="opacity-0 group-hover:opacity-100 ml-2 p-1 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all shrink-0"
-                            title="Xóa phiên báo cáo này"
+                            title={!isEn ? 'Xóa phiên báo cáo này' : 'Delete this report session'}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -673,7 +673,7 @@ export default function SynthesisPanel({
                     ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
                     : 'border-slate-200 hover:bg-slate-100 text-slate-700 dark:border-slate-700 dark:hover:bg-slate-800 dark:text-slate-300'
                 }`}
-                title="Sao chép danh mục trích dẫn chuẩn APA 7th Edition"
+                title={!isEn ? 'Sao chép trích dẫn (APA 7th)' : 'Copy citations (APA 7th)'}
               >
                 {apaCopied ? <Check className="w-3.5 h-3.5" /> : <Quote className="w-3.5 h-3.5 text-amber-500" />}
                 <span>{apaCopied ? (isEn ? 'Copied APA' : 'Đã chép APA') : 'APA 7th'}</span>
@@ -684,7 +684,7 @@ export default function SynthesisPanel({
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
                   'border-slate-200 hover:bg-slate-100 text-slate-700 dark:border-slate-700 dark:hover:bg-slate-800 dark:text-slate-300'
                 }`}
-                title="Tải bài báo cáo học thuật hoàn chỉnh (.md)"
+                title={!isEn ? 'Tải báo cáo (.md)' : 'Download report (.md)'}
               >
                 <Download className="w-3.5 h-3.5" />
                 <span>{isEn ? 'Academic Report (.md)' : 'Báo cáo Học thuật (.md)'}</span>
@@ -707,7 +707,7 @@ export default function SynthesisPanel({
                   className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
                     'border-slate-200 hover:bg-slate-100 text-slate-700 dark:border-slate-700 dark:hover:bg-slate-800 dark:text-slate-300'
                   }`}
-                  title="Xuất bảng đối chiếu ma trận ra file CSV (Excel tương thích)"
+                  title={!isEn ? 'Xuất ma trận (CSV)' : 'Export matrix (CSV)'}
                 >
                   <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-500" />
                   <span>{t('synthesis.export_csv')}</span>

@@ -21,7 +21,8 @@ export default function ChatPanel({
   onOpenHarness,
   darkMode
 }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const isEn = language === 'en';
   const [inputQuestion, setInputQuestion] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState(null);
@@ -108,6 +109,16 @@ export default function ChatPanel({
               <div className={msg.sender === 'user' ? 'whitespace-pre-wrap' : 'prose prose-slate dark:prose-invert max-w-none prose-p:text-[14px] prose-p:leading-relaxed prose-headings:font-bold prose-h1:text-[16px] prose-h2:text-[15px] prose-h3:text-[14px] prose-li:text-[14px] prose-pre:bg-slate-800'}>
                 {msg.sender === 'user' ? (
                   msg.text
+                ) : msg.isWelcome ? (
+                  <ReactMarkdown
+                    remarkPlugins={[remarkMath, remarkGfm]}
+                    rehypePlugins={[rehypeKatex]}
+                  >
+                    {isEn
+                      ? "Welcome to **LitRe AI**! Upload your PDF documents to get started. You can ask any question, and I will analyze the source text to provide answers with precise citations."
+                      : "Chào mừng bạn đến với **LitRe AI**! Hãy tải lên tài liệu PDF của bạn để bắt đầu. Bạn có thể đặt bất kỳ câu hỏi nào, tôi sẽ phân tích văn bản gốc và đưa ra câu trả lời kèm theo trích dẫn chính xác."
+                    }
+                  </ReactMarkdown>
                 ) : (
                   <ReactMarkdown
                     remarkPlugins={[remarkMath, remarkGfm]}

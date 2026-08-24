@@ -26,6 +26,7 @@ import {
   BarChart2,
   MessageSquare,
   ShieldCheck,
+  Clock
 } from 'lucide-react';
 
 import { API_BASE, safeFetch } from '../../utils/apiConfig';
@@ -159,6 +160,88 @@ function UploadQueueItem({ item, darkMode }) {
   );
 }
 
+// ─── Analysis History Sidebar ───────────────────────────────────────────────────
+function AnalysisHistorySidebar({ 
+  history, 
+  onSelect, 
+  onNew, 
+  activeId, 
+  onDelete, 
+  onToggleCollapse, 
+  darkMode 
+}) {
+  const { t, language } = useLanguage();
+  const isVietnamese = language === 'vi';
+  
+  return (
+    <>
+      <div className="flex items-center justify-between px-4 h-14 border-b border-surface-100 dark:border-surface-800 shrink-0">
+        <div className="flex items-center gap-2">
+          <Clock className="w-4 h-4 text-primary-600 dark:text-primary-400" />
+          <h3 className="section-label">
+            {isVietnamese ? 'Lịch sử phân tích' : 'Analysis History'}
+          </h3>
+        </div>
+        <button 
+          onClick={onToggleCollapse}
+          className="p-1.5 rounded-lg text-surface-400 hover:text-surface-600 dark:hover:text-surface-200 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
+          title={isVietnamese ? 'Thu gọn lịch sử' : 'Collapse history'}
+        >
+          <PanelLeftClose className="w-4 h-4" />
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-3 space-y-4 pb-4 pt-3 custom-scrollbar">
+        <button
+          onClick={onNew}
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-full border border-primary-300 bg-primary-50 hover:bg-primary-100 text-primary-700 dark:border-primary-700 dark:bg-primary-900/30 dark:hover:bg-primary-900/50 dark:text-primary-300 transition-all font-semibold text-[13px]"
+        >
+          <Plus className="w-4 h-4" />
+          {isVietnamese ? 'Phân tích mới' : 'New Analysis'}
+        </button>
+
+        {history.length === 0 ? (
+          <div className="text-center text-surface-400 text-sm mt-8 px-4 italic">
+            {isVietnamese ? 'Chưa có lịch sử phân tích nào.' : 'No analysis history yet.'}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {history.map((item) => (
+              <div 
+                key={item.id}
+                className={`group relative w-full text-left p-3 rounded-xl cursor-pointer transition-all border ${
+                  activeId === item.id 
+                    ? 'border-primary-500 bg-primary-50 dark:border-primary-700 dark:bg-primary-900/30' 
+                    : 'border-transparent bg-surface-50 hover:bg-surface-100 dark:bg-surface-800/40 dark:hover:bg-surface-800'
+                }`}
+                onClick={() => onSelect(item.id)}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-[13px] font-medium leading-snug line-clamp-2 ${activeId === item.id ? 'text-primary-700 dark:text-primary-300' : 'text-surface-700 dark:text-surface-300'}`}>
+                      {item.query}
+                    </p>
+                    <p className="text-[10px] text-surface-400 mt-1.5 font-mono">
+                      {new Date(item.timestamp).toLocaleString()}
+                    </p>
+                  </div>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onDelete(item.id); }}
+                    className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/40 text-surface-400 hover:text-red-600 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all shrink-0"
+                    title={isVietnamese ? 'Xóa phân tích' : 'Delete analysis'}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
 // ─── Main Workspace Tab ───────────────────────────────────────────────────────
 export default function WorkspaceTab({
   papers = [],
@@ -173,7 +256,8 @@ export default function WorkspaceTab({
   setActiveCitation,
   darkMode,
 }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const isVietnamese = language === 'vi';
   const [uploadQueue, setUploadQueue] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const [selectedPaperIds, setSelectedPaperIds] = useState([]);
@@ -186,6 +270,10 @@ export default function WorkspaceTab({
   const [sidebarWidth, setSidebarWidth] = useState(360);
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = React.useRef(null);
+
+  const [verificationWidth, setVerificationWidth] = useState(380);
+  const [isVerifResizing, setIsVerifResizing] = useState(false);
+  const verifRef = React.useRef(null);
 
   React.useEffect(() => {
     if (!isResizing) return;
@@ -214,8 +302,104 @@ export default function WorkspaceTab({
     };
   }, [isResizing]);
 
+  React.useEffect(() => {
+    if (!isVerifResizing) return;
+    const handleMouseMove = (e) => {
+      if (verifRef.current) {
+        const rightEdge = verifRef.current.getBoundingClientRect().right;
+        const newWidth = rightEdge - e.clientX;
+        if (newWidth >= 300 && newWidth <= 1200) {
+          setVerificationWidth(newWidth);
+        }
+      }
+    };
+    const handleMouseUp = () => {
+      setIsVerifResizing(false);
+      document.body.style.cursor = 'default';
+      document.body.style.userSelect = 'auto';
+    };
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'default';
+      document.body.style.userSelect = 'auto';
+    };
+  }, [isVerifResizing]);
+
   const { activeProject } = useProject();
   const currentProjectId = activeProject?.id;
+
+  const [analysisHistory, setAnalysisHistory] = useState([]);
+  const [activeAnalysisSessionId, setActiveAnalysisSessionId] = useState(null);
+
+  // Load history on project change
+  React.useEffect(() => {
+    if (!currentProjectId) {
+      setAnalysisHistory([]);
+      return;
+    }
+    try {
+      const saved = localStorage.getItem(`analysisHistory_${currentProjectId}`);
+      setAnalysisHistory(saved ? JSON.parse(saved) : []);
+    } catch (e) {
+      setAnalysisHistory([]);
+    }
+  }, [currentProjectId]);
+
+  // Save history on change
+  React.useEffect(() => {
+    if (!currentProjectId) return;
+    const key = `analysisHistory_${currentProjectId}`;
+    
+    const saveToLocal = (historyObj) => {
+      try {
+        localStorage.setItem(key, JSON.stringify(historyObj));
+        return true;
+      } catch (e) {
+        return false;
+      }
+    };
+
+    // Attempt 1: Save full history
+    if (saveToLocal(analysisHistory)) return;
+
+    console.warn("Storage quota exceeded. Slimming down older sessions...");
+    // Attempt 2: Strip large base64 figures from older sessions
+    const slimmedOlder = analysisHistory.map(session => {
+      if (session.id === activeAnalysisSessionId) return session;
+      return {
+        ...session,
+        messages: session.messages.map(msg => ({
+          ...msg,
+          figures: [],
+          block_outputs: msg.block_outputs ? msg.block_outputs.map(bo => ({ ...bo, figures: [] })) : []
+        }))
+      };
+    });
+    
+    if (saveToLocal(slimmedOlder)) return;
+
+    console.warn("Storage quota still exceeded. Slimming down all sessions...");
+    // Attempt 3: Strip figures from ALL sessions
+    const strippedAll = analysisHistory.map(session => ({
+      ...session,
+      messages: session.messages.map(msg => ({
+        ...msg,
+        figures: [],
+        block_outputs: msg.block_outputs ? msg.block_outputs.map(bo => ({ ...bo, figures: [] })) : []
+      }))
+    }));
+    
+    if (saveToLocal(strippedAll)) return;
+    
+    console.warn("Storage quota critical. Keeping only current active session.");
+    // Attempt 4: Extreme fallback - keep only active session without figures
+    saveToLocal(strippedAll.filter(s => s.id === activeAnalysisSessionId));
+  }, [analysisHistory, currentProjectId, activeAnalysisSessionId]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -415,133 +599,127 @@ export default function WorkspaceTab({
         
         {isSourcesOpen ? (
           <>
-            {/* FULL HEADER */}
-            <div className="flex items-center justify-between px-4 h-14 border-b border-surface-100 dark:border-surface-800 shrink-0">
-              <div className="flex items-center gap-2">
-                <BookOpen className="w-4 h-4 text-primary-600 dark:text-primary-400" />
-                <h3 className="section-label">
-                  {t('workspace.source_title')}
-                </h3>
-              </div>
-              <button 
-                onClick={() => setIsSourcesOpen(false)}
-                className="p-1.5 rounded-lg text-surface-400 hover:text-surface-600 dark:hover:text-surface-200 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
-                title="Collapse sources"
-              >
-                <PanelLeftClose className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* FULL CONTENT */}
-            <div className="flex-1 overflow-y-auto px-3 space-y-4 pb-4 pt-3">
-              <div>
-                <AddSourceButton onFiles={uploadFiles} isUploading={isUploading} darkMode={darkMode} />
-              </div>
-              
-              {uploadQueue.length > 0 && (
-                <div className="space-y-1.5 shrink-0">
-                  {uploadQueue.map((item, i) => (
-                    <UploadQueueItem key={i} item={item} darkMode={darkMode} />
-                  ))}
-                </div>
-              )}
-
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between px-2 py-1.5 bg-surface-50 dark:bg-surface-800/50 rounded-lg border border-surface-200 dark:border-surface-700">
-                  <span className="text-[11px] font-semibold text-surface-500">
-                    {scopedPapers.length}/{allSources.length} {t('workspace.using')}
-                  </span>
+            {activeWorkspaceTab === 'analyze' ? (
+              <AnalysisHistorySidebar 
+                history={analysisHistory}
+                activeId={activeAnalysisSessionId}
+                onSelect={(id) => setActiveAnalysisSessionId(id)}
+                onNew={() => setActiveAnalysisSessionId(null)}
+                onDelete={(id) => setAnalysisHistory(prev => prev.filter(h => h.id !== id))}
+                onToggleCollapse={() => setIsSourcesOpen(false)}
+                darkMode={darkMode}
+              />
+            ) : (
+              <>
+                {/* FULL HEADER */}
+                <div className="flex items-center justify-between px-4 h-14 border-b border-surface-100 dark:border-surface-800 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <BookOpen className="w-4 h-4 text-primary-600 dark:text-primary-400" />
+                    <h3 className="section-label">
+                      {t('workspace.source_title')}
+                    </h3>
+                  </div>
                   <button 
-                    type="button"
-                    onClick={handleSelectAll}
-                    className="flex items-center gap-1.5 text-[11px] font-medium text-surface-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                    onClick={() => setIsSourcesOpen(false)}
+                    className="p-1.5 rounded-lg text-surface-400 hover:text-surface-600 dark:hover:text-surface-200 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
+                    title={isVietnamese ? 'Thu gọn' : 'Collapse sources'}
                   >
-                    <span>{t('workspace.select_all')}</span>
-                    <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center transition-all ${
-                      selectedPaperIds.length === allSources.length && allSources.length > 0
-                        ? 'bg-primary-600 text-white border-primary-600'
-                        : 'border-surface-300 dark:border-surface-600'
-                    }`}>
-                      {selectedPaperIds.length === allSources.length && allSources.length > 0 && <Check className="w-2.5 h-2.5 stroke-[3]" />}
-                    </div>
+                    <PanelLeftClose className="w-4 h-4" />
                   </button>
                 </div>
 
-                <div className="space-y-1">
-                {allSources.map((paper) => (
-                  <SourceCard
-                    key={paper.id}
-                    paper={paper}
-                    isChecked={selectedPaperIds.includes(paper.id)}
-                    onToggle={togglePaperSelection}
-                    onRemove={handleRemoveSource}
-                    darkMode={darkMode}
-                  />
-                ))}
-                </div>
-              </div>
-            </div>
+                {/* FULL CONTENT */}
+                <div className="flex-1 overflow-y-auto px-3 space-y-4 pb-4 pt-3">
+                  <div>
+                    <AddSourceButton onFiles={uploadFiles} isUploading={isUploading} darkMode={darkMode} />
+                  </div>
+                  
+                  {uploadQueue.length > 0 && (
+                    <div className="space-y-1.5 shrink-0">
+                      {uploadQueue.map((item, i) => (
+                        <UploadQueueItem key={i} item={item} darkMode={darkMode} />
+                      ))}
+                    </div>
+                  )}
 
-            {/* FULL FOOTER */}
-            {allSources.length > 0 && (
-              <div className="shrink-0 p-3 border-t border-surface-100 dark:border-surface-800">
-                <button
-                  onClick={() => setIsHarnessOpen(true)}
-                  className="btn btn-secondary btn-sm w-full"
-                >
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                  <span>RAG Evaluation</span>
-                </button>
-              </div>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between px-2 py-1.5 bg-surface-50 dark:bg-surface-800/50 rounded-lg border border-surface-200 dark:border-surface-700">
+                      <span className="text-[11px] font-semibold text-surface-500">
+                        {scopedPapers.length}/{allSources.length} {t('workspace.using')}
+                      </span>
+                      <button 
+                        type="button"
+                        onClick={handleSelectAll}
+                        className="flex items-center gap-1.5 text-[11px] font-medium text-surface-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                      >
+                        <span>{t('workspace.select_all')}</span>
+                        <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center transition-all ${
+                          selectedPaperIds.length === allSources.length && allSources.length > 0
+                            ? 'bg-primary-600 text-white border-primary-600'
+                            : 'border-surface-300 dark:border-surface-600'
+                        }`}>
+                          {selectedPaperIds.length === allSources.length && allSources.length > 0 && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                        </div>
+                      </button>
+                    </div>
+                    {allSources.length === 0 ? (
+                      <p className="text-surface-400 text-[13px] text-center italic mt-6 px-4">
+                        {t('workspace.no_sources')}
+                      </p>
+                    ) : (
+                      allSources.map((paper) => (
+                        <SourceCard
+                          key={paper.id}
+                          paper={paper}
+                          isChecked={selectedPaperIds.includes(paper.id)}
+                          onToggle={togglePaperSelection}
+                          onRemove={handleRemoveSource}
+                          darkMode={darkMode}
+                        />
+                      ))
+                    )}
+                  </div>
+                </div>
+              </>
             )}
           </>
 
         ) : (
-          <>
-            {/* COLLAPSED STATE */}
-            <div className="flex items-center justify-center h-14 border-b border-surface-100 dark:border-surface-800 shrink-0">
-              <button 
-                onClick={() => setIsSourcesOpen(true)}
-                className="p-1.5 rounded-lg text-surface-400 hover:text-surface-600 dark:hover:text-surface-200 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
-                title="Expand sources"
-              >
-                <PanelLeft className="w-4 h-4" />
-              </button>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto py-4 flex flex-col items-center gap-3">
-              <button 
-                onClick={() => !isUploading && document.querySelector('input[type="file"]')?.click()}
-                className="w-9 h-9 flex items-center justify-center rounded-xl btn-secondary"
-                title="Upload PDF"
-              >
-                {isUploading ? <Loader2 className="w-4 h-4 animate-spin text-primary-500" /> : <Plus className="w-4 h-4" />}
-              </button>
-
-              <div className="flex flex-col items-center gap-2">
-                {allSources.map((paper) => (
+          <div className="flex flex-col items-center py-4 h-full">
+            <button 
+              onClick={() => setIsSourcesOpen(true)}
+              className="p-1.5 rounded-lg text-surface-400 hover:text-surface-600 dark:hover:text-surface-200 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors mb-6"
+              title={isVietnamese ? 'Mở rộng' : 'Expand sources'}
+            >
+              <PanelLeft className="w-4 h-4" />
+            </button>
+            <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col items-center gap-2">
+              {activeWorkspaceTab === 'analyze' ? (
+                <div 
+                  className="w-10 h-10 rounded-xl bg-primary-50 dark:bg-primary-900/30 border border-primary-200 dark:border-primary-800 flex flex-col items-center justify-center shrink-0 cursor-pointer hover:bg-primary-100 dark:hover:bg-primary-900/50 transition-colors"
+                  title={isVietnamese ? 'Mở Lịch sử phân tích' : 'Open Analysis History'}
+                  onClick={() => setIsSourcesOpen(true)}
+                >
+                  <Clock className="w-5 h-5 text-primary-500" />
+                </div>
+              ) : (
+                allSources.map(paper => (
                   <div 
-                    key={paper.id} 
+                    key={paper.id}
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-[10px] shrink-0 border transition-colors cursor-pointer ${
+                      selectedPaperIds.includes(paper.id)
+                        ? 'bg-primary-50 border-primary-200 text-primary-700 dark:bg-primary-900/30 dark:border-primary-800 dark:text-primary-300'
+                        : 'bg-surface-50 border-surface-200 text-surface-400 dark:bg-surface-800 dark:border-surface-700'
+                    }`}
+                    title={paper.title || paper.filename}
                     onClick={() => setIsSourcesOpen(true)}
-                    className="w-8 h-8 rounded-lg bg-danger-light dark:bg-danger-dark text-danger text-[9px] font-bold flex items-center justify-center cursor-pointer hover:scale-105 transition-transform"
-                    title={paper.title}
                   >
                     PDF
                   </div>
-                ))}
-              </div>
-              {allSources.length > 0 && (
-                <button
-                  onClick={() => setIsHarnessOpen(true)}
-                  className="w-8 h-8 mt-auto rounded-lg bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 flex items-center justify-center hover:scale-105 transition-transform"
-                  title="RAG Evaluation"
-                >
-                  <ShieldCheck className="w-4 h-4" />
-                </button>
+                ))
               )}
             </div>
-          </>
-
+          </div>
         )}
         </div>
 
@@ -612,7 +790,8 @@ export default function WorkspaceTab({
                         setChatMessages([
                           {
                             sender: 'ai',
-                            text: `Chào mừng bạn đến với **LitReview Agent**! Hãy tìm kiếm trên Google Scholar, hệ thống sẽ tự động đối chiếu Scopus và chỉ giữ các bài đã xác minh.`
+                            isWelcome: true,
+                            text: ""
                           }
                         ]);
                       }
@@ -648,10 +827,15 @@ export default function WorkspaceTab({
                 />
               )}
               {activeWorkspaceTab === 'analyze' && (
-                <DataAnalysisPanel
+                <DataAnalysisPanel 
                   workspacePapers={scopedPapers}
                   darkMode={darkMode}
                   onSendToChat={handleSendToChat}
+                  activeProject={activeProject}
+                  analysisHistory={analysisHistory}
+                  setAnalysisHistory={setAnalysisHistory}
+                  activeSessionId={activeAnalysisSessionId}
+                  setActiveSessionId={setActiveAnalysisSessionId}
                 />
               )}
             </div>
@@ -659,12 +843,26 @@ export default function WorkspaceTab({
 
         {/* Citation Verification Panel — slide-in overlay từ phải khi user click citation */}
         {activeCitation && (
-          <div className="w-[380px] shrink-0 h-full overflow-hidden card border-primary-200 dark:border-primary-800 animate-slide-up">
-            <VerificationPanel
-              activeCitation={activeCitation}
-              darkMode={darkMode}
-              onClose={() => setActiveCitation(null)}
-            />
+          <div 
+            ref={verifRef}
+            className="shrink-0 h-full overflow-visible card border-primary-200 dark:border-primary-800 animate-slide-up relative flex"
+            style={{ width: verificationWidth }}
+          >
+            {/* Left handle for verification panel */}
+            <div 
+              className="absolute -left-2 top-0 bottom-0 w-4 cursor-col-resize z-20 flex items-center justify-center group"
+              onMouseDown={(e) => { e.preventDefault(); setIsVerifResizing(true); }}
+            >
+              <div className={`w-0.5 h-12 rounded-full opacity-0 group-hover:opacity-100 transition-opacity bg-surface-300 dark:bg-surface-600 ${isVerifResizing ? 'opacity-100 bg-primary-500' : ''}`} />
+            </div>
+            
+            <div className="flex-1 w-full h-full overflow-hidden">
+              <VerificationPanel
+                activeCitation={activeCitation}
+                darkMode={darkMode}
+                onClose={() => setActiveCitation(null)}
+              />
+            </div>
           </div>
         )}
       </div>
