@@ -112,16 +112,22 @@ async def step1_setup(payload: SetupRequest) -> SetupResponse:
     """Agent 1: Gap Map & PICO Finder."""
     try:
         deps = build_default_deps(real=_is_real())
-        pico, gap_map = await run_gap_finder(
-            deps,
-            payload.idea,
-            research_field=payload.research_field,
-            criteria_include=payload.criteria_include,
-            criteria_exclude=payload.criteria_exclude,
-        )
+        state = {
+            "idea": payload.idea,
+            "research_field": payload.research_field,
+            "criteria_include": payload.criteria_include,
+            "criteria_exclude": payload.criteria_exclude,
+            "corpus": payload.corpus,
+        }
+        res = await run_gap_finder(state, deps)
+        pico = res.get("pico")
+        gap_map = res.get("gap_map")
         return SetupResponse(
             pico=_dump(pico),
             gap_map=_dump(gap_map),
+            warnings=res.get("warnings", []),
+            trace=res.get("trace", []),
+            error=res.get("error", ""),
         )
     except Exception as e:
         return SetupResponse(error=str(e))

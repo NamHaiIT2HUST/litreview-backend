@@ -250,7 +250,7 @@ export default function ResearchSetupTab({ setActiveTab }) {
     try {
       const ideaText = projectData.research_question || projectData.name || '';
       if (!ideaText.trim()) {
-        setErrorMsg('Vui lòng nhập câu hỏi nghiên cứu.');
+        setErrorMsg('Vui lòng nhập câu hỏi nghiên cứu hoặc tên đề tài ở Bước 1.');
         setLoadingKeywords(false);
         return;
       }
@@ -267,6 +267,10 @@ export default function ResearchSetupTab({ setActiveTab }) {
       });
       if (res.ok) {
         const data = await res.json();
+        if (data.error && !data.pico) {
+          setErrorMsg(`Lỗi từ AI: ${data.error}`);
+          return;
+        }
         
         if (data.pico) {
           setPicoData(data.pico);
@@ -276,19 +280,25 @@ export default function ResearchSetupTab({ setActiveTab }) {
           
           const rawKws = data.pico.search_keywords || [];
           const kwList = rawKws.filter(kw => 
-            kw && kw.trim().length >= 3 && /^[a-zA-Z0-9\s\-\/&]+$/.test(kw.trim())
+            kw && kw.trim().length >= 3 && /^[a-zA-Z0-9\s\-\/&.]+$/.test(kw.trim())
           );
           
           if (kwList.length > 0) {
             setSuggestedKeywords(kwList);
+            localStorage.setItem('suggested_keywords', JSON.stringify(kwList));
             if (activeProjectId) {
               localStorage.setItem(`suggested_keywords_${activeProjectId}`, JSON.stringify(kwList));
             }
           }
           
           const boolQuery = kwList.length > 0 ? kwList.join(' ') : (data.pico.boolean_query || '');
-          if (boolQuery && activeProjectId) {
-             localStorage.setItem(`litreview_active_mesh_query_${activeProjectId}`, boolQuery);
+          if (boolQuery) {
+             localStorage.setItem('litreview_active_mesh_query', boolQuery);
+             localStorage.setItem('last_search_query', boolQuery);
+             if (activeProjectId) {
+               localStorage.setItem(`litreview_active_mesh_query_${activeProjectId}`, boolQuery);
+               localStorage.setItem(`last_search_query_${activeProjectId}`, boolQuery);
+             }
              window.dispatchEvent(new Event('new_mesh_query_ready'));
           }
 
@@ -309,6 +319,16 @@ export default function ResearchSetupTab({ setActiveTab }) {
     } finally {
       setLoadingKeywords(false);
     }
+  };
+
+  const handleProceedToSearch = () => {
+    if (picoData?.search_keywords && picoData.search_keywords.length > 0) {
+      const kws = picoData.search_keywords.filter(kw => kw && kw.trim().length >= 3);
+      localStorage.setItem('suggested_keywords', JSON.stringify(kws));
+      localStorage.setItem('last_search_query', kws.join(' '));
+      window.dispatchEvent(new Event('new_mesh_query_ready'));
+    }
+    setActiveTab('search');
   };
 
   const handleCopyKeywords = () => {
@@ -334,21 +354,42 @@ export default function ResearchSetupTab({ setActiveTab }) {
   };
 
   return (
-    <div className="space-y-6 pb-20">
+    <div className="space-y-6 pb-20 max-w-6xl mx-auto">
       
-      {/* ── Page Header ────────────────────────────────────────────────── */}
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">{t('setup.title')}</h1>
-          <p className="text-sm text-surface-500 dark:text-surface-400">
-            Define your research scope, criteria, and synthesize search queries with AI assistants.
-          </p>
+      {/* ── Page Header & Workflow Guide ─────────────────────────────────── */}
+      <div className="card p-6 bg-gradient-to-r from-primary-900/40 via-surface-900/60 to-surface-900/40 border-primary-500/20 backdrop-blur-sm">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="badge badge-primary text-xs font-bold uppercase tracking-wider">
+                Quy trình Bước 1 / SLR Swarm
+              </span>
+              {saved && (
+                <span className="badge badge-success animate-fade-in text-xs">
+                  <Check className="w-3 h-3" /> Đã lưu thay đổi
+                </span>
+              )}
+            </div>
+            <h1 className="font-display font-black text-2xl sm:text-3xl text-surface-900 dark:text-white tracking-tight">
+              Cấu hình Đề tài Nghiên cứu
+            </h1>
+            <p className="text-xs sm:text-sm text-surface-500 dark:text-surface-300 mt-1 max-w-2xl leading-relaxed">
+              Hoàn thành 3 bước bên dưới để AI phân tích phạm vi đề tài, thiết lập bộ tiêu chí sàng lọc PRISMA và sinh từ khóa tìm kiếm học thuật tối ưu.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 self-start md:self-auto">
+            <button
+              type="button"
+              onClick={() => handleSave()}
+              disabled={loading}
+              className="btn btn-primary shadow-primary-sm"
+            >
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              <span>Lưu Cấu hình</span>
+            </button>
+          </div>
         </div>
-        {saved && (
-          <span className="badge badge-success animate-fade-in">
-            <Check className="w-3 h-3" /> {t('setup.saved')}
-          </span>
-        )}
       </div>
 
       {/* ── Stepper Indicator ───────────────────────────────────────────── */}
@@ -740,97 +781,151 @@ export default function ResearchSetupTab({ setActiveTab }) {
       {/* ── PHASE 3: PICO FRAMEWORK & KEYWORDS ──────────────────────────── */}
       {criteriaApproved && (
         <div ref={step3CardRef} className="space-y-6 animate-slide-up">
-          <div className="p-8 text-center rounded-2xl bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-950 text-white space-y-4 shadow-xl border border-indigo-900/60">
-            <div className="w-12 h-12 mx-auto rounded-xl bg-white/10 flex items-center justify-center">
-              <Search className="w-6 h-6 text-indigo-300" />
+          <div className="card p-8 text-center rounded-2xl bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-950 text-white space-y-5 shadow-2xl border border-indigo-500/30">
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center shadow-inner">
+              <Search className="w-7 h-7 text-indigo-300" />
             </div>
-            <div>
-              <span className="section-label text-indigo-300 block mb-1">
-                PHASE 03 / QUERY SYNTHESIS
+            
+            <div className="max-w-2xl mx-auto space-y-2">
+              <span className="badge bg-indigo-500/20 text-indigo-300 border border-indigo-400/30 text-xs font-bold uppercase tracking-wider">
+                PHASE 03 / QUERY & PICO SYNTHESIS
               </span>
-              <h3 className="font-display font-bold text-2xl text-white mb-2">
-                PICO Framework Analysis & Search Queries
+              <h3 className="font-display font-black text-2xl sm:text-3xl text-white tracking-tight">
+                Phân tích Khung PICO & Bộ Từ khóa Tìm kiếm
               </h3>
-              <p className="text-xs text-slate-300 max-w-xl mx-auto leading-relaxed">
-                Agent 3 analyzes your topic and PRISMA criteria to construct optimal academic search strings and boolean queries.
+              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                Agent 3 sẽ bóc tách đề tài của bạn thành 4 thành tố PICO (Population, Intervention, Comparison, Outcome) và sinh bộ từ khóa học thuật tiếng Anh chuẩn xác cho Google Scholar & Scopus.
               </p>
             </div>
             
-            <button 
-              onClick={handleSuggestKeywords} disabled={loadingKeywords}
-              className="btn bg-white text-slate-900 hover:bg-slate-100 btn-lg shadow-sm mx-auto font-bold"
-            >
-              {loadingKeywords ? <Loader2 className="w-4 h-4 animate-spin text-indigo-600" /> : <Sparkles className="w-4 h-4 text-amber-500" />}
-              <span>Synthesize PICO & Queries</span>
-            </button>
+            <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+              <button 
+                onClick={handleSuggestKeywords} 
+                disabled={loadingKeywords}
+                className="btn bg-white text-slate-900 hover:bg-slate-100 hover:scale-105 transition-all text-sm font-bold shadow-xl px-6 py-3 rounded-xl flex items-center gap-2 cursor-pointer"
+              >
+                {loadingKeywords ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin text-indigo-600" />
+                    <span>AI đang phân tích PICO & Từ khóa...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-5 h-5 text-amber-500" />
+                    <span>{picoData ? 'Tái tạo lại Khung PICO & Từ khóa' : 'Bắt đầu Phân tích PICO & Sinh Từ khóa'}</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
 
           {picoData && (
-            <div ref={picoCardRef} className="card p-6 space-y-6 animate-slide-up">
-              <div className="flex items-center gap-3 pb-4 border-b border-surface-100 dark:border-surface-800">
-                <div className="w-10 h-10 rounded-xl bg-primary-50 dark:bg-primary-950 flex items-center justify-center">
-                  <CheckCircle2 className="w-5 h-5 text-primary-600 dark:text-primary-400" />
+            <div ref={picoCardRef} className="card p-6 sm:p-8 space-y-6 animate-slide-up border-emerald-500/30 bg-emerald-500/5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-surface-200 dark:border-surface-800">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-500/30 flex items-center justify-center">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                  <div>
+                    <h4 className="font-display font-bold text-lg text-surface-900 dark:text-white">
+                      Kết quả Phân tích Khung PICO
+                    </h4>
+                    <p className="text-xs text-surface-500 dark:text-surface-400">
+                      Cấu trúc 4 thành tố nghiên cứu và bộ từ khóa tìm kiếm đã sẵn sàng
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="font-display font-semibold text-base text-surface-900 dark:text-white">
-                    PICO Analysis Results
-                  </h4>
-                  <p className="text-xs text-surface-400">Structured components and generated search keywords</p>
-                </div>
+
+                <button 
+                  onClick={handleProceedToSearch}
+                  className="btn btn-primary shadow-primary-sm self-start sm:self-auto flex items-center gap-2"
+                >
+                  <span>Chuyển sang Bước 2: Tìm kiếm</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
               </div>
 
+              {/* 4 PICO Blocks */}
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-                <div className="p-4 rounded-xl bg-surface-50 dark:bg-surface-800/50 border border-surface-200 dark:border-surface-700">
-                  <span className="section-label text-primary-600 dark:text-primary-400 block mb-1">[P] Population / Problem:</span>
-                  <p className="text-xs font-medium text-surface-800 dark:text-surface-200 leading-relaxed">{picoData.population}</p>
+                <div className="p-4 rounded-xl bg-white dark:bg-surface-800/80 border border-primary-100 dark:border-primary-900/30 shadow-xs space-y-1.5">
+                  <span className="section-label text-primary-600 dark:text-primary-400 block font-bold">
+                    [P] Population / Đối tượng:
+                  </span>
+                  <p className="text-xs font-semibold text-surface-900 dark:text-surface-100 leading-relaxed">
+                    {picoData.population || 'N/A'}
+                  </p>
                 </div>
-                <div className="p-4 rounded-xl bg-surface-50 dark:bg-surface-800/50 border border-surface-200 dark:border-surface-700">
-                  <span className="section-label text-indigo-600 dark:text-indigo-400 block mb-1">[I] Intervention / Method:</span>
-                  <p className="text-xs font-medium text-surface-800 dark:text-surface-200 leading-relaxed">{picoData.intervention}</p>
+
+                <div className="p-4 rounded-xl bg-white dark:bg-surface-800/80 border border-indigo-100 dark:border-indigo-900/30 shadow-xs space-y-1.5">
+                  <span className="section-label text-indigo-600 dark:text-indigo-400 block font-bold">
+                    [I] Intervention / Can thiệp:
+                  </span>
+                  <p className="text-xs font-semibold text-surface-900 dark:text-surface-100 leading-relaxed">
+                    {picoData.intervention || 'N/A'}
+                  </p>
                 </div>
-                <div className="p-4 rounded-xl bg-surface-50 dark:bg-surface-800/50 border border-surface-200 dark:border-surface-700">
-                  <span className="section-label text-amber-600 dark:text-amber-400 block mb-1">[C] Comparison:</span>
-                  <p className="text-xs font-medium text-surface-800 dark:text-surface-200 leading-relaxed">{picoData.comparison || "N/A"}</p>
+
+                <div className="p-4 rounded-xl bg-white dark:bg-surface-800/80 border border-amber-100 dark:border-amber-900/30 shadow-xs space-y-1.5">
+                  <span className="section-label text-amber-600 dark:text-amber-400 block font-bold">
+                    [C] Comparison / So sánh:
+                  </span>
+                  <p className="text-xs font-semibold text-surface-900 dark:text-surface-100 leading-relaxed">
+                    {picoData.comparison || 'N/A'}
+                  </p>
                 </div>
-                <div className="p-4 rounded-xl bg-surface-50 dark:bg-surface-800/50 border border-surface-200 dark:border-surface-700">
-                  <span className="section-label text-emerald-600 dark:text-emerald-400 block mb-1">[O] Outcome:</span>
-                  <p className="text-xs font-medium text-surface-800 dark:text-surface-200 leading-relaxed">{picoData.outcome}</p>
+
+                <div className="p-4 rounded-xl bg-white dark:bg-surface-800/80 border border-emerald-100 dark:border-emerald-900/30 shadow-xs space-y-1.5">
+                  <span className="section-label text-emerald-600 dark:text-emerald-400 block font-bold">
+                    [O] Outcome / Kết quả:
+                  </span>
+                  <p className="text-xs font-semibold text-surface-900 dark:text-surface-100 leading-relaxed">
+                    {picoData.outcome || 'N/A'}
+                  </p>
                 </div>
               </div>
 
-              {/* Keywords Container */}
-              <div className="p-5 rounded-xl bg-surface-900 dark:bg-surface-950 text-white space-y-4">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs font-bold uppercase tracking-wider text-primary-300 flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                    Search Keywords & Mesh Query
+              {/* Keywords & Boolean Query Container */}
+              <div className="p-5 sm:p-6 rounded-2xl bg-surface-900 dark:bg-surface-950 text-white space-y-4 shadow-xl border border-surface-800">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/10">
+                  <span className="text-xs font-bold uppercase tracking-wider text-primary-300 flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-amber-400" />
+                    Bộ Từ khóa Học thuật Đề xuất (Academic Search Keywords)
                   </span>
+
                   {picoData.search_keywords && picoData.search_keywords.length > 0 && (
                     <button
                       onClick={handleCopyKeywords}
-                      className="btn btn-sm btn-ghost text-xs text-white hover:bg-white/10"
+                      className="btn btn-sm btn-ghost text-xs text-white hover:bg-white/10 self-start sm:self-auto"
                     >
-                      {copiedKeywords ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                      <span>{copiedKeywords ? 'Copied!' : 'Copy Query'}</span>
+                      {copiedKeywords ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>{copiedKeywords ? 'Đã sao chép!' : 'Sao chép chuỗi tìm kiếm'}</span>
                     </button>
                   )}
                 </div>
 
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2.5">
                   {(picoData.search_keywords || []).map((kw, i) => (
-                    <span key={i} className="px-3 py-1 rounded-lg bg-primary-500/20 text-primary-200 text-xs font-medium border border-primary-500/30">
+                    <span 
+                      key={i} 
+                      className="px-3.5 py-1.5 rounded-xl bg-primary-500/20 text-primary-200 text-xs font-semibold border border-primary-500/30 shadow-xs"
+                    >
                       {kw}
                     </span>
                   ))}
                 </div>
 
-                <div className="pt-2 flex justify-end">
+                {/* Big Next Step Guidance */}
+                <div className="pt-4 border-t border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <p className="text-xs text-surface-400">
+                    💡 <strong className="text-surface-200">Bước tiếp theo:</strong> Nhấn nút bên cạnh để chuyển sang tab Tìm kiếm. Toàn bộ từ khóa sẽ được tự động điền sẵn vào thanh tìm kiếm.
+                  </p>
+
                   <button 
-                    onClick={() => setActiveTab('search')}
-                    className="btn btn-primary btn-sm"
+                    onClick={handleProceedToSearch}
+                    className="btn btn-primary btn-lg font-bold shrink-0 flex items-center justify-center gap-2 shadow-primary-md"
                   >
-                    <span>Proceed to Search & Verify</span>
-                    <ArrowRight className="w-4 h-4" />
+                    <span>Tiến hành Tìm kiếm Bài báo</span>
+                    <ArrowRight className="w-5 h-5" />
                   </button>
                 </div>
               </div>
