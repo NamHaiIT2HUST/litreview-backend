@@ -4,6 +4,7 @@ import VerificationPanel from './VerificationPanel';
 import { persistedDirectUploadSources } from '../../utils/workspaceSources';
 import SynthesisPanel from './SynthesisPanel';
 import DataAnalysisPanel from './DataAnalysisPanel';
+import RAGEvalHarnessModal from './RAGEvalHarnessModal';
 import { reconcileSelectedPaperIds, selectedPapersFromIds } from '../../utils/workspaceScope';
 
 import { useLanguage } from '../../contexts/LanguageContext';
