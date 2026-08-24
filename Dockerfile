@@ -19,6 +19,19 @@ WORKDIR /app
 # Copy installed packages from builder
 COPY --from=builder /install /usr/local
 
+ENV HF_HOME=/opt/huggingface \
+    SENTENCE_TRANSFORMERS_HOME=/opt/huggingface/sentence-transformers \
+    HF_HUB_DISABLE_TELEMETRY=1 \
+    TOKENIZERS_PARALLELISM=false
+
+RUN mkdir -p "$HF_HOME" "$SENTENCE_TRANSFORMERS_HOME" \
+    && python - <<'PY'
+from sentence_transformers import CrossEncoder, SentenceTransformer
+
+SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
+PY
+
 # Security: run as non-root user
 RUN useradd -m appuser
 
@@ -26,7 +39,7 @@ RUN useradd -m appuser
 COPY . .
 
 # Create data directory with correct ownership
-RUN mkdir -p /app/data && chown -R appuser:appuser /app
+RUN mkdir -p /app/data && chown -R appuser:appuser /opt/huggingface /app
 
 USER appuser
 

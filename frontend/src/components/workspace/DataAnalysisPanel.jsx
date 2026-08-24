@@ -1809,69 +1809,64 @@ export default function DataAnalysisPanel({
           )}
 
 
-          {/* Scientific Query Library Hub */}
+          {/* Purpose & Scientific Significance Overview Card */}
           {messages.length === 1 && (
-            <div className="pt-2 space-y-3">
-              <div className="flex items-center justify-between border-b pb-2 dark:border-slate-800 border-slate-200">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-emerald-500" />
-                  <span className="text-xs font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-300">
-                    {isEn ? 'Scientific Query & Dataset Library' : 'Thư viện câu hỏi & dữ liệu phân tích mẫu'}
+            <div className="pt-3 space-y-4">
+              <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-900/90 to-[#161C2A] border border-blue-500/20 shadow-xl space-y-4">
+                
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0">
+                    <Sparkles className="w-5 h-5 text-blue-400" />
+                  </div>
+                  <div>
+                    <h4 className="font-extrabold text-sm text-white flex items-center gap-2">
+                      <span>{isEn ? 'DaLitRe AI: Quantitative Data Engine' : 'Trợ lý Phân tích Dữ liệu Thực nghiệm (DaLitRe AI)'}</span>
+                    </h4>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      {isEn ? 'Automated statistical modeling, hypothesis testing & exploratory data analysis.' : 'Động cơ tính toán thống kê, kiểm định giả thuyết & khai phá dữ liệu tự động.'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-slate-800">
+                  <div className="p-3.5 rounded-xl bg-slate-800/50 border border-slate-700/60 space-y-1.5">
+                    <div className="flex items-center gap-2 text-xs font-bold text-blue-400">
+                      <BarChart2 className="w-4 h-4" />
+                      <span>{isEn ? 'Key Capabilities' : 'Tác dụng & Khả năng cốt lõi'}</span>
+                    </div>
+                    <p className="text-[11px] text-slate-300 leading-relaxed">
+                      {isEn 
+                        ? 'Run quantitative statistics (mean, distributions, correlation matrices), statistical tests (t-test, ANOVA, Chi-square), and interactive chart generations on CSV/Excel files.'
+                        : 'Thực hiện phân tích thống kê định lượng, kiểm định giả thuyết khoa học (t-test, ANOVA, tương quan Pearson/Spearman) và tự động trực quan hóa biểu đồ dữ liệu.'
+                      }
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-slate-800/50 border border-slate-700/60 space-y-1.5">
+                    <div className="flex items-center gap-2 text-xs font-bold text-emerald-400">
+                      <Database className="w-4 h-4" />
+                      <span>{isEn ? 'Academic Significance' : 'Ý nghĩa trong Nghiên cứu'}</span>
+                    </div>
+                    <p className="text-[11px] text-slate-300 leading-relaxed">
+                      {isEn 
+                        ? 'Validates experimental evidence for literature reviews, eliminates manual data cleaning, and exports reproducible Jupyter (.ipynb) and HTML reports.'
+                        : 'Kiểm chứng bằng chứng thực nghiệm cho bài báo khoa học, loại bỏ thao tác xử lý dữ liệu thủ công và hỗ trợ xuất bản báo cáo HTML / Jupyter Notebook độc lập.'
+                      }
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-1 text-[11px] text-slate-400">
+                  <span className="flex items-center gap-1.5">
+                    <Paperclip className="w-3.5 h-3.5 text-blue-400" />
+                    <span>{isEn ? 'Attach CSV/Excel or type scientific inquiry below to start' : 'Đính kèm tệp CSV/Excel hoặc nhập câu hỏi phân tích phía dưới để bắt đầu'}</span>
+                  </span>
+                  <span className="font-mono text-[10px] text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-md border border-blue-500/20">
+                    ASTA-Powered EDA Engine
                   </span>
                 </div>
 
-                <button
-                  onClick={() => setShowExampleQueries(!showExampleQueries)}
-                  className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer"
-                >
-                  <span>{showExampleQueries ? (isEn ? 'Hide example queries' : 'Ẩn câu hỏi mẫu') : (isEn ? 'Show example queries' : 'Hiện câu hỏi mẫu')}</span>
-                  {showExampleQueries ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                </button>
               </div>
-
-              {showExampleQueries && (
-                <div className="space-y-3 animate-in fade-in duration-200">
-                  {exampleQueryCategories.map((cat, catIdx) => (
-                    <div 
-                      key={catIdx}
-                      className={`p-4 rounded-2xl border transition-all ${
-                        'bg-white border-slate-200/90 shadow-2xs hover:border-slate-300 dark:bg-slate-900/60 dark:border-slate-800/80 dark:hover:border-slate-700'
-                      }`}
-                    >
-                      <div className="flex items-start gap-2.5 mb-2.5">
-                        <div className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 shrink-0 mt-0.5">
-                          {cat.icon}
-                        </div>
-                        <div>
-                          <h4 className="font-bold text-xs text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                            <span>{cat.title}</span>
-                          </h4>
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                            {cat.subtitle}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="space-y-1.5 pl-8">
-                        {cat.queries.map((q, qIdx) => (
-                          <button
-                            key={qIdx}
-                            onClick={() => {
-                              handleSelectDemoDataset(cat.datasetKey);
-                              const fileObj = (DEMO_DATASETS[cat.datasetKey] ? { name: DEMO_DATASETS[cat.datasetKey].name, content: DEMO_DATASETS[cat.datasetKey].content } : null);
-                              handleSend(null, q, fileObj);
-                            }}
-                            className="w-full text-left py-1.5 px-2.5 rounded-lg text-xs transition-colors flex items-start justify-between group text-slate-600 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-950/40 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer"
-                          >
-                            <span className="leading-relaxed pr-2">· {q}</span>
-                            <ArrowRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-blue-500 group-hover:translate-x-0.5 transition-all shrink-0 mt-0.5" />
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           )}
 

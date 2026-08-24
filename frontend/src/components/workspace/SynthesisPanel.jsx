@@ -451,14 +451,9 @@ export default function SynthesisPanel({
               <BookOpen className="w-5 h-5" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h3 className="font-extrabold text-base text-slate-800 dark:text-slate-100">
-                  {t('synthesis.title')}
-                </h3>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                  {t('synthesis.engine_badge')}
-                </span>
-              </div>
+              <h3 className="font-extrabold text-base text-slate-800 dark:text-slate-100">
+                {t('synthesis.title')}
+              </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                 {t('synthesis.subtitle', { count: workspacePapers.length })}
               </p>
@@ -570,11 +565,11 @@ export default function SynthesisPanel({
         </div>
 
         {/* Focus Research Topic Input */}
-        <div className="space-y-2 mt-4 pt-4 border-t dark:border-slate-800/80 border-slate-100">
+        <div className="space-y-3 mt-4 pt-4 border-t dark:border-slate-800/80 border-slate-100">
           <div className="flex items-center justify-between">
             <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-              <span>{t('synthesis.focus_topic_label')}</span>
+              <span>{isEn ? 'Research Focus & Key Inquiries (Optional)' : 'Chủ đề / Định hướng phân tích trọng tâm (Tùy chọn)'}</span>
             </label>
             <span className="text-[11px] text-slate-400 font-mono">
               {workspacePapers.length} {t('synthesis.papers_selected')}
@@ -586,7 +581,7 @@ export default function SynthesisPanel({
               value={researchTopic}
               onChange={(e) => setResearchTopic(e.target.value)}
               disabled={isRunning}
-              placeholder={t('synthesis.focus_topic_placeholder')}
+              placeholder={isEn ? 'Enter specific inquiry, comparison criteria, or leave blank for full synthesis...' : 'Nhập câu hỏi nghiên cứu, tiêu chí đối sánh hoặc để trống để tổng quan toàn diện...'}
               className={`flex-1 px-4 py-2.5 rounded-xl text-xs border transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/20 ${
                 'bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400 focus:border-blue-600 dark:bg-slate-950 dark:border-slate-700 dark:text-slate-200 dark:placeholder-slate-500 dark:focus:border-blue-500'
               }`}
@@ -597,7 +592,7 @@ export default function SynthesisPanel({
               className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold shadow-md shadow-blue-600/20 active:scale-95 transition-all shrink-0 cursor-pointer"
             >
               {isRunning ? <Loader2 className="w-4 h-4 animate-spin" /> : result ? <RefreshCw className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-              <span>{isRunning ? t('synthesis.btn_running') : result ? t('synthesis.btn_rerun') : t('synthesis.btn_start')}</span>
+              <span>{isRunning ? t('synthesis.btn_running') : result ? t('synthesis.btn_rerun') : (isEn ? 'Generate Review' : 'Tạo Báo cáo Tổng quan')}</span>
             </button>
           </div>
         </div>

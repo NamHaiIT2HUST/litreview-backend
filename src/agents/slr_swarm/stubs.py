@@ -80,6 +80,8 @@ class DefaultScriptedLLM(ScriptedLLM):
         super().__init__(
             responses={
                 "khung PICO": pico,
+                "PICO": pico,
+                "PICO framework": pico,
                 "reviewer": verdict,
                 "TRỌNG TÀI": verdict,
                 "Trích xuất thông tin PRISMA": prisma,

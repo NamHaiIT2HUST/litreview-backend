@@ -61,9 +61,6 @@ from src.config import get_settings
 
 class RealLLMAdapter(LLMPort):
     async def complete(self, prompt: str, *, schema: dict | None = None) -> str:
-        s = get_settings()
-        api_key = s.effective_gemini_api_key or s.gemini_api_key or os.getenv("GEMINI_API_KEY") or ""
-        
         if schema:
             prompt += f"\n\nOutput MUST be valid JSON matching this schema:\n{json.dumps(schema)}"
 
@@ -73,9 +70,11 @@ class RealLLMAdapter(LLMPort):
             msg = await llm.ainvoke([("human", prompt)])
             content = msg.content if hasattr(msg, "content") else str(msg)
             if isinstance(content, list):
-                return "".join(part["text"] for part in content if isinstance(part, dict) and "text" in part)
+                return "".join(part.get("text", "") for part in content if isinstance(part, dict))
             return str(content)
-        except Exception:
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"RealLLMAdapter error: {e}")
             return "{}"
 
 from src.services.search_service import get_serpapi_count
@@ -99,7 +98,13 @@ class RealSearchAdapter(SearchPort):
 def build_default_deps(**overrides) -> SwarmDeps:
     papers = {p.paper_id: p for p in _DEMO_PAPERS}
     
-    use_real = overrides.pop("use_real_llm", False)
+    use_real = overrides.pop("use_real_llm", None)
+    if use_real is None:
+        use_real = overrides.pop("real", None)
+    if use_real is None:
+        s = get_settings()
+        is_test = bool(os.environ.get("PYTEST_CURRENT_TEST")) or s.app_env == "test"
+        use_real = not is_test and bool(s.openai_api_key or s.effective_gemini_api_key or s.gemini_api_key or os.getenv("OPENAI_API_KEY") or os.getenv("GEMINI_API_KEY"))
     
     local_llm = RealLLMAdapter() if use_real else DefaultScriptedLLM()
     search_port = RealSearchAdapter() if use_real else InMemorySearch(_DEMO_PAPERS, match_all=True)

@@ -179,12 +179,12 @@ export default function ResearchSetupTab({ setActiveTab }) {
       } catch { setScopeResult(null); }
 
       try {
-        const cachedKw = localStorage.getItem(`suggested_keywords_${pId}`) || localStorage.getItem('suggested_keywords');
+        const cachedKw = localStorage.getItem(`suggested_keywords_${pId}`);
         setSuggestedKeywords(cachedKw ? JSON.parse(cachedKw) : []);
       } catch { setSuggestedKeywords([]); }
 
       try {
-        const cachedPico = localStorage.getItem(`slr_pico_data_${pId}`) || (activeProject.pico ? activeProject.pico : null);
+        const cachedPico = localStorage.getItem(`slr_pico_data_${pId}`);
         setPicoData(cachedPico ? (typeof cachedPico === 'string' ? JSON.parse(cachedPico) : cachedPico) : null);
       } catch { setPicoData(null); }
 
