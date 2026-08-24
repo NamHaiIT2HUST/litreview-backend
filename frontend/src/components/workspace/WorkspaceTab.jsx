@@ -409,14 +409,21 @@ export default function WorkspaceTab({
     } catch (err) {
       console.error('Failed to trigger chat response from synthesis prompt:', err);
     }
-  };  return (
-    <div className="flex flex-col gap-4 h-screen p-4 overflow-hidden font-sans text-surface-900 dark:text-surface-100">
-      <div className="flex flex-col lg:flex-row gap-4 flex-1 min-h-0">
+  };
+
+  return (
+    <div className="flex flex-col gap-3 sm:gap-4 h-[calc(100vh-4.5rem)] max-w-full p-2 sm:p-3 lg:p-4 overflow-hidden font-sans text-slate-900 dark:text-slate-100">
+      <div className="flex flex-col lg:flex-row gap-3 sm:gap-4 flex-1 min-h-0 min-w-0 overflow-hidden">
       
       {/* ── LEFT: Sources Panel ── */}
       <div 
         ref={sidebarRef}
-        className={`relative shrink-0 ${isSourcesOpen ? 'w-full lg:w-[var(--sidebar-width,260px)]' : 'w-full lg:w-[64px]'} ${isResizing ? 'transition-none' : 'transition-all duration-300 ease-in-out'}`}
+        style={{
+          width: isSourcesOpen ? (typeof window !== 'undefined' && window.innerWidth >= 1024 ? `${Math.min(sidebarWidth, Math.floor(window.innerWidth * 0.35))}px` : '100%') : undefined,
+          maxWidth: typeof window !== 'undefined' && window.innerWidth >= 1024 ? '35vw' : '100%',
+          minWidth: typeof window !== 'undefined' && window.innerWidth >= 1024 ? '240px' : 'auto',
+        }}
+        className={`relative shrink-0 ${isSourcesOpen ? 'w-full lg:w-auto' : 'w-full lg:w-[64px]'} ${isResizing ? 'transition-none' : 'transition-all duration-300 ease-in-out'}`}
       >
         <div className="card h-full flex flex-col overflow-hidden">
         
