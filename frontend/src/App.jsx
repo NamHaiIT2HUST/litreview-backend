@@ -147,9 +147,8 @@ function MainAppShell() {
   const getDefaultWelcomeMessage = (projectName) => [
     {
       sender: 'ai',
-      text: projectName
-        ? `Chào mừng bạn đến với **Không gian Phân tích** cho đề tài **${projectName}**! Hãy chọn các bài báo từ phần *Tìm kiếm* để bắt đầu tổng hợp y văn có dẫn nguồn, hoặc tải lên tập tin PDF toàn văn để trích xuất sâu.`
-        : `Chào mừng bạn đến với **LitReview Workspace**! Hãy chọn các bài báo từ phần *Tìm kiếm* để bắt đầu tổng hợp y văn có dẫn nguồn, hoặc tải lên tập tin PDF toàn văn để trích xuất sâu.`,
+      isWelcome: true,
+      text: "",
     },
   ];
 
@@ -157,7 +156,11 @@ function MainAppShell() {
     const saved = localStorage.getItem(chatMessagesKey);
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.length > 0 && parsed[0].text && (parsed[0].text.includes('LitReview Agent') || parsed[0].text.includes('Không gian Phân tích'))) {
+          return getDefaultWelcomeMessage(activeProject?.name);
+        }
+        return parsed;
       } catch (e) {
         console.error('Failed to parse saved chat messages:', e);
       }
