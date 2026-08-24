@@ -98,10 +98,11 @@ def create_synthesis_llm(
         openai_cls = ChatOpenAI
 
     kwargs = {
-        "model": model_name or "gpt-4o-mini",
+        "model": model_name or "claude-opus-5-thinking",
         "api_key": openai_key or "sk-placeholder",
         "temperature": settings.synthesis_temperature,
         "max_tokens": 8192,
+        "default_headers": {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"},
     }
     api_base = settings.get_api_base
     if api_base:
