@@ -464,8 +464,9 @@ const DICTIONARY = {
       matrix: 'So sánh Bài báo',
       prisma: 'Chuẩn PRISMA',
       demoProfiles: 'Tài khoản Mẫu',
-      team: 'Đội ngũ',
       faq: 'Hỏi đáp',
+      team: 'Đội ngũ',
+      acknowledgments: 'Lời cảm ơn',
       login: 'Đăng nhập',
       startFree: 'Bắt đầu Miễn phí',
     },
@@ -612,6 +613,14 @@ const DICTIONARY = {
         }
       ]
     },
+    acknowledgments: {
+      badge: 'LỜI TRI ÂN & CẢM ƠN',
+      title: 'Lời Cảm Ơn Sâu Sắc',
+      p1: 'Nhóm chúng em xin gửi lời cảm ơn chân thành và sâu sắc nhất tới Ban Tổ chức, các Thầy Cô giảng dạy cùng toàn thể Đội ngũ Cố vấn của Chương trình AI Thực Chiến (Khóa 3). Cảm ơn Chương trình đã trao cho chúng em cơ hội quý báu được tiếp cận những nền tảng tri thức công nghệ tiên tiến nhất, được thử thách bản thân và trưởng thành vượt bậc qua từng dự án thực chiến.',
+      p2: 'Dự án LitReview AI không chỉ là kết tinh từ sự nỗ lực, say mê nghiên cứu của các thành viên trong nhóm, mà còn là minh chứng cho sự đồng hành tận tâm, định hướng sâu sát và nguồn cảm hứng bất tận từ các Thầy Cô. Những bài học thực tiễn, tư duy kiến trúc hệ thống và kỷ luật kỹ thuật tích lũy từ khóa học sẽ là hành trang vô giá để chúng em tiếp tục vững bước trên con đường nghiên cứu khoa học và phát triển công nghệ.',
+      p3: 'Kính chúc Chương trình AI Thực Chiến ngày càng phát triển vững mạnh, tiếp tục là bệ phóng tài năng hàng đầu giúp các thế hệ kỹ sư AI Việt Nam vươn tầm thế giới!',
+      signature: 'Trân trọng, Nhóm tác giả Đề tài P-165 — Học viên Khóa 3 Chương trình AI Thực Chiến',
+    },
     final: {
       title: 'Bản tổng quan tài liệu tiếp theo của bạn, hoàn thành nhanh gấp 5 lần.',
       desc: 'Trải nghiệm ngay quy trình tổng quan tài liệu khoa học chuẩn mực PRISMA.',
@@ -627,8 +636,9 @@ const DICTIONARY = {
       matrix: 'Literature Matrix',
       prisma: 'PRISMA Standard',
       demoProfiles: 'Demo Profiles',
-      team: 'Team',
       faq: 'FAQ',
+      team: 'Team',
+      acknowledgments: 'Special Thanks',
       login: 'Sign In',
       startFree: 'Start Free',
     },
@@ -774,6 +784,14 @@ const DICTIONARY = {
           color: 'from-primary-600 to-cyan-700'
         }
       ]
+    },
+    acknowledgments: {
+      badge: 'SPECIAL ACKNOWLEDGMENTS',
+      title: 'Our Sincere Gratitude',
+      p1: 'Our team would like to express our deepest gratitude to the Organizing Committee, Instructors, and Mentors of the AI Engineering Program (Cohort 3). Thank you for providing us with the invaluable opportunity to master state-of-the-art AI technologies and grow through real-world engineering challenges.',
+      p2: 'The LitReview AI project is not only the result of our continuous dedication and team effort, but also the testament to the inspiring mentorship and thorough guidance provided throughout the journey. The practical knowledge and engineering mindset gained here will serve as our lifelong foundation in scientific research and AI innovation.',
+      p3: 'We wish the AI Engineering Program continued excellence, serving as a premier launchpad empowering future generations of Vietnamese AI innovators on the global stage!',
+      signature: 'Respectfully, Project Team P-165 — AI Engineering Cohort 3',
     },
     final: {
       title: 'Your next systematic literature review, completed 5x faster.',
@@ -1004,8 +1022,9 @@ export default function PublicLandingPage({ onOpenAuth }) {
           { id: 'matrix', label: language === 'vi' ? '04 Ma trận So sánh' : '04 Methodology Matrix' },
           { id: 'prisma', label: language === 'vi' ? '05 Chuẩn PRISMA' : '05 PRISMA Protocol' },
           { id: 'demo-accounts', label: language === 'vi' ? '06 Tài khoản Mẫu' : '06 Demo Profiles' },
-          { id: 'team', label: language === 'vi' ? '07 Đội ngũ' : '07 Team' },
-          { id: 'faq', label: language === 'vi' ? '08 Hỏi đáp (FAQ)' : '08 FAQ' },
+          { id: 'faq', label: language === 'vi' ? '07 Hỏi đáp (FAQ)' : '07 FAQ' },
+          { id: 'team', label: language === 'vi' ? '08 Đội ngũ' : '08 Team' },
+          { id: 'acknowledgments', label: language === 'vi' ? '09 Lời cảm ơn' : '09 Special Thanks' },
         ].map((item) => {
           const isActive = activeSection === item.id;
           return (
@@ -1053,14 +1072,15 @@ export default function PublicLandingPage({ onOpenAuth }) {
           </div>
 
           {/* Desktop Nav Links */}
-          <nav className="hidden lg:flex items-center gap-5 xl:gap-7 text-sm xl:text-[14.5px] font-bold text-slate-700 dark:text-slate-200 whitespace-nowrap">
+          <nav className="hidden lg:flex items-center gap-4 xl:gap-6 text-sm xl:text-[14px] font-bold text-slate-700 dark:text-slate-200 whitespace-nowrap">
             <a href="#simulator" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1">{d.nav.simulator}</a>
             <a href="#agents" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1">{d.nav.agents}</a>
             <a href="#matrix" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1">{d.nav.matrix}</a>
             <a href="#prisma" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1">{d.nav.prisma}</a>
             <a href="#demo-accounts" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1">{d.nav.demoProfiles}</a>
-            <a href="#team" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1">{d.nav.team}</a>
             <a href="#faq" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1">{d.nav.faq}</a>
+            <a href="#team" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1">{d.nav.team}</a>
+            <a href="#acknowledgments" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1">{d.nav.acknowledgments}</a>
           </nav>
 
           {/* Controls & Actions */}
@@ -2122,7 +2142,47 @@ export default function PublicLandingPage({ onOpenAuth }) {
         </div>
       </section>
 
-      {/* ── 8. Product Development Team ─────────────────────────────────── */}
+      {/* ── 8. FAQ Accordion ───────────────────────────────────────────── */}
+      <section id="faq" className="py-20 max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 relative z-10 morph-section-bridge">
+        <ScrollReveal variant="morph" className="text-center space-y-2">
+          <span className="section-label block">{d.faq.badge}</span>
+          <h2 className="font-display font-bold text-2xl sm:text-3xl text-surface-900 dark:text-white">
+            <span className="text-shimmer">{d.faq.title}</span>
+          </h2>
+        </ScrollReveal>
+
+        <div className="space-y-3">
+          {[
+            { q: d.faq.q1, a: d.faq.a1 },
+            { q: d.faq.q2, a: d.faq.a2 },
+            { q: d.faq.q3, a: d.faq.a3 },
+            { q: d.faq.q4, a: d.faq.a4 },
+          ].map((faq, idx) => {
+            const isOpen = openFaq === idx;
+            return (
+              <ScrollReveal key={idx} variant="morph" delay={idx * 60} className="card overflow-hidden transition-all scrolly-card">
+                <button
+                  type="button"
+                  onClick={() => setOpenFaq(isOpen ? -1 : idx)}
+                  className="w-full p-4 text-left font-bold text-xs sm:text-sm text-surface-900 dark:text-white flex items-center justify-between gap-4 hover:text-primary-600 transition-colors cursor-pointer"
+                >
+                  <span>{faq.q}</span>
+                  <span className={`font-mono text-base text-primary-600 transition-transform duration-200 ${isOpen ? 'rotate-45' : ''}`}>
+                    +
+                  </span>
+                </button>
+                {isOpen && (
+                  <div className="px-4 pb-4 text-xs text-surface-500 dark:text-surface-400 leading-relaxed border-t border-surface-100 dark:border-surface-800 pt-3">
+                    {faq.a}
+                  </div>
+                )}
+              </ScrollReveal>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* ── 9. Product Development Team ─────────────────────────────────── */}
       <section id="team" className="py-20 bg-surface-100/60 dark:bg-surface-900/40 border-y border-surface-200 dark:border-surface-800 relative z-10 morph-section-bridge">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
           
@@ -2192,43 +2252,64 @@ export default function PublicLandingPage({ onOpenAuth }) {
         </div>
       </section>
 
-      {/* ── 9. FAQ Accordion ───────────────────────────────────────────── */}
-      <section id="faq" className="py-20 max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 relative z-10 morph-section-bridge">
-        <ScrollReveal variant="morph" className="text-center space-y-2">
-          <span className="section-label block">{d.faq.badge}</span>
-          <h2 className="font-display font-bold text-2xl sm:text-3xl text-surface-900 dark:text-white">
-            <span className="text-shimmer">{d.faq.title}</span>
-          </h2>
-        </ScrollReveal>
+      {/* ── 10. Special Acknowledgments & Gratitude ──────────────────────── */}
+      <section id="acknowledgments" className="py-20 bg-gradient-to-b from-transparent via-primary-500/5 to-transparent relative z-10 morph-section-bridge">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+          
+          <ScrollReveal variant="morph" className="text-center space-y-2">
+            <span className="section-label block">{d.acknowledgments.badge}</span>
+            <h2 className="font-display font-bold text-2xl sm:text-3xl text-surface-900 dark:text-white">
+              <span className="text-shimmer">{d.acknowledgments.title}</span>
+            </h2>
+          </ScrollReveal>
 
-        <div className="space-y-3">
-          {[
-            { q: d.faq.q1, a: d.faq.a1 },
-            { q: d.faq.q2, a: d.faq.a2 },
-            { q: d.faq.q3, a: d.faq.a3 },
-            { q: d.faq.q4, a: d.faq.a4 },
-          ].map((faq, idx) => {
-            const isOpen = openFaq === idx;
-            return (
-              <ScrollReveal key={idx} variant="morph" delay={idx * 60} className="card overflow-hidden transition-all scrolly-card">
-                <button
-                  type="button"
-                  onClick={() => setOpenFaq(isOpen ? -1 : idx)}
-                  className="w-full p-4 text-left font-bold text-xs sm:text-sm text-surface-900 dark:text-white flex items-center justify-between gap-4 hover:text-primary-600 transition-colors cursor-pointer"
-                >
-                  <span>{faq.q}</span>
-                  <span className={`font-mono text-base text-primary-600 transition-transform duration-200 ${isOpen ? 'rotate-45' : ''}`}>
-                    +
+          <ScrollReveal variant="zoom" delay={100}>
+            <div className="card p-8 sm:p-10 border-primary-200/80 dark:border-primary-900/60 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl shadow-2xl relative overflow-hidden space-y-6 scrolly-card">
+              
+              {/* Decorative background glow */}
+              <div className="absolute top-0 right-0 w-64 h-64 bg-primary-500/10 rounded-full blur-3xl pointer-events-none" />
+              <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+
+              <div className="flex items-center gap-3 text-amber-500">
+                <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/60 flex items-center justify-center border border-amber-200 dark:border-amber-800/80 shadow-xs">
+                  <Sparkles className="w-5 h-5 animate-pulse" />
+                </div>
+                <div>
+                  <span className="font-display font-bold text-sm text-surface-900 dark:text-white block">
+                    {language === 'vi' ? 'Chương trình AI Thực Chiến — Khóa 3' : 'AI Engineering Program — Cohort 3'}
                   </span>
-                </button>
-                {isOpen && (
-                  <div className="px-4 pb-4 text-xs text-surface-500 dark:text-surface-400 leading-relaxed border-t border-surface-100 dark:border-surface-800 pt-3">
-                    {faq.a}
-                  </div>
-                )}
-              </ScrollReveal>
-            );
-          })}
+                  <span className="text-xs text-surface-500">
+                    {language === 'vi' ? 'Dự án Capstone Tốt nghiệp Khóa Học' : 'Graduation Capstone Project'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-4 text-surface-700 dark:text-surface-300 text-sm sm:text-[15px] leading-relaxed relative z-10 font-normal">
+                <p className="indent-6 sm:indent-8">
+                  {d.acknowledgments.p1}
+                </p>
+                <p className="indent-6 sm:indent-8">
+                  {d.acknowledgments.p2}
+                </p>
+                <p className="indent-6 sm:indent-8 font-medium text-primary-700 dark:text-primary-300">
+                  {d.acknowledgments.p3}
+                </p>
+              </div>
+
+              {/* Signature block */}
+              <div className="pt-4 border-t border-surface-200/80 dark:border-surface-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+                <span className="font-bold text-surface-900 dark:text-white flex items-center gap-2">
+                  <Award className="w-4 h-4 text-primary-600 dark:text-primary-400" />
+                  <span>{d.acknowledgments.signature}</span>
+                </span>
+                <span className="badge badge-primary font-mono text-[10px] px-3 py-1 font-bold">
+                  AI20K Cohort 3
+                </span>
+              </div>
+
+            </div>
+          </ScrollReveal>
+
         </div>
       </section>
 
