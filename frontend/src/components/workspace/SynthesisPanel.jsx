@@ -217,13 +217,20 @@ export default function SynthesisPanel({
     setError('');
     setResult(null);
 
+    // Use AbortController to avoid indefinite hanging
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout
+
     try {
       const payload = buildSynthesisRequest(workspacePapers, currentProjectId, researchTopic || activeProject?.research_question || '');
       const response = await safeFetch('/synthesis-sessions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
@@ -236,8 +243,12 @@ export default function SynthesisPanel({
       setStatus('queued');
       fetchHistory(false);
     } catch (err) {
+      clearTimeout(timeoutId);
       console.error(err);
-      setError(err.message || t('synthesis.start_failed'));
+      const msg = err.name === 'AbortError'
+        ? (isEn ? 'Request timed out. Backend may be processing slowly — please retry.' : 'Yêu cầu bị timeout. Backend đang xử lý chậm — vui lòng thử lại.')
+        : (err.message || t('synthesis.start_failed'));
+      setError(msg);
       setStatus('idle');
     }
   };

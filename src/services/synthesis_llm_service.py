@@ -172,6 +172,21 @@ class SynthesisLLMService:
     def concurrency_snapshot(self) -> dict[str, int]:
         return self.get_runtime_metrics()
 
+    def validate_configuration(self) -> None:
+        """Validate that the synthesis LLM can be created with current settings.
+
+        Raises RuntimeError when the configuration is missing required keys
+        (e.g. no API key for the chosen provider).  Called by the HTTP layer
+        *before* creating a session so the user gets a clear 503 instead of
+        a confusing background-task failure.
+        """
+        try:
+            self._get_llm()
+        except Exception as exc:
+            raise RuntimeError(
+                f"Synthesis LLM configuration error: {exc}"
+            ) from exc
+
     def _get_llm(self) -> Any:
         if self._llm is None:
             self._llm = create_synthesis_llm(get_settings())
