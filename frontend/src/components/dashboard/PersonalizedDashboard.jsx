@@ -7,7 +7,8 @@ import {
   FolderKanban, Award, Compass, PieChart, FolderPlus, HelpCircle,
   Pin, PinOff, Pencil, Share2, AlertTriangle, X, MoreVertical,
   LayoutGrid, List, Settings, Globe, Cpu, Mic, Heart, Lightbulb,
-  Laptop, Activity, SlidersHorizontal
+  Laptop, Activity, SlidersHorizontal, LogOut, User, ArrowLeft,
+  Rocket, Users
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useProject } from '../../contexts/ProjectContext';
@@ -168,7 +169,7 @@ const getNotebookIcon = (title = '', field = '') => {
 };
 
 export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, onStartTour }) {
-  const { currentUser } = useAuth();
+  const { currentUser, logout } = useAuth();
   const { 
     projects, activeProject, activeProjectId, 
     switchProject, togglePinProject, renameProject, 
@@ -188,11 +189,16 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
   const [editingProjectId, setEditingProjectId] = useState(null);
   const [editingName, setEditingName] = useState('');
   const [dashboardToast, setDashboardToast] = useState(null);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const profileMenuRef = React.useRef(null);
 
   // Close menus on outside click
   useEffect(() => {
-    const handleOutside = () => {
+    const handleOutside = (e) => {
       setActiveMenuProjectId(null);
+      if (profileMenuRef.current && !profileMenuRef.current.contains(e.target)) {
+        setIsProfileMenuOpen(false);
+      }
     };
     document.addEventListener('click', handleOutside);
     return () => document.removeEventListener('click', handleOutside);
@@ -348,18 +354,24 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
     : 'NH';
 
   return (
-    <div className="min-h-screen bg-[#171A21] text-slate-100 font-sans selection:bg-blue-600 selection:text-white flex flex-col">
+    <div className="min-h-screen bg-[#0A0D14] text-slate-100 font-sans selection:bg-blue-600 selection:text-white flex flex-col relative overflow-x-hidden">
       
+      {/* ── Dynamic Ambient Background Glow Elements ── */}
+      <div className="absolute -top-32 left-1/4 w-[650px] h-[650px] bg-blue-600/15 rounded-full blur-[140px] pointer-events-none" />
+      <div className="absolute top-1/3 -right-20 w-[550px] h-[550px] bg-indigo-600/15 rounded-full blur-[160px] pointer-events-none" />
+      <div className="absolute bottom-20 left-10 w-[600px] h-[600px] bg-purple-600/10 rounded-full blur-[150px] pointer-events-none" />
+      <div className="absolute inset-0 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:32px_32px] opacity-40 pointer-events-none" />
+
       {/* ── Toast Notification (NotebookLM style bottom pill) ── */}
       {dashboardToast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl bg-slate-900 text-white text-xs font-semibold shadow-2xl flex items-center gap-3 border border-slate-700/80 animate-slide-up">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl bg-slate-900/95 backdrop-blur-md text-white text-xs font-semibold shadow-2xl flex items-center gap-3 border border-slate-700/80 animate-slide-up">
           <CheckCircle2 className="w-4 h-4 text-blue-400 shrink-0" />
           <span>{dashboardToast}</span>
         </div>
       )}
       
       {/* ── 1. Top NotebookLM Header Bar (Proportionally Scaled) ── */}
-      <header className="sticky top-0 z-40 w-full bg-[#171A21]/95 backdrop-blur-md border-b border-slate-800/80 px-4 sm:px-8 lg:px-12 py-3.5 sm:py-4 lg:py-5 flex items-center justify-between gap-4">
+      <header className="sticky top-0 z-40 w-full bg-[#0A0D14]/90 backdrop-blur-xl border-b border-slate-800/80 px-4 sm:px-8 lg:px-12 py-3.5 sm:py-4 lg:py-5 flex items-center justify-between gap-4">
         
         {/* Left: Brand Logo & Notebook Title */}
         <div className="flex items-center gap-3 sm:gap-4">
@@ -371,7 +383,7 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
           </span>
         </div>
 
-        {/* Right: Controls, Search, View Mode, + Tạo mới, Profile */}
+        {/* Right: Controls, Search, View Mode, + Tạo mới, Profile Menu */}
         <div className="flex items-center gap-3 sm:gap-4">
           
           {/* Search Input */}
@@ -382,22 +394,22 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder={isVietnamese ? 'Tìm kiếm sổ ghi chú...' : 'Search notebooks...'}
-              className="w-full pl-10 sm:pl-11 pr-4 py-2 sm:py-2.5 rounded-full bg-[#232834] border border-slate-700/70 text-xs sm:text-sm text-white placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all shadow-inner"
+              className="w-full pl-10 sm:pl-11 pr-4 py-2 sm:py-2.5 rounded-full bg-[#161B26] border border-slate-700/70 text-xs sm:text-sm text-white placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all shadow-inner"
             />
           </div>
 
           {/* Grid / List Toggle */}
-          <div className="flex items-center bg-[#232834] p-1 rounded-full border border-slate-700/70">
+          <div className="flex items-center bg-[#161B26] p-1 rounded-full border border-slate-700/70">
             <button
               onClick={() => setViewMode('grid')}
-              className={`p-1.5 sm:p-2 rounded-full transition-all cursor-pointer ${viewMode === 'grid' ? 'bg-[#313848] text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'}`}
+              className={`p-1.5 sm:p-2 rounded-full transition-all cursor-pointer ${viewMode === 'grid' ? 'bg-[#262D3D] text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'}`}
               title="Chế độ Lưới"
             >
               <LayoutGrid className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
             </button>
             <button
               onClick={() => setViewMode('list')}
-              className={`p-1.5 sm:p-2 rounded-full transition-all cursor-pointer ${viewMode === 'list' ? 'bg-[#313848] text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'}`}
+              className={`p-1.5 sm:p-2 rounded-full transition-all cursor-pointer ${viewMode === 'list' ? 'bg-[#262D3D] text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'}`}
               title="Chế độ Danh sách"
             >
               <List className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
@@ -408,7 +420,7 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
           <select
             value={sortBy}
             onChange={e => setSortBy(e.target.value)}
-            className="hidden sm:block px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-full bg-[#232834] border border-slate-700/70 text-xs sm:text-sm font-semibold text-slate-200 focus:outline-none cursor-pointer"
+            className="hidden sm:block px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-full bg-[#161B26] border border-slate-700/70 text-xs sm:text-sm font-semibold text-slate-200 focus:outline-none cursor-pointer"
           >
             <option value="recent">{isVietnamese ? 'Gần đây nhất' : 'Most recent'}</option>
             <option value="name">{isVietnamese ? 'Tên A - Z' : 'Name A - Z'}</option>
@@ -424,36 +436,101 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
             <span>{isVietnamese ? 'Tạo mới' : 'New Notebook'}</span>
           </button>
 
-          {/* Settings / Tour */}
-          {onStartTour && (
+          {/* Profile & Settings Dropdown Trigger */}
+          <div className="relative" ref={profileMenuRef}>
             <button
-              onClick={onStartTour}
-              className="p-2 sm:p-2.5 rounded-full text-slate-400 hover:text-white hover:bg-[#232834] transition-colors cursor-pointer flex items-center gap-1.5"
-              title={isVietnamese ? 'Cài đặt & Hướng dẫn' : 'Settings & Guide'}
+              onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+              className="flex items-center gap-2 p-1 rounded-full hover:bg-slate-800/60 transition-all cursor-pointer"
+              title={isVietnamese ? 'Tài khoản & Cài đặt' : 'Account & Settings'}
             >
-              <Settings className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span className="hidden lg:inline text-xs sm:text-sm font-semibold text-slate-300">{isVietnamese ? 'Cài đặt' : 'Settings'}</span>
+              {currentUser?.picture ? (
+                <img
+                  src={currentUser.picture}
+                  alt={currentUser.name}
+                  className="w-9 h-9 sm:w-11 sm:h-11 rounded-full object-cover ring-2 ring-blue-500/50 shrink-0"
+                />
+              ) : (
+                <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-extrabold text-xs sm:text-sm flex items-center justify-center shrink-0 shadow-md">
+                  {userInitials}
+                </div>
+              )}
             </button>
-          )}
 
-          {/* User Profile Avatar */}
-          {currentUser?.picture ? (
-            <img
-              src={currentUser.picture}
-              alt={currentUser.name}
-              className="w-9 h-9 sm:w-11 sm:h-11 rounded-full object-cover ring-2 ring-blue-500/40 shrink-0"
-            />
-          ) : (
-            <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-extrabold text-xs sm:text-sm flex items-center justify-center shrink-0 shadow-md">
-              {userInitials}
-            </div>
-          )}
+            {/* Dropdown Menu Modal */}
+            {isProfileMenuOpen && (
+              <div className="absolute right-0 mt-2 w-72 sm:w-80 rounded-2xl bg-[#181E2B] border border-slate-700/80 shadow-2xl p-4 text-slate-200 z-50 animate-slide-up backdrop-blur-xl">
+                
+                {/* User Info Header */}
+                <div className="flex items-center gap-3 pb-3 border-b border-slate-700/60">
+                  {currentUser?.picture ? (
+                    <img
+                      src={currentUser.picture}
+                      alt={currentUser.name}
+                      className="w-12 h-12 rounded-full object-cover ring-2 ring-blue-500 shrink-0"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-extrabold text-base flex items-center justify-center shrink-0">
+                      {userInitials}
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <h4 className="font-extrabold text-sm text-white truncate">
+                      {currentUser?.name || 'Nguyễn Đào Nam Hải'}
+                    </h4>
+                    <p className="text-xs text-slate-400 truncate">
+                      {currentUser?.email || 'namhai23092005@gmail.com'}
+                    </p>
+                    <span className="inline-block mt-1 px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 text-[10px] font-bold">
+                      {isVietnamese ? 'Học giả Nghiên cứu' : 'Scholar Researcher'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Actions List */}
+                <div className="py-2 space-y-1">
+                  {onStartTour && (
+                    <button
+                      onClick={() => {
+                        setIsProfileMenuOpen(false);
+                        onStartTour();
+                      }}
+                      className="w-full px-3 py-2.5 rounded-xl hover:bg-slate-700/50 flex items-center gap-3 text-xs sm:text-sm font-semibold transition-colors cursor-pointer text-slate-200"
+                    >
+                      <Sparkles className="w-4 h-4 text-blue-400" />
+                      <span>{isVietnamese ? 'Hướng dẫn sử dụng (Tour)' : 'Product Guide (Tour)'}</span>
+                    </button>
+                  )}
+
+                  <div className="px-3 py-2 text-[11px] text-slate-400 flex items-center justify-between">
+                    <span>{isVietnamese ? 'Ngôn ngữ hệ thống' : 'Language'}</span>
+                    <span className="font-bold text-slate-200">{isVietnamese ? 'Tiếng Việt (VI)' : 'English (EN)'}</span>
+                  </div>
+                </div>
+
+                {/* Logout Action */}
+                <div className="pt-2 border-t border-slate-700/60">
+                  <button
+                    onClick={() => {
+                      setIsProfileMenuOpen(false);
+                      if (logout) logout();
+                      showToast(isVietnamese ? 'Đã đăng xuất thành công!' : 'Logged out successfully!');
+                    }}
+                    className="w-full px-3 py-2.5 rounded-xl hover:bg-red-500/10 text-red-400 font-bold flex items-center gap-3 text-xs sm:text-sm transition-colors cursor-pointer"
+                  >
+                    <LogOut className="w-4 h-4 text-red-400" />
+                    <span>{isVietnamese ? 'Đăng xuất' : 'Log out'}</span>
+                  </button>
+                </div>
+
+              </div>
+            )}
+          </div>
 
         </div>
       </header>
 
       {/* ── Main Hub Content Area (Proportional Scaling & Spacious Margins) ── */}
-      <main className="flex-1 w-full max-w-[96vw] 2xl:max-w-[1840px] mx-auto px-4 sm:px-8 lg:px-12 py-6 sm:py-8 lg:py-10 space-y-8 sm:space-y-10 lg:space-y-12">
+      <main className="flex-1 w-full max-w-[96vw] 2xl:max-w-[1840px] mx-auto px-4 sm:px-8 lg:px-12 py-6 sm:py-8 lg:py-10 space-y-8 sm:space-y-10 lg:space-y-12 relative z-10">
         
         {/* ── 2. Filter Category Pills (All, Mine, Featured, Shared, Collections) ── */}
         <div className="flex items-center gap-2.5 sm:gap-3.5 overflow-x-auto custom-scrollbar pb-1 text-xs sm:text-sm font-semibold">
@@ -470,13 +547,53 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
               className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-full transition-all whitespace-nowrap cursor-pointer ${
                 activeFilter === tab.id
                   ? 'bg-white text-slate-900 font-extrabold shadow-md'
-                  : 'bg-[#232834] text-slate-300 hover:bg-[#2e3444] hover:text-white border border-slate-700/60'
+                  : 'bg-[#161B26] text-slate-300 hover:bg-[#232938] hover:text-white border border-slate-700/60'
               }`}
             >
               {tab.label}
             </button>
           ))}
         </div>
+
+        {/* ── Empty State for Shared / Collections (Phát triển trong thời gian tới) ── */}
+        {(activeFilter === 'shared' || activeFilter === 'collections') && (
+          <div className="w-full py-16 sm:py-24 flex flex-col items-center justify-center text-center px-4 rounded-3xl bg-[#141A26]/70 border border-slate-800 shadow-xl backdrop-blur-md">
+            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-gradient-to-br from-blue-500/20 to-indigo-500/20 border border-blue-500/30 flex items-center justify-center text-4xl sm:text-5xl mb-6 shadow-xl shadow-blue-500/10">
+              {activeFilter === 'shared' ? '👥' : '🚀'}
+            </div>
+            
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-400 text-xs sm:text-sm font-bold mb-4">
+              <Sparkles className="w-4 h-4 text-blue-400" />
+              <span>{isVietnamese ? 'Tính năng đang được phát triển trong thời gian tới' : 'Coming Soon in Next Release'}</span>
+            </div>
+
+            <h3 className="text-xl sm:text-3xl font-extrabold text-white mb-3 tracking-tight">
+              {activeFilter === 'shared' 
+                ? (isVietnamese ? 'Sổ ghi chú Được chia sẻ với tôi' : 'Shared Notebooks')
+                : (isVietnamese ? 'Tuyển tập Sổ ghi chú Cộng đồng' : 'Community Collections')
+              }
+            </h3>
+
+            <p className="text-slate-400 text-xs sm:text-base max-w-lg mb-8 leading-relaxed">
+              {activeFilter === 'shared'
+                ? (isVietnamese 
+                    ? 'Tính năng chia sẻ quyền truy cập thời gian thực và cộng tác đa người dùng (Multi-User Collaboration) đang được hoàn thiện và sẽ sớm ra mắt.'
+                    : 'Real-time collaborative workspaces and shared access are currently under active development.')
+                : (isVietnamese
+                    ? 'Thư viện tuyển tập các bộ dữ liệu và đề tài nghiên cứu chuẩn mực từ cộng đồng học thuật quốc tế đang được chuẩn bị.'
+                    : 'Curated repositories and peer-reviewed research collections will be available soon.')
+              }
+            </p>
+
+            <button
+              onClick={() => setActiveFilter('all')}
+              className="px-6 py-3 rounded-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-blue-600/25 hover:scale-105 transition-all cursor-pointer"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>{isVietnamese ? 'Quay lại Tất cả sổ ghi chú' : 'Back to All Notebooks'}</span>
+            </button>
+          </div>
+        )}
 
         {/* ── 3. Section: Sổ ghi chú nổi bật (Featured Notebooks) ── */}
         {(activeFilter === 'all' || activeFilter === 'featured') && (
