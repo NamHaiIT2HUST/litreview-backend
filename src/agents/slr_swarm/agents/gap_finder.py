@@ -179,34 +179,47 @@ async def run_gap_finder(state: dict, deps: SwarmDeps) -> dict:
     axis_x = as_str_list(data.get("axis_x"))[:5]
     axis_y = as_str_list(data.get("axis_y"))[:5]
 
-    cells: list[GapCell] = []
-    corpus: list[PaperRecord] = state.get("corpus", [])
-    
-    if axis_x and axis_y:
-        if corpus:
-            # Phân tích khoảng trống trực tiếp trên tập bài báo đã tìm thấy
-            for x in axis_x:
-                for y in axis_y:
-                    # Tách các từ khoá con (ví dụ 'GPT-4', 'Task Planning'...)
-                    x_words = [w.lower().strip("(),.") for w in x.split() if len(w) > 3 and w.lower() not in ["with", "from", "using", "models", "level"]]
-                    y_words = [w.lower().strip("(),.") for w in y.split() if len(w) > 3 and w.lower() not in ["with", "from", "using", "models", "level"]]
-                    
-                    def matches_concept(text: str, words: list[str]) -> bool:
-                        if not words: return True
-                        text_l = text.lower()
-                        return any(w in text_l for w in words)
+    if not axis_x:
+        axis_x = ["Open-Source Models", "Fine-Tuned LLMs", "Vision-Language Models", "Hybrid Architectures"]
+    if not axis_y:
+        axis_y = ["Task Planning", "Autonomous Navigation", "Multi-Agent Control", "Real-Time Evaluation"]
 
-                    matching_count = sum(
-                        1 for p in corpus
-                        if matches_concept(f"{p.title} {p.abstract}", x_words)
-                        and matches_concept(f"{p.title} {p.abstract}", y_words)
-                    )
-                    cells.append(GapCell(
-                        dimension_x=x, 
-                        dimension_y=y, 
-                        paper_count=matching_count, 
-                        saturation=GapCell.classify(matching_count)
-                    ))
+    cells: list[GapCell] = []
+    raw_corpus = state.get("corpus", [])
+    
+    # Normalize corpus items into simple dicts/objects
+    corpus = []
+    for p in raw_corpus:
+        if isinstance(p, dict):
+            corpus.append(p)
+        elif hasattr(p, "title"):
+            corpus.append({"title": getattr(p, "title", ""), "abstract": getattr(p, "abstract", "")})
+    
+    for x in axis_x:
+        for y in axis_y:
+            x_words = [w.lower().strip("(),.") for w in x.split() if len(w) > 2 and w.lower() not in ["with", "from", "using", "models", "level", "and", "the"]]
+            y_words = [w.lower().strip("(),.") for w in y.split() if len(w) > 2 and w.lower() not in ["with", "from", "using", "models", "level", "and", "the"]]
+            
+            def matches_concept(text: str, words: list[str]) -> bool:
+                if not words: return True
+                text_l = text.lower()
+                return any(w in text_l for w in words)
+
+            if corpus:
+                matching_count = sum(
+                    1 for p in corpus
+                    if matches_concept(f"{p.get('title', '')} {p.get('abstract', '')}", x_words)
+                    and matches_concept(f"{p.get('title', '')} {p.get('abstract', '')}", y_words)
+                )
+            else:
+                matching_count = 0
+
+            cells.append(GapCell(
+                dimension_x=x, 
+                dimension_y=y, 
+                paper_count=matching_count, 
+                saturation=GapCell.classify(matching_count)
+            ))
 
     gap_map = GapMap(axis_x=axis_x, axis_y=axis_y, cells=cells)
 

@@ -35,81 +35,101 @@ function dbPaperToPaperSchema(dbPaper) {
 }
 
 export default function SearchTab({ papers, setPapers, selectedPaperIds, selectedPapers = [], toggleSelectPaper, clearSelectedPapers, setActiveTab, darkMode }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const isVi = language === 'vi';
   const { activeProject, activeProjectId } = useProject();
-  const currentProjectId = activeProjectId || DEFAULT_PROJECT_ID;
+  const currentProjectId = activeProjectId || activeProject?.id || DEFAULT_PROJECT_ID;
 
-  const [apiKey, setApiKey] = useState(
-    localStorage.getItem('litreview_serpapi_key') || ''
-  );
-  // Helper: chỉ giữ từ khóa tiếng Anh hợp lệ (loại bỏ từ tiếng Việt rác)
-  const filterEnglishKeywords = (arr) => {
-    if (!Array.isArray(arr)) return [];
-    return arr.filter(kw => kw && kw.trim().length >= 3 && /^[a-zA-Z0-9\s\-\/&.]+$/.test(kw.trim()));
-  };
-
-  const [queryChips, setQueryChips] = useState(() => {
-    try {
-      const raw = localStorage.getItem('suggested_keywords');
-      if (raw) {
-        const arr = JSON.parse(raw);
-        const filtered = arr.filter(kw => kw && kw.trim().length >= 3 && /^[a-zA-Z0-9\s\-\/&.]+$/.test(kw.trim()));
-        if (filtered.length > 0) return filtered;
-      }
-    } catch (e) {}
-    const saved = localStorage.getItem('last_search_query');
-    return saved ? [saved] : [];
+  const [apiKey, setApiKey] = useState(() => {
+    return localStorage.getItem('litreview_serpapi_key') || localStorage.getItem('serp_api_key') || '';
   });
 
-  const [suggestedKeywords, setSuggestedKeywords] = useState(() => {
+  // Helper: lọc từ khóa hợp lệ
+  const filterEnglishKeywords = (arr) => {
+    if (!Array.isArray(arr)) return [];
+    return arr.filter(kw => kw && typeof kw === 'string' && kw.trim().length >= 2);
+  };
+
+  const getProjectKeywords = useCallback(() => {
     try {
-      const cachedPico = localStorage.getItem('slr_pico_data');
+      const pId = currentProjectId;
+      const cachedKw = localStorage.getItem(`suggested_keywords_${pId}`);
+      if (cachedKw) {
+        const arr = JSON.parse(cachedKw);
+        const filtered = filterEnglishKeywords(arr);
+        if (filtered.length > 0) return filtered;
+      }
+      const cachedPico = localStorage.getItem(`slr_pico_data_${pId}`) || localStorage.getItem('slr_pico_data');
       if (cachedPico) {
-        const p = JSON.parse(cachedPico);
+        const p = typeof cachedPico === 'string' ? JSON.parse(cachedPico) : cachedPico;
         const filtered = filterEnglishKeywords(p.search_keywords);
         if (filtered.length > 0) return filtered;
       }
+      if (activeProject?.pico?.search_keywords) {
+        const filtered = filterEnglishKeywords(activeProject.pico.search_keywords);
+        if (filtered.length > 0) return filtered;
+      }
       const raw = localStorage.getItem('suggested_keywords');
       if (raw) {
-        const parsed = JSON.parse(raw);
-        const filtered = filterEnglishKeywords(parsed);
+        const arr = JSON.parse(raw);
+        const filtered = filterEnglishKeywords(arr);
         if (filtered.length > 0) return filtered;
       }
     } catch (e) {}
     return [];
+  }, [currentProjectId, activeProject]);
+
+  const [suggestedKeywords, setSuggestedKeywords] = useState(() => getProjectKeywords());
+  const [searchQuery, setSearchQuery] = useState(() => {
+    const kws = getProjectKeywords();
+    const saved = localStorage.getItem(`last_search_query_${currentProjectId}`) || localStorage.getItem('last_search_query');
+    if (saved) return saved;
+    if (kws.length > 0) return kws.join(' ');
+    return '';
   });
 
-  // Lắng nghe Mesh Query & Keywords mới từ Setup Tab
+  // Sync keywords and restore cached search papers when activeProject or currentProjectId changes
+  useEffect(() => {
+    const kws = getProjectKeywords();
+    setSuggestedKeywords(kws);
+    
+    const savedQ = localStorage.getItem(`last_search_query_${currentProjectId}`);
+    if (savedQ) {
+      setSearchQuery(savedQ);
+    } else if (kws.length > 0) {
+      setSearchQuery(kws.join(' '));
+    }
+
+    // Restore cached papers for this project if available
+    try {
+      const cachedPapers = localStorage.getItem(`litreview_search_papers_${currentProjectId}`);
+      if (cachedPapers) {
+        const parsed = JSON.parse(cachedPapers);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setPapers(parsed);
+          const cachedMeta = localStorage.getItem(`litreview_search_meta_${currentProjectId}`);
+          if (cachedMeta) setSearchMeta(JSON.parse(cachedMeta));
+        }
+      }
+      const cachedGap = localStorage.getItem(`slr_gap_map_${currentProjectId}`);
+      if (cachedGap) setGapMapData(JSON.parse(cachedGap));
+    } catch {}
+  }, [currentProjectId, activeProject, getProjectKeywords, setPapers]);
+
+  // Lắng nghe sự kiện chuyển từ Tab Cấu hình sang
   useEffect(() => {
     const handleMeshQuery = () => {
-      try {
-        const cachedPico = localStorage.getItem('slr_pico_data');
-        if (cachedPico) {
-          const p = JSON.parse(cachedPico);
-          const filtered = filterEnglishKeywords(p.search_keywords);
-          if (filtered.length > 0) {
-            setSuggestedKeywords(filtered);
-            setQueryChips(filtered);
-            return;
-          }
-        }
-        const raw = localStorage.getItem('suggested_keywords');
-        if (raw) {
-          const arr = JSON.parse(raw);
-          const filtered = filterEnglishKeywords(arr);
-          if (filtered.length > 0) {
-            setSuggestedKeywords(filtered);
-            setQueryChips(filtered);
-            return;
-          }
-        }
-      } catch (e) {}
+      const kws = getProjectKeywords();
+      if (kws.length > 0) {
+        setSuggestedKeywords(kws);
+        setSearchQuery(kws.join(' '));
+        localStorage.setItem(`last_search_query_${currentProjectId}`, kws.join(' '));
+      }
     };
     window.addEventListener('new_mesh_query_ready', handleMeshQuery);
-    handleMeshQuery();
     return () => window.removeEventListener('new_mesh_query_ready', handleMeshQuery);
-  }, []);
-  const [searchQuery, setSearchQuery] = useState('');
+  }, [currentProjectId, getProjectKeywords]);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [searchMeta, setSearchMeta] = useState({
@@ -129,12 +149,12 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
   // Project data for screening modal & topic display
   const [projectData, setProjectData] = useState(() => {
     try {
-      const cached = localStorage.getItem('research_setup_data');
+      const cached = localStorage.getItem(`research_setup_data_${currentProjectId}`) || localStorage.getItem('research_setup_data');
       if (cached) return JSON.parse(cached);
     } catch (e) {
       console.error(e);
     }
-    return null;
+    return activeProject || null;
   });
   const [showScreeningModal, setShowScreeningModal] = useState(false);
 
@@ -146,35 +166,43 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
   // Gap Map Modal state for Search Tab
   const [showGapModal, setShowGapModal] = useState(false);
   const [gapMapLoading, setGapMapLoading] = useState(false);
-  const [gapMapData, setGapMapData] = useState(null);
+  const [gapMapData, setGapMapData] = useState(() => {
+    try {
+      const cachedGap = localStorage.getItem(`slr_gap_map_${currentProjectId}`);
+      if (cachedGap) return JSON.parse(cachedGap);
+    } catch {}
+    return null;
+  });
 
   const handleOpenGapAnalysis = async () => {
     setShowGapModal(true);
-    if (gapMapData) return;
     setGapMapLoading(true);
     try {
-      const idea = projectData?.research_question || projectData?.name || 'Academic Research';
+      const idea = projectData?.research_question || projectData?.name || activeProject?.research_question || activeProject?.name || 'Academic Research';
       const res = await fetch(`${API_BASE}/slr-swarm/step1-setup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           idea,
-          research_field: projectData?.research_field || '',
-          criteria_include: projectData?.criteria_include || [],
-          criteria_exclude: projectData?.criteria_exclude || [],
-          corpus: papers.map(p => ({
+          research_field: projectData?.research_field || activeProject?.research_field || '',
+          criteria_include: projectData?.criteria_include || activeProject?.criteria_include || [],
+          criteria_exclude: projectData?.criteria_exclude || activeProject?.criteria_exclude || [],
+          corpus: (papers || []).map(p => ({
             paper_id: String(p.id),
-            title: p.title,
+            title: p.title || '',
             abstract: p.abstract || '',
-            year: p.year,
-            venue: p.journal,
-            doi: p.doi
+            year: p.year || 2024,
+            venue: p.journal || '',
+            doi: p.doi || ''
           }))
         })
       });
       if (res.ok) {
         const data = await res.json();
-        setGapMapData(data.gap_map);
+        if (data.gap_map) {
+          setGapMapData(data.gap_map);
+          localStorage.setItem(`slr_gap_map_${currentProjectId}`, JSON.stringify(data.gap_map));
+        }
       }
     } catch (err) {
       console.error("Gap analysis error:", err);
@@ -472,24 +500,14 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
   const handleSearch = async (e) => {
     if (e) e.preventDefault();
     
-    let finalChips = [...queryChips];
-    if (searchQuery.trim()) {
-      finalChips.push(searchQuery.trim());
-      setQueryChips(finalChips);
-      setSearchQuery('');
-    }
+    const finalQueryString = searchQuery.trim();
 
-    if (finalChips.length === 0) {
+    if (!finalQueryString) {
       setError(t('search.error_no_keyword'));
       return;
     }
 
-    if (!apiKey.trim()) {
-      setError(t('search.error_no_api_key'));
-      return;
-    }
-
-    const finalQueryString = finalChips.join(' ');
+    localStorage.setItem(`last_search_query_${currentProjectId}`, finalQueryString);
     localStorage.setItem('last_search_query', finalQueryString);
 
     setLoading(true);
@@ -500,7 +518,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-API-Key': apiKey.trim()
+          ...(apiKey.trim() ? { 'X-API-Key': apiKey.trim() } : {})
         },
         body: JSON.stringify({
           query_string: finalQueryString,
@@ -510,7 +528,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.detail || 'Lỗi tìm kiếm từ server');
+        throw new Error(data.detail || (isVi ? 'Lỗi tìm kiếm từ server' : 'Search failed from server'));
       }
 
       const data = await response.json();
@@ -519,14 +537,18 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
         setPapers(scopusOnly);
         const confirmedCount = scopusOnly.filter(p => p.scopus_status === 'indexed').length;
         const undeterminedCount = scopusOnly.filter(p => p.scopus_status !== 'indexed').length;
-        setSearchMeta({
+        const meta = {
           provider: data.provider || 'google_scholar',
           limit: data.limit || 20,
           total_found: scopusOnly.length,
           total_confirmed: confirmedCount,
           total_undetermined: undeterminedCount,
           duplicates: data.duplicates ?? 0,
-        });
+        };
+        setSearchMeta(meta);
+        localStorage.setItem(`litreview_search_papers_${currentProjectId}`, JSON.stringify(scopusOnly));
+        localStorage.setItem(`litreview_search_meta_${currentProjectId}`, JSON.stringify(meta));
+
         if (data.search_query_id) {
           setActiveQueryId(data.search_query_id);
         }
@@ -540,7 +562,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
       if (err.name === 'TypeError' && err.message.includes('fetch')) {
         setError(t('search.error_backend'));
       } else {
-        setError(err.message || 'Lỗi không xác định khi gọi Backend.');
+        setError(err.message || (isVi ? 'Lỗi không xác định khi gọi Backend.' : 'Unknown error calling backend.'));
       }
     } finally {
       setLoading(false);
@@ -777,127 +799,142 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
           )}
         </div>
 
-        {/* API Key Section */}
-        <details className="card">
-          <summary className="p-3 cursor-pointer list-none flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm font-semibold text-surface-700 dark:text-surface-300">
-              <Key className="w-4 h-4 text-primary-500" />
-              <span>{t('search.api_key_label')}</span>
+        {/* API Key Section (Always Visible & Unobtrusive) */}
+        <div className="card p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface-50/80 dark:bg-surface-900/60 border border-surface-200 dark:border-surface-800">
+          <div className="flex items-center gap-2.5 text-xs font-bold text-surface-700 dark:text-surface-300 shrink-0">
+            <div className="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500">
+              <Key className="w-3.5 h-3.5" />
             </div>
-            <ChevronDown className="w-4 h-4 text-surface-400" />
-          </summary>
-          <div className="px-3 pb-3 pt-0">
-            <div className="flex items-center gap-2">
+            <span>{isVi ? 'Khóa API Google Scholar (SerpApi):' : 'Google Scholar API Key (SerpApi):'}</span>
+          </div>
+
+          <div className="flex items-center gap-2 flex-1 max-w-xl">
+            <input
+              type="password"
+              value={apiKey}
+              onChange={handleApiKeyChange}
+              placeholder={isVi ? 'Nhập khóa SerpApi (hoặc để trống để dùng API backend mặc định)...' : 'Enter SerpApi Key (or leave empty to use backend default)...'}
+              className="input input-sm font-mono flex-1 text-xs"
+            />
+            <a 
+              href="https://serpapi.com/users/sign_up" 
+              target="_blank" 
+              rel="noreferrer"
+              className="btn btn-sm btn-ghost text-primary-600 dark:text-primary-400 flex-shrink-0 text-xs font-semibold"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{isVi ? 'Nhận key miễn phí' : 'Get free key'}</span>
+            </a>
+          </div>
+        </div>
+
+        {/* Unified Search Console */}
+        <form id="tour-search-bar" onSubmit={handleSearch} className="card p-5 sm:p-6 space-y-4 shadow-xl border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900">
+          {/* Main Input Row */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="w-5 h-5 text-surface-400 absolute left-4 top-1/2 -translate-y-1/2" />
               <input
-                type="password"
-                value={apiKey}
-                onChange={handleApiKeyChange}
-                placeholder={t('search.api_key_placeholder')}
-                className="input input-sm font-mono flex-1"
+                type="text"
+                value={searchQuery}
+                onChange={handleSearchQueryChange}
+                placeholder={isVi ? 'Nhập từ khóa học thuật tiếng Anh, câu truy vấn Boolean hoặc bấm từ khóa bên dưới...' : 'Enter academic search query, Boolean keywords, or click suggestions below...'}
+                className="w-full pl-12 pr-10 py-3.5 border rounded-2xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary-500 bg-surface-50 border-surface-300 text-surface-900 placeholder-surface-400 dark:bg-surface-800 dark:border-surface-700 dark:text-white dark:placeholder-surface-500 shadow-inner"
               />
-              <a href="https://serpapi.com/users/sign_up" target="_blank" rel="noreferrer"
-                className="btn btn-sm btn-ghost text-primary-600 dark:text-primary-400 flex-shrink-0">
-                <ExternalLink className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">{t('search.get_api_key')}</span>
-              </a>
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-surface-400 hover:text-surface-600 dark:hover:text-surface-200 p-1"
+                  title={isVi ? 'Xóa ô tìm kiếm' : 'Clear search'}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
-          </div>
-        </details>
 
-        {/* Suggested Keywords Banner */}
-        {suggestedKeywords && suggestedKeywords.length > 0 && (
-          <div className="card p-3 flex flex-col sm:flex-row sm:items-center gap-3">
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="section-label">Suggested keywords:</span>
-              <div className="flex flex-wrap gap-1.5">
-                {suggestedKeywords.map((kw, idx) => (
-                  <span 
-                    key={idx} 
-                    onClick={() => setSearchQuery(kw)}
-                    className="px-3 py-1.5 rounded-xl bg-indigo-600/90 hover:bg-indigo-500 text-white font-bold text-xs border border-indigo-400/40 cursor-pointer transition-all hover:scale-105 shadow-md"
-                    title="Nhấn để đưa vào ô tìm kiếm"
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn btn-primary font-bold px-7 py-3.5 rounded-2xl text-sm transition-all shadow-primary-md flex items-center justify-center gap-2 shrink-0"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>{t('search.searching')}</span>
+                </>
+              ) : (
+                <>
+                  <Search className="w-4 h-4" />
+                  <span>{t('search.search_btn')}</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Suggested Keywords from Topic Area */}
+          {suggestedKeywords && suggestedKeywords.length > 0 && (
+            <div className="pt-3 border-t border-surface-100 dark:border-surface-800 space-y-2.5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <span className="text-xs font-bold text-surface-600 dark:text-surface-300 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
+                  <span>{isVi ? 'Từ khóa đề xuất từ Đề tài nghiên cứu (PICO):' : 'Suggested Keywords from Topic (PICO):'}</span>
+                </span>
+
+                <div className="flex items-center gap-2 self-start sm:self-auto">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery(suggestedKeywords.join(' '));
+                    }}
+                    className="text-[11px] font-bold text-primary-600 dark:text-primary-400 hover:underline cursor-pointer"
                   >
-                    {kw}
-                  </span>
-                ))}
+                    {isVi ? 'Điền tất cả vào ô tìm kiếm' : 'Apply all keywords'}
+                  </button>
+                  <span className="text-surface-300 dark:text-surface-700">•</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(suggestedKeywords.join(' '));
+                    }}
+                    className="text-[11px] font-semibold text-surface-500 dark:text-surface-400 hover:text-surface-700 dark:hover:text-surface-200 cursor-pointer"
+                  >
+                    {isVi ? 'Sao chép' : 'Copy'}
+                  </button>
+                </div>
               </div>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={() => navigator.clipboard.writeText(suggestedKeywords.join(' '))}
-                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold text-xs border border-slate-700 transition-colors"
-              >
-                Sao chép
-              </button>
-              <button
-                type="button"
-                onClick={() => setSearchQuery(suggestedKeywords.join(' '))}
-                className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition-colors"
-              >
-                Điền vào ô tìm kiếm
-              </button>
-            </div>
-          </div>
-        )}
 
-        {/* Search Bar */}
-        <form id="tour-search-bar" onSubmit={handleSearch} className={`p-4 md:p-6 rounded-3xl border shadow-lg transition-colors ${
-          'bg-white border-slate-200 dark:bg-slate-900 dark:border-slate-800'
-        }`}>
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="relative flex-1">
-                <Search className="w-6 h-6 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={handleSearchQueryChange}
-                  onKeyDown={handleInputKeyDown}
-                  placeholder={t('search.search_placeholder')}
-                  className={`w-full pl-14 pr-4 py-4 border rounded-2xl text-base font-semibold focus:outline-none focus:ring-2 focus:ring-blue-600 ${
-                    'bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700 dark:text-white dark:placeholder-slate-500'
-                  }`}
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={loading}
-                className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold px-8 py-4 rounded-2xl text-base transition-all shadow-md flex items-center justify-center gap-2 shrink-0"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    <span>{t('search.searching')}</span>
-                  </>
-                ) : (
-                    <span>{t('search.search_btn')}</span>
-                )}
-              </button>
-            </div>
-            
-            {/* Display Chips */}
-            {queryChips.length > 0 && (
               <div className="flex flex-wrap gap-2">
-                {queryChips.map((chip, idx) => (
-                  <span
-                    key={idx}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-bold bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 border border-blue-200 dark:border-blue-800"
-                  >
-                    {chip}
+                {suggestedKeywords.map((kw, idx) => {
+                  const isIncluded = searchQuery.toLowerCase().includes(kw.toLowerCase());
+                  return (
                     <button
+                      key={idx}
                       type="button"
-                      onClick={() => removeChip(idx)}
-                      className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5 transition-colors"
-                      title={t('search.remove_keyword')}
+                      onClick={() => {
+                        if (isIncluded) {
+                          const regex = new RegExp(`\\b${kw}\\b`, 'gi');
+                          const updated = searchQuery.replace(regex, '').replace(/\s+/g, ' ').trim();
+                          setSearchQuery(updated);
+                        } else {
+                          setSearchQuery(prev => prev ? `${prev} ${kw}`.trim() : kw);
+                        }
+                      }}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border shadow-xs ${
+                        isIncluded
+                          ? 'bg-primary-600 text-white border-primary-500 shadow-primary-sm scale-105'
+                          : 'bg-surface-100 hover:bg-surface-200 dark:bg-surface-800/80 dark:hover:bg-surface-800 text-surface-700 dark:text-surface-300 border-surface-200 dark:border-surface-700/60'
+                      }`}
+                      title={isIncluded ? (isVi ? 'Nhấn để bỏ chọn' : 'Click to deselect') : (isVi ? 'Nhấn để thêm vào ô tìm kiếm' : 'Click to add')}
                     >
-                      <X className="w-3.5 h-3.5" />
+                      <span>{kw}</span>
+                      {isIncluded ? <Check className="w-3 h-3 stroke-[2.5]" /> : <PlusCircle className="w-3 h-3 text-surface-400" />}
                     </button>
-                  </span>
-                ))}
+                  );
+                })}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </form>
 
         {/* Mobile History (shown below search on small screens) */}
@@ -1459,10 +1496,12 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                 </div>
                 <div>
                   <h3 className="text-lg font-display font-bold flex items-center gap-2">
-                    Phân Tích Cơ Hội & Khoảng Trống Nghiên Cứu (Research Gaps)
+                    {isVi ? 'Phân tích Cơ hội & Khoảng trống Nghiên cứu' : 'Research Gaps & Opportunity Analysis'}
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Phân tích điểm nghẽn và cơ hội đề tài dựa trên <strong>{papers.length} bài báo</strong> bạn vừa tìm kiếm
+                    {isVi 
+                      ? `Phân tích điểm nghẽn và cơ hội đề tài dựa trên ${papers.length} bài báo bạn vừa tìm kiếm`
+                      : `Analyze saturation and open research opportunities across ${papers.length} discovered papers`}
                   </p>
                 </div>
               </div>
@@ -1479,7 +1518,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
               {gapMapLoading ? (
                 <div className="py-20 flex flex-col items-center justify-center gap-4 text-slate-400">
                   <Loader2 className="w-10 h-10 animate-spin text-blue-600 dark:text-sky-400" />
-                  <p className="text-sm font-bold">Đang quét toàn văn {papers.length} bài báo để phân tích khoảng trống nghiên cứu...</p>
+                  <p className="text-sm font-bold">{isVi ? `Đang quét toàn văn ${papers.length} bài báo để phân tích khoảng trống nghiên cứu...` : `Scanning full text of ${papers.length} papers to analyze research gaps...`}</p>
                 </div>
               ) : gapMapData && gapMapData.cells && gapMapData.cells.length > 0 ? (
                 <div className="space-y-6">
@@ -1489,30 +1528,30 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                     <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800">
                       <span className="font-bold text-xs text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5 mb-1">
                         <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span> 
-                        Khoảng trống mới (0 bài)
+                        {isVi ? 'Khoảng trống mới (0 bài)' : 'Open Research Gap (0 papers)'}
                       </span>
                       <p className="text-[11px] text-emerald-900/80 dark:text-emerald-300/80 leading-relaxed">
-                        Chưa có công trình nào trong tập kết quả khai thác → Cơ hội đề tài mới tiềm năng cao!
+                        {isVi ? 'Chưa có công trình nào trong tập kết quả khai thác → Cơ hội đề tài mới tiềm năng cao!' : 'No papers found exploring this intersection → High publication potential!'}
                       </p>
                     </div>
 
                     <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800">
                       <span className="font-bold text-xs text-amber-700 dark:text-amber-400 flex items-center gap-1.5 mb-1">
                         <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span> 
-                        Đang phát triển (&lt; 3 bài)
+                        {isVi ? 'Đang phát triển (< 3 bài)' : 'Emerging Topic (< 3 papers)'}
                       </span>
                       <p className="text-[11px] text-amber-900/80 dark:text-amber-300/80 leading-relaxed">
-                        Có 1-2 nghiên cứu sơ khai → Rất tiềm năng để mở rộng và hoàn thiện phương pháp.
+                        {isVi ? 'Có 1-2 nghiên cứu sơ khai → Rất tiềm năng để mở rộng và hoàn thiện phương pháp.' : 'Few initial studies found → High opportunity to extend and optimize methodologies.'}
                       </p>
                     </div>
 
                     <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800">
                       <span className="font-bold text-xs text-rose-700 dark:text-rose-400 flex items-center gap-1.5 mb-1">
                         <span className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block"></span> 
-                        Bão hoà (Nhiều bài)
+                        {isVi ? 'Bão hoà (Nhiều bài)' : 'Saturated Topic (Multiple papers)'}
                       </span>
                       <p className="text-[11px] text-rose-900/80 dark:text-rose-300/80 leading-relaxed">
-                        Đã có nhiều nghiên cứu tập trung vào hướng này → Cần tránh trùng lặp ý tưởng.
+                        {isVi ? 'Đã có nhiều nghiên cứu tập trung vào hướng này → Cần tránh trùng lặp ý tưởng.' : 'Heavily researched topic → Recommend novel angles to avoid duplication.'}
                       </p>
                     </div>
                   </div>
@@ -1520,7 +1559,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                   {/* 1. Grid Matrix */}
                   <div className="space-y-2.5">
                     <h4 className="text-xs font-display font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      1. Ma Trận Phân Bố Đề Tài (Topic Intersections)
+                      {isVi ? '1. Ma Trận Phân Bố Đề Tài (Topic Intersections)' : '1. Topic Intersections Matrix'}
                     </h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                       {gapMapData.cells.map((c, idx) => (
@@ -1540,10 +1579,10 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                               c.saturation === 'sparse' ? 'bg-amber-200/80 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300' :
                               'bg-emerald-200/80 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300'
                             }`}>
-                              {c.saturation === 'empty' ? 'Khoảng trống mới' : c.saturation === 'sparse' ? 'Còn dư địa' : 'Đã bão hoà'}
+                              {c.saturation === 'empty' ? (isVi ? 'Khoảng trống mới' : 'Open Gap') : c.saturation === 'sparse' ? (isVi ? 'Còn dư địa' : 'Emerging') : (isVi ? 'Đã bão hoà' : 'Saturated')}
                             </span>
                             <span className="font-bold text-slate-600 dark:text-slate-300">
-                              {c.paper_count} bài báo
+                              {c.paper_count} {isVi ? 'bài báo' : 'papers'}
                             </span>
                           </div>
                           <div className="font-bold text-sm text-slate-900 dark:text-slate-100 leading-snug">
@@ -1557,19 +1596,19 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                   {/* 2. Deep Analytical Breakdown (Phân tích kỹ càng & Đề xuất hướng đi) */}
                   <div className="space-y-4 pt-2 border-t border-slate-200 dark:border-slate-800">
                     <h4 className="text-xs font-display font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      2. Phân Tích Chuyên Sâu & Đề Xuất Đột Phá
+                      {isVi ? '2. Phân Tích Chuyên Sâu & Đề Xuất Đột Phá' : '2. In-Depth Analysis & Breakthrough Directions'}
                     </h4>
 
                     {/* Limitations of current papers */}
                     <div className={`p-4 rounded-2xl border ${'bg-slate-50 border-slate-200 dark:bg-slate-800/50 dark:border-slate-700'} space-y-2`}>
                       <div className="flex items-center gap-2 text-xs font-bold text-amber-700 dark:text-amber-400">
                         <AlertCircle className="w-4 h-4" />
-                        <span>Điểm nghẽn chưa được giải quyết trong các bài báo hiện tại:</span>
+                        <span>{isVi ? 'Điểm nghẽn chưa được giải quyết trong các bài báo hiện tại:' : 'Unresolved bottlenecks in current literature:'}</span>
                       </div>
                       <ul className="text-xs text-slate-600 dark:text-slate-300 space-y-1.5 pl-4 list-disc leading-relaxed">
-                        <li>Phần lớn các công trình tập trung vào các mô hình đơn lẻ, thiếu cơ chế kiểm chứng đối chiếu chéo (Cross-verification).</li>
-                        <li>Chưa có nhiều nghiên cứu đánh giá toàn diện độ tin cậy và khả năng giải thích được (Explainability) trên tập dữ liệu thực tế lớn.</li>
-                        <li>Chi phí tính toán và độ trễ xử lý tài liệu dài (Long-context reasoning) vẫn là rào cản lớn chưa được tối ưu triệt để.</li>
+                        <li>{isVi ? 'Phần lớn các công trình tập trung vào các mô hình đơn lẻ, thiếu cơ chế kiểm chứng đối chiếu chéo (Cross-verification).' : 'Most works focus on isolated models without cross-verification mechanisms.'}</li>
+                        <li>{isVi ? 'Chưa có nhiều nghiên cứu đánh giá toàn diện độ tin cậy và khả năng giải thích được (Explainability) trên tập dữ liệu thực tế lớn.' : 'Limited empirical benchmarks evaluating reliability and explainability on real-world datasets.'}</li>
+                        <li>{isVi ? 'Chi phí tính toán và độ trễ xử lý tài liệu dài (Long-context reasoning) vẫn là rào cản lớn chưa được tối ưu triệt để.' : 'Computational complexity and inference latency remain significant bottlenecks for long-context tasks.'}</li>
                       </ul>
                     </div>
 
@@ -1577,25 +1616,25 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                     <div className={`p-4 rounded-2xl border ${'bg-blue-50/50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-800/60'} space-y-3`}>
                       <div className="flex items-center gap-2 text-xs font-bold text-blue-700 dark:text-sky-300">
                         <Sparkles className="w-4 h-4" />
-                        <span>3 Hướng đề tài đề xuất có tiềm năng công bố cao:</span>
+                        <span>{isVi ? '3 Hướng đề tài đề xuất có tiềm năng công bố cao:' : '3 Proposed High-Impact Research Directions:'}</span>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
                         <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-blue-100 dark:border-blue-900 space-y-1">
-                          <p className="font-bold text-xs text-blue-600 dark:text-sky-400">Hướng 1: Multi-Agent Tri thức</p>
+                          <p className="font-bold text-xs text-blue-600 dark:text-sky-400">{isVi ? 'Hướng 1: Multi-Agent Tri thức' : 'Direction 1: Multi-Agent Knowledge'}</p>
                           <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
-                            Xây dựng hệ thống Swarm phân tầng để trích xuất và đối chiếu bằng chứng chéo giữa các bài báo.
+                            {isVi ? 'Xây dựng hệ thống Swarm phân tầng để trích xuất và đối chiếu bằng chứng chéo giữa các bài báo.' : 'Hierarchical multi-agent swarm architecture for multi-document synthesis and cross-evidence verification.'}
                           </p>
                         </div>
                         <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-blue-100 dark:border-blue-900 space-y-1">
-                          <p className="font-bold text-xs text-blue-600 dark:text-sky-400">Hướng 2: Giảm Thiểu Ảo Giác</p>
+                          <p className="font-bold text-xs text-blue-600 dark:text-sky-400">{isVi ? 'Hướng 2: Giảm Thiểu Ảo Giác' : 'Direction 2: Hallucination Mitigation'}</p>
                           <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
-                            Cơ chế Grounding 100% với trích dẫn DOI trực tiếp từ PDF toàn văn để đảm bảo tính liêm chính học thuật.
+                            {isVi ? 'Cơ chế Grounding 100% với trích dẫn DOI trực tiếp từ PDF toàn văn để đảm bảo tính liêm chính học thuật.' : '100% grounded claim-evidence mapping with verifiable DOI & page-level citation anchors.'}
                           </p>
                         </div>
                         <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-blue-100 dark:border-blue-900 space-y-1">
-                          <p className="font-bold text-xs text-blue-600 dark:text-sky-400">Hướng 3: Tối Ưu Chi Phí & Tốc Độ</p>
+                          <p className="font-bold text-xs text-blue-600 dark:text-sky-400">{isVi ? 'Hướng 3: Tối Ưu Chi Phí & Tốc Độ' : 'Direction 3: Cost & Latency Optimization'}</p>
                           <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
-                            Áp dụng kỹ thuật phân đoạn thông minh và Embedding phân cấp để xử lý hàng trăm trang tài liệu trong vài giây.
+                            {isVi ? 'Áp dụng kỹ thuật phân đoạn thông minh và Embedding phân cấp để xử lý hàng trăm trang tài liệu trong vài giây.' : 'Smart chunking and hierarchical embeddings to process hundreds of pages in real time.'}
                           </p>
                         </div>
                       </div>
@@ -1605,7 +1644,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                 </div>
               ) : (
                 <div className="py-16 text-center text-slate-400 text-sm">
-                  Chưa có dữ liệu khoảng trống. Hãy bấm tìm kiếm bài báo trước!
+                  {isVi ? 'Chưa có dữ liệu khoảng trống. Hãy bấm tìm kiếm bài báo trước!' : 'No research gap data yet. Please search for papers first!'}
                 </div>
               )}
             </div>
@@ -1616,7 +1655,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                 onClick={() => setShowGapModal(false)}
                 className="px-6 py-2.5 rounded-xl text-xs font-bold bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 transition-colors"
               >
-                Đóng (X)
+                {isVi ? 'Đóng (X)' : 'Close (X)'}
               </button>
             </div>
           </div>
