@@ -79,6 +79,61 @@ async def _probe_cell(deps: SwarmDeps, x: str, y: str) -> GapCell:
     return GapCell(dimension_x=x, dimension_y=y, paper_count=count, saturation=GapCell.classify(count))
 
 
+def _extract_clean_keywords(text: str, field: str = "") -> list[str]:
+    import re
+    paren_matches = re.findall(r"\(([^)]+)\)", text)
+    extracted = []
+    for pm in paren_matches:
+        for item in pm.split(","):
+            cleaned = item.strip()
+            if cleaned and len(cleaned) >= 2 and len(cleaned) <= 35:
+                extracted.append(f"{cleaned} algorithm" if len(cleaned.split()) == 1 else cleaned)
+
+    clean_text = re.sub(r"\([^)]*\)", "", text)
+    mappings = [
+        ("tốc độ hội tụ", ["convergence rate", "rate of convergence"]),
+        ("tối ưu bậc hai", ["second-order optimization", "second-order algorithms"]),
+        ("tối ưu hóa", ["optimization methods", "mathematical optimization"]),
+        ("tối thiểu hóa", ["convex minimization", "objective minimization"]),
+        ("hàm lồi", ["convex function", "convex optimization"]),
+        ("ràng buộc lồi", ["convex constraints", "constrained optimization"]),
+        ("chấp nhận tách", ["split feasibility problem", "split feasibility"]),
+        ("học sâu", ["deep learning", "neural networks"]),
+        ("mô hình ngôn ngữ", ["large language models", "LLM task planning"]),
+        ("robot", ["robotics", "mobile robot navigation"]),
+    ]
+
+    clean_lower = clean_text.lower()
+    for phrase, eng_terms in mappings:
+        if phrase in clean_lower:
+            extracted.extend(eng_terms)
+
+    delimiters = r"[;:,]|cho bài toán|đối với|của các|dành cho|dựa trên|phân tích|nghiên cứu|đánh giá|khảo sát"
+    chunks = re.split(delimiters, clean_text, flags=re.IGNORECASE)
+    for c in chunks:
+        c_clean = c.strip()
+        words = c_clean.split()
+        if 2 <= len(words) <= 5 and len(c_clean) <= 40:
+            extracted.append(c_clean)
+
+    seen = set()
+    result = []
+    for item in extracted:
+        item_clean = item.strip()
+        if item_clean and item_clean.lower() not in seen and len(item_clean.split()) <= 5 and len(item_clean) <= 45:
+            seen.add(item_clean.lower())
+            result.append(item_clean)
+
+    if not result:
+        words = [w for w in re.findall(r"\b[a-zA-Z0-9\-_]{3,}\b", text)]
+        if words:
+            result = words[:6]
+        else:
+            result = [field or "Computer Science", "Empirical Evaluation", "Methodology Benchmark"]
+
+    return result[:8]
+
+
 async def run_gap_finder(state: dict, deps: SwarmDeps) -> dict:
     idea = (state.get("idea") or "").strip()
     research_field = (state.get("research_field") or "").strip()
@@ -131,50 +186,46 @@ async def run_gap_finder(state: dict, deps: SwarmDeps) -> dict:
     out = str(data.get("outcome", "") or "")
     raw_kws = as_str_list(data.get("search_keywords"))
     
-    # Filter keywords to ensure high-quality English academic terms
-    kws = [
-        kw.strip() for kw in raw_kws 
-        if kw and len(kw.strip()) >= 3 and any(c.isalpha() for c in kw)
-    ]
+    # Filter keywords: eliminate whole sentence echoes (> 45 chars or > 5 words)
+    kws = []
+    for kw in raw_kws:
+        k_str = kw.strip()
+        if k_str and len(k_str) >= 3 and any(c.isalpha() for c in k_str):
+            if len(k_str) <= 45 and len(k_str.split()) <= 5:
+                kws.append(k_str)
+            else:
+                # Break long sentence keyword down
+                kws.extend(_extract_clean_keywords(k_str, research_field))
 
-    # Smart academic fallback if LLM returned empty/unparsed
+    # Smart academic extraction fallback if LLM returned empty/unparsed
     if not (pop and inte and out and kws):
         if not pop:
-            pop = f"Target application systems and evaluation benchmarks for: {idea}"
+            pop = f"Target domain and problem instances for: {idea[:60]}"
         if not inte:
-            inte = "Large Language Models & AI Agent Architectures"
+            inte = "Advanced Optimization Algorithms & Mathematical Formulations"
         if not out:
-            out = "Task Planning Accuracy, Latency & Real-world Performance"
+            out = "Convergence Rate, Numerical Stability & Benchmark Performance"
         if not kws:
-            # Generate clean academic multi-word phrases based on the topic
-            idea_lower = idea.lower()
-            if "robot" in idea_lower or "llm" in idea_lower:
-                kws = [
-                    "large language models mobile robot",
-                    "LLM task planning robotics",
-                    "open source LLM robot navigation",
-                    "embodied AI autonomous agents",
-                    "vision language action robotics",
-                    "LLM decision making mobile robots"
-                ]
-            else:
-                kws = [
-                    f"{idea} deep learning",
-                    f"{idea} neural networks",
-                    f"{idea} performance benchmark",
-                    f"{idea} state of the art",
-                    f"{idea} empirical evaluation"
-                ]
+            kws = _extract_clean_keywords(idea, research_field)
+
+    # Deduplicate keywords
+    final_kws = []
+    seen_k = set()
+    for k in kws:
+        k_clean = k.strip()
+        if k_clean and k_clean.lower() not in seen_k and len(k_clean) <= 45:
+            seen_k.add(k_clean.lower())
+            final_kws.append(k_clean)
 
     pico = PICOFrame(
         population=pop,
         intervention=inte,
         comparison=comp,
         outcome=out,
-        search_keywords=kws,
+        search_keywords=final_kws[:8],
         mesh_terms=as_str_list(data.get("mesh_terms")),
     )
-    pico.boolean_query = build_boolean_query(pico) or " ".join(kws[:4])
+    pico.boolean_query = build_boolean_query(pico) or " ".join(final_kws[:4])
 
     axis_x = as_str_list(data.get("axis_x"))[:5]
     axis_y = as_str_list(data.get("axis_y"))[:5]

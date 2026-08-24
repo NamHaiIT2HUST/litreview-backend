@@ -465,6 +465,8 @@ const DICTIONARY = {
       prisma: 'Chuẩn PRISMA',
       demoProfiles: 'Tài khoản Mẫu',
       faq: 'Hỏi đáp',
+      team: 'Đội ngũ',
+      acknowledgments: 'Lời cảm ơn',
       login: 'Đăng nhập',
       startFree: 'Bắt đầu Miễn phí',
     },
@@ -564,6 +566,61 @@ const DICTIONARY = {
       q4: 'Tôi có thể tải lên tài liệu PDF của riêng mình không?',
       a4: 'Có. Trong WorkspaceTab, bạn có thể tải lên trực tiếp các file PDF tài liệu toàn văn để hệ thống trích xuất nội dung, đưa vào ma trận so sánh và phân tích chuyên sâu.',
     },
+    team: {
+      badge: 'ĐỘI NGŨ PHÁT TRIỂN',
+      title: 'Đội ngũ Phát triển Sản phẩm',
+      desc: 'Dự án Nghiên cứu & Phát triển thuộc Khóa 3 — Chương trình AI Thực Chiến',
+      members: [
+        {
+          name: 'Nguyễn Đình Liêm',
+          studentId: '2A202601421',
+          role: 'Học viên khóa 3',
+          course: 'Chương trình AI thực chiến',
+          img: '/src/assets/member1.png',
+          imgPublic: '/member1.png',
+          initials: 'NL',
+          color: 'from-blue-600 to-indigo-700'
+        },
+        {
+          name: 'Tạ Thị Nga',
+          studentId: '2A202601125',
+          role: 'Học viên khóa 3',
+          course: 'Chương trình AI thực chiến',
+          img: '/src/assets/member2.png',
+          imgPublic: '/member2.png',
+          initials: 'TN',
+          color: 'from-purple-600 to-pink-600'
+        },
+        {
+          name: 'Nguyễn Văn Hưng',
+          studentId: '2A202601970',
+          role: 'Học viên khóa 3',
+          course: 'Chương trình AI thực chiến',
+          img: '/src/assets/member3.png',
+          imgPublic: '/member3.png',
+          initials: 'NH',
+          color: 'from-emerald-600 to-teal-700'
+        },
+        {
+          name: 'Nguyễn Đào Nam Hải',
+          studentId: '2A202601037',
+          role: 'Học viên khóa 3',
+          course: 'Chương trình AI thực chiến',
+          img: '/src/assets/member4.png',
+          imgPublic: '/member4.png',
+          initials: 'NH',
+          color: 'from-primary-600 to-cyan-700'
+        }
+      ]
+    },
+    acknowledgments: {
+      badge: 'LỜI TRI ÂN & CẢM ƠN',
+      title: 'Lời Cảm Ơn Sâu Sắc',
+      p1: 'Nhóm chúng em xin gửi lời cảm ơn chân thành và sâu sắc nhất tới Ban Tổ chức, các Thầy Cô giảng dạy cùng toàn thể Đội ngũ Cố vấn của Chương trình AI Thực Chiến (Khóa 3). Cảm ơn Chương trình đã trao cho chúng em cơ hội quý báu được tiếp cận những nền tảng tri thức công nghệ tiên tiến nhất, được thử thách bản thân và trưởng thành vượt bậc qua từng dự án thực chiến.',
+      p2: 'Dự án LitReview AI không chỉ là kết tinh từ sự nỗ lực, say mê nghiên cứu của các thành viên trong nhóm, mà còn là minh chứng cho sự đồng hành tận tâm, định hướng sâu sát và nguồn cảm hứng bất tận từ các Thầy Cô. Những bài học thực tiễn, tư duy kiến trúc hệ thống và kỷ luật kỹ thuật tích lũy từ khóa học sẽ là hành trang vô giá để chúng em tiếp tục vững bước trên con đường nghiên cứu khoa học và phát triển công nghệ.',
+      p3: 'Kính chúc Chương trình AI Thực Chiến ngày càng phát triển vững mạnh, tiếp tục là bệ phóng tài năng hàng đầu giúp các thế hệ kỹ sư AI Việt Nam vươn tầm thế giới!',
+      signature: 'Trân trọng, Nhóm tác giả Đề tài P-165 — Học viên Khóa 3 Chương trình AI Thực Chiến',
+    },
     final: {
       title: 'Bản tổng quan tài liệu tiếp theo của bạn, hoàn thành nhanh gấp 5 lần.',
       desc: 'Trải nghiệm ngay quy trình tổng quan tài liệu khoa học chuẩn mực PRISMA.',
@@ -580,6 +637,8 @@ const DICTIONARY = {
       prisma: 'PRISMA Standard',
       demoProfiles: 'Demo Profiles',
       faq: 'FAQ',
+      team: 'Team',
+      acknowledgments: 'Special Thanks',
       login: 'Sign In',
       startFree: 'Start Free',
     },
@@ -678,6 +737,61 @@ const DICTIONARY = {
       a3: 'The system cross-references journal names, ISSNs, and publisher metadata against verified Scopus databases, retaining only confirmed publications.',
       q4: 'Can I upload my own PDF documents directly?',
       a4: 'Yes. In the WorkspaceTab, you can directly upload full-text PDF files to extract structured tables, populate the comparison matrix, and query via grounded RAG.',
+    },
+    team: {
+      badge: 'DEVELOPMENT TEAM',
+      title: 'Product Development Team',
+      desc: 'Research & Development Project under AI Engineering Cohort 3 Program',
+      members: [
+        {
+          name: 'Nguyễn Đình Liêm',
+          studentId: '2A202601421',
+          role: 'Cohort 3 Student',
+          course: 'AI Engineering Program',
+          img: '/src/assets/member1.png',
+          imgPublic: '/member1.png',
+          initials: 'NL',
+          color: 'from-blue-600 to-indigo-700'
+        },
+        {
+          name: 'Tạ Thị Nga',
+          studentId: '2A202601125',
+          role: 'Cohort 3 Student',
+          course: 'AI Engineering Program',
+          img: '/src/assets/member2.png',
+          imgPublic: '/member2.png',
+          initials: 'TN',
+          color: 'from-purple-600 to-pink-600'
+        },
+        {
+          name: 'Nguyễn Văn Hưng',
+          studentId: '2A202601970',
+          role: 'Cohort 3 Student',
+          course: 'AI Engineering Program',
+          img: '/src/assets/member3.png',
+          imgPublic: '/member3.png',
+          initials: 'NH',
+          color: 'from-emerald-600 to-teal-700'
+        },
+        {
+          name: 'Nguyễn Đào Nam Hải',
+          studentId: '2A202601037',
+          role: 'Cohort 3 Student',
+          course: 'AI Engineering Program',
+          img: '/src/assets/member4.png',
+          imgPublic: '/member4.png',
+          initials: 'NH',
+          color: 'from-primary-600 to-cyan-700'
+        }
+      ]
+    },
+    acknowledgments: {
+      badge: 'SPECIAL ACKNOWLEDGMENTS',
+      title: 'Our Sincere Gratitude',
+      p1: 'Our team would like to express our deepest gratitude to the Organizing Committee, Instructors, and Mentors of the AI Engineering Program (Cohort 3). Thank you for providing us with the invaluable opportunity to master state-of-the-art AI technologies and grow through real-world engineering challenges.',
+      p2: 'The LitReview AI project is not only the result of our continuous dedication and team effort, but also the testament to the inspiring mentorship and thorough guidance provided throughout the journey. The practical knowledge and engineering mindset gained here will serve as our lifelong foundation in scientific research and AI innovation.',
+      p3: 'We wish the AI Engineering Program continued excellence, serving as a premier launchpad empowering future generations of Vietnamese AI innovators on the global stage!',
+      signature: 'Respectfully, Project Team P-165 — AI Engineering Cohort 3',
     },
     final: {
       title: 'Your next systematic literature review, completed 5x faster.',
@@ -909,6 +1023,8 @@ export default function PublicLandingPage({ onOpenAuth }) {
           { id: 'prisma', label: language === 'vi' ? '05 Chuẩn PRISMA' : '05 PRISMA Protocol' },
           { id: 'demo-accounts', label: language === 'vi' ? '06 Tài khoản Mẫu' : '06 Demo Profiles' },
           { id: 'faq', label: language === 'vi' ? '07 Hỏi đáp (FAQ)' : '07 FAQ' },
+          { id: 'team', label: language === 'vi' ? '08 Đội ngũ' : '08 Team' },
+          { id: 'acknowledgments', label: language === 'vi' ? '09 Lời cảm ơn' : '09 Special Thanks' },
         ].map((item) => {
           const isActive = activeSection === item.id;
           return (
@@ -956,13 +1072,15 @@ export default function PublicLandingPage({ onOpenAuth }) {
           </div>
 
           {/* Desktop Nav Links */}
-          <nav className="hidden lg:flex items-center gap-6 xl:gap-8 text-sm xl:text-[14.5px] font-bold text-slate-700 dark:text-slate-200 whitespace-nowrap">
+          <nav className="hidden lg:flex items-center gap-4 xl:gap-6 text-sm xl:text-[14px] font-bold text-slate-700 dark:text-slate-200 whitespace-nowrap">
             <a href="#simulator" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1">{d.nav.simulator}</a>
             <a href="#agents" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1">{d.nav.agents}</a>
             <a href="#matrix" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1">{d.nav.matrix}</a>
             <a href="#prisma" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1">{d.nav.prisma}</a>
             <a href="#demo-accounts" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1">{d.nav.demoProfiles}</a>
             <a href="#faq" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1">{d.nav.faq}</a>
+            <a href="#team" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1">{d.nav.team}</a>
+            <a href="#acknowledgments" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1">{d.nav.acknowledgments}</a>
           </nav>
 
           {/* Controls & Actions */}
@@ -2061,6 +2179,137 @@ export default function PublicLandingPage({ onOpenAuth }) {
               </ScrollReveal>
             );
           })}
+        </div>
+      </section>
+
+      {/* ── 9. Product Development Team ─────────────────────────────────── */}
+      <section id="team" className="py-20 bg-surface-100/60 dark:bg-surface-900/40 border-y border-surface-200 dark:border-surface-800 relative z-10 morph-section-bridge">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+          
+          <ScrollReveal variant="morph" className="text-center space-y-2">
+            <span className="section-label block">{d.team.badge}</span>
+            <h2 className="font-display font-bold text-2xl sm:text-3xl text-surface-900 dark:text-white">
+              <span className="text-shimmer">{d.team.title}</span>
+            </h2>
+            <p className="text-xs sm:text-sm text-surface-500 max-w-2xl mx-auto">
+              {d.team.desc}
+            </p>
+          </ScrollReveal>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {d.team.members.map((member, idx) => (
+              <ScrollReveal key={idx} variant="cascade" delay={idx * 100}>
+                <div className="card p-6 flex flex-col items-center text-center space-y-4 hover:border-primary-500 hover:shadow-2xl transition-all group backdrop-blur-md scrolly-card relative overflow-hidden">
+                  
+                  {/* Subtle top glow bar */}
+                  <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${member.color} opacity-80`} />
+
+                  {/* Avatar / Photo Container */}
+                  <div className="relative w-28 h-28 rounded-2xl overflow-hidden shadow-lg border-2 border-surface-200/80 dark:border-surface-700/80 group-hover:scale-105 group-hover:border-primary-400 transition-all duration-300 bg-surface-100 dark:bg-surface-800 flex items-center justify-center">
+                    <img
+                      src={member.img}
+                      alt={member.name}
+                      onError={(e) => {
+                        if (e.target.src.includes('/src/assets/')) {
+                          e.target.src = member.imgPublic;
+                        } else {
+                          e.target.style.display = 'none';
+                          const fallback = e.target.parentElement.querySelector('.member-fallback');
+                          if (fallback) fallback.style.display = 'flex';
+                        }
+                      }}
+                      className="w-full h-full object-cover object-center"
+                    />
+                    {/* Fallback Initials (shown if image is not yet uploaded) */}
+                    <div className={`member-fallback w-full h-full bg-gradient-to-br ${member.color} text-white font-bold text-2xl flex items-center justify-center shadow-inner`} style={{ display: 'none' }}>
+                      {member.initials}
+                    </div>
+                  </div>
+
+                  {/* Name and Info */}
+                  <div className="space-y-1.5 w-full">
+                    <h3 className="font-display font-bold text-base text-surface-900 dark:text-white leading-snug group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+                      {member.name}
+                    </h3>
+                    
+                    <div className="flex items-center justify-center gap-1.5 pt-1">
+                      <span className="badge badge-primary font-mono text-[10px] px-2.5 py-0.5 font-bold shadow-2xs">
+                        ID: {member.studentId}
+                      </span>
+                    </div>
+
+                    <div className="pt-2 text-xs text-surface-600 dark:text-surface-300 font-medium">
+                      <span className="block text-primary-700 dark:text-primary-300 font-semibold">{member.role}</span>
+                      <span className="text-[11px] text-surface-400 dark:text-surface-400">{member.course}</span>
+                    </div>
+                  </div>
+
+                </div>
+              </ScrollReveal>
+            ))}
+          </div>
+
+        </div>
+      </section>
+
+      {/* ── 10. Special Acknowledgments & Gratitude ──────────────────────── */}
+      <section id="acknowledgments" className="py-20 bg-gradient-to-b from-transparent via-primary-500/5 to-transparent relative z-10 morph-section-bridge">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+          
+          <ScrollReveal variant="morph" className="text-center space-y-2">
+            <span className="section-label block">{d.acknowledgments.badge}</span>
+            <h2 className="font-display font-bold text-2xl sm:text-3xl text-surface-900 dark:text-white">
+              <span className="text-shimmer">{d.acknowledgments.title}</span>
+            </h2>
+          </ScrollReveal>
+
+          <ScrollReveal variant="zoom" delay={100}>
+            <div className="card p-8 sm:p-10 border-primary-200/80 dark:border-primary-900/60 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl shadow-2xl relative overflow-hidden space-y-6 scrolly-card">
+              
+              {/* Decorative background glow */}
+              <div className="absolute top-0 right-0 w-64 h-64 bg-primary-500/10 rounded-full blur-3xl pointer-events-none" />
+              <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+
+              <div className="flex items-center gap-3 text-amber-500">
+                <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/60 flex items-center justify-center border border-amber-200 dark:border-amber-800/80 shadow-xs">
+                  <Sparkles className="w-5 h-5 animate-pulse" />
+                </div>
+                <div>
+                  <span className="font-display font-bold text-sm text-surface-900 dark:text-white block">
+                    {language === 'vi' ? 'Chương trình AI Thực Chiến — Khóa 3' : 'AI Engineering Program — Cohort 3'}
+                  </span>
+                  <span className="text-xs text-surface-500">
+                    {language === 'vi' ? 'Dự án Capstone Tốt nghiệp Khóa Học' : 'Graduation Capstone Project'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-4 text-surface-700 dark:text-surface-300 text-sm sm:text-[15px] leading-relaxed relative z-10 font-normal">
+                <p className="indent-6 sm:indent-8">
+                  {d.acknowledgments.p1}
+                </p>
+                <p className="indent-6 sm:indent-8">
+                  {d.acknowledgments.p2}
+                </p>
+                <p className="indent-6 sm:indent-8 font-medium text-primary-700 dark:text-primary-300">
+                  {d.acknowledgments.p3}
+                </p>
+              </div>
+
+              {/* Signature block */}
+              <div className="pt-4 border-t border-surface-200/80 dark:border-surface-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+                <span className="font-bold text-surface-900 dark:text-white flex items-center gap-2">
+                  <Award className="w-4 h-4 text-primary-600 dark:text-primary-400" />
+                  <span>{d.acknowledgments.signature}</span>
+                </span>
+                <span className="badge badge-primary font-mono text-[10px] px-3 py-1 font-bold">
+                  AI20K Cohort 3
+                </span>
+              </div>
+
+            </div>
+          </ScrollReveal>
+
         </div>
       </section>
 

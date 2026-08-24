@@ -98,10 +98,11 @@ def create_synthesis_llm(
         openai_cls = ChatOpenAI
 
     kwargs = {
-        "model": model_name or "gpt-4o-mini",
+        "model": model_name or "claude-opus-5-thinking",
         "api_key": openai_key or "sk-placeholder",
         "temperature": settings.synthesis_temperature,
         "max_tokens": 8192,
+        "default_headers": {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"},
     }
     api_base = settings.get_api_base
     if api_base:
@@ -183,15 +184,54 @@ class SynthesisLLMService:
         # 1. Primary configured LLM
         primary = self._get_llm()
         m_name = getattr(primary, "model", getattr(primary, "model_name", "primary"))
+        
+        # Try json_mode first (most compatible with proxies like GoRouter/OpenRouter)
+        try:
+            candidates.append((f"{m_name}:json_mode", primary.with_structured_output(schema, method="json_mode")))
+        except Exception:
+            pass
+
         try:
             candidates.append((m_name, primary.with_structured_output(schema)))
         except Exception:
-            try:
-                candidates.append((m_name, primary.with_structured_output(schema, method="function_calling")))
-            except Exception:
-                pass
+            pass
 
-        # 2. Fallback candidate for OpenAI / GPT-4o-mini (nếu primary khác gpt-4o-mini)
+        try:
+            candidates.append((f"{m_name}:function", primary.with_structured_output(schema, method="function_calling")))
+        except Exception:
+            pass
+
+        # 2. Universal Prompt-based JSON runner fallback (100% compatible with all proxies)
+        class UniversalJsonRunner:
+            def __init__(self, raw_llm, target_schema):
+                self._raw_llm = raw_llm
+                self._schema = target_schema
+
+            async def ainvoke(self, messages, **kwargs):
+                import json
+                schema_json = json.dumps(self._schema.model_json_schema(), indent=2)
+                sys_addition = f"\n\nCRITICAL: Output ONLY a valid JSON object matching this schema:\n{schema_json}"
+                augmented_messages = []
+                for role, content in messages:
+                    if role == "system":
+                        augmented_messages.append((role, content + sys_addition))
+                    else:
+                        augmented_messages.append((role, content))
+                
+                resp = await self._raw_llm.ainvoke(augmented_messages, **kwargs)
+                raw_text = resp.content if hasattr(resp, "content") else str(resp)
+                if isinstance(raw_text, list):
+                    raw_text = "".join(part.get("text", "") for part in raw_text if isinstance(part, dict))
+                raw_text = str(raw_text).strip()
+                if "```json" in raw_text:
+                    raw_text = raw_text.split("```json")[1].split("```")[0].strip()
+                elif "```" in raw_text:
+                    raw_text = raw_text.split("```")[1].split("```")[0].strip()
+                return self._schema.model_validate_json(raw_text)
+
+        candidates.append((f"{m_name}:universal_json", UniversalJsonRunner(primary, schema)))
+
+        # 3. Fallback candidate for OpenAI / GPT-4o-mini (nếu primary khác gpt-4o-mini)
         oai_key = settings.effective_openai_api_key
         if oai_key and m_name != "gpt-4o-mini":
             try:
@@ -200,22 +240,10 @@ class SynthesisLLMService:
                     model="gpt-4o-mini",
                     api_key=oai_key,
                     base_url=settings.get_api_base or None,
-                    temperature=settings.synthesis_temperature
+                    temperature=settings.synthesis_temperature,
+                    default_headers={"User-Agent": "Mozilla/5.0"}
                 )
-                candidates.append(("gpt-4o-mini", llm_oai.with_structured_output(schema)))
-            except Exception:
-                pass
-
-        # 3. Fallback candidate for Groq (nếu có key)
-        if settings.groq_api_key and m_name != "llama-3.3-70b-versatile":
-            try:
-                from langchain_groq import ChatGroq
-                llm_groq = ChatGroq(
-                    model="llama-3.3-70b-versatile",
-                    api_key=settings.groq_api_key,
-                    temperature=settings.synthesis_temperature
-                )
-                candidates.append(("llama-3.3-70b-versatile", llm_groq.with_structured_output(schema)))
+                candidates.append(("gpt-4o-mini", llm_oai.with_structured_output(schema, method="json_mode")))
             except Exception:
                 pass
 
