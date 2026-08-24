@@ -11,6 +11,11 @@ import {
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useDarkMode } from '../../contexts/DarkModeContext';
 
+import member1Img from '../../assets/member1.jpeg';
+import member2Img from '../../assets/member2.jpg';
+import member3Img from '../../assets/member3.JPG';
+import member4Img from '../../assets/member4.jpg';
+
 // ── Minimalist Clean Interactive Constellation Canvas with Parallax ──────
 function AcademicConstellationCanvas({ darkMode, scrollY = 0 }) {
   const canvasRef = useRef(null);
@@ -576,8 +581,8 @@ const DICTIONARY = {
           studentId: '2A202601421',
           role: 'Học viên khóa 3',
           course: 'Chương trình AI thực chiến',
-          img: '/src/assets/member1.png',
-          imgPublic: '/member1.png',
+          img: member1Img,
+          imgPublic: '/assets/member1.jpeg',
           initials: 'NL',
           color: 'from-blue-600 to-indigo-700'
         },
@@ -586,8 +591,8 @@ const DICTIONARY = {
           studentId: '2A202601125',
           role: 'Học viên khóa 3',
           course: 'Chương trình AI thực chiến',
-          img: '/src/assets/member2.png',
-          imgPublic: '/member2.png',
+          img: member2Img,
+          imgPublic: '/assets/member2.jpg',
           initials: 'TN',
           color: 'from-purple-600 to-pink-600'
         },
@@ -596,8 +601,8 @@ const DICTIONARY = {
           studentId: '2A202601970',
           role: 'Học viên khóa 3',
           course: 'Chương trình AI thực chiến',
-          img: '/src/assets/member3.png',
-          imgPublic: '/member3.png',
+          img: member3Img,
+          imgPublic: '/assets/member3.JPG',
           initials: 'NH',
           color: 'from-emerald-600 to-teal-700'
         },
@@ -606,8 +611,8 @@ const DICTIONARY = {
           studentId: '2A202601037',
           role: 'Học viên khóa 3',
           course: 'Chương trình AI thực chiến',
-          img: '/src/assets/member4.png',
-          imgPublic: '/member4.png',
+          img: member4Img,
+          imgPublic: '/assets/member4.jpg',
           initials: 'NH',
           color: 'from-primary-600 to-cyan-700'
         }
@@ -748,8 +753,8 @@ const DICTIONARY = {
           studentId: '2A202601421',
           role: 'Cohort 3 Student',
           course: 'AI Engineering Program',
-          img: '/src/assets/member1.png',
-          imgPublic: '/member1.png',
+          img: member1Img,
+          imgPublic: '/assets/member1.jpeg',
           initials: 'NL',
           color: 'from-blue-600 to-indigo-700'
         },
@@ -758,8 +763,8 @@ const DICTIONARY = {
           studentId: '2A202601125',
           role: 'Cohort 3 Student',
           course: 'AI Engineering Program',
-          img: '/src/assets/member2.png',
-          imgPublic: '/member2.png',
+          img: member2Img,
+          imgPublic: '/assets/member2.jpg',
           initials: 'TN',
           color: 'from-purple-600 to-pink-600'
         },
@@ -768,8 +773,8 @@ const DICTIONARY = {
           studentId: '2A202601970',
           role: 'Cohort 3 Student',
           course: 'AI Engineering Program',
-          img: '/src/assets/member3.png',
-          imgPublic: '/member3.png',
+          img: member3Img,
+          imgPublic: '/assets/member3.JPG',
           initials: 'NH',
           color: 'from-emerald-600 to-teal-700'
         },
@@ -778,8 +783,8 @@ const DICTIONARY = {
           studentId: '2A202601037',
           role: 'Cohort 3 Student',
           course: 'AI Engineering Program',
-          img: '/src/assets/member4.png',
-          imgPublic: '/member4.png',
+          img: member4Img,
+          imgPublic: '/assets/member4.jpg',
           initials: 'NH',
           color: 'from-primary-600 to-cyan-700'
         }
@@ -2198,19 +2203,19 @@ export default function PublicLandingPage({ onOpenAuth }) {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {d.team.members.map((member, idx) => (
-              <ScrollReveal key={idx} variant="cascade" delay={idx * 100}>
-                <div className="card p-6 flex flex-col items-center text-center space-y-4 hover:border-primary-500 hover:shadow-2xl transition-all group backdrop-blur-md scrolly-card relative overflow-hidden">
+              <ScrollReveal key={idx} variant="cascade" delay={idx * 80}>
+                <div className="card p-6 flex flex-col items-center text-center space-y-4 hover:border-primary-500/80 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 group backdrop-blur-md scrolly-card relative overflow-hidden bg-surface-50/80 dark:bg-surface-900/60 border border-surface-200/80 dark:border-surface-800 rounded-2xl">
                   
-                  {/* Subtle top glow bar */}
-                  <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${member.color} opacity-80`} />
+                  {/* Subtle top accent bar */}
+                  <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${member.color} opacity-90`} />
 
-                  {/* Avatar / Photo Container */}
-                  <div className="relative w-28 h-28 rounded-2xl overflow-hidden shadow-lg border-2 border-surface-200/80 dark:border-surface-700/80 group-hover:scale-105 group-hover:border-primary-400 transition-all duration-300 bg-surface-100 dark:bg-surface-800 flex items-center justify-center">
+                  {/* Avatar / Portrait Photo Container */}
+                  <div className="relative w-32 h-32 rounded-2xl overflow-hidden shadow-md ring-2 ring-surface-200 dark:ring-surface-700/80 group-hover:ring-primary-500/60 group-hover:shadow-primary-500/20 group-hover:shadow-lg transition-all duration-300 bg-surface-100 dark:bg-surface-800 flex items-center justify-center">
                     <img
                       src={member.img}
                       alt={member.name}
                       onError={(e) => {
-                        if (e.target.src.includes('/src/assets/')) {
+                        if (e.target.src !== member.imgPublic) {
                           e.target.src = member.imgPublic;
                         } else {
                           e.target.style.display = 'none';
@@ -2218,29 +2223,32 @@ export default function PublicLandingPage({ onOpenAuth }) {
                           if (fallback) fallback.style.display = 'flex';
                         }
                       }}
-                      className="w-full h-full object-cover object-center"
+                      className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
                     />
-                    {/* Fallback Initials (shown if image is not yet uploaded) */}
+                    {/* Fallback Initials */}
                     <div className={`member-fallback w-full h-full bg-gradient-to-br ${member.color} text-white font-bold text-2xl flex items-center justify-center shadow-inner`} style={{ display: 'none' }}>
                       {member.initials}
                     </div>
                   </div>
 
-                  {/* Name and Info */}
-                  <div className="space-y-1.5 w-full">
-                    <h3 className="font-display font-bold text-base text-surface-900 dark:text-white leading-snug group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
-                      {member.name}
-                    </h3>
-                    
-                    <div className="flex items-center justify-center gap-1.5 pt-1">
-                      <span className="badge badge-primary font-mono text-[10px] px-2.5 py-0.5 font-bold shadow-2xs">
-                        ID: {member.studentId}
-                      </span>
+                  {/* Name and Student Info */}
+                  <div className="space-y-1.5 w-full flex-1 flex flex-col justify-between">
+                    <div>
+                      <h3 className="font-display font-bold text-base text-surface-900 dark:text-white leading-snug group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+                        {member.name}
+                      </h3>
+                      
+                      <div className="flex items-center justify-center gap-1.5 pt-1.5">
+                        <span className="inline-flex items-center gap-1 font-mono text-[11px] px-2.5 py-0.5 rounded-full font-semibold bg-primary-500/10 text-primary-600 dark:text-primary-400 border border-primary-500/20">
+                          <span className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-pulse"></span>
+                          ID: {member.studentId}
+                        </span>
+                      </div>
                     </div>
 
-                    <div className="pt-2 text-xs text-surface-600 dark:text-surface-300 font-medium">
+                    <div className="pt-2 text-xs border-t border-surface-200/60 dark:border-surface-800/80 w-full mt-2">
                       <span className="block text-primary-700 dark:text-primary-300 font-semibold">{member.role}</span>
-                      <span className="text-[11px] text-surface-400 dark:text-surface-400">{member.course}</span>
+                      <span className="text-[11px] text-surface-500 dark:text-surface-400">{member.course}</span>
                     </div>
                   </div>
 
