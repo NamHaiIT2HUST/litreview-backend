@@ -30,7 +30,9 @@ import {
   ShieldCheck,
   Clock,
   Layers,
-  ChevronRight
+  ChevronRight,
+  Maximize2,
+  Minimize2
 } from 'lucide-react';
 
 import { API_BASE, safeFetch } from '../../utils/apiConfig';
@@ -914,14 +916,26 @@ export default function WorkspaceTab({
                 </button>
               </div>
 
-              {/* Close Studio Button */}
-              <button
-                onClick={() => setIsStudioOpen(false)}
-                className="p-1.5 rounded-lg text-surface-400 hover:text-surface-600 dark:hover:text-surface-200 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors cursor-pointer"
-                title={isVietnamese ? 'Đóng Studio' : 'Close Studio'}
-              >
-                <PanelRightClose className="w-4 h-4" />
-              </button>
+              {/* Studio Actions: Quick Width Presets & Close */}
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setStudioWidth(studioWidth > 600 ? 460 : 850)}
+                  className="p-1.5 rounded-lg text-surface-400 hover:text-surface-600 dark:hover:text-surface-200 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors cursor-pointer"
+                  title={studioWidth > 600 ? (isVietnamese ? 'Thu nhỏ Studio (460px)' : 'Shrink Studio') : (isVietnamese ? 'Mở rộng Studio (850px)' : 'Expand Studio')}
+                >
+                  {studioWidth > 600 ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsStudioOpen(false)}
+                  className="p-1.5 rounded-lg text-surface-400 hover:text-surface-600 dark:hover:text-surface-200 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors cursor-pointer"
+                  title={isVietnamese ? 'Đóng Studio' : 'Close Studio'}
+                >
+                  <PanelRightClose className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
             {/* Studio Body Content */}

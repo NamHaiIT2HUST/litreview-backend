@@ -60,28 +60,20 @@ function MainAppShell() {
     setAuthModalOpen(true);
   };
 
-  // ── Active Tab ──────────────────────────────────────────────────────────
-  const [activeTab, setActiveTab] = useState(() => {
-    const saved = localStorage.getItem('litreview_active_tab') || 'overview';
-    if (['home', 'quality', 'screening'].includes(saved)) return 'overview';
-    return saved;
-  });
+  // ── Always start/switch to overview tab on login ────────────────────────
+  const [activeTab, setActiveTab] = useState('overview');
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      setActiveTab('overview');
+    }
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (currentUser?.role === 'admin' && activeTab !== 'admin' && activeTab !== 'overview') {
       setActiveTab('admin');
     }
-    localStorage.setItem('litreview_active_tab', activeTab);
   }, [activeTab, currentUser]);
-
-  // ── Sidebar Collapsed State ─────────────────────────────────────────────
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
-    return localStorage.getItem('litreview_sidebar_collapsed') === 'true';
-  });
-
-  useEffect(() => {
-    localStorage.setItem('litreview_sidebar_collapsed', String(isSidebarCollapsed));
-  }, [isSidebarCollapsed]);
 
   // ── Mobile Sidebar State ────────────────────────────────────────────────
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -360,46 +352,17 @@ function MainAppShell() {
 
   // ── RENDER: Authenticated Workspace Shell ───────────────────────────────
   return (
-    <div className={isOverviewHub ? `min-h-screen w-full bg-[#171A21] text-slate-100 ${darkMode ? 'dark' : ''}` : layoutMode === 'horizontal' ? `min-h-screen bg-[#F4F6F9] dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 ${darkMode ? 'dark' : ''}` : `app-shell ${darkMode ? 'dark' : ''}`}>
+    <div className={isOverviewHub ? `min-h-screen w-full bg-[#171A21] text-slate-100 ${darkMode ? 'dark' : ''}` : `min-h-screen bg-[#F4F6F9] dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 ${darkMode ? 'dark' : ''}`}>
       {!isOverviewHub && (
-        layoutMode === 'horizontal' ? (
-          /* ── Top Horizontal Navbar ─────────────────────────────────── */
-          <HorizontalNavbar
-            activeTab={activeTab}
-            setActiveTab={setActiveTab}
-            onOpenNewProject={() => setNewProjectModalOpen(true)}
-            layoutMode={layoutMode}
-            setLayoutMode={setLayoutMode}
-          />
-        ) : (
-          /* ── Vertical Sidebar ───────────────────────────────────────── */
-          <>
-            <Sidebar
-              activeTab={activeTab}
-              setActiveTab={setActiveTab}
-              mobileOpen={mobileSidebarOpen}
-              setMobileOpen={setMobileSidebarOpen}
-              isCollapsed={isSidebarCollapsed}
-              setIsCollapsed={setIsSidebarCollapsed}
-              onOpenNewProject={() => setNewProjectModalOpen(true)}
-              onStartTour={handleStartTour}
-              paperCount={papers.length}
-              selectedCount={selectedPapers.length}
-              layoutMode={layoutMode}
-              setLayoutMode={setLayoutMode}
-            />
-            {mobileSidebarOpen && (
-              <div
-                className="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm lg:hidden"
-                onClick={() => setMobileSidebarOpen(false)}
-              />
-            )}
-          </>
-        )
+        <HorizontalNavbar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          onOpenNewProject={() => setNewProjectModalOpen(true)}
+        />
       )}
 
-      {/* ── Main Content Area (Preserved across layout toggles) ─────── */}
-      <main className={isOverviewHub ? "w-full min-h-screen" : layoutMode === 'horizontal' ? "w-full min-h-[calc(100vh-4rem)]" : `app-content ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+      {/* ── Main Content Area ─────── */}
+      <main className={isOverviewHub ? "w-full min-h-screen" : "w-full min-h-[calc(100vh-4rem)]"}>
         {renderMainContent()}
       </main>
 
