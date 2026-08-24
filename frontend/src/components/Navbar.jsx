@@ -1,3 +1,13 @@
+<<<<<<< HEAD
+import React from 'react';
+import { Search, Sparkles, Sun, Moon, Home, Settings, Library, Download, Languages, LayoutDashboard } from 'lucide-react';
+import { useLanguage } from '../contexts/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
+
+export default function Navbar({ activeTab, setActiveTab, darkMode, setDarkMode, onLoginClick, onRegisterClick }) {
+  const { language, setLanguage, t } = useLanguage();
+  const { user, logout } = useAuth();
+=======
 import React, { useState, useEffect } from 'react';
 import { 
   Search, Sun, Moon, Home, Settings, Library, Download, 
@@ -29,14 +39,22 @@ export default function Navbar({ activeTab, setActiveTab }) {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+>>>>>>> develop
 
-  const navItems = [
+  const userNavItems = [
     { id: 'overview', label: t('nav.overview'), icon: Home },
     { id: 'setup', label: t('nav.setup'), icon: Settings },
     { id: 'search', label: t('nav.search'), icon: Search },
     { id: 'synthesis', label: t('nav.workspace'), icon: Library },
     { id: 'export', label: t('nav.export'), icon: Download },
   ];
+
+  const adminNavItems = [
+    { id: 'admin', label: 'Quản Trị Hệ Thống', icon: LayoutDashboard },
+    { id: 'overview', label: t('nav.overview'), icon: Home },
+  ];
+
+  const navItems = user?.role === 'admin' ? adminNavItems : userNavItems;
 
   return (
     <>
@@ -76,8 +94,16 @@ export default function Navbar({ activeTab, setActiveTab }) {
             </div>
           </div>
 
+<<<<<<< HEAD
+        {/* Center Navigation Tabs */}
+        {user && (
+          <nav className={`hidden md:flex items-center gap-1 p-1 rounded-2xl border ${
+            darkMode ? 'bg-slate-900 border-slate-800' : 'bg-slate-100/80 border-slate-200'
+          }`}>
+=======
           {/* Center: Desktop Navigation */}
           <nav className="hidden lg:flex items-center absolute left-1/2 -translate-x-1/2 bg-slate-100/50 dark:bg-slate-900/50 p-1 rounded-2xl border border-slate-200/50 dark:border-slate-800/50 backdrop-blur-md">
+>>>>>>> develop
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
@@ -85,6 +111,23 @@ export default function Navbar({ activeTab, setActiveTab }) {
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
+<<<<<<< HEAD
+                  className={`flex items-center gap-2 px-4 py-2 text-xs font-display font-bold rounded-xl transition-all ${
+                    isActive
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                      : darkMode
+                        ? 'text-slate-400 hover:text-white hover:bg-slate-800/80'
+                        : 'text-slate-600 hover:text-slate-950 hover:bg-white/80'
+                  }`}
+                >
+                  <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : ''}`} />
+                  <span>{item.label}</span>
+                  {item.count !== undefined && item.count > 0 && (
+                    <span className="w-4 h-4 bg-amber-400 text-slate-950 rounded-full text-[10px] flex items-center justify-center font-bold ml-1">
+                      {item.count}
+                    </span>
+                  )}
+=======
                   className={`relative flex items-center gap-2 px-5 py-2.5 text-[13px] font-display font-bold rounded-xl transition-all duration-300 overflow-hidden ${
                     isActive
                       ? 'text-white shadow-md shadow-blue-500/20'
@@ -96,10 +139,14 @@ export default function Navbar({ activeTab, setActiveTab }) {
                   )}
                   <Icon className={`w-4 h-4 relative z-10 ${isActive ? 'text-white' : ''}`} />
                   <span className="relative z-10 tracking-wide">{item.label}</span>
+>>>>>>> develop
                 </button>
               );
             })}
           </nav>
+<<<<<<< HEAD
+        )}
+=======
 
           {/* Right: Controls & Profile */}
           <div className="flex items-center gap-2 md:gap-3 relative z-10">
@@ -126,6 +173,7 @@ export default function Navbar({ activeTab, setActiveTab }) {
                 </span>
                 <ChevronDown className="w-3 h-3 opacity-60" />
               </button>
+>>>>>>> develop
 
               {showRoleMenu && (
                 <div 
@@ -174,6 +222,28 @@ export default function Navbar({ activeTab, setActiveTab }) {
               )}
             </div>
 
+<<<<<<< HEAD
+          {user ? (
+            <div className="flex items-center gap-3 ml-2">
+              <div className="flex flex-col items-end">
+                <span className="text-xs font-bold text-slate-900 dark:text-white leading-none">{user.username}</span>
+                <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase">{user.role}</span>
+              </div>
+              <button onClick={logout} className="text-xs font-bold text-slate-500 hover:text-red-500 transition-colors">
+                Đăng xuất
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 ml-2">
+              <button onClick={onLoginClick} className="px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
+                Đăng nhập
+              </button>
+              <button onClick={onRegisterClick} className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-colors shadow-sm">
+                Đăng ký
+              </button>
+            </div>
+          )}
+=======
             {/* Language Toggle */}
             <button
               onClick={() => setLanguage(language === 'vi' ? 'en' : 'vi')}
@@ -208,9 +278,39 @@ export default function Navbar({ activeTab, setActiveTab }) {
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
+>>>>>>> develop
         </div>
       </header>
 
+<<<<<<< HEAD
+      </div>
+
+      {/* Mobile Navigation Bar */}
+      {user && (
+        <div className={`md:hidden border-t p-2 flex justify-around ${
+          darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+        }`}>
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = activeTab === item.id;
+          const mobileLabel = item.label.includes('.') ? item.label.split('.')[1] : item.label;
+          return (
+            <button
+              key={item.id}
+              onClick={() => setActiveTab(item.id)}
+              className={`p-2 rounded-xl text-xs font-bold flex flex-col items-center gap-1 ${
+                isActive ? 'text-blue-600 dark:text-sky-400 font-extrabold' : 'text-slate-400'
+              }`}
+            >
+              <Icon className="w-5 h-5" />
+              <span className="text-[11px]">{mobileLabel}</span>
+            </button>
+          );
+        })}
+      </div>
+      )}
+    </header>
+=======
       {/* Mobile Drawer */}
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-40 bg-slate-900/20 backdrop-blur-sm lg:hidden animate-in fade-in duration-200">
@@ -240,5 +340,6 @@ export default function Navbar({ activeTab, setActiveTab }) {
         </div>
       )}
     </>
+>>>>>>> develop
   );
 }

@@ -10,6 +10,7 @@ import AuthModal from './components/auth/AuthModal';
 import NewProjectModal from './components/projects/NewProjectModal';
 import OnboardingTour from './components/onboarding/OnboardingTour';
 import ErrorBoundary from './components/ErrorBoundary';
+import AdminDashboard from './components/admin/AdminDashboard';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ProjectProvider, useProject } from './contexts/ProjectContext';
 import { LanguageProvider } from './contexts/LanguageContext';
@@ -57,8 +58,11 @@ function MainAppShell() {
   });
 
   useEffect(() => {
+    if (currentUser?.role === 'admin' && activeTab !== 'admin' && activeTab !== 'overview') {
+      setActiveTab('admin');
+    }
     localStorage.setItem('litreview_active_tab', activeTab);
-  }, [activeTab]);
+  }, [activeTab, currentUser]);
 
   // ── Sidebar Collapsed State ─────────────────────────────────────────────
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
@@ -72,14 +76,26 @@ function MainAppShell() {
   // ── Mobile Sidebar State ────────────────────────────────────────────────
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
-  useEffect(() => {
-    setMobileSidebarOpen(false);
-  }, [activeTab]);
+  // ── Project-Scoped Papers & State ───────────────────────────────────────
+  const papersStorageKey = activeProjectId
+    ? `litreview_papers_${activeProjectId}`
+    : 'litreview_papers';
+  const selectedIdsKey = activeProjectId
+    ? `litreview_selected_ids_${activeProjectId}`
+    : 'litreview_selected_ids';
+  const selectedPapersKey = activeProjectId
+    ? `litreview_selected_papers_${activeProjectId}`
+    : 'litreview_selected_papers';
+  const workspacePapersKey = activeProjectId
+    ? `litreview_workspace_papers_${activeProjectId}`
+    : 'litreview_workspace_papers';
+  const chatMessagesKey = activeProjectId
+    ? `litreview_workspace_chat_${activeProjectId}`
+    : 'litreview_workspace_chat_messages';
 
-  // ── Project Scoped Paper State ──────────────────────────────────────────
   const [papers, setPapers] = useState(() => {
     try {
-      const saved = localStorage.getItem(`litreview_papers_${activeProjectId}`);
+      const saved = localStorage.getItem(papersStorageKey);
       return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
@@ -88,7 +104,7 @@ function MainAppShell() {
 
   const [selectedPaperIds, setSelectedPaperIds] = useState(() => {
     try {
-      const saved = localStorage.getItem(`litreview_selected_ids_${activeProjectId}`);
+      const saved = localStorage.getItem(selectedIdsKey);
       return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
@@ -97,7 +113,7 @@ function MainAppShell() {
 
   const [selectedPapers, setSelectedPapers] = useState(() => {
     try {
-      const saved = localStorage.getItem(`litreview_selected_papers_${activeProjectId}`);
+      const saved = localStorage.getItem(selectedPapersKey);
       return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
@@ -106,121 +122,110 @@ function MainAppShell() {
 
   const [workspacePapers, setWorkspacePapers] = useState(() => {
     try {
-      const saved = localStorage.getItem(`litreview_workspace_papers_${activeProjectId}`);
+      const saved = localStorage.getItem(workspacePapersKey);
       return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
     }
   });
 
-  // Reload project data when activeProjectId changes
+  // Switch project data when active project changes
   useEffect(() => {
     try {
-      const savedPapers = localStorage.getItem(`litreview_papers_${activeProjectId}`);
+      const savedPapers = localStorage.getItem(papersStorageKey);
       setPapers(savedPapers ? JSON.parse(savedPapers) : []);
 
-      const savedSelectedIds = localStorage.getItem(`litreview_selected_ids_${activeProjectId}`);
-      setSelectedPaperIds(savedSelectedIds ? JSON.parse(savedSelectedIds) : []);
+      const savedIds = localStorage.getItem(selectedIdsKey);
+      setSelectedPaperIds(savedIds ? JSON.parse(savedIds) : []);
 
-      const savedSelectedPapers = localStorage.getItem(`litreview_selected_papers_${activeProjectId}`);
-      setSelectedPapers(savedSelectedPapers ? JSON.parse(savedSelectedPapers) : []);
+      const savedSelected = localStorage.getItem(selectedPapersKey);
+      setSelectedPapers(savedSelected ? JSON.parse(savedSelected) : []);
 
-      const savedWorkspacePapers = localStorage.getItem(`litreview_workspace_papers_${activeProjectId}`);
-      setWorkspacePapers(savedWorkspacePapers ? JSON.parse(savedWorkspacePapers) : []);
+      const savedWs = localStorage.getItem(workspacePapersKey);
+      setWorkspacePapers(savedWs ? JSON.parse(savedWs) : []);
     } catch {
-      setPapers([]);
-      setSelectedPaperIds([]);
-      setSelectedPapers([]);
-      setWorkspacePapers([]);
+      // ignore
     }
   }, [activeProjectId]);
 
-  // Persist project scoped data
   useEffect(() => {
-    if (activeProjectId) {
-      localStorage.setItem(`litreview_papers_${activeProjectId}`, JSON.stringify(papers));
-    }
-  }, [papers, activeProjectId]);
+    localStorage.setItem(papersStorageKey, JSON.stringify(papers));
+  }, [papers, papersStorageKey]);
 
   useEffect(() => {
-    if (activeProjectId) {
-      localStorage.setItem(`litreview_selected_ids_${activeProjectId}`, JSON.stringify(selectedPaperIds));
-    }
-  }, [selectedPaperIds, activeProjectId]);
+    localStorage.setItem(selectedIdsKey, JSON.stringify(selectedPaperIds));
+  }, [selectedPaperIds, selectedIdsKey]);
 
   useEffect(() => {
-    if (activeProjectId) {
-      localStorage.setItem(`litreview_selected_papers_${activeProjectId}`, JSON.stringify(selectedPapers));
-    }
-  }, [selectedPapers, activeProjectId]);
+    localStorage.setItem(selectedPapersKey, JSON.stringify(selectedPapers));
+  }, [selectedPapers, selectedPapersKey]);
 
   useEffect(() => {
-    if (activeProjectId) {
-      localStorage.setItem(`litreview_workspace_papers_${activeProjectId}`, JSON.stringify(workspacePapers));
-    }
-  }, [workspacePapers, activeProjectId]);
+    localStorage.setItem(workspacePapersKey, JSON.stringify(workspacePapers));
+  }, [workspacePapers, workspacePapersKey]);
 
-  // ── Search Meta ─────────────────────────────────────────────────────────
   const [activeCitation, setActiveCitation] = useState(null);
   const [searchResults, setSearchResults] = useState([]);
   const [searchMeta, setSearchMeta] = useState({
-    provider: 'google_scholar', limit: 20,
-    total_found: 0, total_confirmed: 0, total_undetermined: 0, duplicates: 0,
+    provider: 'google_scholar',
+    limit: 20,
+    total_found: 0,
+    total_confirmed: 0,
+    total_undetermined: 0,
+    duplicates: 0,
   });
 
-  // ── Chat Messages ───────────────────────────────────────────────────────
   const [chatMessages, setChatMessages] = useState(() => {
-    try {
-      const saved = localStorage.getItem(`litreview_workspace_chat_messages_${activeProjectId}`);
-      return saved ? JSON.parse(saved) : [{ sender: 'ai', text: `Chào mừng bạn đến với **LitReview Agent**! Hãy tìm kiếm trên Google Scholar, hệ thống sẽ tự động đối chiếu Scopus và chỉ giữ các bài đã xác minh.` }];
-    } catch { return []; }
+    const saved = localStorage.getItem(chatMessagesKey);
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error('Failed to parse saved chat messages:', e);
+      }
+    }
+    return [
+      {
+        sender: 'ai',
+        text: `Chào mừng bạn đến với **LitReview AI Workspace**! Hãy chọn các bài báo từ phần *Tìm kiếm* để bắt đầu tổng hợp y văn có dẫn nguồn, hoặc tải lên tập tin PDF toàn văn để trích xuất sâu.`,
+      },
+    ];
   });
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(`litreview_workspace_chat_messages_${activeProjectId}`);
-      setChatMessages(saved ? JSON.parse(saved) : [{ sender: 'ai', text: `Chào mừng bạn đến với **LitReview Agent**! Hãy tìm kiếm trên Google Scholar, hệ thống sẽ tự động đối chiếu Scopus và chỉ giữ các bài đã xác minh.` }]);
-    } catch {}
-  }, [activeProjectId]);
+    localStorage.setItem(chatMessagesKey, JSON.stringify(chatMessages));
+  }, [chatMessages, chatMessagesKey]);
 
-  useEffect(() => {
-    if (activeProjectId) {
-      localStorage.setItem(`litreview_workspace_chat_messages_${activeProjectId}`, JSON.stringify(chatMessages));
-    }
-  }, [chatMessages, activeProjectId]);
-
-  // ── Paper Helpers ───────────────────────────────────────────────────────
   const toggleSelectPaper = (id) => {
     if (selectedPaperIds.includes(id)) {
-      setSelectedPaperIds(ids => ids.filter(i => i !== id));
-      setSelectedPapers(ps => ps.filter(p => p.id !== id));
+      setSelectedPaperIds(selectedPaperIds.filter((item) => item !== id));
+      setSelectedPapers(selectedPapers.filter((p) => p.id !== id));
     } else {
-      setSelectedPaperIds(ids => [...ids, id]);
-      const paperToAdd = papers.find(p => p.id === id);
-      if (paperToAdd && !selectedPapers.find(p => p.id === id)) {
-        setSelectedPapers(ps => [...ps, paperToAdd]);
+      setSelectedPaperIds([...selectedPaperIds, id]);
+      const paperToAdd = papers.find((p) => p.id === id);
+      if (paperToAdd && !selectedPapers.find((p) => p.id === id)) {
+        setSelectedPapers([...selectedPapers, paperToAdd]);
       }
     }
   };
+
   const clearSelectedPapers = () => {
     setSelectedPaperIds([]);
     setSelectedPapers([]);
   };
 
-  // ── Dark Mode class on <html> ───────────────────────────────────────────
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', darkMode);
-  }, [darkMode]);
-
-  // ── RENDER: Public Landing Page if not authenticated ────────────────────
+  // ── RENDER: Public Landing Page for unauthenticated visitors ───────────
   if (!isAuthenticated) {
     return (
       <>
-        <PublicLandingPage onOpenAuth={handleOpenAuth} />
+        <PublicLandingPage
+          onOpenAuth={handleOpenAuth}
+          onExploreDemo={() => handleOpenAuth('demo')}
+        />
         <AuthModal
           isOpen={authModalOpen}
           onClose={() => setAuthModalOpen(false)}
-          defaultMode={authModalMode}
+          initialMode={authModalMode}
         />
       </>
     );
@@ -257,8 +262,15 @@ function MainAppShell() {
         <ErrorBoundary>
           <div className="animate-slide-up w-full">
 
-            {/* Overview / Personalized Dashboard */}
-            {activeTab === 'overview' && (
+            {/* Admin Dashboard */}
+            {(activeTab === 'admin' || (currentUser?.role === 'admin' && activeTab === 'overview')) && (
+              <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-10 py-6">
+                <AdminDashboard darkMode={darkMode} />
+              </div>
+            )}
+
+            {/* Overview / Personalized Dashboard (for regular users) */}
+            {activeTab === 'overview' && currentUser?.role !== 'admin' && (
               <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-10 py-6">
                 <PersonalizedDashboard
                   setActiveTab={setActiveTab}
@@ -342,6 +354,13 @@ function MainAppShell() {
       <NewProjectModal
         isOpen={newProjectModalOpen}
         onClose={() => setNewProjectModalOpen(false)}
+      />
+
+      {/* Auth Modal for switching accounts */}
+      <AuthModal
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        initialMode={authModalMode}
       />
     </div>
   );

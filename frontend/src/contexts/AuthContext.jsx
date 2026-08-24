@@ -1,10 +1,12 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { API_BASE } from '../utils/apiConfig';
 
-const AuthContext = createContext();
+const AuthContext = createContext(null);
 
 export const DEMO_USERS = [
   {
     id: 'user_researcher_01',
+    username: 'hai.nguyen',
     name: 'TS. Nguyễn Hải',
     email: 'hai.nguyen@vinuni.edu.vn',
     avatar: 'NH',
@@ -15,6 +17,7 @@ export const DEMO_USERS = [
   },
   {
     id: 'user_student_02',
+    username: 'minh.pham',
     name: 'Minh Phạm',
     email: 'minh.pham@hust.edu.vn',
     avatar: 'MP',
@@ -35,6 +38,8 @@ export function AuthProvider({ children }) {
     }
   });
 
+  const [token, setToken] = useState(() => localStorage.getItem('litreview_auth_token'));
+
   useEffect(() => {
     if (currentUser) {
       localStorage.setItem('litreview_auth_user', JSON.stringify(currentUser));
@@ -43,28 +48,110 @@ export function AuthProvider({ children }) {
     }
   }, [currentUser]);
 
-  const login = (email, password) => {
-    // Check if matches demo users or create session
-    const foundDemo = DEMO_USERS.find(u => u.email.toLowerCase() === email.toLowerCase());
-    if (foundDemo) {
-      setCurrentUser(foundDemo);
-      return { success: true, user: foundDemo };
+  useEffect(() => {
+    if (token) {
+      localStorage.setItem('litreview_auth_token', token);
+    } else {
+      localStorage.removeItem('litreview_auth_token');
+    }
+  }, [token]);
+
+  // Unified login: tries backend API first, fallback to demo/local
+  const login = async (usernameOrEmail, password) => {
+    try {
+      const res = await fetch(`${API_BASE}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: usernameOrEmail, password }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.user) {
+        setToken(data.access_token);
+        const loggedInUser = {
+          ...data.user,
+          name: data.user.name || data.user.username,
+          avatar: (data.user.username || 'US').slice(0, 2).toUpperCase(),
+        };
+        setCurrentUser(loggedInUser);
+        return { success: true, user: loggedInUser };
+      }
+      if (!res.ok) {
+        throw new Error(data.detail || 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.');
+      }
+    } catch (err) {
+      if (err.message && !err.message.includes('Failed to fetch') && !err.message.includes('NetworkError')) {
+        throw err;
+      }
+      // Fallback demo/local match if backend offline
+      const foundDemo = DEMO_USERS.find(
+        (u) =>
+          u.email.toLowerCase() === usernameOrEmail.toLowerCase() ||
+          u.username.toLowerCase() === usernameOrEmail.toLowerCase()
+      );
+      if (foundDemo) {
+        setCurrentUser(foundDemo);
+        return { success: true, user: foundDemo };
+      }
+      throw err;
+    }
+  };
+
+  // Unified register: tries backend API first
+  const register = async (userDataOrUsername, maybePassword, maybeRole = 'user') => {
+    let username, password, role, name, institution;
+    if (typeof userDataOrUsername === 'object') {
+      name = userDataOrUsername.name;
+      username = userDataOrUsername.username || userDataOrUsername.email?.split('@')[0] || name;
+      password = userDataOrUsername.password;
+      role = userDataOrUsername.role || 'user';
+      institution = userDataOrUsername.institution || 'Academic Institution';
+    } else {
+      username = userDataOrUsername;
+      password = maybePassword;
+      role = maybeRole;
+      name = username;
+      institution = 'Academic Institution';
     }
 
-    const nameFromEmail = email.split('@')[0].replace(/[._]/g, ' ');
-    const initials = nameFromEmail.slice(0, 2).toUpperCase();
-    const newUser = {
-      id: `user_${Date.now()}`,
-      name: nameFromEmail.charAt(0).toUpperCase() + nameFromEmail.slice(1),
-      email,
-      avatar: initials || 'US',
-      role: 'Academic Researcher',
-      institution: 'Independent Research',
-      plan: 'Scholar Standard',
-      bio: 'Nhà nghiên cứu khoa học độc lập.',
-    };
-    setCurrentUser(newUser);
-    return { success: true, user: newUser };
+    try {
+      const res = await fetch(`${API_BASE}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password, role }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.user) {
+        setToken(data.access_token);
+        const registeredUser = {
+          ...data.user,
+          name: name || data.user.username,
+          institution,
+          avatar: (username || 'US').slice(0, 2).toUpperCase(),
+        };
+        setCurrentUser(registeredUser);
+        return { success: true, user: registeredUser };
+      }
+      if (!res.ok) {
+        throw new Error(data.detail || 'Đăng ký thất bại. Vui lòng kiểm tra lại thông tin.');
+      }
+    } catch (err) {
+      if (err.message && !err.message.includes('Failed to fetch') && !err.message.includes('NetworkError')) {
+        throw err;
+      }
+      // Offline fallback
+      const initials = (name || username).slice(0, 2).toUpperCase();
+      const fallbackUser = {
+        id: `user_${Date.now()}`,
+        username,
+        name,
+        avatar: initials || 'US',
+        role: role || 'user',
+        institution: institution || 'Academic Institution',
+        plan: 'Scholar Standard',
+      };
+      setCurrentUser(fallbackUser);
+      return { success: true, user: fallbackUser };
+    }
   };
 
   const loginWithGoogle = async (customGoogleUser = null) => {
@@ -77,7 +164,6 @@ export function AuthProvider({ children }) {
       import.meta.env.VITE_GOOGLE_CLIENT_ID ||
       '447985190531-p2gko4a06q485g1mku819bno42qsifen.apps.googleusercontent.com';
 
-    // 1. If Google Identity Services (GIS) SDK is loaded on window
     if (typeof window !== 'undefined' && window.google?.accounts?.oauth2) {
       return new Promise((resolve, reject) => {
         try {
@@ -91,17 +177,14 @@ export function AuthProvider({ children }) {
               }
 
               try {
-                // Fetch verified profile directly from Google
                 const userinfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
                   headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
                 });
                 const googleProfile = await userinfoRes.json();
 
-                // Send to backend API for verification and database registration
                 let backendUser = null;
                 try {
-                  const apiBase = import.meta.env.VITE_API_BASE || 'http://localhost:8000/api/v1';
-                  const beRes = await fetch(`${apiBase}/auth/google`, {
+                  const beRes = await fetch(`${API_BASE}/auth/google`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -116,11 +199,12 @@ export function AuthProvider({ children }) {
                     backendUser = await beRes.json();
                   }
                 } catch (e) {
-                  console.warn('Backend auth sync warning (using client profile):', e);
+                  console.warn('Backend auth sync warning:', e);
                 }
 
                 const finalUser = backendUser || {
                   id: googleProfile.sub || `google_${Date.now()}`,
+                  username: googleProfile.email?.split('@')[0],
                   name: googleProfile.name || googleProfile.email.split('@')[0],
                   email: googleProfile.email,
                   avatar: googleProfile.name
@@ -156,9 +240,9 @@ export function AuthProvider({ children }) {
       });
     }
 
-    // 2. Fallback if GIS SDK not yet available: prompt direct account
     const fallbackUser = {
       id: `google_${Date.now()}`,
+      username: 'scholar.researcher',
       name: 'Google Scholar Researcher',
       email: 'scholar.researcher@gmail.com',
       avatar: 'G',
@@ -173,8 +257,13 @@ export function AuthProvider({ children }) {
     return { success: true, user: fallbackUser };
   };
 
+  const loginDemo = (profileId) => {
+    const u = DEMO_USERS.find((item) => item.id === profileId) || DEMO_USERS[0];
+    setCurrentUser(u);
+    return { success: true, user: u };
+  };
+
   const resetPassword = async (email) => {
-    // Simulate recovery link dispatch
     return new Promise((resolve) => {
       setTimeout(() => {
         resolve({ success: true, email });
@@ -182,40 +271,21 @@ export function AuthProvider({ children }) {
     });
   };
 
-  const loginDemo = (profileId) => {
-    const user = DEMO_USERS.find(u => u.id === profileId) || DEMO_USERS[0];
-    setCurrentUser(user);
-    return { success: true, user };
-  };
-
-  const register = ({ name, email, password, institution, role }) => {
-    const initials = name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-    const newUser = {
-      id: `user_${Date.now()}`,
-      name,
-      email,
-      avatar: initials || 'US',
-      role: role || 'Researcher',
-      institution: institution || 'Academic Institution',
-      plan: 'Scholar Pro',
-      bio: 'Nhà nghiên cứu khoa học.',
-    };
-    setCurrentUser(newUser);
-    return { success: true, user: newUser };
-  };
-
   const logout = () => {
     setCurrentUser(null);
+    setToken(null);
   };
 
   const updateProfile = (updatedFields) => {
-    setCurrentUser(prev => prev ? { ...prev, ...updatedFields } : null);
+    setCurrentUser((prev) => (prev ? { ...prev, ...updatedFields } : null));
   };
 
   return (
     <AuthContext.Provider
       value={{
         currentUser,
+        user: currentUser, // Alias for backward compatibility
+        token,
         isAuthenticated: Boolean(currentUser),
         login,
         loginWithGoogle,
