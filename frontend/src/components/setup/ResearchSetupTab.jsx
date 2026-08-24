@@ -4,13 +4,103 @@ import {
   CheckCircle2, Compass, AlertCircle, ArrowRight, Check,
   ShieldCheck, Edit3, Copy, Search, Sparkles,
   ChevronRight, Layers, FileCheck, HelpCircle, Lightbulb,
-  CheckCheck, Bookmark, ArrowUpRight
+  CheckCheck, Bookmark, ArrowUpRight, Filter, Zap
 } from 'lucide-react';
 import { normalizeResearchSetup } from '../../utils/researchSetup';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useProject } from '../../contexts/ProjectContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_BASE } from '../../utils/apiConfig';
+
+// ── Custom Vibrant Animated Academic Illustrative Badges ─────────────────────
+function TopicStepperIcon({ isApproved, isActive }) {
+  if (isApproved) {
+    return (
+      <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-cyan-500 via-blue-600 to-indigo-600 p-0.5 shadow-lg shadow-cyan-500/25 flex items-center justify-center transition-all duration-300 transform hover:scale-105">
+        <div className="w-full h-full bg-slate-950/20 backdrop-blur-xs rounded-[14px] flex items-center justify-center">
+          <svg className="w-6 h-6 text-cyan-200 animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" className="opacity-40 stroke-cyan-400" />
+            <circle cx="12" cy="12" r="6" className="opacity-70 stroke-cyan-300" />
+            <circle cx="12" cy="12" r="2" className="fill-cyan-200 stroke-cyan-100" />
+            <path d="M12 2v3m0 14v3M2 12h3m14 0h3" className="stroke-cyan-300 opacity-60" />
+          </svg>
+        </div>
+      </div>
+    );
+  }
+  if (isActive) {
+    return (
+      <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 p-0.5 shadow-md shadow-blue-500/20 flex items-center justify-center ring-4 ring-blue-500/20">
+        <svg className="w-5 h-5 text-white animate-spin-slow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polygon points="12 2 19 21 12 17 5 21 12 2" className="fill-blue-400/30" />
+        </svg>
+      </div>
+    );
+  }
+  return (
+    <div className="w-11 h-11 rounded-2xl bg-surface-200 dark:bg-surface-800 flex items-center justify-center text-surface-400 font-bold text-xs">
+      01
+    </div>
+  );
+}
+
+function CriteriaStepperIcon({ isApproved, isActive }) {
+  if (isApproved) {
+    return (
+      <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-emerald-400 via-teal-500 to-emerald-600 p-0.5 shadow-lg shadow-teal-500/25 flex items-center justify-center transition-all duration-300 transform hover:scale-105">
+        <div className="w-full h-full bg-slate-950/20 backdrop-blur-xs rounded-[14px] flex items-center justify-center">
+          <svg className="w-6 h-6 text-teal-100 animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" className="fill-teal-400/20 stroke-teal-300" />
+            <path d="M9 12l2 2 4-4" className="stroke-white stroke-[2.5]" />
+          </svg>
+        </div>
+      </div>
+    );
+  }
+  if (isActive) {
+    return (
+      <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-teal-600 to-emerald-700 p-0.5 shadow-md shadow-teal-500/20 flex items-center justify-center ring-4 ring-teal-500/20">
+        <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+          <polyline points="22 4 12 14.01 9 11.01" />
+        </svg>
+      </div>
+    );
+  }
+  return (
+    <div className="w-11 h-11 rounded-2xl bg-surface-200 dark:bg-surface-800 flex items-center justify-center text-surface-400 font-bold text-xs">
+      02
+    </div>
+  );
+}
+
+function PicoStepperIcon({ isApproved, isActive }) {
+  if (isApproved) {
+    return (
+      <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-purple-500 via-indigo-600 to-pink-500 p-0.5 shadow-lg shadow-purple-500/25 flex items-center justify-center transition-all duration-300 transform hover:scale-105">
+        <div className="w-full h-full bg-slate-950/20 backdrop-blur-xs rounded-[14px] flex items-center justify-center">
+          <svg className="w-6 h-6 text-pink-100 animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 3a9 9 0 0 1 9 9c0 3.87-2.45 7.17-5.9 8.44L12 21l-3.1-1.56A8.99 8.99 0 0 1 3 12a9 9 0 0 1 9-9z" className="fill-purple-400/25 stroke-purple-300" />
+            <path d="M12 7v5l3 3" className="stroke-pink-200 stroke-[2]" />
+            <circle cx="12" cy="12" r="1.5" className="fill-white" />
+          </svg>
+        </div>
+      </div>
+    );
+  }
+  if (isActive) {
+    return (
+      <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-700 p-0.5 shadow-md shadow-indigo-500/20 flex items-center justify-center ring-4 ring-indigo-500/20">
+        <Sparkles className="w-5 h-5 text-white animate-pulse" />
+      </div>
+    );
+  }
+  return (
+    <div className="w-11 h-11 rounded-2xl bg-surface-200 dark:bg-surface-800 flex items-center justify-center text-surface-400 font-bold text-xs">
+      03
+    </div>
+  );
+}
 
 export default function ResearchSetupTab({ setActiveTab }) {
   const { t, language } = useLanguage();
@@ -28,7 +118,7 @@ export default function ResearchSetupTab({ setActiveTab }) {
   const [newInclude, setNewInclude] = useState('');
   const [newExclude, setNewExclude] = useState('');
 
-  // Human-in-the-Loop (HITL) Gate Statuses (Project-Scoped)
+  // Human-in-the-Loop (HITL) Gate Statuses (Project-Scoped & Inferred)
   const [topicApproved, setTopicApproved] = useState(false);
   const [criteriaApproved, setCriteriaApproved] = useState(false);
 
@@ -66,38 +156,45 @@ export default function ResearchSetupTab({ setActiveTab }) {
   // Sync state when activeProject changes or on initial page load / F5
   useEffect(() => {
     if (activeProject) {
-      setProjectData(normalizeResearchSetup(activeProject));
-    } else {
-      setProjectData(normalizeResearchSetup({}));
-    }
+      const normalized = normalizeResearchSetup(activeProject);
+      setProjectData(normalized);
 
-    if (activeProjectId) {
-      const g1 = localStorage.getItem(`slr_gate1_topic_approved_${activeProjectId}`);
-      setTopicApproved(g1 === 'true');
+      const pId = activeProjectId || activeProject.id;
+      const hasQuestion = Boolean(normalized.research_question && normalized.research_question.trim().length > 3);
+      const hasCriteria = Boolean(normalized.criteria_include && normalized.criteria_include.length > 0);
 
-      const g2 = localStorage.getItem(`slr_gate2_criteria_approved_${activeProjectId}`);
-      setCriteriaApproved(g2 === 'true');
+      // Gate 1: Check localStorage first, or infer from saved research question
+      const g1 = localStorage.getItem(`slr_gate1_topic_approved_${pId}`);
+      const isGate1Done = g1 === 'true' || (g1 !== 'false' && hasQuestion);
+      setTopicApproved(isGate1Done);
+
+      // Gate 2: Check localStorage first, or infer from saved inclusion criteria
+      const g2 = localStorage.getItem(`slr_gate2_criteria_approved_${pId}`);
+      const isGate2Done = g2 === 'true' || (g2 !== 'false' && isGate1Done && hasCriteria);
+      setCriteriaApproved(isGate2Done);
 
       try {
-        const cachedScope = localStorage.getItem(`slr_scope_result_${activeProjectId}`);
+        const cachedScope = localStorage.getItem(`slr_scope_result_${pId}`);
         setScopeResult(cachedScope ? JSON.parse(cachedScope) : null);
       } catch { setScopeResult(null); }
 
       try {
-        const cachedKw = localStorage.getItem(`suggested_keywords_${activeProjectId}`);
+        const cachedKw = localStorage.getItem(`suggested_keywords_${pId}`) || localStorage.getItem('suggested_keywords');
         setSuggestedKeywords(cachedKw ? JSON.parse(cachedKw) : []);
       } catch { setSuggestedKeywords([]); }
 
       try {
-        const cachedPico = localStorage.getItem(`slr_pico_data_${activeProjectId}`);
-        setPicoData(cachedPico ? JSON.parse(cachedPico) : null);
+        const cachedPico = localStorage.getItem(`slr_pico_data_${pId}`) || (activeProject.pico ? activeProject.pico : null);
+        setPicoData(cachedPico ? (typeof cachedPico === 'string' ? JSON.parse(cachedPico) : cachedPico) : null);
       } catch { setPicoData(null); }
 
       try {
-        const cachedGap = localStorage.getItem(`slr_gap_map_${activeProjectId}`);
+        const cachedGap = localStorage.getItem(`slr_gap_map_${pId}`);
         setGapMapData(cachedGap ? JSON.parse(cachedGap) : null);
       } catch { setGapMapData(null); }
+
     } else {
+      setProjectData(normalizeResearchSetup({}));
       setTopicApproved(false);
       setCriteriaApproved(false);
       setScopeResult(null);
@@ -112,17 +209,20 @@ export default function ResearchSetupTab({ setActiveTab }) {
     setSaved(false);
     setErrorMsg(null);
     try {
-      if (activeProjectId) {
+      const pId = activeProjectId || activeProject?.id;
+      if (pId) {
         // 1. Update memory in ProjectContext
         if (updateProject) {
-          await updateProject(activeProjectId, updatedData);
+          await updateProject(pId, updatedData);
         }
 
         // 2. Persist to localStorage
-        localStorage.setItem(`research_setup_data_${activeProjectId}`, JSON.stringify(updatedData));
+        localStorage.setItem(`research_setup_data_${pId}`, JSON.stringify(updatedData));
+        localStorage.setItem(`slr_gate1_topic_approved_${pId}`, topicApproved ? 'true' : 'false');
+        localStorage.setItem(`slr_gate2_criteria_approved_${pId}`, criteriaApproved ? 'true' : 'false');
 
         // 3. Sync to backend API
-        const res = await fetch(`${API_BASE}/projects/${activeProjectId}`, {
+        const res = await fetch(`${API_BASE}/projects/${pId}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -135,7 +235,6 @@ export default function ResearchSetupTab({ setActiveTab }) {
           setSaved(true);
           setTimeout(() => setSaved(false), 3000);
         } else {
-          // Still marked saved locally
           setSaved(true);
           setTimeout(() => setSaved(false), 3000);
         }
@@ -177,8 +276,9 @@ export default function ResearchSetupTab({ setActiveTab }) {
       if (res.ok) {
         const data = await res.json();
         setScopeResult(data);
-        if (activeProjectId) {
-          localStorage.setItem(`slr_scope_result_${activeProjectId}`, JSON.stringify(data));
+        const pId = activeProjectId || activeProject?.id;
+        if (pId) {
+          localStorage.setItem(`slr_scope_result_${pId}`, JSON.stringify(data));
         }
         scrollToRef(scopeCardRef);
       } else {
@@ -204,8 +304,9 @@ export default function ResearchSetupTab({ setActiveTab }) {
     const updated = { ...projectData, research_question: updatedQuestion };
     setProjectData(updated);
     setTopicApproved(true);
-    if (activeProjectId) {
-      localStorage.setItem(`slr_gate1_topic_approved_${activeProjectId}`, 'true');
+    const pId = activeProjectId || activeProject?.id;
+    if (pId) {
+      localStorage.setItem(`slr_gate1_topic_approved_${pId}`, 'true');
     }
     await handleSave(updated);
     scrollToRef(criteriaCardRef);
@@ -248,8 +349,9 @@ export default function ResearchSetupTab({ setActiveTab }) {
 
   const handleApproveCriteria = async () => {
     setCriteriaApproved(true);
-    if (activeProjectId) {
-      localStorage.setItem(`slr_gate2_criteria_approved_${activeProjectId}`, 'true');
+    const pId = activeProjectId || activeProject?.id;
+    if (pId) {
+      localStorage.setItem(`slr_gate2_criteria_approved_${pId}`, 'true');
     }
     await handleSave(projectData);
     scrollToRef(step3CardRef);
@@ -286,8 +388,9 @@ export default function ResearchSetupTab({ setActiveTab }) {
         
         if (data.pico) {
           setPicoData(data.pico);
-          if (activeProjectId) {
-            localStorage.setItem(`slr_pico_data_${activeProjectId}`, JSON.stringify(data.pico));
+          const pId = activeProjectId || activeProject?.id;
+          if (pId) {
+            localStorage.setItem(`slr_pico_data_${pId}`, JSON.stringify(data.pico));
           }
           
           const rawKws = data.pico.search_keywords || [];
@@ -298,8 +401,8 @@ export default function ResearchSetupTab({ setActiveTab }) {
           if (kwList.length > 0) {
             setSuggestedKeywords(kwList);
             localStorage.setItem('suggested_keywords', JSON.stringify(kwList));
-            if (activeProjectId) {
-              localStorage.setItem(`suggested_keywords_${activeProjectId}`, JSON.stringify(kwList));
+            if (pId) {
+              localStorage.setItem(`suggested_keywords_${pId}`, JSON.stringify(kwList));
             }
           }
           
@@ -307,9 +410,9 @@ export default function ResearchSetupTab({ setActiveTab }) {
           if (boolQuery) {
              localStorage.setItem('litreview_active_mesh_query', boolQuery);
              localStorage.setItem('last_search_query', boolQuery);
-             if (activeProjectId) {
-               localStorage.setItem(`litreview_active_mesh_query_${activeProjectId}`, boolQuery);
-               localStorage.setItem(`last_search_query_${activeProjectId}`, boolQuery);
+             if (pId) {
+               localStorage.setItem(`litreview_active_mesh_query_${pId}`, boolQuery);
+               localStorage.setItem(`last_search_query_${pId}`, boolQuery);
              }
              window.dispatchEvent(new Event('new_mesh_query_ready'));
           }
@@ -317,9 +420,12 @@ export default function ResearchSetupTab({ setActiveTab }) {
           scrollToRef(picoCardRef);
         }
         
-        if (data.gap_map && activeProjectId) {
+        if (data.gap_map) {
+          const pId = activeProjectId || activeProject?.id;
           setGapMapData(data.gap_map);
-          localStorage.setItem(`slr_gap_map_${activeProjectId}`, JSON.stringify(data.gap_map));
+          if (pId) {
+            localStorage.setItem(`slr_gap_map_${pId}`, JSON.stringify(data.gap_map));
+          }
         }
 
       } else {
@@ -380,74 +486,61 @@ export default function ResearchSetupTab({ setActiveTab }) {
         </p>
       </div>
 
-      {/* ── Visual Stepper with Vibrant Academic Character/Stickers ───────── */}
+      {/* ── Visual Stepper with Illustrated Animated Badges ─────────────── */}
       <div className="card p-4 sm:p-5 border-surface-200/80 dark:border-surface-800 shadow-sm bg-surface-50/50 dark:bg-surface-850/50 backdrop-blur-sm">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 relative">
           
           {/* Step 1 Indicator */}
-          <div className="flex items-center gap-3.5 group">
-            <div className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold text-base flex-shrink-0 transition-all duration-300 shadow-sm ${
-              topicApproved
-                ? 'bg-gradient-to-tr from-cyan-500 via-blue-500 to-indigo-600 shadow-blue-500/25 text-white scale-105 ring-2 ring-cyan-400/30'
-                : 'bg-primary-600 text-white ring-4 ring-primary-500/15'
-            }`}>
-              {topicApproved ? '🎯' : <Compass className="w-5 h-5 text-white animate-spin-slow" />}
-            </div>
+          <div 
+            onClick={() => scrollToRef({ current: document.getElementById('section-topic-info') })}
+            className="flex items-center gap-3.5 group cursor-pointer"
+          >
+            <TopicStepperIcon isApproved={topicApproved} isActive={!topicApproved} />
             <div className="min-w-0">
-              <p className="text-xs font-bold text-surface-900 dark:text-white uppercase tracking-wider truncate">
+              <p className="text-xs font-bold text-surface-900 dark:text-white uppercase tracking-wider truncate group-hover:text-primary-500 transition-colors">
                 {isVi ? 'Định hình đề tài' : 'Topic Scope'}
               </p>
               <p className="text-[11px] font-semibold truncate mt-0.5 flex items-center gap-1 text-cyan-600 dark:text-cyan-400">
-                {topicApproved ? (isVi ? '🎯 Đã xác định' : '🎯 Approved') : (isVi ? '💡 Bước 1' : '💡 Step 1')}
+                {topicApproved ? (isVi ? '🎯 Đã định hình' : '🎯 Topic Defined') : (isVi ? '💡 Đang thiết lập' : '💡 In Progress')}
               </p>
             </div>
           </div>
 
           {/* Step 2 Indicator */}
-          <div className="flex items-center gap-3.5">
-            <div className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold text-base flex-shrink-0 transition-all duration-300 shadow-sm ${
-              criteriaApproved
-                ? 'bg-gradient-to-tr from-emerald-400 via-teal-500 to-green-600 shadow-teal-500/25 text-white scale-105 ring-2 ring-emerald-400/30'
-                : topicApproved
-                ? 'bg-primary-600 text-white ring-4 ring-primary-500/15'
-                : 'bg-surface-200 dark:bg-surface-800 text-surface-400'
-            }`}>
-              {criteriaApproved ? '🛡️' : topicApproved ? <Layers className="w-5 h-5 text-white" /> : '📋'}
-            </div>
+          <div 
+            onClick={() => topicApproved && scrollToRef(criteriaCardRef)}
+            className={`flex items-center gap-3.5 group ${topicApproved ? 'cursor-pointer' : 'opacity-60'}`}
+          >
+            <CriteriaStepperIcon isApproved={criteriaApproved} isActive={topicApproved && !criteriaApproved} />
             <div className="min-w-0">
-              <p className="text-xs font-bold text-surface-900 dark:text-white uppercase tracking-wider truncate">
+              <p className="text-xs font-bold text-surface-900 dark:text-white uppercase tracking-wider truncate group-hover:text-teal-500 transition-colors">
                 {isVi ? 'Tiêu chí sàng lọc' : 'Screening Criteria'}
               </p>
-              <p className="text-[11px] font-semibold truncate mt-0.5 flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+              <p className="text-[11px] font-semibold truncate mt-0.5 flex items-center gap-1 text-teal-600 dark:text-teal-400">
                 {criteriaApproved 
-                  ? (isVi ? '🛡️ Đã chuẩn hóa' : '🛡️ Approved') 
+                  ? (isVi ? '🛡️ Đã có tiêu chí' : '🛡️ Criteria Set') 
                   : topicApproved 
-                  ? (isVi ? '⚡ Đang thực hiện' : '⚡ In Progress') 
+                  ? (isVi ? '📋 Thiết lập tiêu chí' : '📋 In Progress') 
                   : (isVi ? '⏳ Chưa mở' : '⏳ Pending')}
               </p>
             </div>
           </div>
 
           {/* Step 3 Indicator */}
-          <div className="flex items-center gap-3.5">
-            <div className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold text-base flex-shrink-0 transition-all duration-300 shadow-sm ${
-              picoData
-                ? 'bg-gradient-to-tr from-purple-500 via-indigo-600 to-pink-500 shadow-purple-500/25 text-white scale-105 ring-2 ring-purple-400/30'
-                : criteriaApproved
-                ? 'bg-primary-600 text-white ring-4 ring-primary-500/15'
-                : 'bg-surface-200 dark:bg-surface-800 text-surface-400'
-            }`}>
-              {picoData ? '🔬' : criteriaApproved ? <Sparkles className="w-5 h-5 text-white animate-pulse" /> : '🔮'}
-            </div>
+          <div 
+            onClick={() => criteriaApproved && scrollToRef(step3CardRef)}
+            className={`flex items-center gap-3.5 group ${criteriaApproved ? 'cursor-pointer' : 'opacity-60'}`}
+          >
+            <PicoStepperIcon isApproved={Boolean(picoData)} isActive={criteriaApproved && !picoData} />
             <div className="min-w-0">
-              <p className="text-xs font-bold text-surface-900 dark:text-white uppercase tracking-wider truncate">
+              <p className="text-xs font-bold text-surface-900 dark:text-white uppercase tracking-wider truncate group-hover:text-purple-500 transition-colors">
                 {isVi ? 'PICO & Từ khóa' : 'PICO & Keywords'}
               </p>
-              <p className="text-[11px] font-semibold truncate mt-0.5 flex items-center gap-1 text-indigo-600 dark:text-indigo-400">
+              <p className="text-[11px] font-semibold truncate mt-0.5 flex items-center gap-1 text-purple-600 dark:text-purple-400">
                 {picoData 
-                  ? (isVi ? '🔬 Đã phân tích' : '🔬 Synthesized') 
+                  ? (isVi ? '🔬 Đã có bộ từ khóa' : '🔬 Synthesized') 
                   : criteriaApproved 
-                  ? (isVi ? '✨ Sẵn sàng' : '✨ Ready') 
+                  ? (isVi ? '✨ Sẵn sàng tra cứu' : '✨ Ready') 
                   : (isVi ? '⏳ Chưa mở' : '⏳ Pending')}
               </p>
             </div>
@@ -463,7 +556,7 @@ export default function ResearchSetupTab({ setActiveTab }) {
       )}
 
       {/* ── SECTION 1: THÔNG TIN VỀ ĐỀ TÀI NGHIÊN CỨU ────────────────────── */}
-      <div className={`card p-6 sm:p-7 transition-all ${topicApproved ? 'border-cyan-200/80 dark:border-cyan-900/40 bg-cyan-50/10 dark:bg-cyan-950/5' : ''}`}>
+      <div id="section-topic-info" className={`card p-6 sm:p-7 transition-all ${topicApproved ? 'border-cyan-200/80 dark:border-cyan-900/40 bg-cyan-50/10 dark:bg-cyan-950/5' : ''}`}>
         
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 pb-4 border-b border-surface-100 dark:border-surface-800">
           <div>
@@ -471,7 +564,7 @@ export default function ResearchSetupTab({ setActiveTab }) {
               <span>{isVi ? 'Thông tin về đề tài nghiên cứu' : 'Research Topic Information'}</span>
               {topicApproved && (
                 <span className="inline-flex items-center gap-1 text-[11px] font-bold text-cyan-700 dark:text-cyan-300 bg-cyan-100 dark:bg-cyan-950/60 px-2.5 py-0.5 rounded-full border border-cyan-200 dark:border-cyan-800 shadow-xs">
-                  🎯 {isVi ? 'Đã xác nhận' : 'Confirmed'}
+                  <Check className="w-3 h-3 stroke-[2.5]" /> {isVi ? 'Đã xác nhận' : 'Confirmed'}
                 </span>
               )}
             </h2>
@@ -480,7 +573,11 @@ export default function ResearchSetupTab({ setActiveTab }) {
           {topicApproved && (
             <button
               type="button"
-              onClick={() => setTopicApproved(false)}
+              onClick={() => {
+                setTopicApproved(false);
+                const pId = activeProjectId || activeProject?.id;
+                if (pId) localStorage.setItem(`slr_gate1_topic_approved_${pId}`, 'false');
+              }}
               className="btn btn-sm btn-secondary self-start sm:self-auto flex items-center gap-1.5 font-semibold"
             >
               <Edit3 className="w-3.5 h-3.5 text-surface-500" />
@@ -600,8 +697,8 @@ export default function ResearchSetupTab({ setActiveTab }) {
         <div ref={scopeCardRef} className="card p-6 border-cyan-200 dark:border-cyan-800/80 bg-cyan-50/20 dark:bg-cyan-950/20 space-y-4 animate-slide-up shadow-sm">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-cyan-100 dark:bg-cyan-900/60 flex items-center justify-center text-base">
-                🧭
+              <div className="w-8 h-8 rounded-xl bg-cyan-100 dark:bg-cyan-900/60 flex items-center justify-center text-cyan-600 dark:text-cyan-300">
+                <Compass className="w-5 h-5 animate-spin-slow" />
               </div>
               <h3 className="font-display font-bold text-sm text-surface-900 dark:text-white">
                 {isVi ? 'Nhận xét về phạm vi đề tài' : 'Topic Scope Assessment'}
@@ -665,7 +762,7 @@ export default function ResearchSetupTab({ setActiveTab }) {
                 <span>{isVi ? 'Tiêu chí sàng lọc' : 'Screening Criteria'}</span>
                 {criteriaApproved && (
                   <span className="inline-flex items-center gap-1 text-[11px] font-bold text-teal-700 dark:text-teal-300 bg-teal-100 dark:bg-teal-950/60 px-2.5 py-0.5 rounded-full border border-teal-200 dark:border-teal-800 shadow-xs">
-                    🛡️ {isVi ? 'Đã xác nhận' : 'Confirmed'}
+                    <Check className="w-3 h-3 stroke-[2.5]" /> {isVi ? 'Đã xác nhận' : 'Confirmed'}
                   </span>
                 )}
               </h2>
@@ -675,7 +772,11 @@ export default function ResearchSetupTab({ setActiveTab }) {
               {criteriaApproved ? (
                 <button
                   type="button"
-                  onClick={() => setCriteriaApproved(false)}
+                  onClick={() => {
+                    setCriteriaApproved(false);
+                    const pId = activeProjectId || activeProject?.id;
+                    if (pId) localStorage.setItem(`slr_gate2_criteria_approved_${pId}`, 'false');
+                  }}
                   className="btn btn-sm btn-secondary flex items-center gap-1.5 font-semibold"
                 >
                   <Edit3 className="w-3.5 h-3.5 text-surface-500" />
@@ -803,8 +904,12 @@ export default function ResearchSetupTab({ setActiveTab }) {
       {criteriaApproved && (
         <div ref={step3CardRef} className="space-y-6 animate-slide-up">
           <div className="card p-7 sm:p-9 text-center rounded-3xl bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-950 text-white space-y-5 shadow-2xl border border-indigo-500/20">
-            <div className="w-14 h-14 mx-auto rounded-2xl bg-indigo-500/15 border border-indigo-400/20 flex items-center justify-center text-2xl shadow-inner">
-              🔬
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-indigo-500/15 border border-indigo-400/20 flex items-center justify-center shadow-inner">
+              <svg className="w-7 h-7 text-indigo-300 animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 3a9 9 0 0 1 9 9c0 3.87-2.45 7.17-5.9 8.44L12 21l-3.1-1.56A8.99 8.99 0 0 1 3 12a9 9 0 0 1 9-9z" className="fill-indigo-400/25 stroke-indigo-300" />
+                <path d="M12 7v5l3 3" className="stroke-indigo-200 stroke-[2]" />
+                <circle cx="12" cy="12" r="1.5" className="fill-white" />
+              </svg>
             </div>
             
             <div className="max-w-2xl mx-auto space-y-2">
@@ -843,8 +948,8 @@ export default function ResearchSetupTab({ setActiveTab }) {
             <div ref={picoCardRef} className="card p-6 sm:p-8 space-y-6 animate-slide-up border-purple-500/20 bg-purple-500/5 shadow-md">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-surface-200 dark:border-surface-800">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-purple-100 dark:bg-purple-950/60 border border-purple-500/30 flex items-center justify-center text-xl shadow-xs">
-                    🔬
+                  <div className="w-10 h-10 rounded-2xl bg-purple-100 dark:bg-purple-950/60 border border-purple-500/30 flex items-center justify-center text-purple-600 dark:text-purple-300 shadow-xs">
+                    <Sparkles className="w-5 h-5 animate-pulse" />
                   </div>
                   <div>
                     <h4 className="font-display font-bold text-lg text-surface-900 dark:text-white">
