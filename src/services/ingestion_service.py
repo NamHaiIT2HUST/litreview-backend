@@ -117,6 +117,28 @@ async def ensure_paper_ingested(db: AsyncSession, paper: Paper) -> uuid.UUID:
     title + abstract text and persist provenance.
     """
     if paper.active_ingestion_id is not None:
+        try:
+            from src.models.db_models import PDFChunk
+            from src.services.vector_store import vector_store_service
+            from langchain_core.documents import Document
+            from sqlalchemy import select
+            existing_chunks = (await db.execute(select(PDFChunk).where(PDFChunk.paper_id == paper.id))).scalars().all()
+            if existing_chunks:
+                docs = [
+                    Document(
+                        page_content=c.chunk_text,
+                        metadata={
+                            "chunk_id": str(c.id),
+                            "paper_id": str(c.paper_id),
+                            "page": c.page,
+                            "chunk_index": c.chunk_index
+                        }
+                    )
+                    for c in existing_chunks
+                ]
+                await vector_store_service.add_documents(docs)
+        except Exception:
+            pass
         return paper.active_ingestion_id
 
     import os
