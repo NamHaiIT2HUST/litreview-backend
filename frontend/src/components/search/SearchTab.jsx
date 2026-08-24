@@ -44,10 +44,96 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
     return localStorage.getItem('litreview_serpapi_key') || localStorage.getItem('serp_api_key') || '';
   });
 
-  // Helper: lọc từ khóa hợp lệ
+  // Helper: Trích xuất và chuẩn hóa từ khóa học thuật chuẩn xác (tránh bị dính nguyên cả câu văn dài)
+  const extractCleanKeywordsFromText = (text = '') => {
+    if (!text || typeof text !== 'string') return [];
+    const extracted = [];
+
+    // 1. Trích xuất các thuật toán/từ viết tắt trong ngoặc đơn e.g. (Newton, BFGS)
+    const parenMatches = text.match(/\(([^)]+)\)/g) || [];
+    parenMatches.forEach(pm => {
+      const inside = pm.replace(/[()]/g, '');
+      inside.split(',').forEach(item => {
+        const cleaned = item.trim();
+        if (cleaned && cleaned.length >= 2 && cleaned.length <= 35) {
+          extracted.push(cleaned.split(/\s+/).length === 1 ? `${cleaned} algorithm` : cleaned);
+        }
+      });
+    });
+
+    const cleanText = text.replace(/\([^)]*\)/g, '');
+    const mappings = [
+      { vi: 'tốc độ hội tụ', en: ['convergence rate', 'rate of convergence'] },
+      { vi: 'tối ưu bậc hai', en: ['second-order optimization', 'second-order algorithms'] },
+      { vi: 'tối ưu hóa', en: ['optimization methods', 'mathematical optimization'] },
+      { vi: 'tối thiểu hóa', en: ['convex minimization', 'objective minimization'] },
+      { vi: 'hàm lồi', en: ['convex function', 'convex optimization'] },
+      { vi: 'ràng buộc lồi', en: ['convex constraints', 'constrained optimization'] },
+      { vi: 'chấp nhận tách', en: ['split feasibility problem', 'split feasibility'] },
+      { vi: 'học sâu', en: ['deep learning', 'neural networks'] },
+      { vi: 'mô hình ngôn ngữ', en: ['large language models', 'LLM task planning'] },
+      { vi: 'robot', en: ['robotics', 'mobile robot navigation'] },
+    ];
+
+    const cleanLower = cleanText.toLowerCase();
+    mappings.forEach(m => {
+      if (cleanLower.includes(m.vi)) {
+        extracted.push(...m.en);
+      }
+    });
+
+    // Trích xuất cụm danh từ ngắn
+    const delimiters = /[;:,]|cho bài toán|đối với|của các|dành cho|dựa trên|phân tích|nghiên cứu|đánh giá|khảo sát/i;
+    const chunks = cleanText.split(delimiters);
+    chunks.forEach(c => {
+      const cClean = c.trim();
+      const words = cClean.split(/\s+/);
+      if (words.length >= 2 && words.length <= 5 && cClean.length <= 40) {
+        extracted.push(cClean);
+      }
+    });
+
+    const seen = new Set();
+    const result = [];
+    extracted.forEach(item => {
+      const k = item.trim();
+      if (k && !seen.has(k.toLowerCase()) && k.length <= 45 && k.split(/\s+/).length <= 5) {
+        seen.add(k.toLowerCase());
+        result.push(k);
+      }
+    });
+
+    return result.slice(0, 8);
+  };
+
   const filterEnglishKeywords = (arr) => {
     if (!Array.isArray(arr)) return [];
-    return arr.filter(kw => kw && typeof kw === 'string' && kw.trim().length >= 2);
+    const results = [];
+    const seen = new Set();
+
+    arr.forEach(kw => {
+      if (!kw || typeof kw !== 'string') return;
+      const k = kw.trim();
+      if (k.length < 2) return;
+
+      // Nếu từ khóa quá dài (> 45 ký tự hoặc > 5 từ), tự động bóc tách thành các từ khóa ngắn
+      if (k.length > 45 || k.split(/\s+/).length > 5) {
+        const subKws = extractCleanKeywordsFromText(k);
+        subKws.forEach(sk => {
+          if (!seen.has(sk.toLowerCase())) {
+            seen.add(sk.toLowerCase());
+            results.push(sk);
+          }
+        });
+      } else {
+        if (!seen.has(k.toLowerCase())) {
+          seen.add(k.toLowerCase());
+          results.push(k);
+        }
+      }
+    });
+
+    return results;
   };
 
   const getProjectKeywords = useCallback(() => {
@@ -75,6 +161,15 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
         const filtered = filterEnglishKeywords(arr);
         if (filtered.length > 0) return filtered;
       }
+
+      // Tự động trích xuất từ tên đề tài & câu hỏi nghiên cứu của project nếu chưa có PICO
+      const autoExtracted = [
+        ...extractCleanKeywordsFromText(activeProject?.name || ''),
+        ...extractCleanKeywordsFromText(activeProject?.research_question || '')
+      ];
+      const filteredAuto = filterEnglishKeywords(autoExtracted);
+      if (filteredAuto.length > 0) return filteredAuto;
+
     } catch (e) {}
     return [];
   }, [currentProjectId, activeProject]);
