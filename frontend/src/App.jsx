@@ -357,11 +357,11 @@ function MainAppShell() {
     );
   }
 
-  const isOverviewHub = activeTab === 'overview' && currentUser?.role !== 'admin';
+  const isOverviewHub = activeTab === 'overview';
 
   // ── RENDER: Authenticated Workspace Shell ───────────────────────────────
   return (
-    <div className={isOverviewHub ? `min-h-screen bg-[#171A21] text-slate-100 ${darkMode ? 'dark' : ''}` : layoutMode === 'horizontal' ? `min-h-screen bg-[#F4F6F9] dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 ${darkMode ? 'dark' : ''}` : `app-shell ${darkMode ? 'dark' : ''}`}>
+    <div className={isOverviewHub ? `min-h-screen w-full bg-[#171A21] text-slate-100 ${darkMode ? 'dark' : ''}` : layoutMode === 'horizontal' ? `min-h-screen bg-[#F4F6F9] dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 ${darkMode ? 'dark' : ''}` : `app-shell ${darkMode ? 'dark' : ''}`}>
       {!isOverviewHub && (
         layoutMode === 'horizontal' ? (
           /* ── Top Horizontal Navbar ─────────────────────────────────── */
