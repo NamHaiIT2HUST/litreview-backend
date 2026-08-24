@@ -122,34 +122,34 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
       )}
 
       {/* ── 1. Welcome & Active Project Header (Crisp Contrast in both Light & Dark Mode) ── */}
-      <div id="tour-dashboard-hero" className="p-6 md:p-8 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-950 text-white relative overflow-hidden shadow-2xl border border-indigo-900/60 dark:border-indigo-800/40 rounded-2xl">
-        <div className="absolute -top-24 -right-24 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div id="tour-dashboard-hero" className="p-6 md:p-8 bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 dark:from-slate-900 dark:via-blue-950 dark:to-slate-950 text-white relative overflow-hidden shadow-xl border border-blue-800/40 dark:border-blue-900/40 rounded-2xl">
+        <div className="absolute -top-24 -right-24 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
         
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           
           {/* User Info */}
           <div className="space-y-2">
-            <div className="flex items-center gap-2 text-xs text-indigo-300 font-semibold uppercase tracking-wider">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>{currentUser?.institution || 'Academic SLR Platform'}</span>
+            <div className="flex items-center gap-2 text-xs text-blue-200 font-semibold uppercase tracking-wider">
+              <span className="w-2 h-2 rounded-full bg-emerald-400" />
+              <span>{currentUser?.institution || (isVietnamese ? 'Nền tảng Nghiên cứu Khoa học' : 'Academic Literature Platform')}</span>
               <span>•</span>
-              <span className="text-indigo-200">{currentUser?.role || 'Senior Researcher'}</span>
+              <span className="text-blue-100">{currentUser?.role || (isVietnamese ? 'Nghiên cứu viên' : 'Senior Researcher')}</span>
             </div>
             
-            <h1 className="font-display font-bold text-2xl sm:text-3xl text-white tracking-tight">
-              {greeting}, {userName}! 👋
+            <h1 className="font-display font-extrabold text-2xl sm:text-3xl text-white tracking-tight">
+              {greeting}, {userName}!
             </h1>
             
             {totalProjects > 0 && activeProject ? (
-              <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
-                {isVietnamese ? 'Bạn đang làm việc trên đề tài:' : 'Active research topic:'}{' '}
-                <strong className="text-white font-bold">{activeProject.name}</strong>.
+              <p className="text-xs sm:text-sm text-blue-100/90 max-w-2xl leading-relaxed">
+                {isVietnamese ? 'Đề tài đang nghiên cứu:' : 'Active research topic:'}{' '}
+                <strong className="text-white font-bold underline decoration-blue-400 underline-offset-4">{activeProject.name}</strong>
               </p>
             ) : (
-              <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
+              <p className="text-xs sm:text-sm text-blue-100/90 max-w-2xl leading-relaxed">
                 {isVietnamese
-                  ? 'Chào mừng bạn đến với LitReview AI. Bạn chưa có đề tài nghiên cứu nào. Hãy khởi tạo đề tài đầu tiên để bắt đầu quy trình Tổng quan tài liệu có hệ thống (SLR) chuẩn PRISMA.'
-                  : 'Welcome to LitReview AI. You have no active research projects yet. Create your first project to begin the PRISMA-compliant SLR workflow.'}
+                  ? 'Chào mừng bạn đến với LitReview. Bạn chưa có đề tài nghiên cứu nào. Hãy khởi tạo đề tài đầu tiên để bắt đầu quy trình Tổng quan tài liệu có hệ thống (SLR) chuẩn PRISMA.'
+                  : 'Welcome to LitReview. You have no active research projects yet. Create your first project to begin the PRISMA-compliant SLR workflow.'}
               </p>
             )}
           </div>
@@ -159,10 +159,10 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
             {onStartTour && (
               <button
                 onClick={onStartTour}
-                className="btn btn-sm bg-indigo-900/80 hover:bg-indigo-800 text-indigo-100 border border-indigo-700/60 font-semibold flex items-center gap-1.5 cursor-pointer shadow-xs"
+                className="btn btn-sm bg-white/10 hover:bg-white/20 text-white border border-white/20 font-semibold flex items-center gap-1.5 cursor-pointer shadow-xs"
                 title={t('tour.btn_restart')}
               >
-                <Sparkles className="w-3.5 h-3.5 text-indigo-300 animate-pulse" />
+                <Compass className="w-3.5 h-3.5 text-blue-200" />
                 <span>{t('tour.btn_restart')}</span>
               </button>
             )}
@@ -170,16 +170,16 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
               onClick={onOpenNewProject}
               className="btn btn-sm bg-white text-slate-900 hover:bg-slate-100 font-bold shadow-sm cursor-pointer flex items-center gap-1.5"
             >
-              <Plus className="w-4 h-4 text-indigo-600" />
-              <span>{isVietnamese ? 'Đề tài mới' : 'New Project'}</span>
+              <Plus className="w-4 h-4 text-blue-600" />
+              <span>{isVietnamese ? 'Tạo đề tài mới' : 'New Project'}</span>
             </button>
             {totalProjects > 0 && (
               <button
                 onClick={() => setActiveTab('synthesis')}
-                className="btn btn-sm bg-indigo-600 hover:bg-indigo-500 text-white font-bold shadow-primary-sm cursor-pointer flex items-center gap-1.5"
+                className="btn btn-sm bg-blue-600 hover:bg-blue-500 text-white font-bold shadow-md shadow-blue-500/30 cursor-pointer flex items-center gap-1.5"
               >
-                <Bot className="w-4 h-4" />
-                <span>{isVietnamese ? 'Mở AI Workspace' : 'Open Workspace'}</span>
+                <Layers className="w-4 h-4" />
+                <span>{isVietnamese ? 'Không gian Phân tích' : 'Analysis Workspace'}</span>
               </button>
             )}
           </div>
@@ -188,13 +188,13 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
 
         {/* Active Project Meta & Status Bar (Only if project exists) */}
         {totalProjects > 0 && activeProject && (
-          <div className="mt-6 pt-6 border-t border-white/10 flex flex-wrap items-center justify-between gap-4 text-xs">
+          <div className="mt-6 pt-6 border-t border-white/15 flex flex-wrap items-center justify-between gap-4 text-xs">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="px-3 py-1.5 rounded-lg bg-white/10 backdrop-blur-md text-indigo-200 font-bold text-[11px] flex items-center gap-1.5 border border-white/10">
-                <FolderKanban className="w-3.5 h-3.5 text-indigo-300" />
+              <span className="px-3 py-1.5 rounded-lg bg-white/10 backdrop-blur-md text-blue-100 font-bold text-[11px] flex items-center gap-1.5 border border-white/10">
+                <FolderKanban className="w-3.5 h-3.5 text-blue-300" />
                 <span>{activeProject?.research_field || (isVietnamese ? 'Lĩnh vực học thuật' : 'Academic Field')}</span>
               </span>
-              <span className="px-3 py-1.5 rounded-lg bg-white/10 backdrop-blur-md text-slate-200 font-mono text-[11px] border border-white/10">
+              <span className="px-3 py-1.5 rounded-lg bg-white/10 backdrop-blur-md text-slate-100 font-mono text-[11px] border border-white/10">
                 {isVietnamese ? 'Năm' : 'Years'}: {activeProject?.year_from || 2020} – {activeProject?.year_to || 2026}
               </span>
               <span className="px-3 py-1.5 rounded-lg bg-emerald-500/20 backdrop-blur-md text-emerald-300 font-bold text-[11px] flex items-center gap-1 border border-emerald-500/30">
@@ -203,8 +203,8 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
               </span>
             </div>
 
-            <div className="flex items-center gap-2 text-slate-300 text-xs">
-              <Clock className="w-3.5 h-3.5 text-indigo-400" />
+            <div className="flex items-center gap-2 text-blue-200 text-xs">
+              <Clock className="w-3.5 h-3.5 text-blue-300" />
               <span>{isVietnamese ? 'Cập nhật gần nhất:' : 'Last updated:'} <strong className="text-white">{isVietnamese ? 'Hôm nay' : 'Today'}</strong></span>
             </div>
           </div>
@@ -217,7 +217,7 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
         <div className="card p-5 space-y-3 bg-white dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 shadow-xs hover:shadow-sm transition-all rounded-2xl">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{isVietnamese ? 'Đề tài Nghiên cứu' : 'Research Projects'}</span>
-            <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shadow-2xs">
               <FolderKanban className="w-5 h-5" />
             </div>
           </div>
@@ -232,9 +232,9 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
 
         <div className="card p-5 space-y-3 bg-white dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 shadow-xs hover:shadow-sm transition-all rounded-2xl">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{isVietnamese ? 'Bài báo Scopus' : 'Scopus Papers'}</span>
-            <div className="w-10 h-10 rounded-xl bg-cyan-50 dark:bg-cyan-950/60 text-cyan-600 dark:text-cyan-400 flex items-center justify-center">
-              <Database className="w-5 h-5" />
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{isVietnamese ? 'Bài báo Scopus & Scholar' : 'Indexed Papers'}</span>
+            <div className="w-10 h-10 rounded-xl bg-cyan-50 dark:bg-cyan-950/60 text-cyan-600 dark:text-cyan-400 flex items-center justify-center shadow-2xs">
+              <BookOpen className="w-5 h-5" />
             </div>
           </div>
           <div>
@@ -242,7 +242,7 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
             <div className="mt-2 flex items-center gap-1.5">
               <span className="badge badge-success text-[10px]">{totalPapers > 0 ? 'Verified' : '0'}</span>
               <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">
-                {totalPapers > 0 ? (isVietnamese ? '100% Đã xác minh' : '100% Verified') : (isVietnamese ? 'Chưa nạp bài' : 'No papers')}
+                {totalPapers > 0 ? (isVietnamese ? 'Đã xác thực chỉ mục' : '100% Verified') : (isVietnamese ? 'Chưa nạp bài' : 'No papers')}
               </span>
             </div>
           </div>
@@ -251,7 +251,7 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
         <div className="card p-5 space-y-3 bg-white dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 shadow-xs hover:shadow-sm transition-all rounded-2xl">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{isVietnamese ? 'Đã Sàng lọc PRISMA' : 'PRISMA Screened'}</span>
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-2xs">
               <CheckCircle2 className="w-5 h-5" />
             </div>
           </div>
@@ -268,17 +268,17 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
 
         <div className="card p-5 space-y-3 bg-white dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 shadow-xs hover:shadow-sm transition-all rounded-2xl">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{isVietnamese ? 'Khoảng trống Đề tài' : 'Research Gaps'}</span>
-            <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-              <Target className="w-5 h-5" />
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{isVietnamese ? 'Khoảng trống Đề tài (Gaps)' : 'Research Gaps'}</span>
+            <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shadow-2xs">
+              <Compass className="w-5 h-5" />
             </div>
           </div>
           <div>
             <p className="text-2xl sm:text-3xl font-extrabold font-display text-slate-800 dark:text-white leading-none">{totalGaps}</p>
             <div className="mt-2 flex items-center gap-1.5">
-              <span className="badge badge-warning text-[10px]">{totalGaps > 0 ? 'Extracted' : '0'}</span>
+              <span className="badge badge-warning text-[10px]">{totalGaps > 0 ? (isVietnamese ? 'Đã phát hiện' : 'Identified') : '0'}</span>
               <span className="text-[11px] text-amber-600 dark:text-amber-400 font-semibold">
-                {totalGaps > 0 ? (isVietnamese ? 'Cơ hội mới' : 'New angles') : (isVietnamese ? 'Chưa bóc tách' : 'Pending')}
+                {totalGaps > 0 ? (isVietnamese ? 'Hướng mở rộng mới' : 'New angles') : (isVietnamese ? 'Chưa bóc tách' : 'Pending')}
               </span>
             </div>
           </div>
@@ -371,98 +371,98 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           
           {/* Left (7 cols): Real PRISMA 2020 Funnel */}
-          <div className="lg:col-span-7 card p-6 space-y-5">
+          <div className="lg:col-span-7 card p-6 space-y-5 bg-white dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xs">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-primary-600 dark:text-primary-400" />
-                <h3 className="font-display font-bold text-sm text-surface-900 dark:text-white">
-                  {isVietnamese ? 'Sơ đồ Phễu Sàng lọc PRISMA (Dự án Hiện tại)' : 'PRISMA Screening Funnel (Active Project)'}
+                <ShieldCheck className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <h3 className="font-display font-bold text-sm text-slate-800 dark:text-white">
+                  {isVietnamese ? 'Sơ đồ Phễu Sàng lọc PRISMA' : 'PRISMA Screening Funnel'}
                 </h3>
               </div>
-              <span className="badge badge-primary text-[10px]">
-                {activeProject?.name?.slice(0, 20)}...
+              <span className="badge badge-primary text-[10px] max-w-[200px] truncate">
+                {activeProject?.name}
               </span>
             </div>
 
             <div className="space-y-3">
               
               {/* Step 1: Identification */}
-              <div className="p-3.5 rounded-xl bg-surface-50 dark:bg-surface-800/60 border border-surface-200 dark:border-surface-700 flex items-center justify-between">
+              <div className="p-3.5 rounded-xl bg-slate-50/80 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/70 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <span className="w-7 h-7 rounded-lg bg-primary-100 dark:bg-primary-950 text-primary-700 dark:text-primary-300 font-bold text-xs flex items-center justify-center">
+                  <span className="w-7 h-7 rounded-lg bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 font-bold text-xs flex items-center justify-center">
                     1
                   </span>
                   <div>
-                    <p className="text-xs font-bold text-surface-900 dark:text-white">
+                    <p className="text-xs font-bold text-slate-800 dark:text-white">
                       {isVietnamese ? 'Giai đoạn Nhận diện (Identification)' : 'Identification Phase'}
                     </p>
-                    <p className="text-[11px] text-surface-400">
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
                       {isVietnamese ? 'Tra cứu Google Scholar & Scopus API' : 'Google Scholar & Scopus Search'}
                     </p>
                   </div>
                 </div>
-                <span className="font-mono font-bold text-sm text-surface-900 dark:text-white">
-                  {activeProject?.paper_count || 0} records
+                <span className="font-mono font-bold text-sm text-slate-800 dark:text-white">
+                  {activeProject?.paper_count || 0} {isVietnamese ? 'bản ghi' : 'records'}
                 </span>
               </div>
 
               {/* Step 2: Screening */}
-              <div className="p-3.5 rounded-xl bg-surface-50 dark:bg-surface-800/60 border border-surface-200 dark:border-surface-700 flex items-center justify-between">
+              <div className="p-3.5 rounded-xl bg-slate-50/80 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/70 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <span className="w-7 h-7 rounded-lg bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 font-bold text-xs flex items-center justify-center">
                     2
                   </span>
                   <div>
-                    <p className="text-xs font-bold text-surface-900 dark:text-white">
+                    <p className="text-xs font-bold text-slate-800 dark:text-white">
                       {isVietnamese ? 'Lọc Trùng lặp & Xác minh Scopus' : 'Deduplication & Scopus Verification'}
                     </p>
-                    <p className="text-[11px] text-surface-400">
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
                       {isVietnamese ? 'Kiểm tra xếp hạng Q1–Q4' : 'Verified Scopus rankings'}
                     </p>
                   </div>
                 </div>
                 <span className="font-mono font-bold text-sm text-emerald-600 dark:text-emerald-400">
-                  {activeProject?.paper_count || 0} verified
+                  {activeProject?.paper_count || 0} {isVietnamese ? 'đã xác minh' : 'verified'}
                 </span>
               </div>
 
               {/* Step 3: Eligibility */}
-              <div className="p-3.5 rounded-xl bg-surface-50 dark:bg-surface-800/60 border border-surface-200 dark:border-surface-700 flex items-center justify-between">
+              <div className="p-3.5 rounded-xl bg-slate-50/80 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/70 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <span className="w-7 h-7 rounded-lg bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-bold text-xs flex items-center justify-center">
                     3
                   </span>
                   <div>
-                    <p className="text-xs font-bold text-surface-900 dark:text-white">
+                    <p className="text-xs font-bold text-slate-800 dark:text-white">
                       {isVietnamese ? 'Sàng lọc Tiêu chí Đạt yêu cầu (Inclusion)' : 'Eligibility & Inclusion Screening'}
                     </p>
-                    <p className="text-[11px] text-surface-400">
-                      {isVietnamese ? 'Đối chiếu bộ tiêu chuẩn PICO đã định hình' : 'Filtered against PICO criteria'}
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      {isVietnamese ? 'Đối chiếu bộ tiêu chuẩn PICO đã thiết lập' : 'Filtered against PICO criteria'}
                     </p>
                   </div>
                 </div>
-                <span className="font-mono font-bold text-sm text-surface-900 dark:text-white">
-                  {activeProject?.screened_count || 0} passed
+                <span className="font-mono font-bold text-sm text-slate-800 dark:text-white">
+                  {activeProject?.screened_count || 0} {isVietnamese ? 'đạt chuẩn' : 'passed'}
                 </span>
               </div>
 
               {/* Step 4: Included */}
-              <div className="p-3.5 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-between">
+              <div className="p-3.5 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <span className="w-7 h-7 rounded-lg bg-emerald-600 text-white font-bold text-xs flex items-center justify-center shadow-xs">
                     4
                   </span>
                   <div>
                     <p className="text-xs font-bold text-emerald-900 dark:text-emerald-200">
-                      {isVietnamese ? 'Đưa vào Tổng hợp SLR & Bóc tách Ma trận' : 'Included for SLR Synthesis'}
+                      {isVietnamese ? 'Đưa vào Tổng hợp & Bóc tách Ma trận' : 'Included for Synthesis'}
                     </p>
                     <p className="text-[11px] text-emerald-700/80 dark:text-emerald-400">
-                      {isVietnamese ? 'Nạp vào Không gian làm việc AI RAG' : 'Loaded into AI Workspace'}
+                      {isVietnamese ? 'Nạp vào Không gian phân tích và lập bảng đối sánh' : 'Loaded into Synthesis Matrix'}
                     </p>
                   </div>
                 </div>
                 <span className="font-mono font-bold text-sm text-emerald-700 dark:text-emerald-300">
-                  {activeProject?.screened_count || 0} studies
+                  {activeProject?.screened_count || 0} {isVietnamese ? 'nghiên cứu' : 'studies'}
                 </span>
               </div>
 
@@ -480,16 +480,16 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
           </div>
 
           {/* Right (5 cols): Research Gaps Discovered */}
-          <div className="lg:col-span-5 card p-6 space-y-4">
+          <div className="lg:col-span-5 card p-6 space-y-4 bg-white dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xs">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Target className="w-5 h-5 text-violet-600 dark:text-violet-400" />
-                <h3 className="font-display font-bold text-sm text-surface-900 dark:text-white">
+                <Compass className="w-5 h-5 text-amber-500" />
+                <h3 className="font-display font-bold text-sm text-slate-800 dark:text-white">
                   {isVietnamese ? 'Khoảng trống Nghiên cứu' : 'Research Gaps'}
                 </h3>
               </div>
               <span className="badge badge-warning text-[10px]">
-                {activeGaps.length > 0 ? 'AI Discovered' : 'Pending'}
+                {activeGaps.length > 0 ? (isVietnamese ? 'Đã phát hiện' : 'Identified') : (isVietnamese ? 'Đang chờ' : 'Pending')}
               </span>
             </div>
 
@@ -498,7 +498,7 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
                 {activeGaps.map((gap, i) => (
                   <div
                     key={i}
-                    className="p-3.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50/50 dark:bg-surface-800/40 hover:border-violet-400 transition-all space-y-1.5 relative group"
+                    className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 hover:border-amber-400 transition-all space-y-1.5 relative group"
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="badge badge-secondary text-[9px] font-mono">
@@ -508,29 +508,29 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
                         {gap.impact || 'High Priority'}
                       </span>
                     </div>
-                    <p className="font-bold text-xs text-surface-900 dark:text-white leading-snug">
+                    <p className="font-bold text-xs text-slate-800 dark:text-white leading-snug">
                       {gap.title}
                     </p>
-                    <p className="text-[11px] text-surface-500 dark:text-surface-400 leading-relaxed line-clamp-2">
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed line-clamp-2">
                       {gap.desc}
                     </p>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="p-6 rounded-xl bg-surface-50 dark:bg-surface-800/40 border border-surface-200 dark:border-surface-700 text-center space-y-3 my-auto">
-                <Target className="w-8 h-8 text-surface-400 mx-auto" />
-                <p className="text-xs text-surface-500 dark:text-surface-400">
+              <div className="p-6 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-700/70 text-center space-y-3 my-auto">
+                <Compass className="w-9 h-9 text-slate-400 dark:text-slate-500 mx-auto" />
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
                   {isVietnamese
-                    ? 'Chưa phát hiện khoảng trống nghiên cứu cho đề tài này. Hãy nạp thêm bài báo và mở AI Workspace để hệ thống bóc tách.'
-                    : 'No research gaps extracted yet for this project. Load papers and open AI Workspace to run synthesis.'}
+                    ? 'Chưa ghi nhận khoảng trống nghiên cứu cho đề tài này. Hãy nạp thêm bài báo khoa học và mở Không gian Phân tích để hệ thống tổng hợp bảng so sánh.'
+                    : 'No research gaps extracted yet for this project. Load papers and open Synthesis Workspace to analyze.'}
                 </p>
                 <button
                   onClick={() => setActiveTab('synthesis')}
-                  className="btn btn-secondary btn-xs mx-auto cursor-pointer flex items-center gap-1 font-semibold"
+                  className="btn btn-secondary btn-sm mx-auto cursor-pointer flex items-center gap-1.5 font-bold"
                 >
-                  <Bot className="w-3.5 h-3.5 text-primary-500" />
-                  <span>{isVietnamese ? 'Mở AI Workspace' : 'Open Workspace'}</span>
+                  <Layers className="w-3.5 h-3.5 text-blue-600" />
+                  <span>{isVietnamese ? 'Mở Không gian Phân tích' : 'Open Workspace'}</span>
                 </button>
               </div>
             )}
@@ -541,13 +541,13 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
 
       {/* ── 5. Project Management List (With Clean "..." 3-Dot Menu) ─────── */}
       {totalProjects > 0 && (
-        <div className="card p-6 space-y-4">
+        <div className="card p-6 space-y-4 bg-white dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xs">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-display font-bold text-base text-surface-900 dark:text-white">
+              <h3 className="font-display font-bold text-base text-slate-900 dark:text-white">
                 {isVietnamese ? 'Danh sách Đề tài Nghiên cứu Đang Quản lý' : 'Managed Research Projects'}
               </h3>
-              <p className="text-xs text-surface-400">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 {isVietnamese ? 'Ghim lên đầu, chỉnh sửa tên, chia sẻ liên kết hoặc xóa đề tài độc lập' : 'Pin to top, rename, share links, or delete projects'}
               </p>
             </div>
@@ -573,16 +573,16 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
                   onClick={() => !isEditing && !isConfirmingDelete && switchProject(proj.id)}
                   className={`p-4 rounded-xl border transition-all space-y-3 relative group ${
                     isActive
-                      ? 'bg-primary-50/40 dark:bg-primary-950/30 border-primary-500 shadow-xs'
-                      : 'bg-white dark:bg-surface-800/60 border-surface-200 dark:border-surface-700 hover:border-primary-400 cursor-pointer'
+                      ? 'bg-blue-50/60 dark:bg-blue-950/40 border-blue-500 shadow-xs ring-1 ring-blue-500/20'
+                      : 'bg-white dark:bg-slate-900/60 border-slate-200/80 dark:border-slate-800 hover:border-blue-400 cursor-pointer'
                   }`}
                 >
                   {/* Top Bar on Card */}
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-1.5">
                       {proj.is_pinned && (
-                        <span className="badge bg-primary-100 dark:bg-primary-950 text-primary-700 dark:text-primary-300 text-[10px] flex items-center gap-1">
-                          <Pin className="w-3 h-3 fill-primary-600" />
+                        <span className="badge bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 text-[10px] flex items-center gap-1">
+                          <Pin className="w-3 h-3 fill-blue-600" />
                           <span>{isVietnamese ? 'Đã ghim' : 'Pinned'}</span>
                         </span>
                       )}
@@ -599,8 +599,8 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
                           e.stopPropagation();
                           setActiveMenuProjectId(isMenuOpen ? null : proj.id);
                         }}
-                        className={`p-1.5 rounded-lg text-surface-400 hover:text-surface-700 dark:hover:text-surface-200 hover:bg-surface-100 dark:hover:bg-surface-700 transition-colors cursor-pointer ${
-                          isMenuOpen ? 'bg-surface-100 dark:bg-surface-700 text-surface-800 dark:text-white' : ''
+                        className={`p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer ${
+                          isMenuOpen ? 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-white' : ''
                         }`}
                         title={isVietnamese ? 'Tùy chọn đề tài' : 'Project options'}
                       >
@@ -610,15 +610,15 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
                       {/* Floating Action Menu for Card */}
                       {isMenuOpen && (
                         <div
-                          className="absolute right-0 top-full mt-1 z-50 w-44 rounded-xl shadow-2xl bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 py-1 space-y-0.5 animate-slide-up text-left"
+                          className="absolute right-0 top-full mt-1 z-50 w-44 rounded-xl shadow-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 py-1 space-y-0.5 animate-slide-up text-left"
                         >
                           {/* 1. Pin / Unpin */}
                           <button
                             type="button"
                             onClick={e => handleTogglePin(e, proj.id, proj.is_pinned)}
-                            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-surface-700 dark:text-surface-200 hover:bg-primary-50 dark:hover:bg-primary-950/50 hover:text-primary-600 dark:hover:text-primary-400 cursor-pointer transition-colors"
+                            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-950/50 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer transition-colors"
                           >
-                            {proj.is_pinned ? <PinOff className="w-3.5 h-3.5 text-primary-500" /> : <Pin className="w-3.5 h-3.5" />}
+                            {proj.is_pinned ? <PinOff className="w-3.5 h-3.5 text-blue-500" /> : <Pin className="w-3.5 h-3.5" />}
                             <span>{proj.is_pinned ? (isVietnamese ? 'Bỏ ghim đề tài' : 'Unpin project') : (isVietnamese ? 'Ghim lên đầu' : 'Pin to top')}</span>
                           </button>
 
@@ -626,7 +626,7 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
                           <button
                             type="button"
                             onClick={e => handleStartRename(e, proj)}
-                            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-surface-700 dark:text-surface-200 hover:bg-primary-50 dark:hover:bg-primary-950/50 hover:text-primary-600 dark:hover:text-primary-400 cursor-pointer transition-colors"
+                            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-950/50 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer transition-colors"
                           >
                             <Pencil className="w-3.5 h-3.5" />
                             <span>{isVietnamese ? 'Đổi tên đề tài' : 'Rename project'}</span>
@@ -636,13 +636,13 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
                           <button
                             type="button"
                             onClick={e => handleShare(e, proj)}
-                            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-surface-700 dark:text-surface-200 hover:bg-primary-50 dark:hover:bg-primary-950/50 hover:text-primary-600 dark:hover:text-primary-400 cursor-pointer transition-colors"
+                            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-950/50 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer transition-colors"
                           >
                             <Share2 className="w-3.5 h-3.5" />
                             <span>{isVietnamese ? 'Chia sẻ liên kết' : 'Share link'}</span>
                           </button>
 
-                          <div className="border-t border-surface-100 dark:border-surface-700 my-0.5" />
+                          <div className="border-t border-slate-100 dark:border-slate-800 my-0.5" />
 
                           {/* 4. Delete */}
                           <button
@@ -703,7 +703,7 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
                         <button
                           type="button"
                           onClick={() => setDeleteConfirmId(null)}
-                          className="px-2.5 py-1 text-xs rounded-lg bg-surface-200 dark:bg-surface-700 text-surface-700 dark:text-surface-300 cursor-pointer"
+                          className="px-2.5 py-1 text-xs rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 cursor-pointer"
                         >
                           {isVietnamese ? 'Hủy' : 'Cancel'}
                         </button>
@@ -718,11 +718,11 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
                     </div>
                   ) : (
                     <div>
-                      <h4 className="font-bold text-xs text-surface-900 dark:text-white line-clamp-2 leading-snug">
+                      <h4 className="font-bold text-xs text-slate-900 dark:text-white line-clamp-2 leading-snug">
                         {proj.name}
                       </h4>
                       {isActive && (
-                        <p className="text-[10px] font-bold text-primary-600 dark:text-primary-400 flex items-center gap-1 mt-1">
+                        <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1 mt-1">
                           <Check className="w-3 h-3" />
                           <span>{isVietnamese ? 'Đang chọn làm việc' : 'Currently Active'}</span>
                         </p>
@@ -730,7 +730,7 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
                     </div>
                   )}
 
-                  <div className="flex items-center justify-between text-[11px] text-surface-400 pt-2 border-t border-surface-100 dark:border-surface-700/60">
+                  <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800">
                     <span>{proj.paper_count || 0} {isVietnamese ? 'bài báo' : 'papers'}</span>
                     <span>{proj.year_from || 2020} – {proj.year_to || 2026}</span>
                   </div>
