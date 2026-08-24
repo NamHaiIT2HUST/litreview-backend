@@ -220,6 +220,8 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
     return null;
   });
 
+  const [selectedGapCell, setSelectedGapCell] = useState(null);
+
   const handleOpenGapAnalysis = async () => {
     setShowGapModal(true);
     setGapMapLoading(true);
@@ -1770,19 +1772,27 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
 
                       {/* 3. GRID MATRIX (Chi tiết 16 ô giao điểm) */}
                       <div className="space-y-2.5">
-                        <h4 className="text-xs font-display font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                          {isVi ? '3. Chi Tiết Các Ô Giao Điểm Nghiên Cứu (Topic Intersections Matrix)' : '3. Topic Intersections Matrix Breakdown'}
-                        </h4>
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-xs font-display font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                            {isVi ? '3. Chi Tiết Các Ô Giao Điểm Nghiên Cứu (Bấm vào ô để xem phân tích chi tiết):' : '3. Topic Intersections Matrix (Click any cell to inspect opportunities):'}
+                          </h4>
+                          <span className="text-[11px] text-blue-500 font-semibold flex items-center gap-1">
+                            <span>👆 {isVi ? 'Nhấp ô bất kỳ để xem đề xuất' : 'Click cell for proposals'}</span>
+                          </span>
+                        </div>
+
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                           {gapMapData.cells.map((c, idx) => (
-                            <div 
+                            <button 
                               key={idx} 
-                              className={`p-4 rounded-2xl border transition-all hover:scale-[1.02] duration-200 ${
+                              type="button"
+                              onClick={() => setSelectedGapCell(c)}
+                              className={`p-4 rounded-2xl border text-left transition-all duration-200 cursor-pointer hover:scale-[1.03] hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-primary-500/50 ${
                                 c.saturation === 'saturated' 
-                                  ? 'bg-rose-50/70 border-rose-200 dark:bg-rose-950/30 dark:border-rose-800/80' 
+                                  ? 'bg-rose-50/70 hover:bg-rose-100/80 border-rose-200 dark:bg-rose-950/30 dark:hover:bg-rose-950/50 dark:border-rose-800/80' 
                                   : c.saturation === 'sparse' 
-                                    ? 'bg-amber-50/70 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800/80' 
-                                    : 'bg-emerald-50/70 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800/80'
+                                    ? 'bg-amber-50/70 hover:bg-amber-100/80 border-amber-200 dark:bg-amber-950/30 dark:hover:bg-amber-950/50 dark:border-amber-800/80' 
+                                    : 'bg-emerald-50/70 hover:bg-emerald-100/80 border-emerald-200 dark:bg-emerald-950/30 dark:hover:bg-emerald-950/50 dark:border-emerald-800/80'
                               }`}
                             >
                               <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider mb-2">
@@ -1800,7 +1810,10 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                               <div className="font-bold text-sm text-slate-900 dark:text-slate-100 leading-snug">
                                 {c.dimension_x} <span className="text-blue-600 dark:text-sky-400">&</span> {c.dimension_y}
                               </div>
-                            </div>
+                              <div className="text-[11px] font-semibold text-primary-600 dark:text-primary-400 mt-2 flex items-center gap-1 pt-1 border-t border-slate-200/40 dark:border-slate-800/40">
+                                <span>{isVi ? 'Xem bài đã có & Hướng mở rộng ➔' : 'Inspect papers & Novel angles ➔'}</span>
+                              </div>
+                            </button>
                           ))}
                         </div>
                       </div>
@@ -1866,7 +1879,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
             {/* Clean Modal Footer (Action Oriented without redundant close button) */}
             <div className="border-t pt-4 border-slate-200 dark:border-slate-800 flex items-center justify-between">
               <span className="text-xs text-slate-400">
-                {isVi ? '💡 Gợi ý: Chọn các ô màu xanh ngọc để tối đa hóa tính mới khi viết bài báo' : '💡 Tip: Target emerald gap cells to maximize novelty in your paper'}
+                {isVi ? '💡 Gợi ý: Bấm vào từng ô màu để xem bài báo đã có và hướng phát triển đề tài chi tiết' : '💡 Tip: Click any cell above to inspect existing papers and novel development angles'}
               </span>
               <button
                 onClick={() => {
@@ -1880,6 +1893,178 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>{isVi ? 'Sao chép 3 hướng đề tài' : 'Copy Research Directions'}</span>
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ====== MODAL: CELL DEEP DIVE (CHI TIẾT GIAO ĐIỂM NGHIÊN CỨU) ====== */}
+      {selectedGapCell && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200" onClick={() => setSelectedGapCell(null)}>
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className={`w-full max-w-3xl max-h-[88vh] flex flex-col p-6 md:p-8 rounded-3xl border shadow-2xl overflow-hidden ${
+              'bg-white border-slate-200 text-slate-900 dark:bg-slate-900 dark:border-slate-800 dark:text-white'
+            }`}
+          >
+            {/* Header */}
+            <div className="flex items-start justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
+                  selectedGapCell.saturation === 'saturated' ? 'bg-rose-500/10 text-rose-600 border border-rose-500/20' :
+                  selectedGapCell.saturation === 'sparse' ? 'bg-amber-500/10 text-amber-600 border border-amber-500/20' :
+                  'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
+                }`}>
+                  <Target className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+                      selectedGapCell.saturation === 'saturated' ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300' :
+                      selectedGapCell.saturation === 'sparse' ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' :
+                      'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                    }`}>
+                      {selectedGapCell.saturation === 'empty' ? (isVi ? 'Khoảng trống mới (0 bài)' : 'Open Gap (0 papers)') : selectedGapCell.saturation === 'sparse' ? (isVi ? 'Đang phát triển (< 3 bài)' : 'Emerging Topic') : (isVi ? 'Đã bão hoà (Nhiều bài)' : 'Saturated')}
+                    </span>
+                    <span className="text-xs font-bold text-slate-500">
+                      {selectedGapCell.paper_count} {isVi ? 'bài báo trong tập dữ liệu' : 'papers in corpus'}
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-display font-bold mt-1">
+                    {selectedGapCell.dimension_x} <span className="text-blue-600 dark:text-sky-400">✕</span> {selectedGapCell.dimension_y}
+                  </h3>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setSelectedGapCell(null)}
+                className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto py-5 space-y-5 custom-scrollbar">
+              {/* 1. Existing Papers in Corpus */}
+              <div className="space-y-2.5">
+                <h4 className="text-xs font-display font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                  <BookOpen className="w-4 h-4 text-blue-500" />
+                  <span>{isVi ? '1. Tổng quan các bài báo đã có trong tập tìm kiếm:' : '1. Overview of existing papers in your search results:'}</span>
+                </h4>
+
+                {(() => {
+                  const xWords = selectedGapCell.dimension_x.toLowerCase().split(' ').filter(w => w.length > 2);
+                  const yWords = selectedGapCell.dimension_y.toLowerCase().split(' ').filter(w => w.length > 2);
+                  const matched = (papers || []).filter(p => {
+                    const full = `${p.title || ''} ${p.abstract || ''}`.toLowerCase();
+                    return xWords.some(w => full.includes(w)) && yWords.some(w => full.includes(w));
+                  });
+
+                  if (matched.length === 0) {
+                    return (
+                      <div className="p-4 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 space-y-1.5">
+                        <p className="text-xs font-bold text-emerald-800 dark:text-emerald-300">
+                          {isVi ? '✨ 100% Khoảng trống nghiên cứu chưa được khai thác!' : '✨ 100% Open Research Gap in your discovered papers!'}
+                        </p>
+                        <p className="text-xs text-emerald-900/80 dark:text-emerald-300/80 leading-relaxed">
+                          {isVi 
+                            ? 'Chưa có công trình nào trong 20 bài báo của bạn kết hợp đồng thời phương pháp này. Đây là hướng đi có độ mới rất cao để viết bài báo Scopus/IEEE!'
+                            : 'No papers in your current search corpus combine this method and application. High potential for novel publication!'}
+                        </p>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="space-y-2">
+                      {matched.slice(0, 3).map((p, i) => (
+                        <div key={i} className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 space-y-1">
+                          <p className="font-bold text-xs text-slate-900 dark:text-white leading-snug">{p.title}</p>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                            {p.journal} ({p.year}) • {p.citations || 0} {isVi ? 'trích dẫn' : 'citations'} • {Array.isArray(p.authors) ? p.authors.join(', ') : p.authors}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* 2. Bottlenecks & Open Research Angles */}
+              <div className="p-4.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 space-y-2.5">
+                <div className="flex items-center gap-2 text-xs font-bold text-amber-700 dark:text-amber-400">
+                  <AlertCircle className="w-4 h-4" />
+                  <span>{isVi ? 'Điểm nghẽn học thuật hiện tại của giao điểm này:' : 'Current academic bottlenecks for this intersection:'}</span>
+                </div>
+                <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed pl-3 border-l-2 border-amber-400">
+                  {isVi 
+                    ? `Các công trình hiện tại về ${selectedGapCell.dimension_x} khi áp dụng cho ${selectedGapCell.dimension_y} thường gặp giới hạn về độ trễ xử lý thời gian thực, chi phí bộ nhớ khi suy luận chuỗi dài, và thiếu cơ chế kiểm chứng độ an toàn vật lý khi triển khai trên robot.`
+                    : `Current works on ${selectedGapCell.dimension_x} applied to ${selectedGapCell.dimension_y} face limitations in real-time inference latency, long-context memory footprint, and physical safety verification.`}
+                </p>
+              </div>
+
+              {/* 3. Actionable Research Proposal Directions */}
+              <div className="p-4.5 rounded-2xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/60 space-y-3">
+                <div className="flex items-center gap-2 text-xs font-bold text-blue-700 dark:text-sky-300">
+                  <Sparkles className="w-4 h-4 text-amber-500" />
+                  <span>{isVi ? '2 Hướng phát triển đột phá có thể công bố thành bài báo mới:' : '2 Novel Breakthrough Angles for Publication:'}</span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-blue-100 dark:border-blue-900/60 space-y-1.5 shadow-2xs">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-sky-400 bg-blue-50 dark:bg-blue-950 px-2 py-0.5 rounded-md">
+                      {isVi ? 'Đề xuất 1: Thuật toán & Tối ưu' : 'Proposal 1: Algorithm Optimization'}
+                    </span>
+                    <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                      {isVi 
+                        ? `Xây dựng kiến trúc phân tầng kết hợp ${selectedGapCell.dimension_x} với bộ nhớ hồi quy để tăng tốc ${selectedGapCell.dimension_y}.`
+                        : `Develop hierarchical architecture combining ${selectedGapCell.dimension_x} with recurrent state memory for fast ${selectedGapCell.dimension_y}.`}
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-blue-100 dark:border-blue-900/60 space-y-1.5 shadow-2xs">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950 px-2 py-0.5 rounded-md">
+                      {isVi ? 'Đề xuất 2: Đối chuẩn thực nghiệm' : 'Proposal 2: Benchmark Evaluation'}
+                    </span>
+                    <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                      {isVi 
+                        ? `Đánh giá đối chuẩn độ tin cậy và sai số va chạm của ${selectedGapCell.dimension_x} trên môi trường thực tế.`
+                        : `Empirical reliability and collision rate benchmarking of ${selectedGapCell.dimension_x} in realistic testbeds.`}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="border-t pt-4 border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => setSelectedGapCell(null)}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
+              >
+                {isVi ? '← Quay lại ma trận' : '← Back to Matrix'}
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const query = `${selectedGapCell.dimension_x} ${selectedGapCell.dimension_y}`;
+                    setSearchQuery(query);
+                    if (!selectedKeywords.includes(query)) {
+                      setSelectedKeywords([...selectedKeywords, query]);
+                    }
+                    setSelectedGapCell(null);
+                    setShowGapModal(false);
+                  }}
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Search className="w-3.5 h-3.5" />
+                  <span>{isVi ? 'Tìm kiếm sâu theo giao điểm này' : 'Search this intersection'}</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
