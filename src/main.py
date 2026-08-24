@@ -29,6 +29,7 @@ async def lifespan(app: FastAPI):
     # Seed the default project so synthesis & direct-upload always work
     await _ensure_default_project()
     print("Default project seeded.")
+    await _ensure_default_admin()
     # Fast v2 (EXPERIMENTAL): warm local evidence models (embedding +
     # reranker) once at startup so a real request never pays cold-load
     # latency. Zero LLM/API calls. Only runs when explicitly activated;
@@ -134,6 +135,32 @@ async def _ensure_default_project():
         except Exception as e:
             await session.rollback()
             print(f"Warning: could not seed default project: {e}")
+
+async def _ensure_default_admin():
+    """Seed the default admin account (admin123 / 123) if no admin exists."""
+    from sqlalchemy import select as _select
+    from src.database import AsyncSessionLocal
+    from src.models.db_models import User, Role
+    from src.api.auth_routes import hash_password
+
+    async with AsyncSessionLocal() as session:
+        try:
+            exists = await session.execute(
+                _select(User).where(User.username == "admin123")
+            )
+            if exists.scalars().first() is None:
+                admin_user = User(
+                    username="admin123",
+                    hashed_password=hash_password("123"),
+                    role=Role.admin
+                )
+                session.add(admin_user)
+                await session.commit()
+                print("Default admin account seeded (admin123).")
+        except Exception as e:
+            await session.rollback()
+            print(f"Warning: could not seed default admin: {e}")
+
 
 app = FastAPI(
     title="AI20K Agent",

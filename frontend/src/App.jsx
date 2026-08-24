@@ -10,6 +10,7 @@ import AuthModal from './components/auth/AuthModal';
 import NewProjectModal from './components/projects/NewProjectModal';
 import OnboardingTour from './components/onboarding/OnboardingTour';
 import ErrorBoundary from './components/ErrorBoundary';
+import AdminDashboard from './components/admin/AdminDashboard';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ProjectProvider, useProject } from './contexts/ProjectContext';
 import { LanguageProvider } from './contexts/LanguageContext';
@@ -257,8 +258,15 @@ function MainAppShell() {
         <ErrorBoundary>
           <div className="animate-slide-up w-full">
 
+            {/* Admin Dashboard */}
+            {(activeTab === 'admin' || (currentUser?.role === 'admin' && activeTab === 'overview')) && (
+              <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-10 py-6">
+                <AdminDashboard darkMode={darkMode} />
+              </div>
+            )}
+
             {/* Overview / Personalized Dashboard */}
-            {activeTab === 'overview' && (
+            {activeTab === 'overview' && currentUser?.role !== 'admin' && (
               <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-10 py-6">
                 <PersonalizedDashboard
                   setActiveTab={setActiveTab}
