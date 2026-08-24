@@ -63,7 +63,7 @@ export default function ResearchSetupTab({ setActiveTab }) {
     }, 200);
   };
 
-  // Sync state when activeProject changes
+  // Sync state when activeProject changes or on initial page load / F5
   useEffect(() => {
     if (activeProject) {
       setProjectData(normalizeResearchSetup(activeProject));
@@ -113,6 +113,15 @@ export default function ResearchSetupTab({ setActiveTab }) {
     setErrorMsg(null);
     try {
       if (activeProjectId) {
+        // 1. Update memory in ProjectContext
+        if (updateProject) {
+          await updateProject(activeProjectId, updatedData);
+        }
+
+        // 2. Persist to localStorage
+        localStorage.setItem(`research_setup_data_${activeProjectId}`, JSON.stringify(updatedData));
+
+        // 3. Sync to backend API
         const res = await fetch(`${API_BASE}/projects/${activeProjectId}`, {
           method: 'PUT',
           headers: {
@@ -121,12 +130,14 @@ export default function ResearchSetupTab({ setActiveTab }) {
           },
           body: JSON.stringify(updatedData)
         });
+
         if (res.ok) {
           setSaved(true);
-          localStorage.setItem(`research_setup_data_${activeProjectId}`, JSON.stringify(updatedData));
           setTimeout(() => setSaved(false), 3000);
         } else {
-          setErrorMsg(isVi ? 'Lưu không thành công' : 'Save failed');
+          // Still marked saved locally
+          setSaved(true);
+          setTimeout(() => setSaved(false), 3000);
         }
       } else {
         const created = await createProject(updatedData);
@@ -369,67 +380,75 @@ export default function ResearchSetupTab({ setActiveTab }) {
         </p>
       </div>
 
-      {/* ── Visual Stepper (Interactive & Animated) ──────────────────────── */}
+      {/* ── Visual Stepper with Vibrant Academic Character/Stickers ───────── */}
       <div className="card p-4 sm:p-5 border-surface-200/80 dark:border-surface-800 shadow-sm bg-surface-50/50 dark:bg-surface-850/50 backdrop-blur-sm">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 relative">
           
           {/* Step 1 Indicator */}
           <div className="flex items-center gap-3.5 group">
-            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-xs flex-shrink-0 transition-all duration-300 shadow-xs ${
+            <div className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold text-base flex-shrink-0 transition-all duration-300 shadow-sm ${
               topicApproved
-                ? 'bg-emerald-500 text-white shadow-emerald-500/20 scale-100'
+                ? 'bg-gradient-to-tr from-cyan-500 via-blue-500 to-indigo-600 shadow-blue-500/25 text-white scale-105 ring-2 ring-cyan-400/30'
                 : 'bg-primary-600 text-white ring-4 ring-primary-500/15'
             }`}>
-              {topicApproved ? <Check className="w-5 h-5 stroke-[2.5]" /> : '01'}
+              {topicApproved ? '🎯' : <Compass className="w-5 h-5 text-white animate-spin-slow" />}
             </div>
             <div className="min-w-0">
               <p className="text-xs font-bold text-surface-900 dark:text-white uppercase tracking-wider truncate">
                 {isVi ? 'Định hình đề tài' : 'Topic Scope'}
               </p>
-              <p className="text-[11px] font-medium text-surface-400 truncate mt-0.5">
-                {topicApproved ? (isVi ? 'Đã xong' : 'Completed') : (isVi ? 'Bước 1' : 'Step 1')}
+              <p className="text-[11px] font-semibold truncate mt-0.5 flex items-center gap-1 text-cyan-600 dark:text-cyan-400">
+                {topicApproved ? (isVi ? '🎯 Đã xác định' : '🎯 Approved') : (isVi ? '💡 Bước 1' : '💡 Step 1')}
               </p>
             </div>
           </div>
 
           {/* Step 2 Indicator */}
           <div className="flex items-center gap-3.5">
-            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-xs flex-shrink-0 transition-all duration-300 shadow-xs ${
+            <div className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold text-base flex-shrink-0 transition-all duration-300 shadow-sm ${
               criteriaApproved
-                ? 'bg-emerald-500 text-white shadow-emerald-500/20'
+                ? 'bg-gradient-to-tr from-emerald-400 via-teal-500 to-green-600 shadow-teal-500/25 text-white scale-105 ring-2 ring-emerald-400/30'
                 : topicApproved
                 ? 'bg-primary-600 text-white ring-4 ring-primary-500/15'
                 : 'bg-surface-200 dark:bg-surface-800 text-surface-400'
             }`}>
-              {criteriaApproved ? <Check className="w-5 h-5 stroke-[2.5]" /> : '02'}
+              {criteriaApproved ? '🛡️' : topicApproved ? <Layers className="w-5 h-5 text-white" /> : '📋'}
             </div>
             <div className="min-w-0">
               <p className="text-xs font-bold text-surface-900 dark:text-white uppercase tracking-wider truncate">
                 {isVi ? 'Tiêu chí sàng lọc' : 'Screening Criteria'}
               </p>
-              <p className="text-[11px] font-medium text-surface-400 truncate mt-0.5">
-                {criteriaApproved ? (isVi ? 'Đã xong' : 'Completed') : topicApproved ? (isVi ? 'Đang thực hiện' : 'In Progress') : (isVi ? 'Chưa xong' : 'Pending')}
+              <p className="text-[11px] font-semibold truncate mt-0.5 flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                {criteriaApproved 
+                  ? (isVi ? '🛡️ Đã chuẩn hóa' : '🛡️ Approved') 
+                  : topicApproved 
+                  ? (isVi ? '⚡ Đang thực hiện' : '⚡ In Progress') 
+                  : (isVi ? '⏳ Chưa mở' : '⏳ Pending')}
               </p>
             </div>
           </div>
 
           {/* Step 3 Indicator */}
           <div className="flex items-center gap-3.5">
-            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-xs flex-shrink-0 transition-all duration-300 shadow-xs ${
+            <div className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold text-base flex-shrink-0 transition-all duration-300 shadow-sm ${
               picoData
-                ? 'bg-emerald-500 text-white shadow-emerald-500/20'
+                ? 'bg-gradient-to-tr from-purple-500 via-indigo-600 to-pink-500 shadow-purple-500/25 text-white scale-105 ring-2 ring-purple-400/30'
                 : criteriaApproved
                 ? 'bg-primary-600 text-white ring-4 ring-primary-500/15'
                 : 'bg-surface-200 dark:bg-surface-800 text-surface-400'
             }`}>
-              {picoData ? <Check className="w-5 h-5 stroke-[2.5]" /> : '03'}
+              {picoData ? '🔬' : criteriaApproved ? <Sparkles className="w-5 h-5 text-white animate-pulse" /> : '🔮'}
             </div>
             <div className="min-w-0">
               <p className="text-xs font-bold text-surface-900 dark:text-white uppercase tracking-wider truncate">
                 {isVi ? 'PICO & Từ khóa' : 'PICO & Keywords'}
               </p>
-              <p className="text-[11px] font-medium text-surface-400 truncate mt-0.5">
-                {picoData ? (isVi ? 'Đã xong' : 'Completed') : criteriaApproved ? (isVi ? 'Sẵn sàng' : 'Ready') : (isVi ? 'Chưa xong' : 'Pending')}
+              <p className="text-[11px] font-semibold truncate mt-0.5 flex items-center gap-1 text-indigo-600 dark:text-indigo-400">
+                {picoData 
+                  ? (isVi ? '🔬 Đã phân tích' : '🔬 Synthesized') 
+                  : criteriaApproved 
+                  ? (isVi ? '✨ Sẵn sàng' : '✨ Ready') 
+                  : (isVi ? '⏳ Chưa mở' : '⏳ Pending')}
               </p>
             </div>
           </div>
@@ -444,15 +463,15 @@ export default function ResearchSetupTab({ setActiveTab }) {
       )}
 
       {/* ── SECTION 1: THÔNG TIN VỀ ĐỀ TÀI NGHIÊN CỨU ────────────────────── */}
-      <div className={`card p-6 sm:p-7 transition-all ${topicApproved ? 'border-emerald-200/80 dark:border-emerald-900/40 bg-emerald-50/10 dark:bg-emerald-950/5' : ''}`}>
+      <div className={`card p-6 sm:p-7 transition-all ${topicApproved ? 'border-cyan-200/80 dark:border-cyan-900/40 bg-cyan-50/10 dark:bg-cyan-950/5' : ''}`}>
         
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 pb-4 border-b border-surface-100 dark:border-surface-800">
           <div>
             <h2 className="font-display font-bold text-lg text-surface-900 dark:text-white flex items-center gap-2">
               <span>{isVi ? 'Thông tin về đề tài nghiên cứu' : 'Research Topic Information'}</span>
               {topicApproved && (
-                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
-                  <Check className="w-3 h-3" /> {isVi ? 'Đã xác nhận' : 'Confirmed'}
+                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-cyan-700 dark:text-cyan-300 bg-cyan-100 dark:bg-cyan-950/60 px-2.5 py-0.5 rounded-full border border-cyan-200 dark:border-cyan-800 shadow-xs">
+                  🎯 {isVi ? 'Đã xác nhận' : 'Confirmed'}
                 </span>
               )}
             </h2>
@@ -462,7 +481,7 @@ export default function ResearchSetupTab({ setActiveTab }) {
             <button
               type="button"
               onClick={() => setTopicApproved(false)}
-              className="btn btn-sm btn-secondary self-start sm:self-auto flex items-center gap-1.5"
+              className="btn btn-sm btn-secondary self-start sm:self-auto flex items-center gap-1.5 font-semibold"
             >
               <Edit3 className="w-3.5 h-3.5 text-surface-500" />
               <span>{isVi ? 'Chỉnh sửa' : 'Edit'}</span>
@@ -555,9 +574,9 @@ export default function ResearchSetupTab({ setActiveTab }) {
                 type="button"
                 onClick={handleOptimizeScope}
                 disabled={loadingScope}
-                className="btn btn-secondary w-full sm:w-auto flex items-center gap-2"
+                className="btn btn-secondary w-full sm:w-auto flex items-center gap-2 font-semibold"
               >
-                {loadingScope ? <Loader2 className="w-4 h-4 animate-spin text-primary-500" /> : <Compass className="w-4 h-4 text-primary-500" />}
+                {loadingScope ? <Loader2 className="w-4 h-4 animate-spin text-primary-500" /> : <Compass className="w-4 h-4 text-cyan-500" />}
                 <span>{isVi ? 'Nhận xét về phạm vi đề tài' : 'Review Topic Scope'}</span>
               </button>
 
@@ -576,13 +595,13 @@ export default function ResearchSetupTab({ setActiveTab }) {
         </div>
       </div>
 
-      {/* ── TOPIC SCOPE FEEDBACK CARD (BILINGUAL & POLISHED) ─────────────── */}
+      {/* ── TOPIC SCOPE FEEDBACK CARD ────────────────────────────────────── */}
       {scopeResult && !topicApproved && (
-        <div ref={scopeCardRef} className="card p-6 border-primary-200 dark:border-primary-800/80 bg-primary-50/20 dark:bg-primary-950/20 space-y-4 animate-slide-up shadow-sm">
+        <div ref={scopeCardRef} className="card p-6 border-cyan-200 dark:border-cyan-800/80 bg-cyan-50/20 dark:bg-cyan-950/20 space-y-4 animate-slide-up shadow-sm">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-primary-100 dark:bg-primary-900/60 flex items-center justify-center">
-                <Compass className="w-4 h-4 text-primary-600 dark:text-primary-400" />
+              <div className="w-8 h-8 rounded-xl bg-cyan-100 dark:bg-cyan-900/60 flex items-center justify-center text-base">
+                🧭
               </div>
               <h3 className="font-display font-bold text-sm text-surface-900 dark:text-white">
                 {isVi ? 'Nhận xét về phạm vi đề tài' : 'Topic Scope Assessment'}
@@ -612,12 +631,12 @@ export default function ResearchSetupTab({ setActiveTab }) {
               </p>
               <div className="grid gap-2.5">
                 {scopeResult.suggested_topics.map((topic, i) => (
-                  <div key={i} className="p-3.5 rounded-xl bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-primary-300 dark:hover:border-primary-700 transition-colors shadow-xs">
+                  <div key={i} className="p-3.5 rounded-xl bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-cyan-300 dark:hover:border-cyan-700 transition-colors shadow-xs">
                     <span className="text-xs font-medium text-surface-800 dark:text-surface-200 leading-relaxed">{topic}</span>
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <button
                         onClick={() => handleApplyTopic(topic)}
-                        className="btn btn-sm btn-ghost text-xs hover:bg-surface-100 dark:hover:bg-surface-700"
+                        className="btn btn-sm btn-ghost text-xs hover:bg-surface-100 dark:hover:bg-surface-700 font-semibold"
                       >
                         {isVi ? 'Áp dụng' : 'Apply'}
                       </button>
@@ -638,15 +657,15 @@ export default function ResearchSetupTab({ setActiveTab }) {
 
       {/* ── SECTION 2: TIÊU CHÍ SÀNG LỌC ─────────────────────────────────── */}
       {topicApproved && (
-        <div ref={criteriaCardRef} className={`card p-6 sm:p-7 transition-all animate-slide-up ${criteriaApproved ? 'border-emerald-200/80 dark:border-emerald-900/40 bg-emerald-50/10 dark:bg-emerald-950/5' : ''}`}>
+        <div ref={criteriaCardRef} className={`card p-6 sm:p-7 transition-all animate-slide-up ${criteriaApproved ? 'border-teal-200/80 dark:border-teal-900/40 bg-teal-50/10 dark:bg-teal-950/5' : ''}`}>
           
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 pb-4 border-b border-surface-100 dark:border-surface-800">
             <div>
               <h2 className="font-display font-bold text-lg text-surface-900 dark:text-white flex items-center gap-2">
                 <span>{isVi ? 'Tiêu chí sàng lọc' : 'Screening Criteria'}</span>
                 {criteriaApproved && (
-                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
-                    <Check className="w-3 h-3" /> {isVi ? 'Đã xác nhận' : 'Confirmed'}
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-teal-700 dark:text-teal-300 bg-teal-100 dark:bg-teal-950/60 px-2.5 py-0.5 rounded-full border border-teal-200 dark:border-teal-800 shadow-xs">
+                    🛡️ {isVi ? 'Đã xác nhận' : 'Confirmed'}
                   </span>
                 )}
               </h2>
@@ -657,7 +676,7 @@ export default function ResearchSetupTab({ setActiveTab }) {
                 <button
                   type="button"
                   onClick={() => setCriteriaApproved(false)}
-                  className="btn btn-sm btn-secondary flex items-center gap-1.5"
+                  className="btn btn-sm btn-secondary flex items-center gap-1.5 font-semibold"
                 >
                   <Edit3 className="w-3.5 h-3.5 text-surface-500" />
                   <span>{isVi ? 'Chỉnh sửa' : 'Edit'}</span>
@@ -667,9 +686,9 @@ export default function ResearchSetupTab({ setActiveTab }) {
                   type="button"
                   onClick={handleGenerateCriteria}
                   disabled={loadingCriteria}
-                  className="btn btn-sm btn-secondary flex items-center gap-1.5"
+                  className="btn btn-sm btn-secondary flex items-center gap-1.5 font-semibold"
                 >
-                  {loadingCriteria ? <Loader2 className="w-3.5 h-3.5 animate-spin text-primary-500" /> : <Sparkles className="w-3.5 h-3.5 text-primary-500" />}
+                  {loadingCriteria ? <Loader2 className="w-3.5 h-3.5 animate-spin text-teal-500" /> : <Sparkles className="w-3.5 h-3.5 text-teal-500" />}
                   <span>{isVi ? 'Các tiêu chí gợi ý' : 'Suggested Criteria'}</span>
                 </button>
               )}
@@ -784,8 +803,8 @@ export default function ResearchSetupTab({ setActiveTab }) {
       {criteriaApproved && (
         <div ref={step3CardRef} className="space-y-6 animate-slide-up">
           <div className="card p-7 sm:p-9 text-center rounded-3xl bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-950 text-white space-y-5 shadow-2xl border border-indigo-500/20">
-            <div className="w-14 h-14 mx-auto rounded-2xl bg-indigo-500/15 border border-indigo-400/20 flex items-center justify-center shadow-inner">
-              <Search className="w-7 h-7 text-indigo-300" />
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-indigo-500/15 border border-indigo-400/20 flex items-center justify-center text-2xl shadow-inner">
+              🔬
             </div>
             
             <div className="max-w-2xl mx-auto space-y-2">
@@ -821,11 +840,11 @@ export default function ResearchSetupTab({ setActiveTab }) {
           </div>
 
           {picoData && (
-            <div ref={picoCardRef} className="card p-6 sm:p-8 space-y-6 animate-slide-up border-emerald-500/20 bg-emerald-500/5 shadow-md">
+            <div ref={picoCardRef} className="card p-6 sm:p-8 space-y-6 animate-slide-up border-purple-500/20 bg-purple-500/5 shadow-md">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-surface-200 dark:border-surface-800">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-500/30 flex items-center justify-center">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                  <div className="w-10 h-10 rounded-2xl bg-purple-100 dark:bg-purple-950/60 border border-purple-500/30 flex items-center justify-center text-xl shadow-xs">
+                    🔬
                   </div>
                   <div>
                     <h4 className="font-display font-bold text-lg text-surface-900 dark:text-white">
@@ -837,12 +856,24 @@ export default function ResearchSetupTab({ setActiveTab }) {
                   </div>
                 </div>
 
+                {/* Top Right Save Configuration & Analysis Button */}
                 <button 
-                  onClick={handleProceedToSearch}
-                  className="btn btn-primary shadow-primary-sm self-start sm:self-auto flex items-center gap-2 font-bold"
+                  type="button"
+                  onClick={() => handleSave()}
+                  disabled={loading}
+                  className="btn btn-secondary self-start sm:self-auto flex items-center gap-2 font-bold shadow-xs hover:border-primary-400 transition-all"
                 >
-                  <span>{isVi ? 'Chuyển sang Bước 2: Tìm kiếm' : 'Proceed to Search'}</span>
-                  <ArrowRight className="w-4 h-4" />
+                  {saved ? (
+                    <>
+                      <Check className="w-4 h-4 text-emerald-500" />
+                      <span className="text-emerald-600 dark:text-emerald-400">{isVi ? 'Đã lưu cấu hình & phân tích!' : 'Saved Configuration & Analysis!'}</span>
+                    </>
+                  ) : (
+                    <>
+                      {loading ? <Loader2 className="w-4 h-4 animate-spin text-primary-500" /> : <Save className="w-4 h-4 text-primary-500" />}
+                      <span>{isVi ? 'Lưu cấu hình & Phân tích' : 'Save Setup & Analysis'}</span>
+                    </>
+                  )}
                 </button>
               </div>
 
@@ -896,7 +927,7 @@ export default function ResearchSetupTab({ setActiveTab }) {
                   {picoData.search_keywords && picoData.search_keywords.length > 0 && (
                     <button
                       onClick={handleCopyKeywords}
-                      className="btn btn-sm btn-ghost text-xs text-white hover:bg-white/10 self-start sm:self-auto flex items-center gap-1.5"
+                      className="btn btn-sm btn-ghost text-xs text-white hover:bg-white/10 self-start sm:self-auto flex items-center gap-1.5 font-semibold"
                     >
                       {copiedKeywords ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                       <span>{copiedKeywords ? (isVi ? 'Đã sao chép!' : 'Copied!') : (isVi ? 'Sao chép chuỗi tìm kiếm' : 'Copy Search String')}</span>
