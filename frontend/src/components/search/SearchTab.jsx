@@ -957,19 +957,20 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                       setSelectedKeywords(suggestedKeywords);
                       localStorage.setItem(`litreview_selected_keywords_${currentProjectId}`, JSON.stringify(suggestedKeywords));
                     }}
-                    className="text-[11px] font-bold text-primary-600 dark:text-primary-400 hover:underline cursor-pointer"
+                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-primary-50 dark:bg-primary-950/60 text-primary-700 dark:text-primary-300 border border-primary-200 dark:border-primary-800/80 hover:bg-primary-100 dark:hover:bg-primary-900/80 transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer"
                   >
-                    {isVi ? 'Chọn tất cả' : 'Select all'}
+                    <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                    <span>{isVi ? 'Chọn tất cả' : 'Select all'}</span>
                   </button>
-                  <span className="text-surface-300 dark:text-surface-700">•</span>
+
                   <button
                     type="button"
                     onClick={() => {
                       navigator.clipboard.writeText(suggestedKeywords.join(' '));
                     }}
-                    className="text-[11px] font-semibold text-surface-500 dark:text-surface-400 hover:text-surface-700 dark:hover:text-surface-200 cursor-pointer"
+                    className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-surface-100 hover:bg-surface-200 dark:bg-surface-800 dark:hover:bg-surface-700 text-surface-700 dark:text-surface-300 border border-surface-200 dark:border-surface-700/60 transition-all shadow-2xs flex items-center gap-1 cursor-pointer"
                   >
-                    {isVi ? 'Sao chép' : 'Copy'}
+                    <span>{isVi ? 'Sao chép' : 'Copy'}</span>
                   </button>
                 </div>
               </div>
@@ -1013,9 +1014,10 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                     setSelectedKeywords([]);
                     localStorage.setItem(`litreview_selected_keywords_${currentProjectId}`, JSON.stringify([]));
                   }}
-                  className="text-[11px] font-semibold text-rose-500 hover:underline cursor-pointer"
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/70 transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer"
                 >
-                  {isVi ? 'Xóa hết từ khóa đã chọn' : 'Clear all'}
+                  <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                  <span>{isVi ? 'Xóa hết từ khóa đã chọn' : 'Clear all keywords'}</span>
                 </button>
               )}
             </div>
