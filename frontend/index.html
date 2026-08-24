@@ -4,15 +4,19 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>LitReview AI Scholar - Premium Academic Workspace</title>
+    <meta name="description" content="LitReview — Nền tảng Nghiên cứu & Tổng quan Tài liệu Khoa học theo chuẩn mực PRISMA." />
+    <title>LitReview — Academic Literature & SLR Platform</title>
     
-    <!-- Google Fonts: Plus Jakarta Sans & Inter (Modern Premium Tech) -->
+    <!-- Google Fonts: Sora (Display) + Inter (Body) + JetBrains Mono (Code) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     
     <!-- KaTeX CSS for Math Rendering -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" integrity="sha384-n8MVd4RsNIU0tAv4ct0nTaAbDJwPJzDEaqSD1odI+WdtXRGWt2kTvGFasHpSy3SV" crossorigin="anonymous">
+
+    <!-- Google Identity Services (GIS) SDK for OAuth 2.0 -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
@@ -22,30 +26,72 @@
         theme: {
           extend: {
             fontFamily: {
-              sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
-              display: ['"Plus Jakarta Sans"', '"Space Grotesk"', 'sans-serif'],
+              sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+              display: ['Sora', 'Inter', 'sans-serif'],
+              mono: ['"JetBrains Mono"', 'monospace'],
             },
             colors: {
-              brand: {
-                50: '#EFF6FF',
-                100: '#DBEAFE',
-                200: '#BFDBFE',
-                300: '#93C5FD',
-                400: '#60A5FA',
-                500: '#3B82F6',
-                600: '#2563EB', // Royal Electric Blue
-                700: '#1D4ED8',
-                800: '#1E40AF',
-                900: '#1E3A8A',
-                950: '#172554',
-              }
-            }
+              primary: {
+                50:  '#EEF2FF',
+                100: '#E0E7FF',
+                200: '#C7D2FE',
+                300: '#A5B4FC',
+                400: '#818CF8',
+                500: '#6366F1',
+                600: '#4F46E5',
+                700: '#4338CA',
+                800: '#3730A3',
+                900: '#312E81',
+                950: '#1E1B4B',
+              },
+              accent: {
+                50:  '#F0F9FF',
+                100: '#E0F2FE',
+                200: '#BAE6FD',
+                300: '#7DD3FC',
+                400: '#38BDF8',
+                500: '#0EA5E9',
+                600: '#0284C7',
+                700: '#0369A1',
+                800: '#075985',
+                900: '#0C4A6E',
+              },
+              surface: {
+                0:   '#FFFFFF',
+                50:  '#F8FAFC',
+                100: '#F1F5F9',
+                200: '#E2E8F0',
+                300: '#CBD5E1',
+                400: '#94A3B8',
+                500: '#64748B',
+                600: '#475569',
+                700: '#334155',
+                800: '#1E293B',
+                850: '#172033',
+                900: '#0F172A',
+                950: '#080E1A',
+              },
+            },
+            animation: {
+              'fade-in':   'fadeIn 0.2s ease-out',
+              'slide-up':  'slideUp 0.25s ease-out',
+              'ken-burns': 'kenBurns 22s ease-in-out infinite',
+              'float':     'float 6s ease-in-out infinite',
+              'pulse-soft':'pulseSoft 2s ease-in-out infinite',
+            },
+            keyframes: {
+              fadeIn:    { from: { opacity: '0' }, to: { opacity: '1' } },
+              slideUp:   { from: { opacity: '0', transform: 'translateY(10px)' }, to: { opacity: '1', transform: 'translateY(0)' } },
+              kenBurns:  { '0%, 100%': { transform: 'scale(1)' }, '50%': { transform: 'scale(1.06)' } },
+              float:     { '0%, 100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-8px)' } },
+              pulseSoft: { '0%, 100%': { opacity: '0.7' }, '50%': { opacity: '1' } },
+            },
           }
         }
       }
     </script>
   </head>
-  <body class="bg-slate-50 text-slate-900 font-sans antialiased">
+  <body class="font-sans antialiased">
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

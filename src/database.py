@@ -86,25 +86,28 @@ DATABASE_URL = _resolve_host_to_ipv4(
     )
 )
 
-connect_args = {}
-if "sqlite" in DATABASE_URL:
-    connect_args = {"check_same_thread": False, "timeout": 30}
-elif "postgresql" in DATABASE_URL or "postgres" in DATABASE_URL:
-    connect_args = {"statement_cache_size": 0}
+def _get_engine_and_session(url: str):
+    connect_args = {}
+    if "sqlite" in url:
+        connect_args = {"check_same_thread": False, "timeout": 30}
+    elif "postgresql" in url or "postgres" in url:
+        connect_args = {"statement_cache_size": 0}
 
-engine = create_async_engine(
-    DATABASE_URL,
-    echo=False,
-    connect_args=connect_args,
-    pool_pre_ping=True,
-    pool_recycle=300,
-)
+    eng = create_async_engine(
+        url,
+        echo=False,
+        connect_args=connect_args,
+        pool_pre_ping=True,
+        pool_recycle=300,
+    )
+    sess = async_sessionmaker(
+        eng,
+        class_=AsyncSession,
+        expire_on_commit=False,
+    )
+    return eng, sess
 
-AsyncSessionLocal = async_sessionmaker(
-    engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
-)
+engine, AsyncSessionLocal = _get_engine_and_session(DATABASE_URL)
 
 
 class Base(DeclarativeBase):
@@ -114,6 +117,7 @@ class Base(DeclarativeBase):
 @asynccontextmanager
 async def session_scope():
     """Transaction-scoped async session for workers/LangGraph nodes."""
+    global engine, AsyncSessionLocal, DATABASE_URL
     async with AsyncSessionLocal() as session:
         try:
             yield session
@@ -130,11 +134,23 @@ async def get_db():
 
 
 async def create_all_tables():
-    """Tạo tất cả bảng khi app khởi động (nếu chưa có)."""
+    """Tạo tất cả bảng khi app khởi động (nếu chưa có). Tự động fallback sang SQLite nếu PostgreSQL lỗi kết nối."""
+    global engine, AsyncSessionLocal, DATABASE_URL
     from src.models import db_models  # noqa: F401 — register metadata
 
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+    except Exception as e:
+        if "postgresql" in DATABASE_URL or "postgres" in DATABASE_URL:
+            print(f"[Database Warning] Không thể kết nối PostgreSQL ({DATABASE_URL}): {e}")
+            print("[Database Fallback] Tự động chuyển sang sử dụng SQLite: sqlite+aiosqlite:///./data/app.db")
+            DATABASE_URL = "sqlite+aiosqlite:///./data/app.db"
+            engine, AsyncSessionLocal = _get_engine_and_session(DATABASE_URL)
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+        else:
+            raise
 
 
 async def ensure_local_schema_compatibility():
@@ -144,6 +160,15 @@ async def ensure_local_schema_compatibility():
     def sync_compat(sync_conn):
         inspector = inspect(sync_conn)
         existing_tables = inspector.get_table_names()
+
+        # Check projects columns
+        if "projects" in existing_tables:
+            cols = {c["name"] for c in inspector.get_columns("projects")}
+            if "user_id" not in cols:
+                try:
+                    sync_conn.execute(text("ALTER TABLE projects ADD COLUMN user_id CHAR(36)"))
+                except Exception as e:
+                    print(f"Notice: Could not add user_id column to projects: {e}")
 
         # Check synthesis_sessions columns
         if "synthesis_sessions" in existing_tables:
@@ -162,6 +187,14 @@ async def ensure_local_schema_compatibility():
                 sync_conn.execute(text("ALTER TABLE evidence_records ADD COLUMN merge_reason TEXT"))
             if "applies_to" not in cols:
                 sync_conn.execute(text("ALTER TABLE evidence_records ADD COLUMN applies_to VARCHAR(80) NOT NULL DEFAULT 'study'"))
+
+        # Check projects columns
+        if "projects" in existing_tables:
+            cols = {c["name"] for c in inspector.get_columns("projects")}
+            if "user_id" not in cols:
+                is_postgres = "postgresql" in DATABASE_URL
+                col_type = "UUID" if is_postgres else "CHAR(32)"
+                sync_conn.execute(text(f"ALTER TABLE projects ADD COLUMN user_id {col_type}"))
 
         # Check papers columns
         if "papers" in existing_tables:

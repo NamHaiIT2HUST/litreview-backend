@@ -95,7 +95,7 @@ function markdownToHtml(md) {
 /**
  * Compiles a complete standalone HTML document with unified document flow and embedded PDF generator.
  */
-export function generateStandaloneHTMLReport({ message, filename = 'dataset.csv', title = 'Báo Cáo Phân Tích Khám Phá Dữ Liệu (EDA)' }) {
+export function generateStandaloneHTMLReport({ message, filename = 'dataset.csv', title = 'Báo cáo phân tích khai phá dữ liệu (EDA)' }) {
   const timestamp = new Date().toLocaleString('vi-VN', { dateStyle: 'full', timeStyle: 'medium' });
   const rawText = message?.text || '';
   const blockOutputs = message?.block_outputs || [];
@@ -174,7 +174,7 @@ export function generateStandaloneHTMLReport({ message, filename = 'dataset.csv'
   if (figures.length > 0 && (!blockOutputs || blockOutputs.length === 0)) {
     documentContentHtml += `
       <div class="figures-gallery">
-        <h3 class="report-h3">Đồ thị Trực quan hóa Dữ liệu Thực nghiệm</h3>
+        <h3 class="report-h3">Đồ thị trực quan hóa dữ liệu thực nghiệm</h3>
         <div class="figures-flow">
           ${figures.map((fig, fIdx) => `
             <div class="figure-frame">
@@ -192,7 +192,7 @@ export function generateStandaloneHTMLReport({ message, filename = 'dataset.csv'
   if (kpis && kpis.length > 0) {
     kpisHtml = `
       <div class="kpi-banner">
-        <div class="kpi-banner-title">📊 Các Chỉ Số Thống Kê Trọng Yếu (Key Findings)</div>
+        <div class="kpi-banner-title">📊 Các chỉ số thống kê trọng yếu (Key Findings)</div>
         <div class="kpi-flex-container">
           ${kpis.map(kpi => `
             <div class="kpi-pill">
@@ -613,18 +613,20 @@ export function generateStandaloneHTMLReport({ message, filename = 'dataset.csv'
         box-shadow: none !important;
         padding: 0 !important;
       }
-      .notebook-cell {
-        background: #ffffff !important;
-        border: 1px solid #cbd5e1 !important;
+      .notebook-cell, .kpi-banner, .kpi-pill, .stdout-block, .figure-frame, img, tr {
         page-break-inside: avoid !important;
+        break-inside: avoid !important;
       }
       .cell-input { background: #f8fafc !important; }
       .code-pre code { color: #0f172a !important; }
       .cell-header { background: #e2e8f0 !important; border-bottom: 1px solid #cbd5e1 !important; }
       .copy-btn { display: none !important; }
-      .figure-frame { page-break-inside: avoid !important; border: 1px solid #cbd5e1 !important; }
+      .figure-frame { border: 1px solid #cbd5e1 !important; }
       .figure-frame img { max-height: 450px !important; }
-      .report-h1, .report-h2 { page-break-after: avoid !important; }
+      .report-h1, .report-h2, .report-h3, .doc-header { 
+        page-break-after: avoid !important; 
+        break-after: avoid !important;
+      }
       @page {
         size: A4 portrait;
         margin: 15mm 15mm 20mm 15mm;
@@ -638,7 +640,7 @@ export function generateStandaloneHTMLReport({ message, filename = 'dataset.csv'
     <div class="top-controls">
       <div class="top-controls-title">Công cụ xuất bản báo cáo</div>
       <div class="btn-group">
-        <button class="btn btn-primary" id="btn-pdf" onclick="exportToPDF()">📄 Tải File PDF (Chuẩn A4)</button>
+        <button class="btn btn-primary" id="btn-pdf" onclick="exportToPDF()">📄 Tải File PDF</button>
         <button class="btn" onclick="window.print()">🖨️ In trang</button>
       </div>
     </div>
@@ -651,7 +653,7 @@ export function generateStandaloneHTMLReport({ message, filename = 'dataset.csv'
         <div class="doc-meta-grid">
           <div class="meta-item">📁 <strong>Tập dữ liệu:</strong> ${filename}</div>
           <div class="meta-item">🕒 <strong>Thời gian xuất:</strong> ${timestamp}</div>
-          <div class="meta-item">🤖 <strong>Công cụ:</strong> AI Data Science Workspace</div>
+          <div class="meta-item">🤖 <strong>Công cụ:</strong> DaLitRe AI</div>
         </div>
       </header>
 
@@ -664,7 +666,7 @@ export function generateStandaloneHTMLReport({ message, filename = 'dataset.csv'
       ${appendixHtml}
 
       <footer class="doc-footer">
-        Báo cáo phân tích dữ liệu tự động — AI Data Science Workspace
+        Báo cáo phân tích dữ liệu tự động — DaLitRe AI (Lưu ý: Bạn cần kiểm tra lại kết quả do AI tạo ra)
       </footer>
     </article>
   </div>
@@ -693,9 +695,9 @@ export function generateStandaloneHTMLReport({ message, filename = 'dataset.csv'
         margin:       [12, 12, 16, 12],
         filename:     '${filename ? filename.replace(/\.[^/.]+$/, '') : 'dataset'}_Bao_Cao_EDA.pdf',
         image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true, letterRendering: true },
+        html2canvas:  { scale: 2, useCORS: true, letterRendering: true, scrollY: 0 },
         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
+        pagebreak:    { mode: ['css', 'legacy'], avoid: ['.figure-frame', '.notebook-cell', '.kpi-banner', 'img', 'tr', '.doc-header', 'h1', 'h2', 'h3'] }
       };
 
       html2pdf().set(opt).from(element).save().then(() => {

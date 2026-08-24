@@ -7,7 +7,7 @@ import rehypeKatex from 'rehype-katex';
 import CitationChip from './CitationChip';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { formatMathAndMarkdown } from '../../utils/mathUtils';
-import { API_BASE } from '../../utils/apiConfig';
+import { safeFetch } from '../../utils/apiConfig';
 
 
 
@@ -21,10 +21,16 @@ export default function ChatPanel({
   onOpenHarness,
   darkMode
 }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const isEn = language === 'en';
   const [inputQuestion, setInputQuestion] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState(null);
+  const messagesEndRef = React.useRef(null);
+
+  React.useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages, isTyping]);
 
   const handleCopy = (text, idx) => {
     navigator.clipboard.writeText(text);
@@ -46,11 +52,24 @@ export default function ChatPanel({
       const paperIds = selectedSourceIds && selectedSourceIds.length > 0 
         ? selectedSourceIds 
         : (workspacePapers ? workspacePapers.map(p => p.id) : []);
+
+      const papersPayload = (workspacePapers || []).map((p, idx) => ({
+        id: p.id || `paper_${idx}`,
+        title: p.title || p.filename || 'Untitled Document',
+        abstract: p.abstract || p.summary || '',
+        authors: p.authors || '',
+        year: p.year || 2024,
+        journal: p.journal || ''
+      }));
         
-      const response = await fetch(`${API_BASE}/workspace/chat`, {
+      const response = await safeFetch('/workspace/chat', {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: question, paper_ids: paperIds }),
+        body: JSON.stringify({ 
+          message: question, 
+          paper_ids: paperIds,
+          papers_data: papersPayload 
+        }),
       });
 
       if (!response.ok) {
@@ -89,22 +108,30 @@ export default function ChatPanel({
             className={`flex gap-4 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             {msg.sender === 'ai' && (
-              <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-md">
-                <Bot className="w-6 h-6" />
+              <div className="w-10 h-10 rounded-2xl overflow-hidden shrink-0 shadow-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center justify-center p-0.5">
+                <img src="/AI.png" alt="AI Assistant" className="w-full h-full object-cover rounded-[14px]" />
               </div>
             )}
             <div
               className={`text-[14px] leading-relaxed ${
                 msg.sender === 'user'
                   ? 'px-5 py-3.5 rounded-3xl rounded-tr-sm max-w-[85%] md:max-w-[75%] bg-blue-600 text-white font-medium shadow-sm'
-                  : darkMode
-                    ? 'py-1.5 w-full max-w-full text-slate-200'
-                    : 'py-1.5 w-full max-w-full text-slate-800'
+                  : 'py-1.5 w-full max-w-full text-slate-800 dark:py-1.5 dark:w-full dark:max-w-full dark:text-slate-200'
               }`}
             >
               <div className={msg.sender === 'user' ? 'whitespace-pre-wrap' : 'prose prose-slate dark:prose-invert max-w-none prose-p:text-[14px] prose-p:leading-relaxed prose-headings:font-bold prose-h1:text-[16px] prose-h2:text-[15px] prose-h3:text-[14px] prose-li:text-[14px] prose-pre:bg-slate-800'}>
                 {msg.sender === 'user' ? (
                   msg.text
+                ) : msg.isWelcome ? (
+                  <ReactMarkdown
+                    remarkPlugins={[remarkMath, remarkGfm]}
+                    rehypePlugins={[rehypeKatex]}
+                  >
+                    {isEn
+                      ? "Welcome to **LitRe AI**! Upload your PDF documents to get started. You can ask any question, and I will analyze the source text to provide answers with precise citations."
+                      : "Chào mừng bạn đến với **LitRe AI**! Hãy tải lên tài liệu PDF của bạn để bắt đầu. Bạn có thể đặt bất kỳ câu hỏi nào, tôi sẽ phân tích văn bản gốc và đưa ra câu trả lời kèm theo trích dẫn chính xác."
+                    }
+                  </ReactMarkdown>
                 ) : (
                   <ReactMarkdown
                     remarkPlugins={[remarkMath, remarkGfm]}
@@ -224,11 +251,11 @@ export default function ChatPanel({
         
         {isTyping && (
           <div className="flex gap-4 justify-start">
-            <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-md">
-              <Bot className="w-6 h-6" />
+            <div className="w-10 h-10 rounded-2xl overflow-hidden shrink-0 shadow-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center justify-center p-0.5">
+              <img src="/AI.png" alt="AI Assistant" className="w-full h-full object-cover rounded-[14px]" />
             </div>
             <div className={`py-2.5 w-full max-w-full text-sm leading-relaxed flex items-center gap-1.5 ${
-              darkMode ? 'text-slate-200' : 'text-slate-900'
+              'text-slate-900 dark:text-slate-200'
             }`}>
               <div className="w-2.5 h-2.5 rounded-full bg-slate-400 animate-bounce"></div>
               <div className="w-2.5 h-2.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: '0.2s' }}></div>
@@ -236,6 +263,7 @@ export default function ChatPanel({
             </div>
           </div>
         )}
+          <div ref={messagesEndRef} />
         </div>
       </div>
 
@@ -243,15 +271,6 @@ export default function ChatPanel({
 
       {/* Chat Input Bar */}
       <div className="relative mt-2 shrink-0 w-full flex flex-col items-center gap-2 mb-4 px-4">
-        {selectedSourceIds && selectedSourceIds.length > 0 && (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-100 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-[11px] font-semibold w-max shadow-sm self-start md:self-center md:-ml-[400px]">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
-            </span>
-            {t('chat.chatting_with')} {selectedSourceIds.length} {t('chat.specific_docs')}
-          </div>
-        )}
         <form onSubmit={handleSendMessage} className="relative w-full max-w-4xl mx-auto">
         <input
           type="text"
@@ -259,9 +278,7 @@ export default function ChatPanel({
           onChange={e => setInputQuestion(e.target.value)}
           placeholder={t('chat.input_placeholder')}
           className={`w-full pl-6 pr-32 py-4 border rounded-[2rem] text-[14px] font-medium focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 shadow-sm transition-all ${
-            darkMode 
-              ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500' 
-              : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400'
+            'bg-white border-slate-200 text-slate-900 placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700 dark:text-white dark:placeholder-slate-500'
           }`}
         />
         <button

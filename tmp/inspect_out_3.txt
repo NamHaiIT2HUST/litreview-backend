@@ -1,5 +1,0 @@
-Traceback (most recent call last):
-  File "d:\AI Thực chiến\Project\P-165\tmp\inspect_db.py", line 7, in <module>
-    with open(out_path, "w", encoding="utf-8") as f:
-         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-PermissionError: [Errno 13] Permission denied: 'tmp/inspect_out_3.txt'

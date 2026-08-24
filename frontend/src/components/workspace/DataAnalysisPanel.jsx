@@ -668,7 +668,7 @@ function InteractiveTableViewer({ tables, isEn }) {
           <button
             onClick={handleExportCSV}
             className="px-2.5 py-1 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 text-xs font-bold flex items-center gap-1 transition-colors"
-            title="Export CSV"
+            title={!isEn ? 'Xuất CSV' : 'Export CSV'}
           >
             <Download className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">CSV</span>
@@ -1237,16 +1237,24 @@ const markdownComponents = {
   ),
 };
 
-export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSendToChat }) {
+export default function DataAnalysisPanel({ 
+  workspacePapers = [], 
+  darkMode, 
+  onSendToChat,
+  activeProject,
+  analysisHistory,
+  setAnalysisHistory,
+  activeSessionId,
+  setActiveSessionId
+}) {
   const { t, language } = useLanguage();
   const isEn = language === 'en';
 
   const [messages, setMessages] = useState(() => [
     {
       sender: 'ai',
-      text: isEn
-        ? "Welcome to DataVoyager Analytics! Upload an Excel/CSV dataset to perform in-depth statistical synthesis, hypothesis testing, and exploratory data analysis (EDA)."
-        : "Chào mừng bạn đến với DataVoyager Analytics! Tải lên tệp Excel/CSV để chạy phân tích thống kê định lượng, kiểm định giả thuyết và phân tích dữ liệu khám phá (EDA).",
+      isWelcome: true,
+      text: "",
       chart: null,
       kpis: null,
     }
@@ -1258,30 +1266,21 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
   const [datasetProfile, setDatasetProfile] = useState(null);
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [showExampleQueries, setShowExampleQueries] = useState(true);
-  
-  // History State
-  const [sessions, setSessions] = useState(() => {
-    try {
-      const saved = localStorage.getItem('workspace_eda_sessions');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-  const [activeSessionId, setActiveSessionId] = useState(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   React.useEffect(() => {
     if (messages.length <= 1) return;
     
-    setSessions(prev => {
-      let newSessions = [...prev];
+    setAnalysisHistory(prev => {
+      let newSessions = [...(prev || [])];
       const existingIdx = newSessions.findIndex(s => s.id === activeSessionId);
+      
+      const queryText = messages.find(m => m.sender === 'user')?.text || messages[1]?.text?.slice(0, 30) || (!isEn ? 'Phân tích mới' : 'New Analysis');
       
       const sessionData = {
         id: activeSessionId || Date.now().toString(),
         timestamp: Date.now(),
-        title: attachedFile?.name || datasetProfile?.filename || messages[1]?.text?.slice(0, 30) || 'Phân tích mới',
+        query: queryText,
+        title: attachedFile?.name || datasetProfile?.filename || queryText,
         messages: messages,
         profile: datasetProfile
       };
@@ -1294,22 +1293,9 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
           setTimeout(() => setActiveSessionId(sessionData.id), 0);
         }
       }
-      
-      try {
-        localStorage.setItem('workspace_eda_sessions', JSON.stringify(newSessions));
-      } catch (err) {
-        console.warn('LocalStorage limit exceeded, attempting to save fewer sessions...');
-        try {
-          // Keep only the most recent 2 sessions if quota is exceeded
-          const limited = newSessions.slice(0, 2);
-          localStorage.setItem('workspace_eda_sessions', JSON.stringify(limited));
-        } catch(e2) {
-          console.error('Failed to save session to localStorage:', e2);
-        }
-      }
       return newSessions;
     });
-  }, [messages, datasetProfile, activeSessionId, attachedFile]);
+  }, [messages, datasetProfile, activeSessionId, attachedFile, setAnalysisHistory, setActiveSessionId]);
 
   const handleNewSession = () => {
     setActiveSessionId(null);
@@ -1317,22 +1303,25 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
     setAttachedFile(null);
     setMessages([{
       sender: 'ai',
-      text: isEn
-        ? "Welcome to DataVoyager Analytics! Upload an Excel/CSV dataset to perform in-depth statistical synthesis, hypothesis testing, and exploratory data analysis (EDA)."
-        : "Chào mừng bạn đến với DataVoyager Analytics! Tải lên tệp Excel/CSV để chạy phân tích thống kê định lượng, kiểm định giả thuyết và phân tích dữ liệu khám phá (EDA).",
+      isWelcome: true,
+      text: "",
       chart: null,
       kpis: null,
     }]);
-    setIsSidebarOpen(false);
   };
 
-  const loadSession = (session) => {
-    setActiveSessionId(session.id);
-    setMessages(session.messages || []);
-    setDatasetProfile(session.profile || null);
-    setAttachedFile(null);
-    setIsSidebarOpen(false);
-  };
+  React.useEffect(() => {
+    if (activeSessionId) {
+      const session = (analysisHistory || []).find(s => s.id === activeSessionId);
+      if (session) {
+        setMessages(session.messages || []);
+        setDatasetProfile(session.profile || null);
+        setAttachedFile(null);
+      }
+    } else {
+      handleNewSession();
+    }
+  }, [activeSessionId]);
 
   const handleDeleteSession = (sessionId, e) => {
     e.stopPropagation();
@@ -1532,7 +1521,7 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
     if (!attachedFile) return;
     const promptText = isEn
       ? "Perform a rigorous 7-section Exploratory Data Analysis (EDA) on this dataset according to standard data science methodology: 1. Data structure overview, 2. Data quality and missingness audit (per-column drop/impute analysis), 3. Univariate distributions and IQR outlier tests, 4. Time-series continuity and seasonality/DST integrity, 5. Multivariate correlations with Pearson p-values, 6. Target variable and forecast evaluation, 7. Preprocessing action plan and recommendations. Verify all figures quantitatively with Python code."
-      : "Hãy thực hiện phân tích khám phá dữ liệu (EDA) chuẩn mực theo đúng khung EDA 7 phần chuyên sâu: 1. Tổng quan cấu trúc dữ liệu, 2. Kiểm toán chất lượng dữ liệu và tỷ lệ khuyết từng cột (phân nhóm cột rỗng 100% / hằng số cần drop vs khuyết thấp cần interpolate), 3. Phân phối đơn biến và kiểm định ngoại lai IQR, 4. Phân tích chuỗi thời gian và kiểm tra múi giờ/DST, 5. Quan hệ đa biến và ma trận tương quan Pearson kèm p-value, 6. Phân tích biến mục tiêu và sai số dự báo, 7. Kết luận và kế hoạch tiền xử lý dữ liệu. Mọi số liệu phải được tính toán chính xác bằng mã Python thực thi.";
+      : "Hãy thực hiện phân tích khai phá dữ liệu (EDA) chuẩn mực theo đúng khung EDA 7 phần chuyên sâu: 1. Tổng quan cấu trúc dữ liệu, 2. Kiểm toán chất lượng dữ liệu và tỷ lệ khuyết từng cột (phân nhóm cột rỗng 100% / hằng số cần drop vs khuyết thấp cần interpolate), 3. Phân phối đơn biến và kiểm định ngoại lai IQR, 4. Phân tích chuỗi thời gian và kiểm tra múi giờ/DST, 5. Quan hệ đa biến và ma trận tương quan Pearson kèm p-value, 6. Phân tích biến mục tiêu và sai số dự báo, 7. Kết luận và kế hoạch tiền xử lý dữ liệu. Mọi số liệu phải được tính toán chính xác bằng mã Python thực thi.";
     
     handleSend(null, promptText, attachedFile);
   };
@@ -1548,103 +1537,8 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
   return (
     <div className="flex-1 min-h-0 flex relative bg-transparent overflow-hidden">
       
-      {/* Sidebar Backdrop Overlay */}
-      {isSidebarOpen && (
-        <div 
-          className="absolute inset-0 bg-slate-900/20 backdrop-blur-sm z-40 transition-opacity"
-          onClick={() => setIsSidebarOpen(false)}
-        />
-      )}
-
-      {/* History Sidebar */}
-      <div className={`absolute top-0 left-0 h-full w-72 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 z-50 transform transition-transform duration-300 shadow-xl flex flex-col ${
-        isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-      }`}>
-        <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Layers className="w-4 h-4 text-blue-500" />
-            <h3 className="font-bold text-sm text-slate-800 dark:text-slate-200">
-              {isEn ? 'Analysis History' : 'Lịch sử phân tích'}
-            </h3>
-          </div>
-          <button 
-            onClick={() => setIsSidebarOpen(false)}
-            className="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition-colors cursor-pointer"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-        
-        <div className="p-3 border-b border-slate-200 dark:border-slate-800 shrink-0">
-          <button
-            onClick={handleNewSession}
-            className="w-full py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-2 cursor-pointer"
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>{isEn ? 'New Analysis' : 'Phiên phân tích mới'}</span>
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
-          {sessions.length === 0 ? (
-            <div className="text-center p-4 text-xs text-slate-500">
-              {isEn ? 'No history yet.' : 'Chưa có lịch sử phân tích.'}
-            </div>
-          ) : (
-            sessions.map(s => (
-              <div
-                key={s.id}
-                onClick={() => loadSession(s)}
-                className={`group w-full text-left p-2.5 rounded-xl transition-all flex items-center justify-between gap-2 cursor-pointer ${
-                  activeSessionId === s.id 
-                    ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800/60 border shadow-xs' 
-                    : 'hover:bg-slate-100/70 dark:hover:bg-slate-800/50 border border-transparent'
-                }`}
-              >
-                <div className="flex-1 min-w-0">
-                  <div className={`text-xs font-semibold truncate ${activeSessionId === s.id ? 'text-blue-700 dark:text-blue-300' : 'text-slate-700 dark:text-slate-300'}`}>
-                    {s.title}
-                  </div>
-                  <div className="text-[10px] text-slate-400 mt-0.5">
-                    {new Date(s.timestamp).toLocaleString(isEn ? 'en-US' : 'vi-VN')}
-                  </div>
-                </div>
-                <button
-                  onClick={(e) => handleDeleteSession(s.id, e)}
-                  title={isEn ? "Delete this session" : "Xóa phiên này"}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 opacity-0 group-hover:opacity-100 transition-all shrink-0 cursor-pointer"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ))
-          )}
-        </div>
-
-        {sessions.length > 0 && (
-          <div className="p-3 border-t border-slate-200 dark:border-slate-800 shrink-0">
-            <button
-              onClick={handleClearAllSessions}
-              className="w-full py-1.5 px-2.5 text-slate-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg text-[11px] font-medium transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>{isEn ? 'Clear all history' : 'Xóa toàn bộ lịch sử'}</span>
-            </button>
-          </div>
-        )}
-      </div>
-
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col relative w-full h-full">
-
-      {/* Toggle Sidebar Button */}
-      <button
-        onClick={() => setIsSidebarOpen(true)}
-        className={`absolute top-4 left-4 z-40 p-2 rounded-xl border bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 shadow-sm transition-all cursor-pointer ${isSidebarOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
-        title={isEn ? "History" : "Lịch sử"}
-      >
-        <FolderOpen className="w-4 h-4" />
-      </button>
 
       {/* Main Conversation & Analysis Feed */}
       <div className="flex-1 overflow-y-auto custom-scrollbar">
@@ -1671,7 +1565,7 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
               <div className={`text-[14px] leading-relaxed ${
                 msg.sender === 'user'
                   ? 'px-5 py-3.5 rounded-3xl rounded-tr-sm max-w-[85%] md:max-w-[75%] bg-blue-600 text-white font-medium shadow-sm'
-                  : dm ? 'py-1.5 w-full max-w-full text-slate-200' : 'py-1.5 w-full max-w-full text-slate-800'
+                  : 'py-1.5 w-full max-w-full text-slate-800 dark:py-1.5 dark:w-full dark:max-w-full dark:text-slate-200'
               }`}>
                 
                 {/* User Attachment Chip */}
@@ -1684,7 +1578,18 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
 
                 <div className={msg.sender === 'user' ? 'whitespace-pre-wrap mb-3' : 'max-w-none text-slate-800 dark:text-slate-200 mb-3'}>
                   {msg.sender === 'user' ? msg.text : (
-                    (!msg.block_outputs || msg.block_outputs.length === 0) ? (
+                    msg.isWelcome ? (
+                      <ReactMarkdown 
+                        remarkPlugins={[remarkMath, remarkGfm]}
+                        rehypePlugins={[rehypeKatex]}
+                        components={markdownComponents}
+                      >
+                        {isEn 
+                          ? "Welcome to **DaLitRe AI**! Upload an Excel/CSV dataset to perform in-depth statistical synthesis, hypothesis testing, and exploratory data analysis (EDA)." 
+                          : "Chào mừng bạn đến với **DaLitRe AI**! Tải lên tệp Excel/CSV để chạy phân tích thống kê định lượng, kiểm định giả thuyết và phân tích dữ liệu khai phá (EDA)."
+                        }
+                      </ReactMarkdown>
+                    ) : (!msg.block_outputs || msg.block_outputs.length === 0) ? (
                       <ReactMarkdown 
                         remarkPlugins={[remarkMath, remarkGfm]}
                         rehypePlugins={[rehypeKatex]}
@@ -1772,7 +1677,7 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
                       <div className="flex items-center gap-2">
                         <Image className="w-4 h-4 text-sky-400" />
                         <h4 className="font-bold text-xs text-slate-100">
-                          {isEn ? "Scientific Data Visualizations & Plots" : "Đồ thị Trực quan hóa Dữ liệu Thực nghiệm (EDA Figures)"}
+                          {isEn ? "Scientific Data Visualizations & Plots" : "Đồ thị trực quan hóa dữ liệu thực nghiệm (EDA Figures)"}
                         </h4>
                       </div>
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/30">
@@ -1813,7 +1718,7 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
                   <div className="mt-5 pt-3 border-t border-slate-200 dark:border-slate-800/80">
                     <div className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-1.5">
                       <FileCode className="w-4 h-4 text-emerald-500" />
-                      <span>{isEn ? "Technical Appendix: Executable Python Script & Notebook Export" : "Phụ lục Kỹ thuật: Mã nguồn tổng hợp EDA & Công cụ Sandbox"}</span>
+                      <span>{isEn ? "Technical Appendix: Executable Python Script & Notebook Export" : "Phụ lục kỹ thuật: Mã nguồn tổng hợp EDA & công cụ Sandbox"}</span>
                     </div>
                     <InteractiveCodeSandboxBlock 
                       code={msg.python_code} 
@@ -1829,7 +1734,6 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
                   <div className="flex flex-wrap items-center justify-between gap-2.5 mt-5 p-3.5 bg-gradient-to-r from-blue-50/80 to-indigo-50/40 dark:from-slate-900/90 dark:to-blue-950/40 border border-blue-100 dark:border-blue-900/40 rounded-xl shadow-xs">
                     <div className="flex items-center gap-2 text-xs font-bold text-blue-700 dark:text-blue-300">
                       <Globe className="w-4 h-4 text-blue-500" />
-                      <span>{isEn ? "Executive Report & Export Tools" : "Xuất Báo Cáo & Xem Toàn Màn Hình"}</span>
                     </div>
                     
                     <div className="flex flex-wrap items-center gap-2">
@@ -1838,7 +1742,7 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
                           const html = generateStandaloneHTMLReport({
                             message: msg,
                             filename: attachedFile?.name || 'dataset.csv',
-                            title: isEn ? 'Exploratory Data Analysis (EDA) Report' : 'Báo Cáo Phân Tích Khám Phá Dữ Liệu (EDA)'
+                            title: isEn ? 'Exploratory Data Analysis (EDA) Report' : 'Báo cáo phân tích khai phá dữ liệu (EDA)'
                           });
                           openReportInNewTab(html);
                         }}
@@ -1846,7 +1750,7 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
                         title={isEn ? "Open full standalone HTML report in a new tab" : "Mở toàn văn báo cáo trong tab trình duyệt mới"}
                       >
                         <ExternalLink className="w-3.5 h-3.5" />
-                        <span>{isEn ? "Open HTML (New Tab)" : "Mở bản HTML (Tab mới)"}</span>
+                        <span>{isEn ? "Open HTML" : "Mở bản HTML"}</span>
                       </button>
 
                       <button
@@ -1854,12 +1758,12 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
                           const html = generateStandaloneHTMLReport({
                             message: msg,
                             filename: attachedFile?.name || 'dataset.csv',
-                            title: isEn ? 'Exploratory Data Analysis (EDA) Report' : 'Báo Cáo Phân Tích Khám Phá Dữ Liệu (EDA)'
+                            title: isEn ? 'Exploratory Data Analysis (EDA) Report' : 'Báo cáo phân tích khai phá dữ liệu (EDA)'
                           });
                           downloadHTMLReport(html, `Bao_cao_EDA_${attachedFile?.name ? attachedFile.name.replace(/\.[^/.]+$/, '') : 'dataset'}.html`);
                         }}
                         className="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 active:scale-98 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
-                        title="Tải file HTML độc lập về máy"
+                        title={!isEn ? 'Tải báo cáo HTML' : 'Download HTML Report'}
                       >
                         <Download className="w-3.5 h-3.5 text-blue-500" />
                         <span>{isEn ? "Download HTML" : "Tải HTML"}</span>
@@ -1870,7 +1774,7 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
                           downloadJupyterNotebook(msg, `eda_notebook_${attachedFile?.name ? attachedFile.name.replace(/\.[^/.]+$/, '') : 'dataset'}.ipynb`);
                         }}
                         className="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 active:scale-98 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
-                        title="Tải file Jupyter Notebook (.ipynb) để mở trên Google Colab / VS Code"
+                        title={!isEn ? 'Tải Jupyter Notebook (.ipynb)' : 'Download Jupyter Notebook (.ipynb)'}
                       >
                         <BookOpen className="w-3.5 h-3.5 text-amber-500" />
                         <span>{isEn ? "Download .ipynb" : "Tải .ipynb"}</span>
@@ -1879,7 +1783,7 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
                       <button
                         onClick={() => handleCopy(msg.text, idx)}
                         className="px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 active:scale-98 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 text-xs font-semibold flex items-center gap-1 shadow-xs transition-all cursor-pointer"
-                        title="Sao chép nội dung văn bản"
+                        title={!isEn ? 'Sao chép văn bản' : 'Copy text content'}
                       >
                         {copiedIndex === idx ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
                         <span>{copiedIndex === idx ? (isEn ? 'Copied' : 'Đã chép') : (isEn ? 'Copy' : 'Sao chép')}</span>
@@ -1897,9 +1801,9 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
               <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-md">
                 <BarChart2 className="w-4 h-4" />
               </div>
-              <div className={`py-2 px-4 rounded-2xl flex items-center gap-2 ${dm ? 'bg-slate-900 text-slate-300' : 'bg-slate-100 text-slate-700'}`}>
+              <div className={`py-2 px-4 rounded-2xl flex items-center gap-2 ${'bg-slate-100 text-slate-700 dark:bg-slate-900 dark:text-slate-300'}`}>
                 <RefreshCw className="w-3.5 h-3.5 animate-spin text-blue-500" />
-                <span className="text-xs font-semibold">DataVoyager đang tính toán thống kê & phân tích dữ liệu...</span>
+                <span className="text-xs font-semibold">{isEn ? 'DaLitRe AI is computing statistics & analyzing data...' : 'DaLitRe AI đang tính toán thống kê & phân tích...'}</span>
               </div>
             </div>
           )}
@@ -1912,7 +1816,7 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-emerald-500" />
                   <span className="text-xs font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-300">
-                    {isEn ? 'Scientific Query & Dataset Library' : 'Thư viện Câu hỏi & Dữ liệu Phân tích Mẫu'}
+                    {isEn ? 'Scientific Query & Dataset Library' : 'Thư viện câu hỏi & dữ liệu phân tích mẫu'}
                   </span>
                 </div>
 
@@ -1931,7 +1835,7 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
                     <div 
                       key={catIdx}
                       className={`p-4 rounded-2xl border transition-all ${
-                        dm ? 'bg-slate-900/60 border-slate-800/80 hover:border-slate-700' : 'bg-white border-slate-200/90 shadow-2xs hover:border-slate-300'
+                        'bg-white border-slate-200/90 shadow-2xs hover:border-slate-300 dark:bg-slate-900/60 dark:border-slate-800/80 dark:hover:border-slate-700'
                       }`}
                     >
                       <div className="flex items-start gap-2.5 mb-2.5">
@@ -1980,9 +1884,7 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
         
         {/* ASTA Style Attachment Chip */}
         {attachedFile && (
-          <div className={`self-start flex items-center gap-2 px-3 py-1.5 rounded-xl border text-[12px] font-semibold shadow-xs animate-in fade-in duration-150 ${
-            dm ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-700'
-          }`}>
+          <div className="self-start flex items-center gap-2 px-3 py-1.5 rounded-xl border text-[12px] font-semibold shadow-xs animate-in fade-in duration-150 bg-slate-50 border-slate-200 text-slate-700 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200">
             {attachedFile.name.toLowerCase().endsWith('.csv') ? (
               <span className="px-1.5 py-0.5 rounded bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300 text-[10px] font-bold">CSV</span>
             ) : attachedFile.name.toLowerCase().endsWith('.tsv') ? (
@@ -1994,7 +1896,7 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
             <button 
               onClick={() => setAttachedFile(null)} 
               className="ml-1 text-slate-400 hover:text-red-500 transition-colors cursor-pointer"
-              title="Gỡ bỏ tập dữ liệu"
+              title={!isEn ? 'Gỡ bỏ tập dữ liệu' : 'Remove dataset'}
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -2013,9 +1915,9 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            title="Đính kèm tập dữ liệu (Hỗ trợ CSV, Excel .xlsx, .xls, TSV, TXT)"
+            title={!isEn ? 'Đính kèm tập dữ liệu' : 'Attach dataset'}
             className={`absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-xl transition-colors cursor-pointer ${
-              attachedFile ? 'text-blue-500 bg-blue-50 dark:bg-blue-950/40' : dm ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-700' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+              attachedFile ? 'text-blue-500 bg-blue-50 dark:bg-blue-950/40' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-700'
             }`}
           >
             <Paperclip className="w-4 h-4" />
@@ -2027,7 +1929,7 @@ export default function DataAnalysisPanel({ workspacePapers = [], darkMode, onSe
             onChange={(e) => setInput(e.target.value)}
             placeholder={isEn ? "Ask a scientific question, test hypothesis, analyze trends, or request charts..." : "Đặt câu hỏi khoa học, phân tích xu hướng, kiểm định giả thuyết hoặc yêu cầu vẽ biểu đồ..."}
             className={`w-full pl-12 pr-32 py-3.5 border rounded-2xl text-[13.5px] font-medium focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 shadow-sm transition-all ${
-              dm ? 'bg-slate-900 border-slate-700 text-white placeholder-slate-500' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400'
+              'bg-white border-slate-200 text-slate-900 placeholder-slate-400 dark:bg-slate-900 dark:border-slate-700 dark:text-white dark:placeholder-slate-500'
             }`}
           />
 

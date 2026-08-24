@@ -43,7 +43,7 @@ export function SimpleBarChart({ data = [], title = '', xLabel = '', yLabel = ''
 
   return (
     <div className={`p-4 rounded-2xl border transition-all my-3 ${
-      darkMode ? 'bg-slate-900/90 border-slate-800 shadow-md' : 'bg-white border-slate-200/90 shadow-xs'
+      'bg-white border-slate-200/90 shadow-xs dark:bg-slate-900/90 dark:border-slate-800 dark:shadow-md'
     }`}>
       {/* Chart Header */}
       <div className="flex items-center justify-between gap-2 mb-3 pb-2 border-b dark:border-slate-800 border-slate-100">
@@ -97,7 +97,7 @@ export function SimpleBarChart({ data = [], title = '', xLabel = '', yLabel = ''
                 {/* Category Label */}
                 <div className="mt-2 text-center w-full">
                   <span className={`text-[10.5px] font-medium block truncate ${
-                    isHover ? 'font-bold text-blue-500' : darkMode ? 'text-slate-400' : 'text-slate-600'
+                    isHover ? 'font-bold text-blue-500' : 'text-slate-600 dark:text-slate-400'
                   }`} title={item.name}>
                     {item.name}
                   </span>
@@ -156,7 +156,7 @@ export function SimpleLineChart({ data = [], title = '', xLabel = '', yLabel = '
 
   return (
     <div className={`p-4 rounded-2xl border transition-all my-3 ${
-      darkMode ? 'bg-slate-900/90 border-slate-800 shadow-md' : 'bg-white border-slate-200/90 shadow-xs'
+      'bg-white border-slate-200/90 shadow-xs dark:bg-slate-900/90 dark:border-slate-800 dark:shadow-md'
     }`}>
       {/* Header */}
       <div className="flex items-center justify-between gap-2 mb-3 pb-2 border-b dark:border-slate-800 border-slate-100">
@@ -199,7 +199,7 @@ export function SimpleLineChart({ data = [], title = '', xLabel = '', yLabel = '
                   cy={pt.y} 
                   r={isHover ? 6 : 4} 
                   fill={isHover ? '#34d399' : '#10b981'} 
-                  stroke={darkMode ? '#0f172a' : '#ffffff'} 
+                  stroke={'#ffffff dark:#0f172a'} 
                   strokeWidth="2"
                   className="transition-all duration-150"
                 />
@@ -210,7 +210,7 @@ export function SimpleLineChart({ data = [], title = '', xLabel = '', yLabel = '
                   y={height + 15} 
                   textAnchor="middle" 
                   fontSize="10" 
-                  fill={isHover ? '#10b981' : darkMode ? '#94a3b8' : '#64748b'}
+                  fill={isHover ? '#10b981' : '#64748b dark:#94a3b8'}
                   fontWeight={isHover ? 'bold' : 'normal'}
                 >
                   {pt.name}
@@ -224,7 +224,7 @@ export function SimpleLineChart({ data = [], title = '', xLabel = '', yLabel = '
                     textAnchor="middle" 
                     fontSize="11" 
                     fontWeight="bold" 
-                    fill={darkMode ? '#ffffff' : '#0f172a'}
+                    fill={'#0f172a dark:#ffffff'}
                   >
                     {pt.val}
                   </text>
@@ -286,7 +286,7 @@ export function SimpleDonutChart({ data = [], title = '', darkMode = false }) {
 
   return (
     <div className={`p-4 rounded-2xl border transition-all my-3 ${
-      darkMode ? 'bg-slate-900/90 border-slate-800 shadow-md' : 'bg-white border-slate-200/90 shadow-xs'
+      'bg-white border-slate-200/90 shadow-xs dark:bg-slate-900/90 dark:border-slate-800 dark:shadow-md'
     }`}>
       <div className="flex items-center gap-2 mb-3 pb-2 border-b dark:border-slate-800 border-slate-100">
         <PieChart className="w-4 h-4 text-violet-500" />
@@ -331,7 +331,7 @@ export function SimpleDonutChart({ data = [], title = '', darkMode = false }) {
                 onMouseEnter={() => setHoverIndex(slice.idx)}
                 onMouseLeave={() => setHoverIndex(null)}
                 className={`flex items-center justify-between p-1.5 rounded-lg text-xs transition-colors cursor-pointer ${
-                  isHover ? (darkMode ? 'bg-slate-800' : 'bg-slate-100 font-bold') : ''
+                  isHover ? ('bg-slate-100 font-bold dark:bg-slate-800') : ''
                 }`}
               >
                 <div className="flex items-center gap-2 min-w-0">
@@ -369,9 +369,7 @@ export function KPICardsGrid({ kpis = [], darkMode = false }) {
         return (
           <div 
             key={idx}
-            className={`flex-1 min-w-[170px] p-3.5 rounded-xl border transition-all shadow-2xs flex flex-col justify-between ${
-              darkMode ? 'bg-slate-900/70 border-slate-800/80' : 'bg-white border-slate-200/80'
-            }`}
+            className="flex-1 min-w-[170px] p-3.5 rounded-2xl border transition-all shadow-2xs flex flex-col justify-between bg-white border-slate-200/80 dark:bg-slate-900/70 dark:border-slate-800/80"
           >
             <div className="flex items-center justify-between gap-1 mb-1">
               <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 truncate" title={sanitizeKpi(kpi.label)}>
@@ -407,7 +405,7 @@ export function DatasetHealthCard({ profile, filename, darkMode = false, onRunAu
 
   return (
     <div className={`p-4 rounded-2xl border transition-all ${
-      darkMode ? 'bg-slate-900/80 border-slate-800 shadow-md' : 'bg-slate-50 border-slate-200 shadow-xs'
+      'bg-slate-50 border-slate-200 shadow-xs dark:bg-slate-900/80 dark:border-slate-800 dark:shadow-md'
     }`}>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b dark:border-slate-800 border-slate-200">
         <div className="flex items-center gap-2.5">

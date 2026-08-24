@@ -1,73 +1,145 @@
-import React, { useState, useEffect } from 'react';
-import Navbar from './components/Navbar';
+import React, { useState, useEffect, useRef } from 'react';
+import Sidebar from './components/Sidebar';
+import HorizontalNavbar from './components/navigation/HorizontalNavbar';
 import SearchTab from './components/search/SearchTab';
 import WorkspaceTab from './components/workspace/WorkspaceTab';
-import InsightsTab from './components/insights/InsightsTab';
-import HomeTab from './components/home/HomeTab';
+import PersonalizedDashboard from './components/dashboard/PersonalizedDashboard';
 import ResearchSetupTab from './components/setup/ResearchSetupTab';
-import { LanguageProvider } from './contexts/LanguageContext';
-import ErrorBoundary from './components/ErrorBoundary';
-
 import ExportTab from './components/export/ExportTab';
-export default function App() {
+import PublicLandingPage from './components/landing/PublicLandingPage';
+import AuthModal from './components/auth/AuthModal';
+import NewProjectModal from './components/projects/NewProjectModal';
+import OnboardingTour from './components/onboarding/OnboardingTour';
+import ErrorBoundary from './components/ErrorBoundary';
+import AdminDashboard from './components/admin/AdminDashboard';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ProjectProvider, useProject } from './contexts/ProjectContext';
+import { LanguageProvider } from './contexts/LanguageContext';
+import { useDarkMode } from './contexts/DarkModeContext';
+
+function MainAppShell() {
+  const { isAuthenticated, currentUser } = useAuth();
+  const { activeProject, activeProjectId } = useProject();
+  const { darkMode } = useDarkMode();
+
+  // ── Layout Mode: horizontal navbar (like image 2) vs vertical sidebar ──
+  const [layoutMode, setLayoutMode] = useState(() => {
+    return localStorage.getItem('litreview_layout_mode') || 'horizontal';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('litreview_layout_mode', layoutMode);
+  }, [layoutMode]);
+
+  // ── First-time User Onboarding Tour ─────────────────────────────────────
+  const [isTourOpen, setIsTourOpen] = useState(false);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      const tourCompleted = localStorage.getItem('litreview_tour_completed');
+      if (!tourCompleted) {
+        const timer = setTimeout(() => {
+          setIsTourOpen(true);
+        }, 700);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [isAuthenticated]);
+
+  const handleStartTour = () => {
+    setIsTourOpen(true);
+  };
+
+  // ── Auth Modal & New Project Modal ──────────────────────────────────────
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState('login');
+  const [newProjectModalOpen, setNewProjectModalOpen] = useState(false);
+
+  const handleOpenAuth = (mode = 'login') => {
+    setAuthModalMode(mode);
+    setAuthModalOpen(true);
+  };
+
+  // ── Active Tab ──────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState(() => {
-    const savedTab = localStorage.getItem('litreview_active_tab') || 'overview';
-    // Remove old screening tab redirect
-    if (savedTab === 'home' || savedTab === 'quality' || savedTab === 'screening') return 'overview';
-    return savedTab;
+    const saved = localStorage.getItem('litreview_active_tab') || 'overview';
+    if (['home', 'quality', 'screening'].includes(saved)) return 'overview';
+    return saved;
   });
 
   useEffect(() => {
+    if (currentUser?.role === 'admin' && activeTab !== 'admin' && activeTab !== 'overview') {
+      setActiveTab('admin');
+    }
     localStorage.setItem('litreview_active_tab', activeTab);
-  }, [activeTab]);
+  }, [activeTab, currentUser]);
 
-  const [darkMode, setDarkMode] = useState(() => {
-    const saved = localStorage.getItem('litreview_dark_mode');
-    return saved === 'true';
+  // ── Sidebar Collapsed State ─────────────────────────────────────────────
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    return localStorage.getItem('litreview_sidebar_collapsed') === 'true';
   });
-  useEffect(() => {
-    localStorage.setItem('litreview_dark_mode', String(darkMode));
-  }, [darkMode]);
 
-  // --- Persist papers & selectedPaperIds to localStorage ---
+  useEffect(() => {
+    localStorage.setItem('litreview_sidebar_collapsed', String(isSidebarCollapsed));
+  }, [isSidebarCollapsed]);
+
+  // ── Mobile Sidebar State ────────────────────────────────────────────────
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  // ── Project-Scoped Papers & State ───────────────────────────────────────
+  const papersStorageKey = activeProjectId
+    ? `litreview_papers_${activeProjectId}`
+    : 'litreview_papers';
+  const selectedIdsKey = activeProjectId
+    ? `litreview_selected_ids_${activeProjectId}`
+    : 'litreview_selected_ids';
+  const selectedPapersKey = activeProjectId
+    ? `litreview_selected_papers_${activeProjectId}`
+    : 'litreview_selected_papers';
+  const workspacePapersKey = activeProjectId
+    ? `litreview_workspace_papers_${activeProjectId}`
+    : 'litreview_workspace_papers';
+  const chatMessagesKey = activeProjectId
+    ? `litreview_workspace_chat_${activeProjectId}`
+    : 'litreview_workspace_chat_messages';
+
+  const loadedProjectIdRef = useRef(activeProjectId);
+
   const [papers, setPapers] = useState(() => {
     try {
-      const saved = localStorage.getItem('litreview_papers');
+      const saved = localStorage.getItem(papersStorageKey);
       return saved ? JSON.parse(saved) : [];
-    } catch { return []; }
+    } catch {
+      return [];
+    }
   });
+
   const [selectedPaperIds, setSelectedPaperIds] = useState(() => {
     try {
-      const saved = localStorage.getItem('litreview_selected_ids');
+      const saved = localStorage.getItem(selectedIdsKey);
       return saved ? JSON.parse(saved) : [];
-    } catch { return []; }
+    } catch {
+      return [];
+    }
   });
+
   const [selectedPapers, setSelectedPapers] = useState(() => {
     try {
-      const saved = localStorage.getItem('litreview_selected_papers');
+      const saved = localStorage.getItem(selectedPapersKey);
       return saved ? JSON.parse(saved) : [];
-    } catch { return []; }
+    } catch {
+      return [];
+    }
   });
+
   const [workspacePapers, setWorkspacePapers] = useState(() => {
     try {
-      const saved = localStorage.getItem('litreview_workspace_papers');
+      const saved = localStorage.getItem(workspacePapersKey);
       return saved ? JSON.parse(saved) : [];
-    } catch { return []; }
+    } catch {
+      return [];
+    }
   });
-
-  useEffect(() => {
-    localStorage.setItem('litreview_papers', JSON.stringify(papers));
-  }, [papers]);
-  useEffect(() => {
-    localStorage.setItem('litreview_selected_ids', JSON.stringify(selectedPaperIds));
-  }, [selectedPaperIds]);
-  useEffect(() => {
-    localStorage.setItem('litreview_selected_papers', JSON.stringify(selectedPapers));
-  }, [selectedPapers]);
-  useEffect(() => {
-    localStorage.setItem('litreview_workspace_papers', JSON.stringify(workspacePapers));
-  }, [workspacePapers]);
-
 
   const [activeCitation, setActiveCitation] = useState(null);
   const [searchResults, setSearchResults] = useState([]);
@@ -80,13 +152,17 @@ export default function App() {
     duplicates: 0,
   });
 
-  useEffect(() => {
-    localStorage.setItem('litreview_dark_mode', darkMode);
-  }, [darkMode]);
-
+  const getDefaultWelcomeMessage = (projectName) => [
+    {
+      sender: 'ai',
+      text: projectName
+        ? `Chào mừng bạn đến với **Không gian Phân tích** cho đề tài **${projectName}**! Hãy chọn các bài báo từ phần *Tìm kiếm* để bắt đầu tổng hợp y văn có dẫn nguồn, hoặc tải lên tập tin PDF toàn văn để trích xuất sâu.`
+        : `Chào mừng bạn đến với **LitReview Workspace**! Hãy chọn các bài báo từ phần *Tìm kiếm* để bắt đầu tổng hợp y văn có dẫn nguồn, hoặc tải lên tập tin PDF toàn văn để trích xuất sâu.`,
+    },
+  ];
 
   const [chatMessages, setChatMessages] = useState(() => {
-    const saved = localStorage.getItem('litreview_workspace_chat_messages');
+    const saved = localStorage.getItem(chatMessagesKey);
     if (saved) {
       try {
         return JSON.parse(saved);
@@ -94,26 +170,80 @@ export default function App() {
         console.error('Failed to parse saved chat messages:', e);
       }
     }
-    return [
-      {
-        sender: 'ai',
-        text: `Chào mừng bạn đến với **LitReview Agent**! Hãy tìm kiếm trên Google Scholar, hệ thống sẽ tự động đối chiếu Scopus và chỉ giữ các bài đã xác minh.`
-      }
-    ];
+    return getDefaultWelcomeMessage(activeProject?.name);
   });
 
+  // Switch project data when active project changes
   useEffect(() => {
-    localStorage.setItem('litreview_workspace_chat_messages', JSON.stringify(chatMessages));
-  }, [chatMessages]);
+    loadedProjectIdRef.current = activeProjectId;
+    try {
+      const pKey = activeProjectId ? `litreview_papers_${activeProjectId}` : 'litreview_papers';
+      const sIdsKey = activeProjectId ? `litreview_selected_ids_${activeProjectId}` : 'litreview_selected_ids';
+      const sPapersKey = activeProjectId ? `litreview_selected_papers_${activeProjectId}` : 'litreview_selected_papers';
+      const wsKey = activeProjectId ? `litreview_workspace_papers_${activeProjectId}` : 'litreview_workspace_papers';
+      const cKey = activeProjectId ? `litreview_workspace_chat_${activeProjectId}` : 'litreview_workspace_chat_messages';
+
+      const savedPapers = localStorage.getItem(pKey);
+      setPapers(savedPapers ? JSON.parse(savedPapers) : []);
+
+      const savedIds = localStorage.getItem(sIdsKey);
+      setSelectedPaperIds(savedIds ? JSON.parse(savedIds) : []);
+
+      const savedSelected = localStorage.getItem(sPapersKey);
+      setSelectedPapers(savedSelected ? JSON.parse(savedSelected) : []);
+
+      const savedWs = localStorage.getItem(wsKey);
+      setWorkspacePapers(savedWs ? JSON.parse(savedWs) : []);
+
+      const savedChat = localStorage.getItem(cKey);
+      if (savedChat) {
+        setChatMessages(JSON.parse(savedChat));
+      } else {
+        setChatMessages(getDefaultWelcomeMessage(activeProject?.name));
+      }
+    } catch {
+      // ignore
+    }
+  }, [activeProjectId, activeProject?.name]);
+
+  useEffect(() => {
+    if (loadedProjectIdRef.current === activeProjectId && papersStorageKey) {
+      localStorage.setItem(papersStorageKey, JSON.stringify(papers));
+    }
+  }, [papers, papersStorageKey, activeProjectId]);
+
+  useEffect(() => {
+    if (loadedProjectIdRef.current === activeProjectId && selectedIdsKey) {
+      localStorage.setItem(selectedIdsKey, JSON.stringify(selectedPaperIds));
+    }
+  }, [selectedPaperIds, selectedIdsKey, activeProjectId]);
+
+  useEffect(() => {
+    if (loadedProjectIdRef.current === activeProjectId && selectedPapersKey) {
+      localStorage.setItem(selectedPapersKey, JSON.stringify(selectedPapers));
+    }
+  }, [selectedPapers, selectedPapersKey, activeProjectId]);
+
+  useEffect(() => {
+    if (loadedProjectIdRef.current === activeProjectId && workspacePapersKey) {
+      localStorage.setItem(workspacePapersKey, JSON.stringify(workspacePapers));
+    }
+  }, [workspacePapers, workspacePapersKey, activeProjectId]);
+
+  useEffect(() => {
+    if (loadedProjectIdRef.current === activeProjectId && chatMessagesKey && chatMessages) {
+      localStorage.setItem(chatMessagesKey, JSON.stringify(chatMessages));
+    }
+  }, [chatMessages, chatMessagesKey, activeProjectId]);
 
   const toggleSelectPaper = (id) => {
     if (selectedPaperIds.includes(id)) {
-      setSelectedPaperIds(selectedPaperIds.filter(item => item !== id));
-      setSelectedPapers(selectedPapers.filter(p => p.id !== id));
+      setSelectedPaperIds(selectedPaperIds.filter((item) => item !== id));
+      setSelectedPapers(selectedPapers.filter((p) => p.id !== id));
     } else {
       setSelectedPaperIds([...selectedPaperIds, id]);
-      const paperToAdd = papers.find(p => p.id === id);
-      if (paperToAdd && !selectedPapers.find(p => p.id === id)) {
+      const paperToAdd = papers.find((p) => p.id === id);
+      if (paperToAdd && !selectedPapers.find((p) => p.id === id)) {
         setSelectedPapers([...selectedPapers, paperToAdd]);
       }
     }
@@ -124,77 +254,187 @@ export default function App() {
     setSelectedPapers([]);
   };
 
+  // ── Main Content Tab Dispatcher ─────────────────────────────────────────
+  const renderMainContent = () => (
+    <ErrorBoundary>
+      <div className="animate-slide-up w-full">
 
+        {/* Admin Dashboard */}
+        {activeTab === 'admin' && (
+          <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-10 py-6">
+            <AdminDashboard darkMode={darkMode} />
+          </div>
+        )}
+
+        {/* Overview / Personalized Dashboard */}
+        {activeTab === 'overview' && (
+          <div className="w-full min-h-screen">
+            <PersonalizedDashboard
+              setActiveTab={setActiveTab}
+              onOpenNewProject={() => setNewProjectModalOpen(true)}
+            />
+          </div>
+        )}
+
+        {/* Research Setup Tab */}
+        {activeTab === 'setup' && (
+          <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-10 py-6">
+            <ResearchSetupTab setActiveTab={setActiveTab} />
+          </div>
+        )}
+
+        {/* Search & Paper Discovery Tab */}
+        {activeTab === 'search' && (
+          <div className="w-full">
+            <SearchTab
+              papers={papers}
+              setPapers={setPapers}
+              searchResults={searchResults}
+              setSearchResults={setSearchResults}
+              searchMeta={searchMeta}
+              setSearchMeta={setSearchMeta}
+              selectedPaperIds={selectedPaperIds}
+              toggleSelectPaper={toggleSelectPaper}
+              clearSelectedPapers={clearSelectedPapers}
+              selectedPapers={selectedPapers}
+              workspacePapers={workspacePapers}
+              setWorkspacePapers={setWorkspacePapers}
+              setActiveTab={setActiveTab}
+            />
+          </div>
+        )}
+
+        {/* AI Workspace & Synthesis Tab */}
+        {activeTab === 'synthesis' && (
+          <div className="w-full">
+            <WorkspaceTab
+              key={`workspace_${activeProjectId || 'default'}`}
+              papers={papers}
+              setPapers={setPapers}
+              selectedPapers={selectedPapers}
+              setSelectedPapers={setSelectedPapers}
+              setSelectedPaperIds={setSelectedPaperIds}
+              workspacePapers={workspacePapers}
+              setWorkspacePapers={setWorkspacePapers}
+              chatMessages={chatMessages}
+              setChatMessages={setChatMessages}
+              activeCitation={activeCitation}
+              setActiveCitation={setActiveCitation}
+            />
+          </div>
+        )}
+
+        {/* Export & Report Generation Tab */}
+        {activeTab === 'export' && (
+          <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-10 py-6">
+            <ExportTab
+              papers={papers}
+              selectedPapers={selectedPapers}
+              workspacePapers={workspacePapers}
+            />
+          </div>
+        )}
+
+      </div>
+    </ErrorBoundary>
+  );
+
+  // ── RENDER: Public Landing Page for unauthenticated visitors ───────────
+  if (!isAuthenticated) {
+    return (
+      <>
+        <PublicLandingPage
+          onOpenAuth={handleOpenAuth}
+          onExploreDemo={() => handleOpenAuth('demo')}
+        />
+        <AuthModal
+          isOpen={authModalOpen}
+          onClose={() => setAuthModalOpen(false)}
+          initialMode={authModalMode}
+        />
+      </>
+    );
+  }
+
+  const isOverviewHub = activeTab === 'overview';
+
+  // ── RENDER: Authenticated Workspace Shell ───────────────────────────────
+  return (
+    <div className={isOverviewHub ? `min-h-screen w-full bg-[#171A21] text-slate-100 ${darkMode ? 'dark' : ''}` : layoutMode === 'horizontal' ? `min-h-screen bg-[#F4F6F9] dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 ${darkMode ? 'dark' : ''}` : `app-shell ${darkMode ? 'dark' : ''}`}>
+      {!isOverviewHub && (
+        layoutMode === 'horizontal' ? (
+          /* ── Top Horizontal Navbar ─────────────────────────────────── */
+          <HorizontalNavbar
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            onOpenNewProject={() => setNewProjectModalOpen(true)}
+            layoutMode={layoutMode}
+            setLayoutMode={setLayoutMode}
+          />
+        ) : (
+          /* ── Vertical Sidebar ───────────────────────────────────────── */
+          <>
+            <Sidebar
+              activeTab={activeTab}
+              setActiveTab={setActiveTab}
+              mobileOpen={mobileSidebarOpen}
+              setMobileOpen={setMobileSidebarOpen}
+              isCollapsed={isSidebarCollapsed}
+              setIsCollapsed={setIsSidebarCollapsed}
+              onOpenNewProject={() => setNewProjectModalOpen(true)}
+              onStartTour={handleStartTour}
+              paperCount={papers.length}
+              selectedCount={selectedPapers.length}
+              layoutMode={layoutMode}
+              setLayoutMode={setLayoutMode}
+            />
+            {mobileSidebarOpen && (
+              <div
+                className="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm lg:hidden"
+                onClick={() => setMobileSidebarOpen(false)}
+              />
+            )}
+          </>
+        )
+      )}
+
+      {/* ── Main Content Area (Preserved across layout toggles) ─────── */}
+      <main className={isOverviewHub ? "w-full min-h-screen" : layoutMode === 'horizontal' ? "w-full min-h-[calc(100vh-4rem)]" : `app-content ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+        {renderMainContent()}
+      </main>
+
+      {/* First-time User Product Onboarding Tour */}
+      <OnboardingTour
+        isOpen={isTourOpen}
+        onClose={() => setIsTourOpen(false)}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+      />
+
+      {/* New Project Creation Modal */}
+      <NewProjectModal
+        isOpen={newProjectModalOpen}
+        onClose={() => setNewProjectModalOpen(false)}
+      />
+
+      {/* Auth Modal for switching accounts */}
+      <AuthModal
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        initialMode={authModalMode}
+      />
+    </div>
+  );
+}
+
+export default function App() {
   return (
     <LanguageProvider>
-      <div className={`min-h-screen font-sans transition-colors ${darkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
-        
-        <Navbar 
-          activeTab={activeTab} 
-          setActiveTab={setActiveTab}
-          darkMode={darkMode}
-          setDarkMode={setDarkMode}
-        />
-
-        {/* Main Multi-Step Navigation Content Area */}
-        <main className={`mx-auto transition-all ${activeTab === 'synthesis' ? 'p-0 max-w-[1920px] w-full' : 'p-4 md:p-8'} ${activeTab === 'search' ? 'max-w-[1920px] w-full' : activeTab === 'synthesis' ? '' : 'max-w-7xl'}`}>
-          <ErrorBoundary>
-            {activeTab === 'overview' && (
-              <HomeTab setActiveTab={setActiveTab} darkMode={darkMode} />
-            )}
-
-            {activeTab === 'setup' && (
-              <ResearchSetupTab setActiveTab={setActiveTab} darkMode={darkMode} />
-            )}
-
-            {activeTab === 'search' && (
-              <SearchTab
-                papers={papers}
-                setPapers={setPapers}
-                searchResults={searchResults}
-                setSearchResults={setSearchResults}
-                searchMeta={searchMeta}
-                setSearchMeta={setSearchMeta}
-                selectedPaperIds={selectedPaperIds}
-                toggleSelectPaper={toggleSelectPaper}
-                clearSelectedPapers={clearSelectedPapers}
-                selectedPapers={selectedPapers}
-
-                workspacePapers={workspacePapers}
-                setWorkspacePapers={setWorkspacePapers}
-                setActiveTab={setActiveTab}
-                darkMode={darkMode}
-              />
-            )}
-
-            {activeTab === 'synthesis' && (
-              <WorkspaceTab
-                papers={papers}
-                setPapers={setPapers}
-                selectedPapers={selectedPapers}
-                setSelectedPapers={setSelectedPapers}
-                setSelectedPaperIds={setSelectedPaperIds}
-                workspacePapers={workspacePapers}
-                setWorkspacePapers={setWorkspacePapers}
-                chatMessages={chatMessages}
-                setChatMessages={setChatMessages}
-                activeCitation={activeCitation}
-                setActiveCitation={setActiveCitation}
-                darkMode={darkMode}
-              />
-            )}
-
-            {activeTab === 'export' && (
-              <ExportTab
-                papers={papers}
-                selectedPapers={selectedPapers}
-                workspacePapers={workspacePapers}
-                darkMode={darkMode}
-              />
-            )}
-          </ErrorBoundary>
-        </main>
-      </div>
+      <AuthProvider>
+        <ProjectProvider>
+          <MainAppShell />
+        </ProjectProvider>
+      </AuthProvider>
     </LanguageProvider>
   );
 }

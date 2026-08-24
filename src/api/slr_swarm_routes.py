@@ -107,10 +107,30 @@ class SetupResponse(BaseModel):
     trace: list[dict] = []
     error: str = ""
 
-@router.post("/step1-setup", include_in_schema=False)
-async def step1_setup(payload: SetupRequest):
-    """[DISABLED] Gap Map — AI Studio panel removed from UI."""
-    raise HTTPException(status_code=410, detail="AI Studio panel đã bị xóa khỏi giao diện.")
+@router.post("/step1-setup", response_model=SetupResponse)
+async def step1_setup(payload: SetupRequest) -> SetupResponse:
+    """Agent 1: Gap Map & PICO Finder."""
+    try:
+        deps = build_default_deps(real=_is_real())
+        state = {
+            "idea": payload.idea,
+            "research_field": payload.research_field,
+            "criteria_include": payload.criteria_include,
+            "criteria_exclude": payload.criteria_exclude,
+            "corpus": payload.corpus,
+        }
+        res = await run_gap_finder(state, deps)
+        pico = res.get("pico")
+        gap_map = res.get("gap_map")
+        return SetupResponse(
+            pico=_dump(pico),
+            gap_map=_dump(gap_map),
+            warnings=res.get("warnings", []),
+            trace=res.get("trace", []),
+            error=res.get("error", ""),
+        )
+    except Exception as e:
+        return SetupResponse(error=str(e))
 
 class ScopeRequest(BaseModel):
     idea: str
@@ -126,6 +146,7 @@ class CriteriaRequest(BaseModel):
     research_field: str = ""
 
 @router.post("/generate-criteria", response_model=CriteriaGenerationResult)
+@router.post("/suggest-criteria", response_model=CriteriaGenerationResult)
 async def generate_criteria(payload: CriteriaRequest) -> CriteriaGenerationResult:
     """Agent Tự Động Sinh Tiêu Chí (Criteria Auto-Generator) — Đề xuất Inclusion & Exclusion."""
     return await run_criteria_generator(payload.idea, payload.research_field)

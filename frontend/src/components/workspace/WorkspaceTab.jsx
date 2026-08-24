@@ -4,7 +4,9 @@ import VerificationPanel from './VerificationPanel';
 import { persistedDirectUploadSources } from '../../utils/workspaceSources';
 import SynthesisPanel from './SynthesisPanel';
 import DataAnalysisPanel from './DataAnalysisPanel';
+import RAGEvalHarnessModal from './RAGEvalHarnessModal';
 import { reconcileSelectedPaperIds, selectedPapersFromIds } from '../../utils/workspaceScope';
+import { useProject } from '../../contexts/ProjectContext';
 
 import { useLanguage } from '../../contexts/LanguageContext';
 import {
@@ -20,13 +22,18 @@ import {
   BookOpen,
   PanelLeftClose,
   PanelLeft,
+  PanelRightClose,
+  PanelRight,
   Plus,
   BarChart2,
   MessageSquare,
   ShieldCheck,
+  Clock,
+  Layers,
+  ChevronRight
 } from 'lucide-react';
 
-import { API_BASE } from '../../utils/apiConfig';
+import { API_BASE, safeFetch } from '../../utils/apiConfig';
 const MAX_FILE_SIZE_MB = 20;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
@@ -34,23 +41,24 @@ const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 function SourceCard({ paper, isChecked, onToggle, onRemove, darkMode }) {
   const { t } = useLanguage();
   return (
-    <div
+    <button
+      type="button"
       onClick={() => onToggle(paper.id)}
-      className={`group relative py-2 px-3 flex items-center justify-between rounded-xl cursor-pointer transition-all select-none ${
-        darkMode ? 'hover:bg-slate-800/60' : 'hover:bg-slate-100'
+      className={`group relative w-full text-left py-2 px-3 flex items-center justify-between rounded-xl cursor-pointer transition-all select-none ${
+        'hover:bg-slate-100 dark:hover:bg-slate-800/60'
       }`}
     >
       <div className="flex items-center gap-3 overflow-hidden">
         {/* PDF Badge */}
         <div className={`shrink-0 w-6 h-6 rounded flex items-center justify-center font-extrabold text-[8px] ${
-          darkMode ? 'bg-red-950/40 text-red-400 border border-red-900/50' : 'bg-red-50 text-red-600 border border-red-200'
+          'bg-red-50 text-red-600 border border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border dark:border-red-900/50'
         }`}>
           PDF
         </div>
 
         {/* Content */}
         <p className={`text-[13px] font-medium leading-tight truncate pr-4 ${
-          darkMode ? 'text-slate-300' : 'text-slate-700'
+          'text-slate-700 dark:text-slate-300'
         }`}>
           {paper.title || paper.filename}
         </p>
@@ -74,14 +82,14 @@ function SourceCard({ paper, isChecked, onToggle, onRemove, darkMode }) {
         <div
           className={`shrink-0 w-4 h-4 rounded-[4px] flex items-center justify-center transition-all ${
             isChecked
-              ? (darkMode ? 'bg-slate-300 text-slate-900' : 'bg-slate-700 text-white')
-              : (darkMode ? 'border border-slate-600 bg-transparent' : 'border border-slate-300 bg-transparent')
+              ? ('bg-slate-700 text-white dark:bg-slate-300 dark:text-slate-900')
+              : ('border border-slate-300 bg-transparent dark:border dark:border-slate-600 dark:bg-transparent')
           }`}
         >
           {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
         </div>
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -100,7 +108,8 @@ function AddSourceButton({ onFiles, isUploading, darkMode }) {
   }, [onFiles]);
 
   return (
-    <div
+    <button
+      type="button"
       onDrop={handleDrop}
       onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
       onDragLeave={() => setIsDragging(false)}
@@ -110,9 +119,7 @@ function AddSourceButton({ onFiles, isUploading, darkMode }) {
           ? 'border-blue-500 bg-blue-50'
           : isUploading
           ? 'border-blue-200 bg-blue-50/50 cursor-wait'
-          : darkMode
-          ? 'border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200'
-          : 'border-slate-300 bg-white hover:bg-slate-50 text-slate-700'
+          : 'border-slate-300 bg-white hover:bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200'
       }`}
     >
       <input
@@ -135,7 +142,7 @@ function AddSourceButton({ onFiles, isUploading, darkMode }) {
       <span className="text-[13px] font-semibold">
         {isUploading ? t('workspace.uploading') : isDragging ? t('workspace.drop_pdf') : t('workspace.add_source')}
       </span>
-    </div>
+    </button>
   );
 }
 
@@ -148,12 +155,94 @@ function UploadQueueItem({ item, darkMode }) {
   }[item.status];
 
   return (
-    <div className={`flex items-center gap-2 p-2 rounded-xl text-xs ${darkMode ? 'bg-slate-800' : 'bg-slate-50'}`}>
+    <div className={`flex items-center gap-2 p-2 rounded-xl text-xs ${'bg-slate-50 dark:bg-slate-800'}`}>
       {statusIcon}
       <div className="flex-1 min-w-0 truncate font-semibold dark:text-slate-300 text-slate-700">
         {item.filename}
       </div>
     </div>
+  );
+}
+
+// ─── Analysis History Sidebar ───────────────────────────────────────────────────
+function AnalysisHistorySidebar({ 
+  history, 
+  onSelect, 
+  onNew, 
+  activeId, 
+  onDelete, 
+  onToggleCollapse, 
+  darkMode 
+}) {
+  const { t, language } = useLanguage();
+  const isVietnamese = language === 'vi';
+  
+  return (
+    <>
+      <div className="flex items-center justify-between px-4 h-14 border-b border-surface-100 dark:border-surface-800 shrink-0">
+        <div className="flex items-center gap-2">
+          <Clock className="w-4 h-4 text-primary-600 dark:text-primary-400" />
+          <h3 className="section-label">
+            {isVietnamese ? 'Lịch sử phân tích' : 'Analysis History'}
+          </h3>
+        </div>
+        <button 
+          onClick={onToggleCollapse}
+          className="p-1.5 rounded-lg text-surface-400 hover:text-surface-600 dark:hover:text-surface-200 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
+          title={isVietnamese ? 'Thu gọn lịch sử' : 'Collapse history'}
+        >
+          <PanelLeftClose className="w-4 h-4" />
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-3 space-y-4 pb-4 pt-3 custom-scrollbar">
+        <button
+          onClick={onNew}
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-full border border-primary-300 bg-primary-50 hover:bg-primary-100 text-primary-700 dark:border-primary-700 dark:bg-primary-900/30 dark:hover:bg-primary-900/50 dark:text-primary-300 transition-all font-semibold text-[13px]"
+        >
+          <Plus className="w-4 h-4" />
+          {isVietnamese ? 'Phân tích mới' : 'New Analysis'}
+        </button>
+
+        {history.length === 0 ? (
+          <div className="text-center text-surface-400 text-sm mt-8 px-4 italic">
+            {isVietnamese ? 'Chưa có lịch sử phân tích nào.' : 'No analysis history yet.'}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {history.map((item) => (
+              <div 
+                key={item.id}
+                className={`group relative w-full text-left p-3 rounded-xl cursor-pointer transition-all border ${
+                  activeId === item.id 
+                    ? 'border-primary-500 bg-primary-50 dark:border-primary-700 dark:bg-primary-900/30' 
+                    : 'border-transparent bg-surface-50 hover:bg-surface-100 dark:bg-surface-800/40 dark:hover:bg-surface-800'
+                }`}
+                onClick={() => onSelect(item.id)}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-[13px] font-medium leading-snug line-clamp-2 ${activeId === item.id ? 'text-primary-700 dark:text-primary-300' : 'text-surface-700 dark:text-surface-300'}`}>
+                      {item.query}
+                    </p>
+                    <p className="text-[10px] text-surface-400 mt-1.5 font-mono">
+                      {new Date(item.timestamp).toLocaleString()}
+                    </p>
+                  </div>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onDelete(item.id); }}
+                    className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/40 text-surface-400 hover:text-red-600 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all shrink-0"
+                    title={isVietnamese ? 'Xóa phân tích' : 'Delete analysis'}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </>
   );
 }
 
@@ -171,12 +260,23 @@ export default function WorkspaceTab({
   setActiveCitation,
   darkMode,
 }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const isVietnamese = language === 'vi';
   const [uploadQueue, setUploadQueue] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const [selectedPaperIds, setSelectedPaperIds] = useState([]);
   const [deletedPaperIds, setDeletedPaperIds] = useState(new Set());
-  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState('chat');
+  const { activeProject } = useProject();
+  const currentProjectId = activeProject?.id;
+
+  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState(() => {
+    return localStorage.getItem(`litreview_workspace_subtab_${currentProjectId || 'default'}`) || 'chat';
+  });
+
+  React.useEffect(() => {
+    localStorage.setItem(`litreview_workspace_subtab_${currentProjectId || 'default'}`, activeWorkspaceTab);
+  }, [activeWorkspaceTab, currentProjectId]);
+
   const [isSourcesOpen, setIsSourcesOpen] = useState(true);
   const [isHarnessOpen, setIsHarnessOpen] = useState(false);
   
@@ -184,6 +284,17 @@ export default function WorkspaceTab({
   const [sidebarWidth, setSidebarWidth] = useState(360);
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = React.useRef(null);
+
+  // Right Studio States (Google NotebookLM 3-column architecture)
+  const [isStudioOpen, setIsStudioOpen] = useState(() => typeof window !== 'undefined' ? window.innerWidth >= 1280 : true);
+  const [activeStudioTab, setActiveStudioTab] = useState('synthesis'); // 'synthesis' | 'analyze'
+  const [studioWidth, setStudioWidth] = useState(480);
+  const [isStudioResizing, setIsStudioResizing] = useState(false);
+  const studioRef = React.useRef(null);
+
+  const [verificationWidth, setVerificationWidth] = useState(380);
+  const [isVerifResizing, setIsVerifResizing] = useState(false);
+  const verifRef = React.useRef(null);
 
   React.useEffect(() => {
     if (!isResizing) return;
@@ -212,11 +323,140 @@ export default function WorkspaceTab({
     };
   }, [isResizing]);
 
+  // Studio Resizer Effect
+  React.useEffect(() => {
+    if (!isStudioResizing) return;
+    const handleMouseMove = (e) => {
+      if (studioRef.current) {
+        const rightEdge = studioRef.current.getBoundingClientRect().right;
+        const newWidth = rightEdge - e.clientX;
+        if (newWidth >= 340 && newWidth <= 950) {
+          setStudioWidth(newWidth);
+        }
+      }
+    };
+    const handleMouseUp = () => {
+      setIsStudioResizing(false);
+      document.body.style.cursor = 'default';
+      document.body.style.userSelect = 'auto';
+    };
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'default';
+      document.body.style.userSelect = 'auto';
+    };
+  }, [isStudioResizing]);
+
+  React.useEffect(() => {
+    if (!isVerifResizing) return;
+    const handleMouseMove = (e) => {
+      if (verifRef.current) {
+        const rightEdge = verifRef.current.getBoundingClientRect().right;
+        const newWidth = rightEdge - e.clientX;
+        if (newWidth >= 300 && newWidth <= 1200) {
+          setVerificationWidth(newWidth);
+        }
+      }
+    };
+    const handleMouseUp = () => {
+      setIsVerifResizing(false);
+      document.body.style.cursor = 'default';
+      document.body.style.userSelect = 'auto';
+    };
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'default';
+      document.body.style.userSelect = 'auto';
+    };
+  }, [isVerifResizing]);
+
+  const [analysisHistory, setAnalysisHistory] = useState([]);
+  const [activeAnalysisSessionId, setActiveAnalysisSessionId] = useState(null);
+
+  // Load history on project change
+  React.useEffect(() => {
+    if (!currentProjectId) {
+      setAnalysisHistory([]);
+      return;
+    }
+    try {
+      const saved = localStorage.getItem(`analysisHistory_${currentProjectId}`);
+      setAnalysisHistory(saved ? JSON.parse(saved) : []);
+    } catch (e) {
+      setAnalysisHistory([]);
+    }
+  }, [currentProjectId]);
+
+  // Save history on change
+  React.useEffect(() => {
+    if (!currentProjectId) return;
+    const key = `analysisHistory_${currentProjectId}`;
+    
+    const saveToLocal = (historyObj) => {
+      try {
+        localStorage.setItem(key, JSON.stringify(historyObj));
+        return true;
+      } catch (e) {
+        return false;
+      }
+    };
+
+    // Attempt 1: Save full history
+    if (saveToLocal(analysisHistory)) return;
+
+    console.warn("Storage quota exceeded. Slimming down older sessions...");
+    // Attempt 2: Strip large base64 figures from older sessions
+    const slimmedOlder = analysisHistory.map(session => {
+      if (session.id === activeAnalysisSessionId) return session;
+      return {
+        ...session,
+        messages: session.messages.map(msg => ({
+          ...msg,
+          figures: [],
+          block_outputs: msg.block_outputs ? msg.block_outputs.map(bo => ({ ...bo, figures: [] })) : []
+        }))
+      };
+    });
+    
+    if (saveToLocal(slimmedOlder)) return;
+
+    console.warn("Storage quota still exceeded. Slimming down all sessions...");
+    // Attempt 3: Strip figures from ALL sessions
+    const strippedAll = analysisHistory.map(session => ({
+      ...session,
+      messages: session.messages.map(msg => ({
+        ...msg,
+        figures: [],
+        block_outputs: msg.block_outputs ? msg.block_outputs.map(bo => ({ ...bo, figures: [] })) : []
+      }))
+    }));
+    
+    if (saveToLocal(strippedAll)) return;
+    
+    console.warn("Storage quota critical. Keeping only current active session.");
+    // Attempt 4: Extreme fallback - keep only active session without figures
+    saveToLocal(strippedAll.filter(s => s.id === activeAnalysisSessionId));
+  }, [analysisHistory, currentProjectId, activeAnalysisSessionId]);
+
   React.useEffect(() => {
     let cancelled = false;
     const restoreUploads = async () => {
+      if (!currentProjectId) {
+        setWorkspacePapers?.([]);
+        return;
+      }
       try {
-        const response = await fetch(`${API_BASE}/projects/00000000-0000-0000-0000-000000000001/papers?include_unverified=true`);
+        const response = await fetch(`${API_BASE}/projects/${currentProjectId}/papers?include_unverified=true`);
         if (!response.ok) return;
         const persisted = persistedDirectUploadSources(await response.json());
         if (cancelled) return;
@@ -227,7 +467,7 @@ export default function WorkspaceTab({
     };
     restoreUploads();
     return () => { cancelled = true; };
-  }, [setWorkspacePapers]);
+  }, [currentProjectId, setWorkspacePapers]);
 
   // Lọc và gộp danh sách nguồn tài liệu
   const allSources = React.useMemo(() => {
@@ -285,6 +525,9 @@ export default function WorkspaceTab({
       const formData = new FormData();
       formData.append('file', item.file);
       formData.append('title', item.filename.replace(/\.pdf$/i, ''));
+      if (currentProjectId) {
+        formData.append('project_id', currentProjectId);
+      }
       try {
         const res = await fetch(`${API_BASE}/workspace/direct-upload`, { method: 'POST', body: formData });
         const data = await res.json();
@@ -319,13 +562,15 @@ export default function WorkspaceTab({
     setDeletedPaperIds((prev) => new Set([...prev, strId]));
 
     try {
-      const savedWs = JSON.parse(localStorage.getItem('litreview_workspace_papers') || '[]');
+      const wsKey = currentProjectId ? `litreview_workspace_papers_${currentProjectId}` : 'litreview_workspace_papers';
+      const papersKey = currentProjectId ? `litreview_papers_${currentProjectId}` : 'litreview_papers';
+      const savedWs = JSON.parse(localStorage.getItem(wsKey) || '[]');
       const filteredWs = savedWs.filter((p) => String(p.id) !== strId);
-      localStorage.setItem('litreview_workspace_papers', JSON.stringify(filteredWs));
+      localStorage.setItem(wsKey, JSON.stringify(filteredWs));
 
-      const savedPapers = JSON.parse(localStorage.getItem('litreview_papers') || '[]');
+      const savedPapers = JSON.parse(localStorage.getItem(papersKey) || '[]');
       const filteredPapers = savedPapers.filter((p) => String(p.id) !== strId);
-      localStorage.setItem('litreview_papers', JSON.stringify(filteredPapers));
+      localStorage.setItem(papersKey, JSON.stringify(filteredPapers));
     } catch (e) {
       console.error('LocalStorage sync error:', e);
     }
@@ -341,6 +586,18 @@ export default function WorkspaceTab({
     if (setSelectedPapers) setSelectedPapers((prev) => (prev || []).filter((p) => String(p.id) !== strId));
     setSelectedPaperIds((prev) => (prev || []).filter((paperId) => String(paperId) !== strId));
   };
+
+  const handleRemoveSource = removeSource;
+
+  const togglePaperSelection = (id) => {
+    setSelectedPaperIds((prev) => {
+      const current = prev || [];
+      return current.includes(id)
+        ? current.filter((item) => item !== id)
+        : [...current, id];
+    });
+  };
+
   const handleSelectAll = () => {
     if (selectedPaperIds.length === allSources.length) {
       setSelectedPaperIds([]);
@@ -357,7 +614,7 @@ export default function WorkspaceTab({
     
     try {
       const paperIds = scopedPapers.map((p) => p.id);
-      const response = await fetch(`${API_BASE}/workspace/chat`, {
+      const response = await safeFetch('/workspace/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: questionText, paper_ids: paperIds }),
@@ -379,236 +636,297 @@ export default function WorkspaceTab({
   };
 
   return (
-    <div 
-      className={`flex flex-col gap-4 h-[calc(100vh-75px)] p-4 lg:p-5 ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}
-      style={{ '--sidebar-width': `${isSourcesOpen ? sidebarWidth : 72}px` }}
-    >
-      <div className="flex flex-col lg:flex-row gap-5 flex-1 min-h-0">
+    <div className="flex flex-col gap-3 sm:gap-4 h-[calc(100vh-4.5rem)] max-w-full p-2 sm:p-3 lg:p-4 overflow-hidden font-sans text-slate-900 dark:text-slate-100">
+      <div className="flex flex-col lg:flex-row gap-3 sm:gap-4 flex-1 min-h-0 min-w-0 overflow-hidden">
       
       {/* ── LEFT: Sources Panel ── */}
       <div 
         ref={sidebarRef}
-        className={`relative shrink-0 ${isSourcesOpen ? 'w-full lg:w-[var(--sidebar-width)]' : 'w-full lg:w-[72px]'} ${isResizing ? 'transition-none' : 'transition-all duration-300'}`}
+        style={{
+          width: isSourcesOpen ? (typeof window !== 'undefined' && window.innerWidth >= 1024 ? `${Math.min(sidebarWidth, Math.floor(window.innerWidth * 0.35))}px` : '100%') : undefined,
+          maxWidth: typeof window !== 'undefined' && window.innerWidth >= 1024 ? '35vw' : '100%',
+          minWidth: typeof window !== 'undefined' && window.innerWidth >= 1024 ? '240px' : 'auto',
+        }}
+        className={`relative shrink-0 ${isSourcesOpen ? 'w-full lg:w-auto' : 'w-full lg:w-[64px]'} ${isResizing ? 'transition-none' : 'transition-all duration-300 ease-in-out'}`}
       >
-        <div className={`h-full flex flex-col rounded-3xl border overflow-hidden shadow-sm ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+        <div className="card h-full flex flex-col overflow-hidden">
         
         {isSourcesOpen ? (
           <>
-            {/* FULL HEADER */}
-            <div className={`flex items-center justify-between px-5 h-[56px] border-b shrink-0 ${darkMode ? 'border-slate-800' : 'border-slate-100'}`}>
-              <h3 className={`font-bold text-[14px] ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>
-                {t('workspace.source_title')}
-              </h3>
-              <button 
-                onClick={() => setIsSourcesOpen(false)}
-                className={`p-1 rounded-lg transition-colors ${darkMode ? 'hover:bg-slate-800 text-slate-400' : 'hover:bg-slate-100 text-slate-500'}`}
-                title="Thu gọn nguồn tài liệu"
-              >
-                <PanelLeftClose className="w-[18px] h-[18px]" />
-              </button>
-            </div>
-
-            {/* FULL CONTENT */}
-            <div className="flex-1 overflow-y-auto px-3 space-y-4 custom-scrollbar pb-4 pt-4">
-              <div className="px-1">
-                <AddSourceButton onFiles={uploadFiles} isUploading={isUploading} darkMode={darkMode} />
-              </div>
-              
-              {uploadQueue.length > 0 && (
-                <div className="space-y-1.5 shrink-0 px-1">
-                  {uploadQueue.map((item, i) => (
-                    <UploadQueueItem key={i} item={item} darkMode={darkMode} />
-                  ))}
-                </div>
-              )}
-
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center justify-between px-3 py-2">
-                  <span className={`text-[12px] font-medium ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-                    {scopedPapers.length}/{allSources.length} {t('workspace.using')}
-                  </span>
-                  <div 
-                    onClick={handleSelectAll}
-                    className="flex items-center gap-2 cursor-pointer group"
+            {activeWorkspaceTab === 'analyze' ? (
+              <AnalysisHistorySidebar 
+                history={analysisHistory}
+                activeId={activeAnalysisSessionId}
+                onSelect={(id) => setActiveAnalysisSessionId(id)}
+                onNew={() => setActiveAnalysisSessionId(null)}
+                onDelete={(id) => setAnalysisHistory(prev => prev.filter(h => h.id !== id))}
+                onToggleCollapse={() => setIsSourcesOpen(false)}
+                darkMode={darkMode}
+              />
+            ) : (
+              <>
+                {/* FULL HEADER */}
+                <div className="flex items-center justify-between px-4 h-14 border-b border-surface-100 dark:border-surface-800 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <BookOpen className="w-4 h-4 text-primary-600 dark:text-primary-400" />
+                    <h3 className="section-label">
+                      {t('workspace.source_title')}
+                    </h3>
+                  </div>
+                  <button 
+                    onClick={() => setIsSourcesOpen(false)}
+                    className="p-1.5 rounded-lg text-surface-400 hover:text-surface-600 dark:hover:text-surface-200 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
+                    title={isVietnamese ? 'Thu gọn' : 'Collapse sources'}
                   >
-                    <span className={`text-[12px] font-medium transition-colors ${darkMode ? 'text-slate-400 group-hover:text-slate-200' : 'text-slate-500 group-hover:text-slate-800'}`}>
-                      {t('workspace.select_all')}
-                    </span>
-                    <div className={`shrink-0 w-4 h-4 rounded-[4px] flex items-center justify-center transition-all ${
-                      selectedPaperIds.length === allSources.length && allSources.length > 0
-                        ? (darkMode ? 'bg-slate-300 text-slate-900' : 'bg-slate-700 text-white')
-                        : (darkMode ? 'border border-slate-600 bg-transparent group-hover:border-slate-500' : 'border border-slate-300 bg-transparent group-hover:border-slate-400')
-                    }`}>
-                      {selectedPaperIds.length === allSources.length && allSources.length > 0 && <Check className="w-3 h-3 stroke-[3]" />}
-                    </div>
-                  </div>
+                    <PanelLeftClose className="w-4 h-4" />
+                  </button>
                 </div>
 
-                <div className="flex flex-col gap-0.5">
-                {allSources.map((paper) => (
-                  <SourceCard
-                    key={paper.id}
-                    paper={paper}
-                    isChecked={selectedPaperIds.includes(paper.id)}
-                    onToggle={(id) => setSelectedPaperIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id])}
-                    onRemove={removeSource}
-                    darkMode={darkMode}
-                  />
-                ))}
-                {allSources.length === 0 && !isUploading && (
-                  <div className={`text-center p-6 rounded-2xl border border-dashed ${darkMode ? 'border-slate-700 text-slate-500' : 'border-slate-300 text-slate-400'}`}>
-                    <BookOpen className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm font-semibold">{t('workspace.no_source_title')}</p>
-                    <p className="text-xs mt-1 opacity-75">{t('workspace.no_source_desc')}</p>
+                {/* FULL CONTENT */}
+                <div className="flex-1 overflow-y-auto px-3 space-y-4 pb-4 pt-3">
+                  <div>
+                    <AddSourceButton onFiles={uploadFiles} isUploading={isUploading} darkMode={darkMode} />
                   </div>
-                )}
+                  
+                  {uploadQueue.length > 0 && (
+                    <div className="space-y-1.5 shrink-0">
+                      {uploadQueue.map((item, i) => (
+                        <UploadQueueItem key={i} item={item} darkMode={darkMode} />
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between px-2 py-1.5 bg-surface-50 dark:bg-surface-800/50 rounded-lg border border-surface-200 dark:border-surface-700">
+                      <span className="text-[11px] font-semibold text-surface-500">
+                        {scopedPapers.length}/{allSources.length} {t('workspace.using')}
+                      </span>
+                      <button 
+                        type="button"
+                        onClick={handleSelectAll}
+                        className="flex items-center gap-1.5 text-[11px] font-medium text-surface-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                      >
+                        <span>{t('workspace.select_all')}</span>
+                        <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center transition-all ${
+                          selectedPaperIds.length === allSources.length && allSources.length > 0
+                            ? 'bg-primary-600 text-white border-primary-600'
+                            : 'border-surface-300 dark:border-surface-600'
+                        }`}>
+                          {selectedPaperIds.length === allSources.length && allSources.length > 0 && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                        </div>
+                      </button>
+                    </div>
+                    {allSources.length === 0 ? (
+                      <p className="text-surface-400 text-[13px] text-center italic mt-6 px-4">
+                        {t('workspace.no_sources')}
+                      </p>
+                    ) : (
+                      allSources.map((paper) => (
+                        <SourceCard
+                          key={paper.id}
+                          paper={paper}
+                          isChecked={selectedPaperIds.includes(paper.id)}
+                          onToggle={togglePaperSelection}
+                          onRemove={handleRemoveSource}
+                          darkMode={darkMode}
+                        />
+                      ))
+                    )}
+                  </div>
                 </div>
-              </div>
-            </div>
+              </>
+            )}
           </>
 
         ) : (
-          <>
-            {/* MINI HEADER */}
-            <div className={`flex items-center justify-center h-[56px] border-b shrink-0 ${darkMode ? 'border-slate-800' : 'border-slate-100'}`}>
-              <button 
-                onClick={() => setIsSourcesOpen(true)}
-                className={`p-1 rounded-lg transition-colors ${darkMode ? 'hover:bg-slate-800 text-slate-400' : 'hover:bg-slate-100 text-slate-500'}`}
-                title={t('workspace.expand_source')}
-              >
-                <PanelLeft className="w-[18px] h-[18px]" />
-              </button>
-            </div>
-
-            {/* MINI CONTENT */}
-            <div className="flex-1 overflow-y-auto py-4 flex flex-col items-center gap-5 custom-scrollbar">
-              <button 
-                onClick={() => !isUploading && document.querySelector('input[type="file"]')?.click()}
-                className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all ${
-                  darkMode ? 'hover:bg-slate-800 text-slate-300' : 'hover:bg-slate-100 text-slate-600'
-                }`}
-                title="Tải lên tài liệu PDF"
-              >
-                {isUploading ? <Loader2 className="w-5 h-5 animate-spin text-blue-500" /> : <Plus className="w-6 h-6" />}
-              </button>
-
-              <div className="flex flex-col items-center gap-3">
-                {allSources.map((paper) => (
+          <div className="flex flex-col items-center py-4 h-full">
+            <button 
+              onClick={() => setIsSourcesOpen(true)}
+              className="p-1.5 rounded-lg text-surface-400 hover:text-surface-600 dark:hover:text-surface-200 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors mb-6"
+              title={isVietnamese ? 'Mở rộng' : 'Expand sources'}
+            >
+              <PanelLeft className="w-4 h-4" />
+            </button>
+            <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col items-center gap-2">
+              {activeWorkspaceTab === 'analyze' ? (
+                <div 
+                  className="w-10 h-10 rounded-xl bg-primary-50 dark:bg-primary-900/30 border border-primary-200 dark:border-primary-800 flex flex-col items-center justify-center shrink-0 cursor-pointer hover:bg-primary-100 dark:hover:bg-primary-900/50 transition-colors"
+                  title={isVietnamese ? 'Mở Lịch sử phân tích' : 'Open Analysis History'}
+                  onClick={() => setIsSourcesOpen(true)}
+                >
+                  <Clock className="w-5 h-5 text-primary-500" />
+                </div>
+              ) : (
+                allSources.map(paper => (
                   <div 
-                    key={paper.id} 
-                    onClick={() => setIsSourcesOpen(true)}
-                    className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center font-extrabold text-[9px] cursor-pointer transition-all ${
-                      darkMode 
-                        ? 'border-red-900/50 bg-red-950/20 text-red-400 hover:border-red-800' 
-                        : 'border-red-600 bg-white text-red-600 hover:shadow-md hover:border-red-500'
+                    key={paper.id}
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-[10px] shrink-0 border transition-colors cursor-pointer ${
+                      selectedPaperIds.includes(paper.id)
+                        ? 'bg-primary-50 border-primary-200 text-primary-700 dark:bg-primary-900/30 dark:border-primary-800 dark:text-primary-300'
+                        : 'bg-surface-50 border-surface-200 text-surface-400 dark:bg-surface-800 dark:border-surface-700'
                     }`}
-                    title={paper.title}
+                    title={paper.title || paper.filename}
+                    onClick={() => setIsSourcesOpen(true)}
                   >
                     PDF
                   </div>
-                ))}
-              </div>
+                ))
+              )}
             </div>
-          </>
-
+          </div>
         )}
         </div>
 
         {/* Resizer Handle */}
         {isSourcesOpen && (
           <div 
-             className="hidden lg:flex absolute -right-[12.5px] top-0 bottom-0 w-[25px] cursor-col-resize z-10 items-center justify-center group"
+             className="hidden lg:flex absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize z-10 items-center justify-center group"
              onMouseDown={(e) => { e.preventDefault(); setIsResizing(true); }}
           >
-             <div className={`w-1 h-12 rounded-full opacity-0 group-hover:opacity-100 transition-opacity ${darkMode ? 'bg-slate-600' : 'bg-slate-300'} ${isResizing ? 'opacity-100 bg-blue-500' : ''}`} />
+             <div className={`w-0.5 h-12 rounded-full opacity-0 group-hover:opacity-100 transition-opacity bg-surface-300 dark:bg-surface-600 ${isResizing ? 'opacity-100 bg-primary-500' : ''}`} />
           </div>
         )}
       </div>
 
-      {/* ── RIGHT: Active Workspace Panel ── */}
-      <div className="flex-1 flex gap-5 h-full min-h-0 overflow-hidden relative">
-        {/* Main Content Area (Chat/Synthesis/Data) */}
-        <div className={`flex-1 rounded-3xl border flex flex-col overflow-hidden shadow-sm transition-all ${
-            darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-          }`}>
-            {/* ── Workspace Header ── */}
-            <div className={`flex items-center justify-between px-5 h-[60px] border-b shrink-0 gap-4 ${darkMode ? 'border-slate-800' : 'border-slate-100'}`}>
-              
-              {/* Left: Brand / Title */}
-              <div className="flex items-center gap-2.5 shrink-0">
-                <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-sm shadow-xs">
-                  <Sparkles className="w-4 h-4" />
-                </div>
-                <span className="text-[14px] font-bold text-slate-800 dark:text-slate-100 hidden sm:inline">
+      {/* ── CENTER & RIGHT: Google NotebookLM 3-Column Architecture ── */}
+      <div className="flex-1 flex gap-3 h-full min-h-0 overflow-hidden relative">
+        
+        {/* ── 1. CENTER COLUMN: Chat with Sources (Primary Workspace) ── */}
+        <div className="card flex-1 flex flex-col overflow-hidden min-w-0">
+          
+          {/* Center Chat Header */}
+          <div className="flex items-center justify-between px-5 h-14 border-b border-surface-100 dark:border-surface-800 shrink-0 gap-3">
+            
+            {/* Left: Brand / Title */}
+            <div className="flex items-center gap-2.5 shrink-0">
+              <div className="w-8 h-8 rounded-xl overflow-hidden shrink-0 shadow-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center justify-center p-0.5">
+                <img src="/AI.png" alt="AI Assistant" className="w-full h-full object-cover rounded-[10px]" />
+              </div>
+              <div>
+                <span className="font-display font-bold text-xs sm:text-sm text-surface-900 dark:text-white block leading-none">
                   {t('workspace.ai_assistant')}
                 </span>
-              </div>
-
-              {/* Center / Right: The 3 Main Workspace Navigation Tabs */}
-              <div className="flex items-center gap-3">
-                <div className="flex items-center bg-slate-100/90 dark:bg-slate-800/90 p-1 rounded-2xl border dark:border-slate-700/60 border-slate-200/80 shadow-xs">
-                  {[
-                    { id: 'chat', label: t('workspace.tab_chat'), Icon: MessageSquare },
-                    { id: 'synthesis', label: t('workspace.tab_synthesis'), Icon: BookOpen },
-                    { id: 'analyze', label: t('workspace.tab_analyze'), Icon: BarChart2 },
-                  ].map(({ id, label, Icon }) => {
-                    const isActive = activeWorkspaceTab === id;
-                    return (
-                      <button
-                        key={id}
-                        type="button"
-                        onClick={() => setActiveWorkspaceTab(id)}
-                        className={`px-3.5 py-1.5 rounded-xl text-[12.5px] font-bold flex items-center gap-1.5 transition-all select-none cursor-pointer ${
-                          isActive
-                            ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
-                            : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-                        }`}
-                      >
-                        <Icon className="w-3.5 h-3.5" />
-                        <span className="hidden md:inline">{label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {activeWorkspaceTab === 'chat' && chatMessages && chatMessages.length > 1 && (
-                  <button
-                    onClick={() => {
-                      if (window.confirm(t('workspace.clear_chat_confirm'))) {
-                        setChatMessages([
-                          {
-                            sender: 'ai',
-                            text: `Chào mừng bạn đến với **LitReview Agent**! Hãy tìm kiếm trên Google Scholar, hệ thống sẽ tự động đối chiếu Scopus và chỉ giữ các bài đã xác minh.`
-                          }
-                        ]);
-                      }
-                    }}
-                    className={`p-2 rounded-xl border transition-colors flex items-center justify-center cursor-pointer ${
-                      darkMode
-                        ? 'border-slate-800 text-slate-400 hover:text-red-400 hover:bg-red-950/20'
-                        : 'border-slate-200 text-slate-500 hover:text-red-600 hover:bg-red-50'
-                    }`}
-                    title={t('workspace.clear_chat')}
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                )}
+                <span className="text-[10px] text-blue-500 font-semibold mt-0.5 block">
+                  {scopedPapers.length} {isVietnamese ? 'nguồn được chọn' : 'sources active'}
+                </span>
               </div>
             </div>
-            
-            <div className="flex-1 min-h-0 flex flex-col">
-              {activeWorkspaceTab === 'chat' && (
-                <ChatPanel
-                  workspacePapers={scopedPapers}
-                  chatMessages={chatMessages}
-                  setChatMessages={setChatMessages}
-                  activeCitation={activeCitation}
-                  setActiveCitation={setActiveCitation}
-                  darkMode={darkMode}
-                />
-              )}
 
-              {activeWorkspaceTab === 'synthesis' && (
+            {/* Right: Controls (Clear Chat & Toggle Studio) */}
+            <div className="flex items-center gap-2">
+              
+              {/* Clear Chat Button */}
+              <button
+                onClick={() => {
+                  const isVi = true;
+                  if (window.confirm(isVi ? 'Bạn có muốn làm mới toàn bộ đoạn chat cho đề tài này không?' : 'Do you want to reset the chat conversation for this project?')) {
+                    const welcomeText = activeProject?.name
+                      ? `Chào mừng bạn đến với **Không gian Phân tích** cho đề tài **${activeProject.name}**! Hãy chọn các bài báo từ phần *Tìm kiếm* để bắt đầu tổng hợp y văn có dẫn nguồn, hoặc tải lên tập tin PDF toàn văn để trích xuất sâu.`
+                      : `Chào mừng bạn đến với **LitReview Agent**! Hãy tìm kiếm trên Google Scholar, hệ thống sẽ tự động đối chiếu Scopus và chỉ giữ các bài đã xác minh.`;
+                    const freshMsg = [{ sender: 'ai', text: welcomeText }];
+                    setChatMessages(freshMsg);
+                    if (currentProjectId) {
+                      localStorage.setItem(`litreview_workspace_chat_${currentProjectId}`, JSON.stringify(freshMsg));
+                    }
+                  }
+                }}
+                className="p-2 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
+                title={isVietnamese ? "Làm mới đoạn chat cho đề tài này" : "Reset chat"}
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+
+              {/* Studio Panel Toggle Pill */}
+              <button
+                onClick={() => setIsStudioOpen(!isStudioOpen)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 border transition-all cursor-pointer shadow-xs ${
+                  isStudioOpen
+                    ? 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800'
+                    : 'bg-surface-50 text-surface-600 border-surface-200 hover:bg-surface-100 dark:bg-surface-800 dark:text-surface-300 dark:border-surface-700'
+                }`}
+                title={isStudioOpen ? (isVietnamese ? 'Thu gọn Studio' : 'Collapse Studio') : (isVietnamese ? 'Mở rộng Studio (Tổng quan & Phân tích)' : 'Open Studio')}
+              >
+                <Sparkles className="w-3.5 h-3.5 text-blue-500" />
+                <span className="hidden sm:inline">{isVietnamese ? 'Studio' : 'Studio'}</span>
+                {isStudioOpen ? <PanelRightClose className="w-3.5 h-3.5" /> : <PanelRight className="w-3.5 h-3.5" />}
+              </button>
+            </div>
+          </div>
+          
+          {/* Chat Panel Body */}
+          <div className="flex-1 min-h-0 flex flex-col relative z-0">
+            <ChatPanel
+              workspacePapers={scopedPapers}
+              selectedSourceIds={selectedPaperIds}
+              chatMessages={chatMessages}
+              setChatMessages={setChatMessages}
+              activeCitation={activeCitation}
+              setActiveCitation={setActiveCitation}
+              darkMode={darkMode}
+            />
+          </div>
+        </div>
+
+        {/* ── 2. RIGHT COLUMN: NotebookLM Studio (Synthesis & Data Analysis) ── */}
+        {isStudioOpen ? (
+          <div
+            ref={studioRef}
+            className="card shrink-0 flex flex-col overflow-hidden relative shadow-lg transition-all duration-150"
+            style={{ width: Math.min(studioWidth, typeof window !== 'undefined' ? window.innerWidth * 0.55 : 550) }}
+          >
+            {/* Left resizer handle for Studio */}
+            <div 
+              className="hidden lg:flex absolute -left-2 top-0 bottom-0 w-4 cursor-col-resize z-20 items-center justify-center group"
+              onMouseDown={(e) => { e.preventDefault(); setIsStudioResizing(true); }}
+            >
+              <div className={`w-0.5 h-12 rounded-full opacity-0 group-hover:opacity-100 transition-opacity bg-surface-300 dark:bg-surface-600 ${isStudioResizing ? 'opacity-100 bg-primary-500' : ''}`} />
+            </div>
+
+            {/* Studio Header (Tabs & Close) */}
+            <div className="flex items-center justify-between px-4 h-14 border-b border-surface-100 dark:border-surface-800 shrink-0 gap-2">
+              
+              {/* Studio Tabs */}
+              <div className="flex items-center bg-surface-100 dark:bg-surface-800 p-1 rounded-xl border border-surface-200 dark:border-surface-700">
+                <button
+                  type="button"
+                  onClick={() => setActiveStudioTab('synthesis')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all select-none cursor-pointer ${
+                    activeStudioTab === 'synthesis'
+                      ? 'bg-white dark:bg-surface-700 text-blue-600 dark:text-blue-400 shadow-xs font-bold'
+                      : 'text-surface-500 hover:text-surface-800 dark:hover:text-surface-200'
+                  }`}
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>{isVietnamese ? 'Tổng quan tài liệu' : 'Synthesis'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveStudioTab('analyze')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all select-none cursor-pointer ${
+                    activeStudioTab === 'analyze'
+                      ? 'bg-white dark:bg-surface-700 text-blue-600 dark:text-blue-400 shadow-xs font-bold'
+                      : 'text-surface-500 hover:text-surface-800 dark:hover:text-surface-200'
+                  }`}
+                >
+                  <BarChart2 className="w-3.5 h-3.5" />
+                  <span>{isVietnamese ? 'Phân tích dữ liệu' : 'Data Analysis'}</span>
+                </button>
+              </div>
+
+              {/* Close Studio Button */}
+              <button
+                onClick={() => setIsStudioOpen(false)}
+                className="p-1.5 rounded-lg text-surface-400 hover:text-surface-600 dark:hover:text-surface-200 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors cursor-pointer"
+                title={isVietnamese ? 'Đóng Studio' : 'Close Studio'}
+              >
+                <PanelRightClose className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Studio Body Content */}
+            <div className="flex-1 min-h-0 flex flex-col overflow-y-auto custom-scrollbar">
+              {activeStudioTab === 'synthesis' && (
                 <SynthesisPanel
                   workspacePapers={scopedPapers}
                   setActiveCitation={setActiveCitation}
@@ -616,33 +934,97 @@ export default function WorkspaceTab({
                   onSendToChat={handleSendToChat}
                 />
               )}
-              {activeWorkspaceTab === 'analyze' && (
-                <DataAnalysisPanel
+              {activeStudioTab === 'analyze' && (
+                <DataAnalysisPanel 
                   workspacePapers={scopedPapers}
                   darkMode={darkMode}
                   onSendToChat={handleSendToChat}
+                  activeProject={activeProject}
+                  analysisHistory={analysisHistory}
+                  setAnalysisHistory={setAnalysisHistory}
+                  activeSessionId={activeAnalysisSessionId}
+                  setActiveSessionId={setActiveAnalysisSessionId}
                 />
               )}
             </div>
           </div>
+        ) : (
+          /* Collapsed Studio Vertical Bar */
+          <div className="card shrink-0 w-12 flex flex-col items-center py-4 gap-4 h-full border border-surface-200 dark:border-surface-800">
+            <button
+              onClick={() => setIsStudioOpen(true)}
+              className="p-2 rounded-xl text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors cursor-pointer"
+              title={isVietnamese ? 'Mở rộng Studio' : 'Expand Studio'}
+            >
+              <PanelRight className="w-4 h-4" />
+            </button>
+            
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => { setActiveStudioTab('synthesis'); setIsStudioOpen(true); }}
+                className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors cursor-pointer ${
+                  activeStudioTab === 'synthesis'
+                    ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
+                    : 'text-surface-400 hover:text-surface-600 hover:bg-surface-100 dark:hover:bg-surface-800'
+                }`}
+                title={isVietnamese ? 'Tổng quan tài liệu' : 'Synthesis'}
+              >
+                <FileText className="w-4 h-4" />
+              </button>
+
+              <button
+                onClick={() => { setActiveStudioTab('analyze'); setIsStudioOpen(true); }}
+                className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors cursor-pointer ${
+                  activeStudioTab === 'analyze'
+                    ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
+                    : 'text-surface-400 hover:text-surface-600 hover:bg-surface-100 dark:hover:bg-surface-800'
+                }`}
+                title={isVietnamese ? 'Phân tích dữ liệu' : 'Data Analysis'}
+              >
+                <BarChart2 className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Citation Verification Panel — slide-in overlay từ phải khi user click citation */}
         {activeCitation && (
-          <div className="w-[380px] shrink-0 h-full overflow-hidden rounded-3xl border shadow-sm bg-white dark:bg-slate-900 dark:border-slate-800 border-slate-200 transition-all animate-in slide-in-from-right-4 duration-300">
-            <VerificationPanel
-              activeCitation={activeCitation}
-              darkMode={darkMode}
-              onClose={() => setActiveCitation(null)}
-            />
+          <div 
+            ref={verifRef}
+            className="shrink-0 h-full overflow-visible card border-primary-200 dark:border-primary-800 animate-slide-up relative flex z-30"
+            style={{ width: verificationWidth }}
+          >
+            {/* Left handle for verification panel */}
+            <div 
+              className="absolute -left-2 top-0 bottom-0 w-4 cursor-col-resize z-20 flex items-center justify-center group"
+              onMouseDown={(e) => { e.preventDefault(); setIsVerifResizing(true); }}
+            >
+              <div className={`w-0.5 h-12 rounded-full opacity-0 group-hover:opacity-100 transition-opacity bg-surface-300 dark:bg-surface-600 ${isVerifResizing ? 'opacity-100 bg-primary-500' : ''}`} />
+            </div>
+            
+            <div className="flex-1 w-full h-full overflow-hidden">
+              <VerificationPanel
+                activeCitation={activeCitation}
+                darkMode={darkMode}
+                onClose={() => setActiveCitation(null)}
+              />
+            </div>
           </div>
         )}
       </div>
       </div>
 
-      {/* Disclaimer Text (Centered at the very bottom of the entire layout) */}
-      <div className="shrink-0 pb-1 text-center -mt-2">
+      {/* RAG Evaluation Benchmark Harness Modal */}
+      <RAGEvalHarnessModal
+        isOpen={isHarnessOpen}
+        onClose={() => setIsHarnessOpen(false)}
+        workspacePapers={allSources}
+        darkMode={darkMode}
+      />
 
-        <p className={`text-[12px] font-medium ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+      {/* Disclaimer Text */}
+      <div className="shrink-0 text-center">
+        <p className="text-[11px] text-surface-400">
           {t('workspace.disclaimer')}
         </p>
       </div>

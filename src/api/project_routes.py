@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from uuid import UUID
+from typing import Optional
 import json
 import re
 import os
@@ -60,12 +61,67 @@ def _fallback_keywords(request: ProjectCreateRequest) -> list[str]:
     return result[:7]
 
 
+def _extract_user_info(authorization: Optional[str], x_user_id: Optional[str]) -> tuple[Optional[UUID], Optional[str]]:
+    """Extracts (user_id, role) from JWT token or X-User-Id header."""
+    import jwt
+    from src.api.auth_routes import SECRET_KEY, ALGORITHM
+    
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization[len("Bearer "):].strip()
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            user_id_str = payload.get("id")
+            role = payload.get("role")
+            if user_id_str:
+                return UUID(str(user_id_str)), role
+        except Exception:
+            pass
+
+    if x_user_id:
+        try:
+            return UUID(str(x_user_id)), "user"
+        except Exception:
+            pass
+
+    return None, None
+
+
+@router.get("/projects", response_model=list[ProjectResponse])
+async def list_projects(
+    authorization: Optional[str] = Header(None),
+    x_user_id: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db)
+):
+    """Module 1: List research projects for the authenticated user."""
+    user_id, role = _extract_user_info(authorization, x_user_id)
+
+    if role == "admin":
+        stmt = select(Project).order_by(Project.created_at.desc())
+    elif user_id:
+        stmt = select(Project).where(Project.user_id == user_id).order_by(Project.created_at.desc())
+    else:
+        stmt = select(Project).where(Project.user_id.is_(None)).order_by(Project.created_at.desc())
+
+    result = await db.execute(stmt)
+    projects = result.scalars().all()
+    return projects
+
+
 @router.post("/projects", response_model=ProjectResponse, status_code=201)
-async def create_project(request: ProjectCreateRequest, db: AsyncSession = Depends(get_db)):
-    """Module 1: Create a new research project."""
+async def create_project(
+    request: ProjectCreateRequest,
+    authorization: Optional[str] = Header(None),
+    x_user_id: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db)
+):
+    """Module 1: Create a new research project associated with the user."""
     import uuid
+    user_id, _ = _extract_user_info(authorization, x_user_id)
+    final_user_id = request.user_id or user_id
+
     project = Project(
         id=uuid.uuid4(),
+        user_id=final_user_id,
         name=request.name,
         research_question=request.research_question,
         research_field=request.research_field,
@@ -75,6 +131,31 @@ async def create_project(request: ProjectCreateRequest, db: AsyncSession = Depen
         criteria_exclude=request.criteria_exclude,
     )
     db.add(project)
+    await db.commit()
+    await db.refresh(project)
+    return project
+
+
+@router.put("/projects/{project_id}", response_model=ProjectResponse)
+async def update_project(
+    project_id: UUID,
+    request: ProjectCreateRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """Module 1: Update research project details (scope, question, criteria)."""
+    result = await db.execute(select(Project).where(Project.id == project_id))
+    project = result.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    project.name = request.name
+    project.research_question = request.research_question
+    project.research_field = request.research_field
+    project.year_from = request.year_from
+    project.year_to = request.year_to
+    project.criteria_include = request.criteria_include
+    project.criteria_exclude = request.criteria_exclude
+
     await db.commit()
     await db.refresh(project)
     return project
@@ -149,6 +230,30 @@ async def update_project(project_id: UUID, request: ProjectCreateRequest, db: As
     await db.commit()
     await db.refresh(project)
     return project
+
+
+@router.delete("/projects/{project_id}", status_code=204)
+async def delete_project(project_id: UUID, db: AsyncSession = Depends(get_db)):
+    """Module 1: Delete a research project and its associated papers."""
+    from src.models.db_models import Paper, PageText, PDFChunk
+    from sqlalchemy import delete as sql_delete
+
+    result = await db.execute(select(Project).where(Project.id == project_id))
+    project = result.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    # Delete related papers and text chunks
+    papers_res = await db.execute(select(Paper.id).where(Paper.project_id == project_id))
+    paper_ids = papers_res.scalars().all()
+    if paper_ids:
+        await db.execute(sql_delete(PageText).where(PageText.paper_id.in_(paper_ids)))
+        await db.execute(sql_delete(PDFChunk).where(PDFChunk.paper_id.in_(paper_ids)))
+        await db.execute(sql_delete(Paper).where(Paper.id.in_(paper_ids)))
+
+    await db.delete(project)
+    await db.commit()
+    return None
 
 @router.patch("/projects/{project_id}/criteria", response_model=ProjectResponse)
 async def update_criteria(project_id: UUID, request: CriteriaUpdateRequest, db: AsyncSession = Depends(get_db)):

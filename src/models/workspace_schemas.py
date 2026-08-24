@@ -17,6 +17,7 @@ class EvidenceCoordsRequest(BaseModel):
 
 
 class RectCoord(BaseModel):
+    page: int | None = None
     x: float
     y: float
     width: float
@@ -51,6 +52,7 @@ class WorkspaceChatRequest(BaseModel):
     # If None, search across all papers in the workspace collection.
     paper_id: str | None = None
     paper_ids: list[str] | None = None
+    papers_data: list[dict[str, Any]] | None = None
 
 
 class CitationEntry(BaseModel):
