@@ -60,20 +60,68 @@ def _fallback_keywords(request: ProjectCreateRequest) -> list[str]:
     return result[:7]
 
 
+def _extract_user_info(authorization: Optional[str], x_user_id: Optional[str]) -> tuple[Optional[UUID], Optional[str]]:
+    """Extracts (user_id, role) from JWT token or X-User-Id header."""
+    import jwt
+    from src.api.auth_routes import SECRET_KEY, ALGORITHM
+    
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization[len("Bearer "):].strip()
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            user_id_str = payload.get("id")
+            role = payload.get("role")
+            if user_id_str:
+                return UUID(str(user_id_str)), role
+        except Exception:
+            pass
+
+    if x_user_id:
+        try:
+            return UUID(str(x_user_id)), "user"
+        except Exception:
+            pass
+
+    return None, None
+
+
 @router.get("/projects", response_model=list[ProjectResponse])
-async def list_projects(db: AsyncSession = Depends(get_db)):
-    """Module 1: List all research projects."""
-    result = await db.execute(select(Project).order_by(Project.created_at.desc() if hasattr(Project, "created_at") else Project.name))
+async def list_projects(
+    authorization: Optional[str] = Header(None),
+    x_user_id: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db)
+):
+    """Module 1: List research projects for the authenticated user (or default project)."""
+    user_id, role = _extract_user_info(authorization, x_user_id)
+    DEFAULT_ID = UUID("00000000-0000-0000-0000-000000000001")
+
+    if role == "admin":
+        stmt = select(Project).order_by(Project.created_at.desc())
+    elif user_id:
+        stmt = select(Project).where((Project.user_id == user_id) | (Project.id == DEFAULT_ID)).order_by(Project.created_at.desc())
+    else:
+        stmt = select(Project).order_by(Project.created_at.desc())
+
+    result = await db.execute(stmt)
     projects = result.scalars().all()
     return projects
 
 
 @router.post("/projects", response_model=ProjectResponse, status_code=201)
-async def create_project(request: ProjectCreateRequest, db: AsyncSession = Depends(get_db)):
-    """Module 1: Create a new research project."""
+async def create_project(
+    request: ProjectCreateRequest,
+    authorization: Optional[str] = Header(None),
+    x_user_id: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db)
+):
+    """Module 1: Create a new research project associated with the user."""
     import uuid
+    user_id, _ = _extract_user_info(authorization, x_user_id)
+    final_user_id = request.user_id or user_id
+
     project = Project(
         id=uuid.uuid4(),
+        user_id=final_user_id,
         name=request.name,
         research_question=request.research_question,
         research_field=request.research_field,

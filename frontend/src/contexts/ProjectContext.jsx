@@ -56,26 +56,12 @@ const INITIAL_DEMO_PROJECTS = [
 ];
 
 export function ProjectProvider({ children }) {
-  const { currentUser } = useAuth();
+  const { currentUser, token } = useAuth();
   const userId = currentUser?.id || 'guest';
-  const isDemoUser = currentUser?.id === 'user_researcher_01' || currentUser?.id === 'user_student_02';
+  const isDemoUser = Boolean(currentUser?.id && (currentUser.id === 'user_researcher_01' || currentUser.id === 'user_student_02' || currentUser.id.startsWith('user_')));
 
-  const [projects, setProjects] = useState(() => {
-    try {
-      const saved = localStorage.getItem(`litreview_projects_${userId}`);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
-      }
-    } catch {}
-    return isDemoUser ? INITIAL_DEMO_PROJECTS : [];
-  });
-
-  const [activeProjectId, setActiveProjectId] = useState(() => {
-    const savedId = localStorage.getItem(`litreview_active_project_id_${userId}`);
-    if (savedId && projects.some(p => p.id === savedId)) return savedId;
-    return projects[0]?.id || (isDemoUser ? INITIAL_DEMO_PROJECTS[0].id : null);
-  });
+  const [projects, setProjects] = useState([]);
+  const [activeProjectId, setActiveProjectId] = useState(null);
 
   // Switch project state when switching user
   useEffect(() => {
@@ -104,7 +90,12 @@ export function ProjectProvider({ children }) {
   useEffect(() => {
     const fetchBackendProjects = async () => {
       try {
-        const res = await fetch(`${API_BASE}/projects`);
+        const res = await fetch(`${API_BASE}/projects`, {
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            ...(userId ? { 'X-User-Id': userId } : {}),
+          },
+        });
         if (res.ok) {
           const backendProjects = await res.json();
           if (Array.isArray(backendProjects) && backendProjects.length > 0) {
@@ -112,7 +103,7 @@ export function ProjectProvider({ children }) {
               const map = new Map();
               prev.forEach(p => map.set(p.id, p));
               backendProjects.forEach(bp => {
-                if (!bp.user_id || bp.user_id === userId) {
+                if (!bp.user_id || bp.user_id === userId || currentUser?.role === 'admin') {
                   map.set(bp.id, {
                     ...map.get(bp.id),
                     ...bp,
@@ -131,7 +122,7 @@ export function ProjectProvider({ children }) {
     if (userId && !isDemoUser) {
       fetchBackendProjects();
     }
-  }, [userId, isDemoUser]);
+  }, [userId, isDemoUser, token]);
 
   // Persist projects to localStorage per user
   useEffect(() => {
@@ -172,7 +163,11 @@ export function ProjectProvider({ children }) {
     try {
       const res = await fetch(`${API_BASE}/projects`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(userId ? { 'X-User-Id': userId } : {}),
+        },
         body: JSON.stringify({
           name: newProject.name,
           research_question: newProject.research_question,
