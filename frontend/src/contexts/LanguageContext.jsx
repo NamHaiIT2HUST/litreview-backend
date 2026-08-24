@@ -18,7 +18,7 @@ export function LanguageProvider({ children }) {
     localStorage.setItem('litreview_language', language);
   }, [language]);
 
-  const t = (key) => {
+  const t = (key, params = {}) => {
     const keys = key.split('.');
     let value = translations[language];
     for (const k of keys) {
@@ -28,15 +28,26 @@ export function LanguageProvider({ children }) {
     
     // Fallback to Vietnamese if not found in current language, then to the key itself
     if (value === undefined && language !== 'vi') {
-        let fallbackValue = translations['vi'];
-        for (const k of keys) {
-            if (fallbackValue === undefined) break;
-            fallbackValue = fallbackValue[k];
-        }
-        if (fallbackValue !== undefined) return fallbackValue;
+      let fallbackValue = translations['vi'];
+      for (const k of keys) {
+        if (fallbackValue === undefined) break;
+        fallbackValue = fallbackValue[k];
+      }
+      if (fallbackValue !== undefined) value = fallbackValue;
     }
 
-    return value !== undefined ? value : key;
+    let result = value !== undefined ? value : key;
+
+    if (typeof result === 'string' && params && typeof params === 'object') {
+      Object.entries(params).forEach(([paramKey, paramVal]) => {
+        result = result.replace(
+          new RegExp(`\\{${paramKey}\\}`, 'g'),
+          paramVal !== undefined && paramVal !== null ? paramVal : ''
+        );
+      });
+    }
+
+    return result;
   };
 
   return (

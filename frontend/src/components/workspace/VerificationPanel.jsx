@@ -61,10 +61,10 @@ export default function VerificationPanel({ activeCitation, onClose, darkMode })
 
   return (
     <div className="flex flex-col h-full w-full">
-      <div className={`flex items-center justify-between px-5 h-[56px] border-b shrink-0 ${darkMode ? 'border-slate-800' : 'border-slate-100'}`}>
+      <div className={`flex items-center justify-between px-5 h-[56px] border-b shrink-0 ${'border-slate-100 dark:border-slate-800'}`}>
         <div className="flex items-center gap-2 overflow-hidden mr-2">
           <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-500" />
-          <h3 className={`font-bold text-[14px] truncate ${darkMode ? 'text-slate-200' : 'text-slate-700'}`} title={t('verification.title')}>{t('verification.title')}</h3>
+          <h3 className={`font-bold text-[14px] truncate ${'text-slate-700 dark:text-slate-200'}`} title={t('verification.title')}>{t('verification.title')}</h3>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <span className="text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
@@ -87,10 +87,10 @@ export default function VerificationPanel({ activeCitation, onClose, darkMode })
         <div className="flex flex-col flex-1 min-h-0 space-y-4 text-sm">
           <div className="shrink-0 space-y-3">
             <div>
-              <span className={`font-mono text-[11px] px-2 py-0.5 rounded font-bold ${darkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-700'}`}>
+              <span className={`font-mono text-[11px] px-2 py-0.5 rounded font-bold ${'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'}`}>
                 {activeCitation.marker_display}
               </span>
-              <h4 className={`font-bold text-[14px] mt-1.5 leading-snug line-clamp-2 ${darkMode ? 'text-white' : 'text-slate-800'}`} title={activeCitation.title}>
+              <h4 className={`font-bold text-[14px] mt-1.5 leading-snug line-clamp-2 ${'text-slate-800 dark:text-white'}`} title={activeCitation.title}>
                 {activeCitation.title}
               </h4>
             </div>

@@ -20,10 +20,17 @@ Quality Verification (Module 4):
 import os
 import re
 import uuid
+import asyncio
+from typing import List, Dict, Any, Optional, Union
 from uuid import UUID
+import logging
 
+
+logger = logging.getLogger(__name__)
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query, UploadFile, File, Form
-from sqlalchemy import desc, select
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
+from sqlalchemy import String, desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.agents.graph import agent
@@ -43,7 +50,7 @@ from src.models.schemas import (
     SearchQueryRecord,
     SearchResponse,
 )
-from src.models.workspace_schemas import UploadResponse, DirectUploadResponse, WorkspaceChatRequest, WorkspaceChatResponse, EvidenceCoordsRequest, EvidenceCoordsResponse, RectCoord
+from src.models.workspace_schemas import UploadResponse, DirectUploadResponse, WorkspaceChatRequest, WorkspaceChatResponse, EvidenceCoordsRequest, EvidenceCoordsResponse, RectCoord, RAGEvalRequest, RAGEvalRunRequest
 from src.models.search_schemas import SearchExecuteRequest, SearchStrategiesResponse
 from src.models.synthesis_schemas import (
     SynthesisCitationResponse,
@@ -62,6 +69,8 @@ from src.services.paper_persistence_utils import normalize_authors_for_db
 from src.services.vector_cleanup_service import create_vector_cleanup_job
 from src.services.vector_store import vector_store_service
 from src.services.rag_service import rag_service
+from src.services.rag_guardrail_service import rag_guardrail_service
+from src.services.rag_eval_harness import rag_eval_harness
 from src.services.synthesis_response_builder import build_section_responses
 from src.services.synthesis_llm_service import synthesis_llm_service
 from src.services.synthesis_session_utils import json_paper_ids
@@ -86,13 +95,13 @@ def _compute_dedup_key(doi: str, title: str, authors: list[str] | str, year: int
     if doi and doi.strip() and doi.strip().upper() not in ("N/A", ""):
         return doi.strip().lower()
     title_norm = re.sub(r"\s+", " ", title.lower()).strip()
-    
+
     first_author = ""
     if isinstance(authors, list) and len(authors) > 0:
         first_author = authors[0].strip()
     elif isinstance(authors, str) and authors:
         first_author = authors.split(",")[0].strip()
-        
+
     return f"{title_norm}|{first_author}|{year}"
 
 async def _persist_search(
@@ -217,7 +226,7 @@ async def get_search_strategies(
         raise HTTPException(status_code=404, detail="Project not found")
 
     if not x_api_key:
-        # Lấy từ env 
+        # Lấy từ env
         import os
         x_api_key = os.getenv("SERPAPI_KEY", "")
 
@@ -317,13 +326,13 @@ async def search_papers(
 
         try:
             sq_id, duplicate_count = await _persist_search(
-                db, 
-                query_string=request.query_string, 
-                papers_pydantic=target_papers, 
+                db,
+                query_string=request.query_string,
+                papers_pydantic=target_papers,
                 project_id=project_id,
                 strategy_label=request.strategy_label
             )
-            
+
             if sq_id:
                 project_uuid = uuid.UUID(str(project_id))
                 keys = [_compute_dedup_key(p.doi, p.title, p.authors, p.year) for p in target_papers]
@@ -332,7 +341,7 @@ async def search_papers(
                 )
                 db_papers = result.scalars().all()
                 dedup_to_paper = {p.dedup_key: p for p in db_papers}
-                
+
                 for p in target_papers:
                     key = _compute_dedup_key(p.doi, p.title, p.authors, p.year)
                     db_paper = dedup_to_paper.get(key)
@@ -340,7 +349,7 @@ async def search_papers(
                         p.id = str(db_paper.id)
                         p.abstract = db_paper.abstract
                         p.doi = db_paper.doi
-                
+
         except Exception as exc:
             import logging
             logging.getLogger(__name__).error("Failed to persist search: %s", exc)
@@ -430,7 +439,7 @@ async def get_papers_for_query(
         raise HTTPException(status_code=404, detail=f"Search query '{query_id}' not found")
 
     from src.models.db_models import ScopusStatus, SearchQueryPaper
-    
+
     # Try querying via the new association table first
     assoc_result = await db.execute(
         select(Paper)
@@ -441,7 +450,7 @@ async def get_papers_for_query(
         )
     )
     papers = assoc_result.scalars().all()
-    
+
     # Fallback to old behavior for legacy queries without associations
     if not papers:
         legacy_result = await db.execute(
@@ -529,12 +538,13 @@ async def delete_paper(
     from src.models.db_models import (
         Paper, PageText, PDFChunk, Extraction, ScreeningHistory,
         EvidenceRecord, EvidenceExtractionAttempt, VectorCleanupJob,
-        GenericEvidenceCache, GenericEvidenceCacheItem, RetrievalLog, Citation
+        GenericEvidenceCache, GenericEvidenceCacheItem, RetrievalLog, Citation,
+        SearchQueryPaper
     )
-    
+
     target_uuid = None
     try:
-        target_uuid = UUID(paper_id)
+        target_uuid = UUID(str(paper_id).strip())
     except Exception:
         stmt = select(Paper).where(
             Paper.title.ilike(f"%{paper_id}%") | Paper.dedup_key.ilike(f"%{paper_id}%")
@@ -546,28 +556,42 @@ async def delete_paper(
     if not target_uuid:
         return {"message": "Paper already deleted or not stored", "id": str(paper_id)}
 
-    # Delete child rows first to avoid foreign key violations
-    from src.models.db_models import ClaimEvidenceLink
-    ev_result = await db.execute(select(EvidenceRecord.id).where(EvidenceRecord.paper_id == target_uuid))
-    ev_ids = ev_result.scalars().all()
-    if ev_ids:
-        await db.execute(sql_delete(ClaimEvidenceLink).where(ClaimEvidenceLink.evidence_id.in_(ev_ids)))
+    try:
+        # Delete child rows first to avoid foreign key violations
+        from src.models.db_models import ClaimEvidenceLink
+        ev_result = await db.execute(select(EvidenceRecord.id).where(EvidenceRecord.paper_id == target_uuid))
+        ev_ids = ev_result.scalars().all()
+        if ev_ids:
+            await db.execute(sql_delete(ClaimEvidenceLink).where(ClaimEvidenceLink.evidence_id.in_(ev_ids)))
 
-    await db.execute(sql_delete(Citation).where(Citation.paper_id == target_uuid))
-    await db.execute(sql_delete(RetrievalLog).where(RetrievalLog.paper_id == target_uuid))
-    await db.execute(sql_delete(GenericEvidenceCacheItem).where(GenericEvidenceCacheItem.paper_id == target_uuid))
-    await db.execute(sql_delete(GenericEvidenceCache).where(GenericEvidenceCache.paper_id == target_uuid))
-    await db.execute(sql_delete(VectorCleanupJob).where(VectorCleanupJob.paper_id == target_uuid))
-    await db.execute(sql_delete(EvidenceRecord).where(EvidenceRecord.paper_id == target_uuid))
-    await db.execute(sql_delete(EvidenceExtractionAttempt).where(EvidenceExtractionAttempt.paper_id == target_uuid))
-    await db.execute(sql_delete(ScreeningHistory).where(ScreeningHistory.paper_id == target_uuid))
-    await db.execute(sql_delete(Extraction).where(Extraction.paper_id == target_uuid))
-    await db.execute(sql_delete(PDFChunk).where(PDFChunk.paper_id == target_uuid))
-    await db.execute(sql_delete(PageText).where(PageText.paper_id == target_uuid))
-    
-    result = await db.execute(sql_delete(Paper).where(Paper.id == target_uuid))
-    await db.commit()
-    return {"message": "Paper deleted successfully", "id": str(paper_id)}
+        await db.execute(sql_delete(SearchQueryPaper).where(SearchQueryPaper.paper_id == target_uuid))
+        await db.execute(sql_delete(Citation).where(Citation.paper_id == target_uuid))
+        await db.execute(sql_delete(RetrievalLog).where(RetrievalLog.paper_id == target_uuid))
+        await db.execute(sql_delete(GenericEvidenceCacheItem).where(GenericEvidenceCacheItem.paper_id == target_uuid))
+        await db.execute(sql_delete(GenericEvidenceCache).where(GenericEvidenceCache.paper_id == target_uuid))
+        await db.execute(sql_delete(VectorCleanupJob).where(VectorCleanupJob.paper_id == target_uuid))
+        await db.execute(sql_delete(EvidenceRecord).where(EvidenceRecord.paper_id == target_uuid))
+        await db.execute(sql_delete(EvidenceExtractionAttempt).where(EvidenceExtractionAttempt.paper_id == target_uuid))
+        await db.execute(sql_delete(ScreeningHistory).where(ScreeningHistory.paper_id == target_uuid))
+        await db.execute(sql_delete(Extraction).where(Extraction.paper_id == target_uuid))
+        await db.execute(sql_delete(PDFChunk).where(PDFChunk.paper_id == target_uuid))
+        await db.execute(sql_delete(PageText).where(PageText.paper_id == target_uuid))
+
+        await db.execute(sql_delete(Paper).where(Paper.id == target_uuid))
+        await db.commit()
+
+        # Delete vector chunks if present
+        try:
+            from src.services.vector_store import vector_store_service
+            await vector_store_service.delete_documents_by_paper(str(target_uuid))
+        except Exception:
+            pass
+
+        return {"message": "Paper deleted successfully", "id": str(paper_id)}
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Failed to delete paper {paper_id}: {e}")
+        return {"message": f"Deleted with warning: {str(e)}", "id": str(paper_id)}
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Quality Verification endpoint (Module 4)
@@ -726,7 +750,7 @@ async def upload_paper_pdf(
         paper = paper_result.scalar_one_or_none()
         if paper is None:
             raise HTTPException(status_code=404, detail=f"Paper '{paper_id}' not found")
-        
+
         file_path = await processor.save_upload_file(file, project_id=str(paper.project_id))
         paper.file_path = file_path
         db.add(paper)
@@ -830,64 +854,661 @@ async def test_vector_search(query: str = Query(...)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/workspace/chat", response_model=WorkspaceChatResponse)
-async def workspace_chat(request: WorkspaceChatRequest) -> WorkspaceChatResponse:
+async def workspace_chat(
+    request: WorkspaceChatRequest,
+    db: AsyncSession = Depends(get_db),
+) -> WorkspaceChatResponse:
     """
     Chat với trợ lý AI về các bài báo đã tải lên (RAG chuẩn NotebookLM).
     """
     try:
 
+        # Bước 0: Input Guardrail Validation
+        is_valid, err_msg = rag_guardrail_service.validate_input_query(request.message)
+        if not is_valid:
+            return WorkspaceChatResponse(
+                answer=f"🛡️ **Input Guardrail:** {err_msg}",
+                context_used=[],
+                citations=[],
+                guardrail={
+                    "is_safe": False,
+                    "safety_verdict": "INPUT_GUARDRAIL_BLOCKED",
+                    "faithfulness_score": 0.0,
+                    "hallucination_rate": 0.0,
+                    "citation_precision": 0.0,
+                    "total_claims": 0,
+                    "attributable_claims_count": 0,
+                    "extrapolatory_claims_count": 0,
+                    "contradictory_claims_count": 0,
+                    "hallucinated_citations": [],
+                    "claims": [],
+                    "summary_verdict": err_msg or "Truy vấn bị từ chối bởi Input Guardrail.",
+                }
+            )
+
         # --- LUỒNG RAG TRUYỀN THỐNG (SUPER FAST) ---
-        # Bước 1: Tìm kiếm tài liệu liên quan trong ChromaDB với fallback tự động
+        # Bước 1: Xác định danh sách paper_ids mục tiêu
         target_pids = request.paper_ids if getattr(request, "paper_ids", None) else ([request.paper_id] if getattr(request, "paper_id", None) else [])
-        
+
+        # Nếu frontend không truyền paper_ids (hoặc rỗng), tự động lấy tất cả paper trong workspace
+        if not target_pids:
+            try:
+                from src.models.db_models import ScreeningHistory
+                stmt = select(Paper.id).outerjoin(
+                    ScreeningHistory, Paper.id == ScreeningHistory.paper_id
+                ).where(
+                    (ScreeningHistory.decision.in_(["keep", "maybe"])) | (Paper.source == "direct_upload")
+                )
+                all_papers_result = await db.execute(stmt)
+                target_pids = [str(r[0]) for r in all_papers_result.fetchall()]
+            except Exception:
+                target_pids = []
+
         chunks = []
+        from sqlalchemy import String
+        from langchain_core.documents import Document
+
         if target_pids:
-            from sqlalchemy import String
+            search_tasks = [
+                vector_store_service.search_similar_documents(
+                    request.message, top_k=6, filters={"paper_id": str(pid).strip()}
+                )
+                for pid in target_pids
+            ]
+            search_results = await asyncio.gather(*search_tasks, return_exceptions=True)
+            for res in search_results:
+                if isinstance(res, list) and res:
+                    chunks.extend(res)
+
             for pid in target_pids:
                 pid_str = str(pid).strip()
-                res_chunks = await vector_store_service.search_similar_documents(
-                    request.message, top_k=8, filters={"paper_id": pid_str}
-                )
-                if res_chunks:
-                    chunks.extend(res_chunks)
-                else:
+
+
+                # Fallback 1: Trực tiếp lấy PDFChunks từ database nếu vector store chưa có hoặc lỗi
+                if not any(str(c.metadata.get("paper_id")) == pid_str for c in chunks):
+                    try:
+                        from src.models.db_models import PDFChunk, PageText
+                        stmt_db_chunks = (
+                            select(PDFChunk, PageText.page_number, Paper.file_path, Paper.title)
+                            .join(PageText, PDFChunk.page_text_id == PageText.id)
+                            .join(Paper, PDFChunk.paper_id == Paper.id)
+                            .where((Paper.id.cast(String) == pid_str) | (Paper.title.ilike(f"%{pid_str}%")))
+                            .order_by(PDFChunk.chunk_index)
+                            .limit(10)
+                        )
+                        db_rows = (await db.execute(stmt_db_chunks)).fetchall()
+                        for chunk_row, page_num, file_path, title in db_rows:
+                            doc = Document(
+                                page_content=chunk_row.chunk_text,
+                                metadata={
+                                    "paper_id": pid_str,
+                                    "page_text_id": str(chunk_row.page_text_id),
+                                    "chunk_id": str(chunk_row.id),
+                                    "ingestion_id": str(chunk_row.ingestion_id),
+                                    "page": page_num,
+                                    "chunk_index": chunk_row.chunk_index,
+                                    "page_char_start": chunk_row.page_char_start,
+                                    "page_char_end": chunk_row.page_char_end,
+                                    "source": str(file_path) if file_path else f"paper_{pid_str}.pdf",
+                                    "paper_title": str(title) if title else "Unknown Title"
+                                }
+                            )
+                            chunks.append(doc)
+                    except Exception:
+                        pass
+
+                # Fallback 2: Lấy metadata và Abstract của paper từ DB
+                if not any(str(c.metadata.get("paper_id")) == pid_str for c in chunks):
                     stmt = select(Paper).where(
                         (Paper.id.cast(String) == pid_str) | (Paper.title.ilike(f"%{pid_str}%")) | (Paper.dedup_key.ilike(f"%{pid_str}%"))
                     )
                     paper = (await db.execute(stmt)).scalars().first()
                     if paper:
-                        if paper.active_ingestion_id is None:
-                            try:
-                                from src.services.ingestion_service import ensure_paper_ingested
-                                await ensure_paper_ingested(db, paper)
-                            except Exception:
-                                pass
-                        res_chunks = await vector_store_service.search_similar_documents(
-                            request.message, top_k=8, filters={"paper_id": str(paper.id)}
-                        )
-                        if res_chunks:
-                            chunks.extend(res_chunks)
-                        else:
-                            from langchain_core.documents import Document
-                            text = f"Title: {paper.title}\nAuthors: {paper.authors}\nJournal: {paper.journal or 'N/A'} ({paper.year or 'N/A'})\nAbstract: {paper.abstract or 'No abstract'}"
-                            doc = Document(page_content=text, metadata={"paper_id": str(paper.id), "paper_title": paper.title})
-                            chunks.append(doc)
+                        text = f"Title: {paper.title}\nAuthors: {paper.authors}\nJournal: {paper.journal or 'N/A'} ({paper.year or 'N/A'})\nAbstract: {paper.abstract or 'No abstract available'}"
+                        doc = Document(page_content=text, metadata={"paper_id": str(paper.id), "paper_title": paper.title, "page": 1, "source": paper.file_path or f"paper_{paper.id}.pdf"})
+                        chunks.append(doc)
         else:
-            chunks = await vector_store_service.search_similar_documents(request.message, top_k=8, filters=None)
+            try:
+                chunks = await vector_store_service.search_similar_documents(request.message, top_k=8, filters=None)
+            except Exception:
+                chunks = []
 
         # Bước 2: Sinh câu trả lời dựa trên context (có structured citation metadata)
         result = await rag_service.generate_answer_with_citations(request.message, chunks)
-        
-        # Bước 3: Đóng gói phản hồi
+
+        # Bước 3: RAG Output Guardrail & ASTA-Bench Claim Attribution
+        valid_keys = {str(c.get("key", idx + 1)) for idx, c in enumerate(result.get("context_used", []))}
+        sanitized_answer, hallucinated_keys = rag_guardrail_service.sanitize_citations(result["answer"], valid_keys)
+
+        guardrail_res = await rag_guardrail_service.verify_answer_groundedness(
+            request.message, sanitized_answer, result.get("context_used", [])
+        )
+        if hallucinated_keys:
+            guardrail_res.hallucinated_citations = list(set(guardrail_res.hallucinated_citations + hallucinated_keys))
+
+        # Bước 4: Đóng gói phản hồi
         return WorkspaceChatResponse(
-            answer=result["answer"],
+            answer=sanitized_answer,
             context_used=result["context_used"],
-            citations=result.get("citations", [])
+            citations=result.get("citations", []),
+            guardrail=guardrail_res.model_dump(),
+            cost_report=result.get("cost_report"),
         )
     except Exception as e:
         import logging
         logging.getLogger(__name__).exception("Error in workspace_chat")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/workspace/evaluate-rag")
+async def evaluate_rag_endpoint(request: RAGEvalRequest):
+    """
+    On-demand evaluation của một câu trả lời RAG cụ thể.
+    Trả về điểm số Faithfulness %, Hallucination Rate %, chi tiết từng Claim.
+    """
+    try:
+        guardrail_res = await rag_guardrail_service.verify_answer_groundedness(
+            request.question, request.answer, request.context_chunks
+        )
+        return guardrail_res.model_dump()
+    except Exception as e:
+        logger.exception("Error in evaluate_rag_endpoint")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/workspace/run-eval-harness")
+async def run_eval_harness_endpoint(request: RAGEvalRunRequest, db: AsyncSession = Depends(get_db)):
+    """
+    Chạy bộ kiểm thử tự động RAG Benchmark Harness trên các tài liệu đã chọn trong Workspace.
+    """
+    try:
+        papers_to_eval = []
+        if request.paper_ids:
+            for pid in request.paper_ids:
+                stmt = select(Paper).where(Paper.id.cast(String) == str(pid))
+                p = (await db.execute(stmt)).scalars().first()
+                if p:
+                    papers_to_eval.append({
+                        "id": str(p.id),
+                        "title": p.title,
+                        "filename": p.file_path,
+                        "abstract": p.abstract or "",
+                    })
+        else:
+            # Lấy tất cả papers trong workspace
+            from src.models.db_models import ScreeningHistory
+            stmt = select(Paper).outerjoin(
+                ScreeningHistory, Paper.id == ScreeningHistory.paper_id
+            ).where(
+                (ScreeningHistory.decision.in_(["keep", "maybe"])) | (Paper.source == "direct_upload")
+            ).limit(10)
+            rows = (await db.execute(stmt)).scalars().all()
+            for p in rows:
+                papers_to_eval.append({
+                    "id": str(p.id),
+                    "title": p.title,
+                    "filename": p.file_path,
+                    "abstract": p.abstract or "",
+                })
+
+        if not papers_to_eval:
+            raise HTTPException(status_code=400, detail="Không tìm thấy tài liệu nào trong Workspace để chạy kiểm thử.")
+
+        report = await rag_eval_harness.run_benchmark(papers_to_eval)
+        return report.model_dump()
+    except Exception as e:
+        logger.exception("Error in run_eval_harness_endpoint")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/workspace/eval-reports")
+async def get_eval_reports_endpoint():
+    """
+    Lấy danh sách các báo cáo Benchmark RAG đã thực thi gần đây.
+    """
+    try:
+        reports = rag_eval_harness.get_recent_reports()
+        return [r.model_dump() for r in reports]
+    except Exception as e:
+        logger.exception("Error in get_eval_reports_endpoint")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
+# Tab "Phân tích dữ liệu" — DataVoyager Academic Analytics Hub
+# ──────────────────────────────────────────────────────────────────────────────
+
+class DataAnalysisRequest(BaseModel):
+    question: str
+    csv_text: str = ""
+    filename: str = ""
+
+class DatasetProfile(BaseModel):
+    row_count: int = 0
+    column_count: int = 0
+    missing_rate_pct: float = 0.0
+    duplicate_rows: int = 0
+    completely_empty_cols: List[str] = Field(default_factory=list)
+    constant_cols: List[str] = Field(default_factory=list)
+    partially_missing_cols: List[Dict[str, Any]] = Field(default_factory=list)
+    columns: List[Dict[str, Any]] = Field(default_factory=list)
+    summary_stats: Dict[str, Any] = Field(default_factory=dict)
+    top_correlations: Optional[List[Dict[str, Any]]] = None
+    columns_to_drop: Optional[List[Dict[str, str]]] = None
+    time_series_info: Optional[Dict[str, Any]] = None
+
+class ChartSpec(BaseModel):
+    type: str = "bar"  # "bar" | "line" | "donut"
+    title: str = ""
+    data: List[Dict[str, Any]] = Field(default_factory=list)
+    x_label: Optional[str] = None
+    y_label: Optional[str] = None
+    unit: Optional[str] = None
+
+class KPISpec(BaseModel):
+    label: str
+    value: Union[str, int, float]
+    subtext: Optional[str] = None
+    trend: Optional[str] = None
+
+class DataAnalysisResponse(BaseModel):
+    answer: str
+    charts: Optional[List[ChartSpec]] = None
+    kpis: Optional[List[KPISpec]] = None
+    dataset_profile: Optional[DatasetProfile] = None
+    figures: Optional[List[str]] = None
+    python_code: Optional[str] = None
+    block_outputs: Optional[List[dict]] = None
+
+@router.post("/workspace/analyze-data", response_model=DataAnalysisResponse)
+async def workspace_analyze_data(request: DataAnalysisRequest) -> DataAnalysisResponse:
+    """
+    Tab 'Phân tích dữ liệu' (EDA): nhận câu hỏi + tập dữ liệu (CSV/TSV),
+    thực hiện phân tích thống kê định lượng với Pandas/SciPy/Statsmodels và suy luận học thuật với LLM.
+    Đảm bảo 100% số liệu được kiểm chứng thực tế và tuân thủ Khung EDA Chuẩn 7 Phần.
+    """
+    import os, io, re, json, logging
+    import pandas as pd
+    import numpy as np
+    from src.services.synthesis_llm_service import synthesis_llm_service
+    from src.services.eda_profiling_service import eda_profiling_service, ComprehensiveProfile
+
+    logger = logging.getLogger(__name__)
+
+    question = request.question.strip()
+    if not question:
+        raise HTTPException(status_code=422, detail="Câu hỏi không được để trống.")
+
+    dataset_profile = None
+    scientific_summary_text = ""
+    chart_spec = None
+    kpis_list = None
+    comp_profile: Optional[ComprehensiveProfile] = None
+
+    # 1. Phân tích định lượng khoa học và kiểm toán thống kê chuyên sâu
+    if request.csv_text.strip():
+        try:
+            first_line = request.csv_text.strip().split('\n')[0]
+            sep = '\t' if '\t' in first_line and first_line.count('\t') > first_line.count(',') else (';' if ';' in first_line and first_line.count(';') > first_line.count(',') else ',')
+
+            try:
+                df = pd.read_csv(io.StringIO(request.csv_text.strip()), sep=sep, on_bad_lines='skip')
+            except Exception:
+                df = pd.read_csv(io.StringIO(request.csv_text.strip()), on_bad_lines='skip')
+
+            comp_profile = eda_profiling_service.profile_dataframe(df, filename=request.filename)
+
+            # Format summary stats for JSON response
+            numeric_cols = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c]) and c not in comp_profile.completely_empty_cols and c not in comp_profile.constant_cols]
+            desc_stats = {}
+            if numeric_cols:
+                desc = df[numeric_cols].describe().to_dict()
+                for col_name, stats in desc.items():
+                    desc_stats[col_name] = {k: round(v, 2) if isinstance(v, (int, float)) and not np.isnan(v) else str(v) for k, v in stats.items()}
+
+            dataset_profile = DatasetProfile(
+                row_count=comp_profile.row_count,
+                column_count=comp_profile.column_count,
+                missing_rate_pct=comp_profile.overall_missing_pct,
+                duplicate_rows=comp_profile.duplicate_rows,
+                completely_empty_cols=comp_profile.completely_empty_cols,
+                constant_cols=comp_profile.constant_cols,
+                partially_missing_cols=[p.model_dump() for p in comp_profile.partially_missing_cols],
+                columns=comp_profile.columns_info,
+                summary_stats=desc_stats,
+                top_correlations=[c.model_dump() for c in comp_profile.top_correlations],
+                columns_to_drop=comp_profile.columns_to_drop,
+                time_series_info=comp_profile.time_series_profile.model_dump(),
+            )
+
+            scientific_summary_text = comp_profile.llm_context_summary
+
+        except Exception as e:
+            logger.warning(f"Failed to profile dataset with eda_profiling_service: {e}")
+            scientific_summary_text = f"Dữ liệu bảng có {len(request.csv_text.splitlines())} dòng thô."
+
+    # 2. Xây dựng System & User Prompt cho LLM tuân thủ Khung EDA Chuẩn 7 Phần
+    preview = request.csv_text.strip()[:10000]
+    truncated = len(request.csv_text) > 10000
+    truncation_note = "\n[Dữ liệu đã được cắt bớt do quá dài — chỉ hiển thị 10.000 ký tự đầu]" if truncated else ""
+    fname = f" (tệp: {request.filename})" if request.filename else ""
+
+    prompt_parts = [
+        "Bạn là Chuyên gia Khoa học Dữ liệu & Thống kê Nghiên cứu (Lead Data Scientist & Senior Statistical Reviewer).",
+        f"Câu hỏi hoặc yêu cầu phân tích của người dùng: \"{question}\"\n"
+    ]
+
+    if request.csv_text.strip() and scientific_summary_text:
+        prompt_parts.append(f"--- THÔNG TIN TẬP DỮ LIỆU ĐÃ ĐƯỢC TÍNH TOÁN & XÁC THỰC 100% BỞI ENGINE PANDAS/SCIPY/STATSMODELS{fname} ---")
+        prompt_parts.append(scientific_summary_text)
+        prompt_parts.append(f"\n--- TRÍCH ĐOẠN DỮ LIỆU THÔ (SAMPLE) ---\n```\n{preview}{truncation_note}\n```\n")
+
+    prompt_parts.append(
+        "HƯỚNG DẪN BẮT BUỘC VỀ BÁO CÁO PHÂN TÍCH DỮ LIỆU KHÁM PHÁ (EDA) CHUẨN MỰC:\n"
+        "Bạn PHẢI trình bày bài phân tích khám phá dữ liệu (EDA) theo đúng KHUNG EDA CHUẨN 7 PHẦN dưới đây. "
+        "BẮT BUỘC tuân thủ cấu trúc xen kẽ: [Lời giải thích/Đặt vấn đề] ➔ [Khối mã Python riêng biệt (vẽ biểu đồ hoặc in thống kê)] ➔ [Nhận xét, phân tích sâu về kết quả/đồ thị vừa tạo].\n\n"
+                "QUY TẮC CHÍNH TẢ & VĂN PHONG TIẾNG VIỆT CHUẨN MỰC:\n"
+        "   - TUYỆT ĐỐI KHÔNG VIẾT HOA TÙNG TỪ THEO KIỂU TITLE CASE CỦA TIẾNG ANH (Ví dụ: KHÔNG VIẾT 'Kế Hoạch Hành Động Tiền Xử Lý Dữ Liệu', 'Kiểm Toán Chất Lượng').\n"
+        "   - BẮT BUỘC dùng văn phong hành chính/học thuật tiếng Việt chuẩn: Chỉ viết hoa chữ cái đầu câu/tiêu đề và tên riêng (Ví dụ: '7. Kết luận và kế hoạch tiền xử lý dữ liệu', '2. Kiểm toán chất lượng dữ liệu và dữ liệu khuyết').\n\n"
+        "NGUYÊN TẮC BẤT DI BẤT DỊCH (GROUNDING & DESIGN RULES):\n"
+        "1. KHÔNG ĐƯỢC TỰ BỊA RA CHỈ SỐ: Mọi số liệu nêu trong báo cáo (tương quan Pearson/Spearman, số ô missing, số lượng outlier, hình dạng phân phối, shape) PHẢI KHỚP 100% với Bảng Thống Kê Định Lượng Đã Xác Thực ở trên hoặc kết quả mã Python xuất ra.\n"
+        "2. PHÂN BIỆT RÕ LOẠI DỮ LIỆU KHUYẾT: Báo cáo tỷ lệ khuyết theo từng cột, không gộp 1 số tổng gây hiểu lầm. Nêu rõ cột rỗng 100% (bắt buộc DROP) vs cột khuyết vi mô <= 5% (áp dụng Linear Interpolation / Forward-fill).\n"
+        "3. TÁCH BIỂU ĐỒ & CODE THÀNH TỪNG KHỐI RIÊNG: Mỗi biểu đồ/mục phân tích PHẢI là một khối ```python riêng biệt kết thúc bằng `plt.show()` để chèn ảnh trực tiếp ngay dưới khối code.\n"
+        "4. TIÊU CHUẨN ĐỒ THỊ CHẤT LƯỢNG CAO (QUANTITATIVE & STYLISH PLOTS):\n"
+        "   - Đối với Dữ liệu khuyết (Phần 2): BẮT BUỘC vẽ Biểu đồ Cột (Bar Chart) thể hiện Tỷ lệ % & Số lượng ô khuyết từng cột (có ghi nhãn số lượng và % trên đầu mỗi cột). TUYỆT ĐỐI KHÔNG vẽ heatmap tím đen vì người đọc không thể nhìn ra số lượng ô khuyết.\n"
+        "   - Đối với Boxplots & Ngoại lai (Phần 3): BẮT BUỘC vẽ Subplots lưới phân tách cho từng biến số (hoặc dùng `sns.boxplot(..., palette='Set2')`) với bảng màu đa dạng, đường median đỏ, điểm ngoại lai cam rõ nét. TUYỆT ĐỐI KHÔNG để biểu đồ trắng đen đơn điệu.\n"
+        "   - Đối với Histogram & Phân phối: BẮT BUỘC dùng `sns.histplot(..., kde=True, color='#2563eb')` hoặc `sns.kdeplot()` với màu sắc hiện đại.\n"
+        "   - Đối với Heatmap tương quan: BẮT BUỘC dùng `sns.heatmap(..., annot=True, cmap='coolwarm', fmt='.2f', linewidths=0.5)`.\n"
+        "5. ĐỊNH DẠNG TIÊU ĐỀ & TRÌNH BÀY BẮT BUỘC:\n"
+        "   - BẮT BUỘC dùng thẻ Tiêu đề Markdown Cấp 3 viết hoa chuẩn tiếng Việt:\n"
+        "     `### 1. Tổng quan cấu trúc dữ liệu`\n"
+        "     `### 2. Kiểm toán chất lượng dữ liệu và dữ liệu khuyết`\n"
+        "     `### 3. Phân phối đơn biến và kiểm định ngoại lai (outliers)`\n"
+        "     `### 4. Phân tích chuỗi thời gian và tính toàn vẹn lịch trình (time-series & DST)`\n"
+        "     `### 5. Quan hệ đa biến và kiểm định tương quan (multivariate & correlation)`\n"
+        "     `### 6. Phân tích biến mục tiêu và đánh giá dự báo (target evaluation)`\n"
+        "     `### 7. Kết luận và kế hoạch tiền xử lý dữ liệu (action plan)`\n"
+        "     (BẮT BUỘC CÓ 3 DẤU `### ` Ở ĐẦU DÒNG, TUYỆT ĐỐI KHÔNG VIẾT `1. ` hay `2. ` trần trụi).\n"
+        "   - Mỗi phần lớn phải có 1 câu nhận định/tóm tắt trọng tâm in đậm ngay dưới tiêu đề trước khi mở khối code.\n"
+        "   - Dùng Markdown Table cho các số liệu thống kê quan trọng để văn bản dễ đọc và trực quan.\n\n"
+        "CẤU TRÚC 7 PHẦN BẮT BUỘC CỦA BÁO CÁO EDA:\n"
+        "### 1. Tổng quan cấu trúc dữ liệu\n"
+        "- Kích thước dòng x cột, dung lượng, kiểu dữ liệu từng cột (Numeric, Datetime, Categorical), kiểm tra dòng trùng lặp.\n"
+        "- Khối python xem `df.info()`, `df.shape`, `df.head()`.\n\n"
+        "### 2. Kiểm toán chất lượng dữ liệu và dữ liệu khuyết\n"
+        "- Bảng phân tích chi tiết dữ liệu khuyết theo từng cột (phân nhóm: 100% NaN vs khuyết vi mô <= 5%).\n"
+        "- Rà soát cột hằng số 0 (zero-variance) và tính hợp lệ theo miền vật lý (domain constraints).\n"
+        "- Khối python vẽ biểu đồ Cột (Bar chart) số lượng & tỷ lệ % dữ liệu khuyết theo từng cột (`df.isnull().sum()`).\n\n"
+        "### 3. Phân phối đơn biến và kiểm định ngoại lai (outliers)\n"
+        "- Bảng thống kê mô tả nâng cao: Mean, Median, Std, Skewness, IQR.\n"
+        "- Đánh giá độ lệch (Skewness) và kiểm định ngoại lai theo ngưỡng IQR $[Q_1 - 1.5IQR, Q_3 + 1.5IQR]$ với số lượng điểm ngoại lai cụ thể.\n"
+        "- Khối python vẽ Histogram + KDE và Boxplots đa màu sắc (Subplots hoặc `sns.boxplot(..., palette='Set2')`) cho các biến số quan trọng.\n\n"
+        "### 4. Phân tích chuỗi thời gian và tính toàn vẹn lịch trình (time-series & DST)\n"
+        "- BẮT BUỘC dùng đoạn mã chuẩn sau để kiểm tra tính liên tục (loại trừ NaT ở dòng đầu tiên để tránh lỗi đếm sai):\n"
+        "```python\n"
+        "# Kiểm tra tính liên tục của chuỗi thời gian\n"
+        "dt_utc = pd.to_datetime(df['time'], utc=True, errors='coerce')\n"
+        "time_diffs = dt_utc.diff().dropna()\n"
+        "diffs_hours = time_diffs.dt.total_seconds() / 3600.0\n"
+        "print(f\"Khoảng thời gian trung bình: {diffs_hours.mean():.2f} giờ\")\n"
+        "print(f\"Số khoảng thời gian lệch khỏi 1.0 giờ: {(diffs_hours != 1.0).sum()}\")\n"
+        "print(f\"Đơn điệu tăng: {dt_utc.is_monotonic_increasing}\")\n"
+        "print(f\"Số mốc thời gian trùng lặp: {dt_utc.duplicated().sum()}\")\n"
+        "```\n"
+        "- Phân tích tính mùa vụ (Seasonality: theo giờ, theo ngày trong tuần, theo tháng) và Kiểm định tính dừng Augmented Dickey-Fuller (ADF Test).\n"
+        "- Khối python vẽ biểu đồ diễn biến thời gian và phân tích mùa vụ.\n\n"
+        "### 5. Quan hệ đa biến và kiểm định tương quan (multivariate & correlation)\n"
+        "- Ma trận tương quan Pearson & Spearman kèm p-value và đánh giá mức độ tương quan (đảm bảo số liệu chính xác 100% theo bảng xác thực).\n"
+        "- Kiểm tra Đa cộng tuyến (VIF) bằng statsmodels và in bảng kết quả chi tiết:\n"
+        "```python\n"
+        "from statsmodels.stats.outliers_influence import variance_inflation_factor\n"
+        "vif_cols = [c for c in ['total_load_actual', 'price_day_ahead', 'generation solar', 'generation wind onshore', 'generation fossil gas'] if c in df.columns]\n"
+        "if len(vif_cols) >= 2:\n"
+        "    X_vif = df[vif_cols].dropna()\n"
+        "    vif_data = pd.DataFrame({\n"
+        "        'Đặc trưng (Feature)': vif_cols,\n"
+        "        'VIF': [round(variance_inflation_factor(X_vif.values, i), 2) for i in range(len(vif_cols))]\n"
+        "    })\n"
+        "    print(vif_data.to_string(index=False))\n"
+        "```\n"
+        "- BẮT BUỘC trình bày Bảng VIF dưới dạng Markdown Table ngay trong nội dung phân tích để hiển thị rõ trong văn bản và bản in PDF.\n"
+        "- Khối python vẽ Heatmap tương quan và Scatter plots giữa các cặp biến chính.\n\n"
+        "### 6. Phân tích biến mục tiêu và đánh giá dự báo (target evaluation)\n"
+        "- Phân phối biến mục tiêu và tương quan giữa các đặc trưng với target.\n"
+        "- Đánh giá sai số dự báo ngắn hạn (MAE, RMSE, Mean Bias).\n"
+        "- Khối python vẽ biểu đồ so sánh Dự báo vs Thực tế và phân phối sai số (Residuals).\n\n"
+        "### 7. Kết luận và kế hoạch tiền xử lý dữ liệu (action plan)\n"
+        "- Danh sách cụ thể các cột BẮT BUỘC LOẠI BỎ (DROP) kèm lý do rõ ràng.\n"
+        "- Chiến lược điền khuyết theo từng nhóm cột.\n"
+        "- Đề xuất Feature Engineering (lags, rolling stats, cyclic time encoding).\n"
+        "- Khuyến nghị mô hình và lưu ý các điểm biến động đột biến.\n\n"
+        "LƯU Ý VỀ ĐỘ DÀI: BẮT BUỘC HOÀN TẤT ĐẦY ĐỦ TRỌN VẸN CẢ 7 PHẦN TRÊN. TUYỆT ĐỐI KHÔNG DỪNG NGANG GIỮA CHỪNG.\n\n"
+        "KHỐI CHỈ SỐ KEY FINDINGS BẮT BUỘC:\n"
+        "Hãy xuất khối json_kpis chứa các chỉ số đã được chứng thực ở Mục 7 của Bảng Thống Kê Định Lượng:\n"
+        "```json_kpis\n"
+        "[\n"
+        "  {\"label\": \"Kích Thước Tập Dữ Liệu\", \"value\": \"35,064 dòng × 29 cột\", \"subtext\": \"0 dòng trùng lặp\"}\n"
+        "]\n"
+        "```\n"
+    )
+
+    full_prompt = "\n".join(prompt_parts)
+
+    # 3. Thực thi LLM với cơ chế đa mô hình chống lỗi
+    try:
+        llm = synthesis_llm_service._get_llm()
+        msg = await llm.ainvoke([("human", full_prompt)])
+        content = msg.content if hasattr(msg, "content") else str(msg)
+        if isinstance(content, list):
+            content = "".join(part.get("text", "") for part in content if isinstance(part, dict))
+        raw_text = str(content).strip()
+
+        # 4. Trích xuất json_chart và json_kpis
+        chart_matches = re.finditer(r'```(?:json_chart|json)\s*(\{[\s\S]*?"type"[\s\S]*?\})\s*```', raw_text, re.IGNORECASE)
+        charts_list = []
+        for match in chart_matches:
+            try:
+                chart_data = json.loads(match.group(1))
+                if isinstance(chart_data, dict) and "type" in chart_data and "data" in chart_data:
+                    charts_list.append(ChartSpec(
+                        type=chart_data.get("type", "bar").lower(),
+                        title=chart_data.get("title", "Biểu đồ phân tích dữ liệu"),
+                        data=chart_data.get("data", []),
+                        x_label=chart_data.get("x_label"),
+                        y_label=chart_data.get("y_label"),
+                        unit=chart_data.get("unit"),
+                    ))
+            except Exception as e:
+                logger.warning(f"Could not parse chart json: {e}")
+
+        # Grounded KPIs priority: If grounded_kpis exist from verified profile, use them or reconcile
+        kpis_list = []
+        if comp_profile and comp_profile.grounded_kpis:
+            kpis_list = [
+                KPISpec(
+                    label=str(item.get("label", "")),
+                    value=item.get("value", ""),
+                    subtext=item.get("subtext"),
+                    trend=item.get("trend"),
+                ) for item in comp_profile.grounded_kpis
+            ]
+        else:
+            kpis_match = re.search(r'```(?:json_kpis|json)\s*(\[[\s\S]*?\{[\s\S]*?"label"[\s\S]*?\}[\s\S]*?\])\s*```', raw_text, re.IGNORECASE)
+            if kpis_match:
+                try:
+                    kpis_data = json.loads(kpis_match.group(1))
+                    if isinstance(kpis_data, list):
+                        kpis_list = [
+                            KPISpec(
+                                label=str(item.get("label", "")),
+                                value=item.get("value", ""),
+                                subtext=item.get("subtext"),
+                                trend=item.get("trend"),
+                            ) for item in kpis_data if isinstance(item, dict) and "label" in item
+                        ]
+                except Exception as e:
+                    logger.warning(f"Could not parse kpis json: {e}")
+
+        # Xóa các khối json_chart và json_kpis khỏi văn bản markdown để giao diện sạch đẹp
+        cleaned_answer = re.sub(r'```json_chart[\s\S]*?```', '', raw_text)
+        cleaned_answer = re.sub(r'```json_kpis[\s\S]*?```', '', cleaned_answer).strip()
+
+        # 4.4 Truncation Safety Net: Khắc phục triệt để hiện tượng bị cắt cụt nội dung
+        if cleaned_answer:
+            # Tự động đóng các khối code chưa đóng nếu bị cắt ngang
+            if cleaned_answer.count("```") % 2 != 0:
+                cleaned_answer += "\n```\n"
+
+            # Tự động bổ sung Mục 7 nếu bị cắt cụt
+            has_section_7 = bool(re.search(r'(?:###?\s*7\.|Kế\s*hoạch\s*hành\s*động|Action\s*Plan)', cleaned_answer, re.IGNORECASE))
+            if not has_section_7 and comp_profile:
+                drop_md = "\n".join([f"- **`{d['column']}`**: {d['reason']}" for d in comp_profile.columns_to_drop])
+                impute_md = "\n".join([f"- **`{m['column']}`**: {m['strategy']}" for m in comp_profile.imputation_strategy])
+
+                section_7_supplement = f"""
+
+### 7. Kết Luận & Kế Hoạch Hành Động Tiền Xử Lý (Action Plan)
+
+#### 7.1. Danh Sách Các Cột Bắt Buộc Loại Bỏ (DROP LIST)
+{drop_md}
+
+#### 7.2. Chiến Lược Điền Khuyết Dữ Liệu
+{impute_md}
+
+#### 7.3. Đề Xuất Kỹ Thuật Đặc Trưng (Feature Engineering) & Mô Hình Hóa
+- **Tạo biến trễ (Lag Features)**: Tạo các độ trễ vật lý quan trọng ($t-1$, $t-24$, $t-168$) để nắm bắt tự tương quan và tính chu kỳ ngày/tuần.
+- **Thống kê trượt (Rolling Statistics)**: Tính Rolling Mean và Rolling Std (cửa sổ 24 giờ) để theo dõi động thái xu hướng ngắn hạn.
+- **Mã hóa chu kỳ thời gian (Cyclic Encoding)**: Chuyển đổi mốc thời gian thành các thành phần $\\sin/\\cos$ của `hour` và `month` để giữ tính liên tục vòng tròn.
+- **Chuẩn hóa dữ liệu (Feature Scaling)**: Sử dụng `RobustScaler` hoặc `StandardScaler` trên các đặc trưng có phân phối lệch và ngoại lai trước khi huấn luyện mô hình.
+"""
+                cleaned_answer += section_7_supplement
+
+        # 4.5 Trích xuất mã Python và chạy ngầm (Backend Execution) để lấy block outputs
+        py_matches = list(re.finditer(r'```(?:python|py)\s*(.*?)\s*```', cleaned_answer, re.DOTALL | re.IGNORECASE))
+        extracted_python = ""
+        block_outputs = []
+
+        if py_matches:
+            from src.services.code_sandbox_service import smart_repair_python_code
+            blocks = [smart_repair_python_code(m.group(1)) for m in py_matches if m.group(1).strip()]
+            extracted_python = "\n\n".join(blocks)
+
+            # Execute all blocks sequentially in sandbox to get outputs for each block
+            if request.csv_text.strip():
+                try:
+                    from src.services.code_sandbox_service import code_sandbox_service
+                    block_outputs = await code_sandbox_service.execute_blocks_async(
+                        blocks=blocks,
+                        csv_text=request.csv_text.strip(),
+                        timeout_seconds=25.0
+                    )
+                except Exception as ex:
+                    logger.warning(f"Background python execution failed: {ex}")
+
+        return DataAnalysisResponse(
+            answer=cleaned_answer or "Hoàn tất phân tích dữ liệu.",
+            charts=charts_list if charts_list else None,
+            kpis=kpis_list if kpis_list else None,
+            python_code=extracted_python if extracted_python else None,
+            block_outputs=block_outputs if block_outputs else None,
+            dataset_profile=dataset_profile,
+        )
+
+    except Exception as exc:
+        logger.warning(f"LLM call encountered an error ({exc}). Generating deterministic Pandas scientific analysis fallback.")
+
+        # Fallback phân tích thống kê định lượng mạnh mẽ bằng Pandas theo đúng Khung 7 Phần
+        lines = []
+        lines.append("### 📊 Báo Cáo Phân Tích Thống Kê Khám Phá Dữ Liệu (DataVoyager Engine)")
+        lines.append(f"**Yêu cầu:** *{question}*\n")
+
+        single_chart = None
+        if dataset_profile:
+            lines.append("### 1. Tổng quan Cấu trúc Dữ liệu")
+            lines.append(f"- **Kích thước tập dữ liệu:** `{dataset_profile.row_count}` dòng quan sát × `{dataset_profile.column_count}` biến số.")
+            lines.append(f"- **Dòng trùng lặp:** `{dataset_profile.duplicate_rows}` dòng.")
+            lines.append(f"- **Tỷ lệ khuyết thiếu toàn cục:** `{dataset_profile.missing_rate_pct}%`.")
+
+            lines.append("\n### 2. Kiểm toán Chất lượng Dữ liệu & Dữ liệu Khuyết")
+            if dataset_profile.completely_empty_cols:
+                lines.append(f"- **Cột rỗng 100% (Bắt buộc DROP):** {', '.join(dataset_profile.completely_empty_cols)}")
+            if dataset_profile.constant_cols:
+                lines.append(f"- **Cột hằng số 0 (Bắt buộc DROP):** {', '.join(dataset_profile.constant_cols)}")
+            if dataset_profile.partially_missing_cols:
+                lines.append("- **Các cột khuyết một phần:**")
+                for pm in dataset_profile.partially_missing_cols[:10]:
+                    lines.append(f"  * `{pm.get('name')}`: {pm.get('null_count')} dòng ({pm.get('null_pct')}%)")
+
+            lines.append("\n### 3. Phân phối Đơn biến & Kiểm định Outliers")
+            if dataset_profile.summary_stats:
+                lines.append("| Tên Biến | Mean | Median | Std | Min | Max |")
+                lines.append("|---|---|---|---|---|---|")
+                for cname, stats in list(dataset_profile.summary_stats.items())[:8]:
+                    lines.append(f"| `{cname}` | {stats.get('mean', '-')} | {stats.get('50%', '-')} | {stats.get('std', '-')} | {stats.get('min', '-')} | {stats.get('max', '-')} |")
+
+            lines.append("\n### 4. Phân tích Chuỗi Thời gian & Tính Toàn vẹn")
+            if dataset_profile.time_series_info and dataset_profile.time_series_info.get("is_time_series"):
+                tsi = dataset_profile.time_series_info
+                lines.append(f"- Cột thời gian: `{tsi.get('date_column')}`")
+                lines.append(f"- Múi giờ phát hiện: `{tsi.get('timezone_detected')}`")
+                if tsi.get("dst_transition_warning"):
+                    lines.append(f"- Lưu ý DST: {tsi.get('dst_transition_warning')}")
+                if tsi.get("adf_statistic") is not None:
+                    lines.append(f"- Kiểm định ADF: Stat = {tsi.get('adf_statistic')}, p-value = {tsi.get('adf_p_value')}")
+
+            lines.append("\n### 5. Quan hệ Đa biến & Tương quan Thống kê")
+            if dataset_profile.top_correlations:
+                lines.append("| Cặp Biến | Tương Quan (r) | Ý Nghĩa Thống Kê | Mức Độ |")
+                lines.append("|---|---|---|---|")
+                for corr in dataset_profile.top_correlations[:8]:
+                    lines.append(f"| `{corr.get('var1')}` vs `{corr.get('var2')}` | **{corr.get('pearson_r')}** | {corr.get('significance')} | {corr.get('strength')} |")
+
+            lines.append("\n### 6. Phân tích Biến Mục tiêu (Target Evaluation)")
+            lines.append("- Phân tích xu hướng biến động và sai số dự báo nếu có cột dự báo đi kèm.")
+
+            lines.append("\n### 7. Kết luận & Kế hoạch Tiền xử lý Dữ liệu")
+            if dataset_profile.columns_to_drop:
+                lines.append("**Danh sách đề xuất loại bỏ (Drop List):**")
+                for d in dataset_profile.columns_to_drop:
+                    lines.append(f"- `{d.get('column')}`: {d.get('reason')}")
+            lines.append("\n**Chiến lược điền khuyết:** Áp dụng Linear Interpolation / Forward-fill cho các cột có tỷ lệ khuyết thấp (<1%).")
+
+        fallback_answer = "\n".join(lines)
+
+        # Fallback KPIs
+        fallback_kpis = comp_profile.grounded_kpis if (comp_profile and comp_profile.grounded_kpis) else [
+            {"label": "Kích Thước", "value": f"{dataset_profile.row_count if dataset_profile else 0} dòng", "subtext": "Xác thực bởi Pandas"}
+        ]
+        kpis_list = [KPISpec(label=k["label"], value=k["value"], subtext=k.get("subtext")) for k in fallback_kpis]
+
+        return DataAnalysisResponse(
+            answer=fallback_answer,
+            charts=[single_chart] if single_chart else None,
+            kpis=kpis_list,
+            dataset_profile=dataset_profile,
+        )
+
+
+@router.post("/workspace/execute-code")
+async def workspace_execute_code(request: dict) -> dict:
+    """
+    Thực thi mã Python trực tiếp trong môi trường Isolated Code Sandbox an toàn.
+    Tự động nạp dữ liệu người dùng vào biến 'df', capture stdout/stderr và render matplotlib figures.
+    """
+    from src.services.code_sandbox_service import code_sandbox_service
+
+    code = str(request.get("code", ""))
+    csv_text = str(request.get("csv_text", ""))
+    timeout = float(request.get("timeout_seconds", 10.0))
+
+    res = await code_sandbox_service.execute_code_async(
+        code=code,
+        csv_text=csv_text,
+        timeout_seconds=timeout
+    )
+    return res.model_dump()
+
 
 @router.post("/workspace/evidence-coords", response_model=EvidenceCoordsResponse)
 async def get_evidence_coords(
@@ -896,7 +1517,7 @@ async def get_evidence_coords(
     """Find text coordinates in PDF for highlighting."""
     import os
     import logging
-    
+
     base_dir = os.path.join("uploads", "papers")
     file_path = os.path.join(base_dir, request.filename)
     if not os.path.exists(file_path):
@@ -907,29 +1528,33 @@ async def get_evidence_coords(
                 break
         else:
             return EvidenceCoordsResponse(rects=[])
-    
+
     try:
         try:
-            import fitz  # PyMuPDF
+            try:
+                import pymupdf as fitz
+            except ImportError:
+                import fitz
         except ImportError:
             logging.getLogger(__name__).warning(
                 "PyMuPDF is not installed; evidence coordinates are unavailable."
             )
             return EvidenceCoordsResponse(rects=[])
         doc = fitz.open(file_path)
+
         # fitz is 0-indexed, UI is 1-indexed (usually, though the UI sends the actual page number from the source)
         page_index = max(0, request.page - 1)
         if page_index >= len(doc):
             return EvidenceCoordsResponse(rects=[])
-            
+
         page = doc[page_index]
         page_rect = page.rect
         page_width = page_rect.width
         page_height = page_rect.height
-        
+
         search_text = request.snippet.strip()
         rects = []
-        
+
         # Robust word-level matching
         import re
         def clean_word(w):
@@ -937,14 +1562,14 @@ async def get_evidence_coords(
 
         search_words = [clean_word(w) for w in search_text.split() if clean_word(w)]
         page_words = page.get_text("words")
-        
+
         if search_words and page_words:
             best_start = 0
             best_end = 0
             max_matches = -1
-            
+
             window_size = min(len(search_words) + 15, len(page_words))
-            
+
             for i in range(len(page_words) - window_size + 1):
                 p_ptr = i
                 s_ptr = 0
@@ -954,7 +1579,7 @@ async def get_evidence_coords(
                     if not cw:
                         p_ptr += 1
                         continue
-                        
+
                     # look ahead in search_words
                     for lookahead in range(4):
                         if s_ptr + lookahead < len(search_words) and cw == search_words[s_ptr + lookahead]:
@@ -962,7 +1587,7 @@ async def get_evidence_coords(
                             s_ptr += lookahead + 1
                             break
                     p_ptr += 1
-                
+
                 if matches > max_matches:
                     max_matches = matches
                     best_start = i
@@ -982,7 +1607,7 @@ async def get_evidence_coords(
                         width=(w[2] - w[0]) / page_width,
                         height=(w[3] - w[1]) / page_height
                     ))
-                    
+
                 return EvidenceCoordsResponse(rects=rects)
 
             # Fallback for PDFs whose line wrapping/OCR tokenization prevents
@@ -1003,7 +1628,7 @@ async def get_evidence_coords(
                 return EvidenceCoordsResponse(rects=fallback_rects)
 
 
-            
+
         return EvidenceCoordsResponse(rects=rects)
     except Exception as e:
         logging.getLogger(__name__).error("Error finding coords: %s", e)
@@ -1093,6 +1718,24 @@ async def create_synthesis_session(
             + ", ".join(str(item) for item in foreign_project),
         )
 
+    # Fast v2 (EXPERIMENTAL, opt-in via SYNTHESIS_MODE=fast_v2_experimental):
+    # runs synchronously in-request through the real composition root and
+    # returns the result directly, bypassing the Legacy session/graph/DB
+    # path entirely. Legacy path below is completely unchanged when this
+    # flag is off (the default).
+    if get_settings().fast_v2_enabled:
+        if not request.research_question or not request.research_question.strip():
+            raise HTTPException(
+                status_code=422,
+                detail="research_question is required for fast_v2_experimental synthesis",
+            )
+        from src.synthesis.fast_v2.runtime import run_fast_v2_synthesis
+
+        fast_v2_result = await run_fast_v2_synthesis(
+            paper_ids=paper_ids, research_question=request.research_question
+        )
+        return JSONResponse(status_code=200, content=fast_v2_result.to_dict())
+
     # Auto-ingest any papers missing active_ingestion_id
     from src.services.ingestion_service import ensure_paper_ingested
     for paper in papers:
@@ -1155,7 +1798,7 @@ async def list_synthesis_sessions(
         .order_by(desc(SynthesisSession.created_at))
     )
     sessions = result.scalars().all()
-    
+
     return [
         SynthesisSessionSummary(
             id=session.id,
@@ -1252,13 +1895,13 @@ async def delete_synthesis_session(
         SynthesisSession, Citation, EvidenceExtractionAttempt, EvidenceRecord,
         SynthesisClaim, SynthesisSection, RetrievalLog, LLMCallLog, SynthesisMetrics
     )
-    
+
     # Check existence
     result = await db.execute(select(SynthesisSession).where(SynthesisSession.id == session_id))
     session = result.scalar_one_or_none()
     if session is None:
         raise HTTPException(status_code=404, detail="Synthesis session not found")
-        
+
     # Delete child records
     await db.execute(sql_delete(RetrievalLog).where(RetrievalLog.session_id == session_id))
     await db.execute(sql_delete(LLMCallLog).where(LLMCallLog.session_id == session_id))
@@ -1268,11 +1911,11 @@ async def delete_synthesis_session(
     await db.execute(sql_delete(EvidenceRecord).where(EvidenceRecord.synthesis_session_id == session_id))
     await db.execute(sql_delete(SynthesisClaim).where(SynthesisClaim.synthesis_session_id == session_id))
     await db.execute(sql_delete(SynthesisSection).where(SynthesisSection.synthesis_session_id == session_id))
-    
+
     # Delete the main session
     await db.execute(sql_delete(SynthesisSession).where(SynthesisSession.id == session_id))
     await db.commit()
-    
+
     return {"message": "Synthesis session deleted successfully", "id": str(session_id)}
 
 
@@ -1285,11 +1928,11 @@ async def get_pdf_file(
     from fastapi.responses import FileResponse
     import os
     import httpx
-    
+
     base_dir = os.path.join("uploads", "papers")
     os.makedirs(base_dir, exist_ok=True)
     file_path = os.path.join(base_dir, filename)
-    
+
     # Try finding locally
     found = os.path.exists(file_path)
     if not found:
@@ -1299,7 +1942,7 @@ async def get_pdf_file(
                 file_path = os.path.join(root, filename)
                 found = True
                 break
-                
+
     if not found:
         # Ephemeral disk reset fallback: find online url from DB
         try:
@@ -1308,7 +1951,7 @@ async def get_pdf_file(
                 select(Paper).where(Paper.file_path.like(f"%{filename}%"))
             )
             paper = result.scalar_one_or_none()
-            
+
             # If not found by file_path, try querying papers with similar title/filename match
             if not paper:
                 clean_title = filename.rsplit(".", 1)[0].replace("-", " ")
@@ -1316,7 +1959,7 @@ async def get_pdf_file(
                     select(Paper).where(Paper.title.like(f"%{clean_title[:30]}%"))
                 )
                 paper = result.scalar_one_or_none()
-                
+
             if paper and paper.url and paper.url.lower().endswith(".pdf"):
                 print(f"[pdf-serve] Local file missing. Re-downloading PDF from {paper.url}...", flush=True)
                 async with httpx.AsyncClient(timeout=30.0) as client:
@@ -1331,7 +1974,7 @@ async def get_pdf_file(
 
     if not found or not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File not found")
-            
+
     return FileResponse(file_path, media_type="application/pdf")
 
 

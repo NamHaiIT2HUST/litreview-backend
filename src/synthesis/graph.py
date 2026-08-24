@@ -87,7 +87,7 @@ async def deduplicate_evidence_node(state: SynthesisState) -> dict:
         return {"deduplicated_evidence_count": 0}
 
 
-MAX_COVERAGE_EXPANSION_ROUNDS = 3
+MAX_COVERAGE_EXPANSION_ROUNDS = 1
 
 
 async def ensure_coverage_node(state: SynthesisState) -> dict:

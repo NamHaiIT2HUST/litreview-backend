@@ -1,4 +1,6 @@
 import asyncio
+import logging
+import os
 from typing import List
 
 from langchain_chroma import Chroma
@@ -13,28 +15,13 @@ from src.services.vector_store_config import build_chroma_connection_kwargs
 CHROMA_PERSIST_DIR = ".chroma_db"
 
 
-def should_use_gemini_embeddings(settings) -> bool:
-    return (
-        getattr(settings, "embedding_provider", "local") == "gemini"
-        and bool(
-            getattr(settings, "gemini_api_key", "")
-            or getattr(settings, "google_api_key", "")
-        )
-    )
-
-
-def should_use_openai_embeddings(settings) -> bool:
-    return getattr(settings, "embedding_provider", "local") == "openai" and bool(
-        getattr(settings, "openai_api_key", "")
-    )
-
-
 class LightweightHashEmbeddings(Embeddings):
-    """Small offline fallback embeddings for local/Docker runs without OpenAI.
+    """Non-semantic word-hash embedding. Explicit opt-in only
+    (embedding_provider="hash-debug") -- NOT a fallback for any other provider.
 
-    This keeps the app bootable without downloading sentence-transformers/torch.
-    It is sufficient for smoke tests and local demos; production-quality semantic
-    search should use OpenAI embeddings or another real embedding provider.
+    Bag-of-words character-hash buckets, no learned representation. Sufficient
+    only for wiring smoke tests; retrieval quality on this backend is not
+    representative of production semantic search.
     """
 
     dimension = 128
@@ -54,36 +41,132 @@ class LightweightHashEmbeddings(Embeddings):
         return [value / norm for value in vector]
 
 
+def build_embeddings(
+    settings,
+    *,
+    gemini_cls=None,
+    openai_cls=None,
+    huggingface_cls=None,
+    hash_cls=None,
+):
+    """Construct the configured embedding backend without silent fallback.
+
+    Real providers either initialize successfully or raise. The non-semantic
+    hash backend is available only through EMBEDDING_PROVIDER=hash-debug.
+    """
+    provider = getattr(settings, "embedding_provider", "local")
+
+    if provider == "gemini":
+        gemini_key = (
+            getattr(settings, "effective_gemini_api_key", "")
+            or getattr(settings, "gemini_api_key", "")
+            or getattr(settings, "google_api_key", "")
+        )
+        if not gemini_key:
+            raise RuntimeError(
+                "EMBEDDING_PROVIDER=gemini requires GEMINI_API_KEY or GOOGLE_API_KEY."
+            )
+
+        model_name = settings.embedding_model
+        if model_name.startswith("models/"):
+            model_name = model_name.replace("models/", "", 1)
+
+        gemini_cls = gemini_cls or GoogleGenerativeAIEmbeddings
+        return gemini_cls(
+            model=model_name,
+            google_api_key=gemini_key,
+        )
+
+    if provider == "openai":
+        embedding_key = (
+            getattr(settings, "openai_embedding_api_key", "")
+            or getattr(settings, "effective_openai_api_key", "")
+            or getattr(settings, "openai_api_key", "")
+        )
+        if not embedding_key:
+            raise RuntimeError(
+                "EMBEDDING_PROVIDER=openai requires "
+                "OPENAI_EMBEDDING_API_KEY or an effective OpenAI-compatible API key."
+            )
+
+        embedding_model = settings.embedding_model or "text-embedding-3-small"
+        explicit_embedding_base = getattr(
+            settings, "openai_embedding_api_base", ""
+        )
+
+        embedding_base = (
+            explicit_embedding_base
+            or getattr(settings, "get_api_base", "")
+            or None
+        )
+
+        # Avoid accidentally sending embeddings to an unrelated LLM proxy.
+        if (
+            not explicit_embedding_base
+            and embedding_base
+            and "xkiro.com" in embedding_base
+        ):
+            embedding_base = "https://api.openai.com/v1"
+
+        if not embedding_base:
+            if embedding_key.startswith("sk-or-v1-"):
+                embedding_base = "https://openrouter.ai/api/v1"
+            elif embedding_key.startswith("sk-proj-"):
+                embedding_base = "https://api.openai.com/v1"
+
+        if (
+            embedding_base
+            and "openrouter.ai" in embedding_base
+            and "/" not in embedding_model
+        ):
+            embedding_model = f"openai/{embedding_model}"
+
+        openai_cls = openai_cls or OpenAIEmbeddings
+        return openai_cls(
+            model=embedding_model,
+            api_key=embedding_key,
+            base_url=embedding_base,
+        )
+
+    if provider == "local":
+        if huggingface_cls is None:
+            try:
+                from langchain_huggingface import (
+                    HuggingFaceEmbeddings as huggingface_cls,
+                )
+            except ImportError as exc:
+                raise RuntimeError(
+                    "EMBEDDING_PROVIDER=local requires the "
+                    "'sentence-transformers' and 'langchain-huggingface' "
+                    "packages (see requirements.txt). Install them, or set "
+                    "EMBEDDING_PROVIDER=hash-debug to explicitly opt into "
+                    "the non-semantic hash backend."
+                ) from exc
+
+        return huggingface_cls(
+            model_name=settings.local_embedding_model
+        )
+
+    if provider == "hash-debug":
+        hash_cls = hash_cls or LightweightHashEmbeddings
+        return hash_cls()
+
+    raise RuntimeError(
+        f"Unsupported EMBEDDING_PROVIDER={provider!r}."
+    )
+
 class VectorStoreService:
     def __init__(self):
         settings = get_settings()
-        gemini_key = getattr(settings, "gemini_api_key", "") or getattr(
-            settings, "google_api_key", ""
-        )
-
-        # Pick the embedding provider the caller configured. If its key is
-        # missing, keep the app bootable with a lightweight offline fallback
-        # so local smoke tests still work.
-        if should_use_gemini_embeddings(settings):
-            self.embeddings = GoogleGenerativeAIEmbeddings(
-                model=settings.embedding_model,
-                google_api_key=gemini_key,
-            )
-        elif should_use_openai_embeddings(settings):
-            self.embeddings = OpenAIEmbeddings(
-                model=settings.embedding_model,
-                api_key=settings.openai_api_key,
-                base_url=settings.get_api_base or None,
-            )
-        else:
-            self.embeddings = LightweightHashEmbeddings()
+        self.embeddings = build_embeddings(settings)
 
         chroma_kwargs = build_chroma_connection_kwargs(settings)
         if "persist_directory" in chroma_kwargs and not chroma_kwargs["persist_directory"]:
             chroma_kwargs["persist_directory"] = CHROMA_PERSIST_DIR
 
+        provider_suffix = (getattr(settings, "embedding_provider", "local") or "local").lower()
         self.vector_store = Chroma(
-            collection_name="litreview_papers_v2",
+            collection_name=f"litreview_papers_{provider_suffix}_v3",
             embedding_function=self.embeddings,
             **chroma_kwargs,
         )
@@ -93,8 +176,12 @@ class VectorStoreService:
         if not documents:
             return 0
 
-        await asyncio.to_thread(self.vector_store.add_documents, documents=documents)
-        return len(documents)
+        try:
+            await asyncio.to_thread(self.vector_store.add_documents, documents=documents)
+            return len(documents)
+        except Exception as exc:
+            logging.getLogger(__name__).error("Vector store add_documents failed: %s", exc)
+            return 0
 
     async def stage_documents_for_paper(
         self, paper_id: str, documents: List[Document]
@@ -114,7 +201,11 @@ class VectorStoreService:
             where={"paper_id": str(paper_id)},
         )
         old_ids = list(existing.get("ids", []) or [])
-        await asyncio.to_thread(self.vector_store.add_documents, documents=documents)
+        try:
+            await asyncio.to_thread(self.vector_store.add_documents, documents=documents)
+        except Exception as exc:
+            logging.getLogger(__name__).error("Vector store stage_documents_for_paper failed: %s", exc)
+            return []
         return old_ids
 
     async def delete_document_ids(self, ids: list[str]) -> int:

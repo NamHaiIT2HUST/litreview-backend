@@ -52,6 +52,8 @@ def _load_vector_store_module(monkeypatch):
 
     config = types.ModuleType("src.config")
     config.get_settings = lambda: SimpleNamespace(
+        embedding_provider="local",
+        local_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
         openai_api_key="",
         get_api_base="",
         embedding_model="text-embedding-3-small",

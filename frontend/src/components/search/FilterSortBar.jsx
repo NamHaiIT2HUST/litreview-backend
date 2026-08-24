@@ -1,17 +1,19 @@
 import React from 'react';
-import { 
-  SlidersHorizontal, 
-  ArrowUpDown, 
-  LayoutGrid, 
-  Table as TableIcon, 
-  Search, 
-  RotateCcw, 
-  X, 
-  Calendar, 
-  Quote, 
-  FileText, 
-  Download
+import {
+  SlidersHorizontal,
+  ArrowUpDown,
+  LayoutGrid,
+  Table as TableIcon,
+  Search,
+  RotateCcw,
+  X,
+  Calendar,
+  Quote,
+  FileText,
+  Download,
+  ChevronDown,
 } from 'lucide-react';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 export default function FilterSortBar({
   totalCount,
@@ -40,276 +42,212 @@ export default function FilterSortBar({
   onExportExcel,
   darkMode
 }) {
+  const { t } = useLanguage();
 
   const presets = [
-    { id: 'all', label: 'Tất cả bài báo', icon: FileText },
-    { id: 'recent', label: 'Bài mới (3 năm gần đây)', icon: Calendar },
-    { id: 'top_cited', label: 'Trích dẫn nhiều (≥ 50)', icon: Quote },
-    { id: 'has_tldr', label: 'Có AI TL;DR', icon: FileText }
+    { id: 'all',       label: t('search.filter_all'),    icon: FileText },
+    { id: 'recent',    label: t('search.filter_new'),    icon: Calendar },
+    { id: 'top_cited', label: t('search.filter_cited'),  icon: Quote },
+    { id: 'has_tldr',  label: t('search.filter_tldr'),   icon: FileText },
   ];
 
   return (
-    <div className={`rounded-3xl border shadow-sm transition-all p-5 space-y-4 ${
-      darkMode ? 'bg-slate-900 border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-800'
-    }`}>
-      {/* Top Toolbar */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+    <div className="space-y-3">
+      {/* ── Top Row: Search + Sort + View ─────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
         
-        {/* Real-time In-Result Search */}
-        <div className="relative flex-1 min-w-[240px]">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+        {/* Search input */}
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400" />
           <input
             type="text"
             value={inResultQuery}
-            onChange={(e) => setInResultQuery(e.target.value)}
-            placeholder="Lọc nhanh theo tiêu đề, tác giả, tóm tắt..."
-            className={`w-full pl-10 pr-8 py-2.5 rounded-2xl text-xs font-semibold border transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              darkMode 
-                ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500' 
-                : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400'
-            }`}
+            onChange={e => setInResultQuery(e.target.value)}
+            placeholder={t('search.filter_placeholder')}
+            className="input input-sm pl-9 pr-8"
           />
           {inResultQuery && (
             <button
               onClick={() => setInResultQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded text-surface-400 hover:text-surface-600 dark:hover:text-surface-300 transition-colors"
             >
               <X className="w-3.5 h-3.5" />
             </button>
           )}
         </div>
 
-        {/* Right Tools Group */}
-        <div className="flex flex-wrap items-center gap-2.5 justify-end">
-          
-          {/* Sort Selector Dropdown */}
-          <div className="flex items-center gap-1.5 border rounded-2xl px-3 py-2 text-xs font-bold transition-all shrink-0">
-            <ArrowUpDown className="w-3.5 h-3.5 text-blue-600 dark:text-sky-400 shrink-0" />
-            <span className="text-slate-400 hidden sm:inline">Sắp xếp:</span>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className={`bg-transparent font-bold focus:outline-none cursor-pointer text-xs ${
-                darkMode ? 'text-white bg-slate-900' : 'text-slate-800 bg-white'
-              }`}
-            >
-              <option value="source_order">Google Scholar Rank</option>
-              <option value="year_desc">📅 Năm (Mới nhất)</option>
-              <option value="year_asc">Năm (Cũ nhất)</option>
-              <option value="citations_desc">💬 Trích dẫn (Nhiều nhất)</option>
-              <option value="title_asc">🔤 Tiêu đề (A → Z)</option>
-            </select>
-          </div>
-
-          {/* Advanced Filter Panel Toggle */}
-          <button
-            onClick={() => setShowAdvanced(!showAdvanced)}
-            className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all border shrink-0 ${
-              showAdvanced || hasActiveFilters
-                ? 'bg-blue-50 dark:bg-blue-950/60 border-blue-300 dark:border-blue-800 text-blue-700 dark:text-sky-300'
-                : darkMode ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700' : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'
-            }`}
+        {/* Sort Dropdown */}
+        <div className="relative">
+          <ArrowUpDown className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-surface-400 pointer-events-none" />
+          <select
+            value={sortBy}
+            onChange={e => setSortBy(e.target.value)}
+            className="input input-sm pl-8 pr-7 cursor-pointer appearance-none min-w-[160px]"
           >
-            <SlidersHorizontal className="w-3.5 h-3.5" />
-            <span>Bộ lọc nâng cao</span>
-            {hasActiveFilters && (
-              <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></span>
-            )}
+            <option value="source_order">Relevance</option>
+            <option value="year_desc">Year (Newest)</option>
+            <option value="year_asc">Year (Oldest)</option>
+            <option value="citations_desc">Citations (Most)</option>
+            <option value="title_asc">Title (A–Z)</option>
+          </select>
+          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-surface-400 pointer-events-none" />
+        </div>
+
+        {/* View Mode Toggle */}
+        <div className="hidden sm:flex items-center gap-0.5 p-1 rounded-xl bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700">
+          <button
+            onClick={() => setViewMode('grid')}
+            className={`p-1.5 rounded-lg transition-all ${
+              viewMode === 'grid'
+                ? 'bg-white dark:bg-surface-700 text-primary-600 dark:text-primary-400 shadow-xs'
+                : 'text-surface-400 hover:text-surface-600 dark:hover:text-surface-300'
+            }`}
+            title="Grid view"
+          >
+            <LayoutGrid className="w-3.5 h-3.5" />
           </button>
+          <button
+            onClick={() => setViewMode('table')}
+            className={`p-1.5 rounded-lg transition-all ${
+              viewMode === 'table'
+                ? 'bg-white dark:bg-surface-700 text-primary-600 dark:text-primary-400 shadow-xs'
+                : 'text-surface-400 hover:text-surface-600 dark:hover:text-surface-300'
+            }`}
+            title="Table view"
+          >
+            <TableIcon className="w-3.5 h-3.5" />
+          </button>
+        </div>
 
-          {/* View Mode Switcher */}
-          <div className={`flex items-center p-1 border rounded-2xl shrink-0 ${
-            darkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-100 border-slate-200'
-          }`}>
-            <button
-              onClick={() => setViewMode('cards')}
-              className={`p-1.5 rounded-xl transition-all ${
-                viewMode === 'cards'
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
-              }`}
-              title="Xem dạng thẻ"
-            >
-              <LayoutGrid className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setViewMode('table')}
-              className={`p-1.5 rounded-xl transition-all ${
-                viewMode === 'table'
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
-              }`}
-              title="Xem dạng bảng"
-            >
-              <TableIcon className="w-4 h-4" />
-            </button>
-          </div>
+        {/* Advanced Filters Toggle */}
+        <button
+          onClick={() => setShowAdvanced(!showAdvanced)}
+          className={`btn btn-sm ${
+            showAdvanced || hasActiveFilters
+              ? 'bg-primary-50 text-primary-700 border border-primary-200 dark:bg-primary-950 dark:text-primary-300 dark:border-primary-800'
+              : 'btn-secondary'
+          }`}
+        >
+          <SlidersHorizontal className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">{t('search.advanced_filter')}</span>
+          {hasActiveFilters && <span className="w-1.5 h-1.5 rounded-full bg-primary-500" />}
+        </button>
 
+        {/* Export */}
+        <button
+          onClick={onExportExcel}
+          disabled={filteredCount === 0}
+          className="btn btn-sm btn-secondary"
+          title={t('search.export_excel')}
+        >
+          <Download className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">{t('search.export_excel')}</span>
+        </button>
+      </div>
+
+      {/* ── Quick Filter Presets ────────────────────────────────────────── */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-0.5">
+        <span className="text-[10px] font-bold text-surface-400 uppercase tracking-wider flex-shrink-0">
+          {t('search.quick_filter')}
+        </span>
+        <div className="flex items-center gap-1.5">
+          {presets.map(preset => {
+            const Icon = preset.icon;
+            const isActive = activePreset === preset.id;
+            return (
+              <button
+                key={preset.id}
+                onClick={() => setActivePreset(preset.id)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
+                  isActive
+                    ? 'bg-primary-600 text-white shadow-xs'
+                    : 'bg-surface-100 dark:bg-surface-800 text-surface-600 dark:text-surface-400 hover:bg-primary-50 dark:hover:bg-primary-950 hover:text-primary-600 dark:hover:text-primary-400 border border-surface-200 dark:border-surface-700'
+                }`}
+              >
+                <Icon className="w-3 h-3" />
+                {preset.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Count */}
+        <div className="ml-auto flex-shrink-0 text-xs text-surface-500 font-medium">
+          {filteredCount === totalCount
+            ? `${totalCount} papers`
+            : `${filteredCount} / ${totalCount}`}
         </div>
       </div>
 
-      {/* Quick Preset Filter Chips */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 shrink-0">
-          Lọc nhanh:
-        </span>
-        {presets.map((preset) => {
-          const Icon = preset.icon;
-          const isActive = activePreset === preset.id;
-          return (
-            <button
-              key={preset.id}
-              onClick={() => setActivePreset(preset.id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap border shrink-0 ${
-                isActive
-                  ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
-                  : darkMode
-                    ? 'bg-slate-800/80 border-slate-700/80 text-slate-300 hover:bg-slate-800 hover:border-slate-600'
-                    : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-              }`}
-            >
-              <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-blue-500 dark:text-sky-400'}`} />
-              <span>{preset.label}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Collapsible Advanced Filters Drawer */}
+      {/* ── Advanced Filters Panel ──────────────────────────────────────── */}
       {showAdvanced && (
-        <div className={`p-4 md:p-5 rounded-2xl border space-y-4 animate-in fade-in slide-in-from-top-2 duration-200 ${
-          darkMode ? 'bg-slate-800/70 border-slate-700' : 'bg-slate-50 border-slate-200'
-        }`}>
-          <div className="flex items-center justify-between border-b pb-2 border-slate-200 dark:border-slate-700">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-              <SlidersHorizontal className="w-3.5 h-3.5 text-blue-500" />
-              <span>Bộ lọc chuyên sâu</span>
-            </h4>
-            {hasActiveFilters && (
-              <button
-                onClick={resetFilters}
-                className="text-xs font-bold text-red-500 hover:underline flex items-center gap-1"
-              >
-              <RotateCcw className="w-3 h-3" />
-              <span>Đặt lại</span>
-              </button>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
-            {/* Citations Min Filter */}
-            <div className="space-y-1.5">
-              <label className="font-bold text-slate-700 dark:text-slate-300">
-                Số lượt trích dẫn (Min):
+        <div className="card p-4 animate-slide-up">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            
+            {/* Citations Range */}
+            <div>
+              <label className="section-label block mb-2">
+                Min Citations: <span className="text-primary-600 dark:text-primary-400 font-mono">{minCitations}</span>
               </label>
-              <select
+              <input
+                type="range"
+                min="0" max="1000" step="10"
                 value={minCitations}
-                onChange={(e) => setMinCitations(Number(e.target.value))}
-                className={`w-full p-2.5 border rounded-xl font-bold focus:outline-none ${
-                  darkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-800'
-                }`}
-              >
-                <option value={0}>Tất cả</option>
-                <option value={10}>≥ 10 trích dẫn</option>
-                <option value={50}>≥ 50 trích dẫn</option>
-                <option value={100}>≥ 100 trích dẫn</option>
-                <option value={500}>≥ 500 trích dẫn</option>
-              </select>
+                onChange={e => setMinCitations(parseInt(e.target.value))}
+                className="w-full accent-primary-600"
+              />
             </div>
 
-            {/* Publication Year Range Filter */}
-            <div className="space-y-1.5">
-              <label className="font-bold text-slate-700 dark:text-slate-300">
-                Khoảng năm xuất bản:
-              </label>
+            {/* Year Range */}
+            <div>
+              <label className="section-label block mb-2">Year Range</label>
               <div className="flex items-center gap-2">
                 <input
                   type="number"
-                  placeholder="Từ năm"
+                  placeholder="From"
                   value={startYear}
-                  onChange={(e) => setStartYear(e.target.value)}
-                  className={`w-full p-2 border rounded-xl font-semibold text-center focus:outline-none ${
-                    darkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-800'
-                  }`}
+                  onChange={e => setStartYear(e.target.value)}
+                  className="input input-sm w-full"
                 />
-                <span className="text-slate-400 font-bold">-</span>
+                <span className="text-surface-400 text-xs">–</span>
                 <input
                   type="number"
-                  placeholder="Đến năm"
+                  placeholder="To"
                   value={endYear}
-                  onChange={(e) => setEndYear(e.target.value)}
-                  className={`w-full p-2 border rounded-xl font-semibold text-center focus:outline-none ${
-                    darkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-800'
-                  }`}
+                  onChange={e => setEndYear(e.target.value)}
+                  className="input input-sm w-full"
                 />
               </div>
             </div>
 
-            {/* Journal Source Filter */}
-            <div className="space-y-1.5">
-              <label className="font-bold text-slate-700 dark:text-slate-300">
-                Tạp chí / Nguồn:
-              </label>
-              <select
-                value={selectedJournal}
-                onChange={(e) => setSelectedJournal(e.target.value)}
-                className={`w-full p-2.5 border rounded-xl font-bold focus:outline-none ${
-                  darkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-800'
-                }`}
-              >
-                <option value="All">Tất cả nguồn ({availableJournals.length})</option>
-                {availableJournals.map(j => (
-                  <option key={j} value={j}>{j}</option>
-                ))}
-              </select>
+            {/* Journal Filter */}
+            <div className="lg:col-span-2">
+              <label className="section-label block mb-2">Journal / Conference</label>
+              <div className="flex gap-2">
+                <select
+                  value={selectedJournal}
+                  onChange={e => setSelectedJournal(e.target.value)}
+                  className="input input-sm flex-1 appearance-none"
+                >
+                  <option value="">All publications</option>
+                  {availableJournals.map(j => (
+                    <option key={j} value={j}>{j}</option>
+                  ))}
+                </select>
+                {hasActiveFilters && (
+                  <button
+                    onClick={resetFilters}
+                    className="btn btn-sm btn-ghost text-danger-600 dark:text-danger-400 hover:bg-danger-light dark:hover:bg-danger-dark"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Reset</span>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
       )}
-
-      {/* Stats Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
-        
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-bold text-slate-500 dark:text-slate-400">
-            Hiển thị <strong className="text-blue-600 dark:text-sky-400 font-extrabold">{filteredCount}</strong> / {totalCount} bài báo
-          </span>
-
-          {filteredCount !== totalCount && (
-            <span className="px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 font-bold text-[10px]">
-              Đang áp dụng bộ lọc
-            </span>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2">
-          {onExportExcel && (
-            <button
-              onClick={onExportExcel}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
-                darkMode
-                  ? 'bg-slate-800 border-slate-700 hover:bg-slate-700 text-emerald-400'
-                  : 'bg-emerald-50 border-emerald-200 hover:bg-emerald-100 text-emerald-700'
-              }`}
-              title="Xuất kết quả ra Excel"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Xuất Excel</span>
-            </button>
-          )}
-
-          {hasActiveFilters && (
-            <button
-              onClick={resetFilters}
-              className="text-xs font-bold text-slate-400 hover:text-red-500 transition-colors flex items-center gap-1"
-            >
-              <RotateCcw className="w-3 h-3" />
-              <span>Xóa bộ lọc</span>
-            </button>
-          )}
-        </div>
-      </div>
-
     </div>
   );
 }

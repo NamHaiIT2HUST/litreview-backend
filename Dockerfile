@@ -4,7 +4,11 @@ FROM python:3.11-slim AS builder
 WORKDIR /app
 
 COPY requirements.txt .
-RUN grep -Ev '^(ruff|pytest|pytest-asyncio|langchain-huggingface|sentence-transformers)($|[<>=])' requirements.txt > requirements-runtime.txt \
+# NOTE: langchain-huggingface and sentence-transformers used to be stripped from the
+# runtime image here to keep builds fast, which silently broke EMBEDDING_PROVIDER=local
+# (see src/services/vector_store.py) -- it fell back to a non-semantic hash embedding
+# with no error. They are real runtime dependencies now and must ship in production.
+RUN grep -Ev '^(ruff|pytest|pytest-asyncio)($|[<>=])' requirements.txt > requirements-runtime.txt \
     && pip install --no-cache-dir --retries 10 --timeout 120 --prefix=/install -r requirements-runtime.txt
 
 # ---- Stage 2: Production ----

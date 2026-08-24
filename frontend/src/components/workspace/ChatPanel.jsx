@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { Layers, Bot, Send, Copy, ThumbsUp, ThumbsDown, Check } from 'lucide-react';
+import { Layers, Bot, Send, Copy, ThumbsUp, ThumbsDown, Check, ShieldCheck, Sparkles } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import remarkGfm from 'remark-gfm';
 import rehypeKatex from 'rehype-katex';
 import CitationChip from './CitationChip';
 import { useLanguage } from '../../contexts/LanguageContext';
-
+import { formatMathAndMarkdown } from '../../utils/mathUtils';
 import { API_BASE } from '../../utils/apiConfig';
+
+
 
 export default function ChatPanel({ 
   workspacePapers,
@@ -16,6 +18,7 @@ export default function ChatPanel({
   setChatMessages, 
   activeCitation, 
   setActiveCitation,
+  onOpenHarness,
   darkMode
 }) {
   const { t } = useLanguage();
@@ -60,7 +63,8 @@ export default function ChatPanel({
         sender: 'ai',
         text: data.answer,
         context_used: data.context_used,
-        citations: data.citations
+        citations: data.citations,
+        guardrail: data.guardrail
       };
       setChatMessages(prev => [...prev, aiReply]);
     } catch (error) {
@@ -93,9 +97,7 @@ export default function ChatPanel({
               className={`text-[14px] leading-relaxed ${
                 msg.sender === 'user'
                   ? 'px-5 py-3.5 rounded-3xl rounded-tr-sm max-w-[85%] md:max-w-[75%] bg-blue-600 text-white font-medium shadow-sm'
-                  : darkMode
-                    ? 'py-1.5 w-full max-w-full text-slate-200'
-                    : 'py-1.5 w-full max-w-full text-slate-800'
+                  : 'py-1.5 w-full max-w-full text-slate-800 dark:py-1.5 dark:w-full dark:max-w-full dark:text-slate-200'
               }`}
             >
               <div className={msg.sender === 'user' ? 'whitespace-pre-wrap' : 'prose prose-slate dark:prose-invert max-w-none prose-p:text-[14px] prose-p:leading-relaxed prose-headings:font-bold prose-h1:text-[16px] prose-h2:text-[15px] prose-h3:text-[14px] prose-li:text-[14px] prose-pre:bg-slate-800'}>
@@ -109,7 +111,7 @@ export default function ChatPanel({
                       a: ({node, href, children, ...props}) => {
                         if (href?.startsWith('#cite-')) {
                           const citeId = href.replace('#cite-', '');
-                          const citeObj = msg.citations?.find(c => c.key === citeId) || msg.context_used?.find(c => c.key === citeId);
+                          const citeObj = msg.citations?.find(c => String(c.key) === String(citeId)) || msg.context_used?.find(c => String(c.key) === String(citeId));
                           return (
                               <CitationChip
                                 key={citeId}
@@ -139,8 +141,9 @@ export default function ChatPanel({
                       }
                     }}
                   >
-                    {msg.text.replace(/\[(\d+)\]/g, '[[$1]](#cite-$1)')}
+                    {formatMathAndMarkdown(msg.text)}
                   </ReactMarkdown>
+
                 )}
               </div>
               {/* Render Unified Context Used if available */}
@@ -181,33 +184,36 @@ export default function ChatPanel({
               )}
 
               {/* Action Buttons */}
+
               {msg.sender === 'ai' && (
-                <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-slate-200 dark:border-slate-700/60">
-                  <button 
-                    onClick={() => handleCopy(msg.text, idx)}
-                    className={`p-1.5 rounded-md transition-colors flex items-center justify-center group relative ${
-                      copiedIndex === idx 
-                        ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/30' 
-                        : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800'
-                    }`}
-                  >
-                    {copiedIndex === idx ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                    <span className="absolute -top-8 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                      {copiedIndex === idx ? t('chat.copied') : t('chat.copy')}
-                    </span>
-                  </button>
-                  <button 
-                    className="p-1.5 text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-md transition-colors flex items-center justify-center group relative"
-                  >
-                    <ThumbsUp className="w-4 h-4" />
-                    <span className="absolute -top-8 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">{t('chat.good_response')}</span>
-                  </button>
-                  <button 
-                    className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-md transition-colors flex items-center justify-center group relative"
-                  >
-                    <ThumbsDown className="w-4 h-4" />
-                    <span className="absolute -top-8 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">{t('chat.bad_response')}</span>
-                  </button>
+                <div className="flex items-center justify-between gap-1.5 mt-3 pt-3 border-t border-slate-200 dark:border-slate-700/60">
+                  <div className="flex items-center gap-1.5">
+                    <button 
+                      onClick={() => handleCopy(msg.text, idx)}
+                      className={`p-1.5 rounded-md transition-colors flex items-center justify-center group relative ${
+                        copiedIndex === idx 
+                          ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/30' 
+                          : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800'
+                      }`}
+                    >
+                      {copiedIndex === idx ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                      <span className="absolute -top-8 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                        {copiedIndex === idx ? t('chat.copied') : t('chat.copy')}
+                      </span>
+                    </button>
+                    <button 
+                      className="p-1.5 text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-md transition-colors flex items-center justify-center group relative"
+                    >
+                      <ThumbsUp className="w-4 h-4" />
+                      <span className="absolute -top-8 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">{t('chat.good_response')}</span>
+                    </button>
+                    <button 
+                      className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-md transition-colors flex items-center justify-center group relative"
+                    >
+                      <ThumbsDown className="w-4 h-4" />
+                      <span className="absolute -top-8 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">{t('chat.bad_response')}</span>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -220,7 +226,7 @@ export default function ChatPanel({
               <Bot className="w-6 h-6" />
             </div>
             <div className={`py-2.5 w-full max-w-full text-sm leading-relaxed flex items-center gap-1.5 ${
-              darkMode ? 'text-slate-200' : 'text-slate-900'
+              'text-slate-900 dark:text-slate-200'
             }`}>
               <div className="w-2.5 h-2.5 rounded-full bg-slate-400 animate-bounce"></div>
               <div className="w-2.5 h-2.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: '0.2s' }}></div>
@@ -251,9 +257,7 @@ export default function ChatPanel({
           onChange={e => setInputQuestion(e.target.value)}
           placeholder={t('chat.input_placeholder')}
           className={`w-full pl-6 pr-32 py-4 border rounded-[2rem] text-[14px] font-medium focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 shadow-sm transition-all ${
-            darkMode 
-              ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500' 
-              : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400'
+            'bg-white border-slate-200 text-slate-900 placeholder-slate-400 dark:bg-slate-800 dark:border-slate-700 dark:text-white dark:placeholder-slate-500'
           }`}
         />
         <button

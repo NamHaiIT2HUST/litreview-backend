@@ -25,8 +25,7 @@ from sqlalchemy import select
 from src.config import get_settings
 from src.database import AsyncSessionLocal
 from src.models.db_models import PDFChunk, PageText, Paper
-from src.services.vector_store import should_use_openai_embeddings, vector_store_service
-
+from src.services.vector_store import should_use_openai_embeddings, should_use_gemini_embeddings, vector_store_service
 
 def _build_documents(rows) -> list[Document]:
     documents = []
@@ -53,9 +52,9 @@ def _build_documents(rows) -> list[Document]:
 
 async def migrate(dry_run: bool = False, only_paper_id: str | None = None) -> None:
     settings = get_settings()
-    if not should_use_openai_embeddings(settings):
+    if not should_use_openai_embeddings(settings) and not should_use_gemini_embeddings(settings):
         raise SystemExit(
-            "embedding_provider must be 'openai' and OPENAI_API_KEY must be set "
+            "embedding_provider must be 'openai' or 'gemini' and its respective API key must be set "
             "before running this migration (check .env)."
         )
 

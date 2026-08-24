@@ -85,7 +85,7 @@ export default function SearchHistoryPanel({
       return (
         <div className="text-center py-6">
           <History className="w-8 h-8 mx-auto mb-2 opacity-20 text-blue-500" />
-          <p className={`text-xs font-semibold ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+          <p className={`text-xs font-semibold ${'text-slate-400 dark:text-slate-500'}`}>
             {t('search.no_history_yet')}
           </p>
         </div>
@@ -100,7 +100,7 @@ export default function SearchHistoryPanel({
       <div className="space-y-3">
         <div className="flex items-center gap-2 mb-2">
           <History className="w-4 h-4 text-blue-500" />
-          <span className={`text-sm font-bold ${darkMode ? 'text-white' : 'text-slate-800'}`}>
+          <span className={`text-sm font-bold ${'text-slate-800 dark:text-white'}`}>
             {t('search.search_history')}
           </span>
           <span className="text-xs font-bold bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full">
@@ -117,12 +117,10 @@ export default function SearchHistoryPanel({
             <div
               key={item.id}
               className={`p-3 rounded-xl border transition-colors ${
-                darkMode
-                  ? 'bg-slate-800/60 border-slate-700 hover:bg-slate-700/60'
-                  : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
+                'bg-slate-50 border-slate-200 hover:bg-slate-100 dark:bg-slate-800/60 dark:border-slate-700 dark:hover:bg-slate-700/60'
               }`}
             >
-              <p className={`text-xs font-semibold truncate mb-1 ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>
+              <p className={`text-xs font-semibold truncate mb-1 ${'text-slate-800 dark:text-slate-100'}`}>
                 {item.query_string}
               </p>
               <div className="flex items-center gap-1.5 text-[10px] text-slate-400 mb-2">
@@ -136,9 +134,7 @@ export default function SearchHistoryPanel({
                   onClick={() => handleLoadPapers(item.id, item.query_string)}
                   disabled={loadingQueryId === item.id}
                   className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-[10px] font-bold transition-all border ${
-                    darkMode
-                      ? 'bg-slate-700 hover:bg-slate-600 border-slate-600 text-white disabled:opacity-50'
-                      : 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700 disabled:opacity-50'
+                    'bg-white hover:bg-slate-100 border-slate-200 text-slate-700 disabled:opacity-50 dark:bg-slate-700 dark:hover:bg-slate-600 dark:border-slate-600 dark:text-white dark:disabled:opacity-50'
                   }`}
                 >
                   <RotateCcw className={`w-2.5 h-2.5 ${loadingQueryId === item.id ? 'animate-spin' : ''}`} />
@@ -148,9 +144,7 @@ export default function SearchHistoryPanel({
                   onClick={() => handleDuplicate(item.id, item.query_string)}
                   disabled={duplicating === item.id}
                   className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-[10px] font-bold transition-all border ${
-                    darkMode
-                      ? 'bg-blue-600/20 hover:bg-blue-600/40 border-blue-700 text-blue-300 disabled:opacity-50'
-                      : 'bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-700 disabled:opacity-50'
+                    'bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-700 disabled:opacity-50 dark:bg-blue-600/20 dark:hover:bg-blue-600/40 dark:border-blue-700 dark:text-blue-300 dark:disabled:opacity-50'
                   }`}
                 >
                   <Copy className="w-2.5 h-2.5" />
@@ -160,9 +154,7 @@ export default function SearchHistoryPanel({
                   onClick={(e) => handleDelete(item.id, e)}
                   disabled={deletingId === item.id}
                   className={`p-1.5 rounded-lg text-[10px] font-bold transition-all border ${
-                    darkMode
-                      ? 'bg-rose-900/30 hover:bg-rose-900/50 border-rose-800 text-rose-300 disabled:opacity-50'
-                      : 'bg-rose-50 hover:bg-rose-100 border-rose-200 text-rose-600 disabled:opacity-50'
+                    'bg-rose-50 hover:bg-rose-100 border-rose-200 text-rose-600 disabled:opacity-50 dark:bg-rose-900/30 dark:hover:bg-rose-900/50 dark:border-rose-800 dark:text-rose-300 dark:disabled:opacity-50'
                   }`}
                   title={t('search.delete_history')}
                 >
@@ -179,17 +171,17 @@ export default function SearchHistoryPanel({
   // Default (non-sidebar) collapsible mode
   return (
     <div className={`rounded-2xl border transition-all ${
-      darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+      'bg-white border-slate-200 dark:bg-slate-900 dark:border-slate-800'
     }`}>
       <button
         onClick={() => setCollapsed(!collapsed)}
         className={`w-full flex items-center justify-between px-5 py-4 text-left transition-colors rounded-2xl ${
-          darkMode ? 'hover:bg-slate-800/60' : 'hover:bg-slate-50'
+          'hover:bg-slate-50 dark:hover:bg-slate-800/60'
         }`}
       >
         <div className="flex items-center gap-2">
           <History className="w-4 h-4 text-blue-500" />
-          <span className={`text-sm font-bold ${darkMode ? 'text-white' : 'text-slate-800'}`}>
+          <span className={`text-sm font-bold ${'text-slate-800 dark:text-white'}`}>
             {t('search.search_history')}
           </span>
           <span className="text-xs font-bold bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full">
@@ -211,13 +203,11 @@ export default function SearchHistoryPanel({
             <div
               key={item.id}
               className={`p-3 rounded-xl border flex flex-col sm:flex-row sm:items-center gap-3 transition-colors ${
-                darkMode
-                  ? 'bg-slate-800/60 border-slate-700'
-                  : 'bg-slate-50 border-slate-200'
+                'bg-slate-50 border-slate-200 dark:bg-slate-800/60 dark:border-slate-700'
               }`}
             >
               <div className="flex-1 min-w-0">
-                <p className={`text-sm font-semibold truncate ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>
+                <p className={`text-sm font-semibold truncate ${'text-slate-800 dark:text-slate-100'}`}>
                   {item.query_string}
                 </p>
                 <div className="flex items-center gap-2 mt-1 text-xs text-slate-400 flex-wrap">
@@ -242,9 +232,7 @@ export default function SearchHistoryPanel({
                   disabled={loadingQueryId === item.id}
                   title={t('search.view_results')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
-                    darkMode
-                      ? 'bg-slate-700 hover:bg-slate-600 border-slate-600 text-white disabled:opacity-50'
-                      : 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700 disabled:opacity-50'
+                    'bg-white hover:bg-slate-100 border-slate-200 text-slate-700 disabled:opacity-50 dark:bg-slate-700 dark:hover:bg-slate-600 dark:border-slate-600 dark:text-white dark:disabled:opacity-50'
                   }`}
                 >
                   <RotateCcw className={`w-3.5 h-3.5 ${loadingQueryId === item.id ? 'animate-spin' : ''}`} />
@@ -256,9 +244,7 @@ export default function SearchHistoryPanel({
                   disabled={duplicating === item.id}
                   title={t('search.copy')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
-                    darkMode
-                      ? 'bg-blue-600/20 hover:bg-blue-600/40 border-blue-700 text-blue-300 disabled:opacity-50'
-                      : 'bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-700 disabled:opacity-50'
+                    'bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-700 disabled:opacity-50 dark:bg-blue-600/20 dark:hover:bg-blue-600/40 dark:border-blue-700 dark:text-blue-300 dark:disabled:opacity-50'
                   }`}
                 >
                   <Copy className="w-3.5 h-3.5" />

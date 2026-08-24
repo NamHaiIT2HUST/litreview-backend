@@ -60,6 +60,14 @@ def _fallback_keywords(request: ProjectCreateRequest) -> list[str]:
     return result[:7]
 
 
+@router.get("/projects", response_model=list[ProjectResponse])
+async def list_projects(db: AsyncSession = Depends(get_db)):
+    """Module 1: List all research projects."""
+    result = await db.execute(select(Project).order_by(Project.created_at.desc() if hasattr(Project, "created_at") else Project.name))
+    projects = result.scalars().all()
+    return projects
+
+
 @router.post("/projects", response_model=ProjectResponse, status_code=201)
 async def create_project(request: ProjectCreateRequest, db: AsyncSession = Depends(get_db)):
     """Module 1: Create a new research project."""
@@ -150,6 +158,30 @@ async def update_project(project_id: UUID, request: ProjectCreateRequest, db: As
     await db.refresh(project)
     return project
 
+
+@router.delete("/projects/{project_id}", status_code=204)
+async def delete_project(project_id: UUID, db: AsyncSession = Depends(get_db)):
+    """Module 1: Delete a research project and its associated papers."""
+    from src.models.db_models import Paper, PageText, PDFChunk
+    from sqlalchemy import delete as sql_delete
+
+    result = await db.execute(select(Project).where(Project.id == project_id))
+    project = result.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    # Delete related papers and text chunks
+    papers_res = await db.execute(select(Paper.id).where(Paper.project_id == project_id))
+    paper_ids = papers_res.scalars().all()
+    if paper_ids:
+        await db.execute(sql_delete(PageText).where(PageText.paper_id.in_(paper_ids)))
+        await db.execute(sql_delete(PDFChunk).where(PDFChunk.paper_id.in_(paper_ids)))
+        await db.execute(sql_delete(Paper).where(Paper.id.in_(paper_ids)))
+
+    await db.delete(project)
+    await db.commit()
+    return None
+
 @router.patch("/projects/{project_id}/criteria", response_model=ProjectResponse)
 async def update_criteria(project_id: UUID, request: CriteriaUpdateRequest, db: AsyncSession = Depends(get_db)):
     """Module 1: Update Inclusion/Exclusion Criteria."""
@@ -209,9 +241,7 @@ Example: ["ECG classification 1D CNN", "one-dimensional convolutional neural net
     gemini_key = x_gemini_key if isinstance(x_gemini_key, str) else ""
     gemini_key = gemini_key.strip()
     if not gemini_key:
-        gemini_key = settings.gemini_api_key.strip() if settings.gemini_api_key else ""
-    if not gemini_key:
-        gemini_key = settings.google_api_key.strip() if settings.google_api_key else ""
+        gemini_key = settings.effective_gemini_api_key
 
     keywords: list[str] = []
 
