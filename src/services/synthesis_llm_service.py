@@ -52,22 +52,16 @@ def create_synthesis_llm(
     openai_cls=None,
 ):
     """Create the configured synthesis chat model universally across any provider."""
+    provider = (provider_override or getattr(settings, "synthesis_llm_provider", "") or getattr(settings, "llm_provider", "") or "openai").lower().strip()
+    model_name = model_override or getattr(settings, "synthesis_model", "") or getattr(settings, "effective_model_name", "gpt-4o-mini")
     openai_key = key_override or getattr(settings, "effective_openai_api_key", "") or getattr(settings, "openai_api_key", "")
-    gemini_key = key_override or getattr(settings, "effective_gemini_api_key", "")
+    gemini_key = key_override or getattr(settings, "effective_gemini_api_key", "") or getattr(settings, "gemini_api_key", "")
     groq_key = key_override or getattr(settings, "groq_api_key", "")
 
-    provider = (provider_override or getattr(settings, "synthesis_llm_provider", "") or getattr(settings, "llm_provider", "") or "openai").lower().strip()
-
-    # Dynamic auto-detection based on keys and model names
-    model_name = model_override or getattr(settings, "synthesis_model", "") or getattr(settings, "effective_model_name", "gpt-4o-mini")
-    
-    if provider == "gemini" and not gemini_key:
-        provider = "openai" if openai_key else ("groq" if groq_key else "openai")
-    elif provider == "groq" and not groq_key:
-        provider = "openai" if openai_key else "gemini"
-
     # 1. Groq
-    if provider == "groq" and groq_key:
+    if provider == "groq":
+        if not groq_key:
+            raise RuntimeError("GROQ_API_KEY is required when synthesis_llm_provider='groq'")
         if groq_cls is None:
             from langchain_groq import ChatGroq  # type: ignore
             groq_cls = ChatGroq
@@ -79,8 +73,10 @@ def create_synthesis_llm(
             max_tokens=8192,
         )
 
-    # 2. Gemini (chỉ dùng khi có key AIzaSy hợp lệ)
-    if provider == "gemini" and gemini_key and gemini_key.startswith("AIzaSy"):
+    # 2. Gemini
+    if provider == "gemini":
+        if not gemini_key:
+            raise RuntimeError("GEMINI_API_KEY is required when synthesis_llm_provider='gemini'")
         if gemini_cls is None:
             from langchain_google_genai import ChatGoogleGenerativeAI
             gemini_cls = ChatGoogleGenerativeAI
@@ -92,7 +88,7 @@ def create_synthesis_llm(
             max_output_tokens=8192,
         )
 
-    # 3. OpenAI / OpenAI-compatible (DeepSeek, OpenRouter, xkiro, vLLM, OpenAI, Ollama, etc.)
+    # 3. OpenAI / OpenAI-compatible (DeepSeek, OpenRouter, GoRouter, vLLM, OpenAI, Ollama, etc.)
     if openai_cls is None:
         from langchain_openai import ChatOpenAI
         openai_cls = ChatOpenAI
@@ -104,7 +100,7 @@ def create_synthesis_llm(
         "max_tokens": 8192,
         "default_headers": {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"},
     }
-    api_base = settings.get_api_base
+    api_base = settings.get_api_base() if callable(getattr(settings, "get_api_base", None)) else (getattr(settings, "get_api_base", None) or getattr(settings, "openai_api_base", None) or getattr(settings, "llm_base_url", None) or "")
     if api_base:
         kwargs["base_url"] = api_base
 
@@ -118,64 +114,68 @@ def _is_transient_provider_error(exc: BaseException) -> bool:
     name = type(exc).__name__.lower()
     message = str(exc).lower()
     return (
-        any(token in name for token in ("timeout", "connection", "ratelimit", "notfound", "conflict", "badrequest", "auth"))
-        or "duplicate request" in message
-        or "already being processed" in message
-        or "please try again" in message
-        or "try again" in message
-        or "503 unavailable" in message
-        or "high demand" in message
+        "429" in message
         or "resource_exhausted" in message
-        or "quota exceeded" in message
+        or "quota" in message
         or "rate limit" in message
-        or "429" in message
-        or "409" in message
-        or "404" in message
-        or "400" in message
-        or "not_found" in message
-        or "no longer available" in message
-        or "not found" in message
-        or "failed to parse" in message
-        or "outputparser" in name
-        or "validationerror" in name
+        or "overloaded" in message
+        or "high demand" in message
+        or "timeout" in message
+        or "503" in message
+        or "500" in message
+        or "502" in message
+        or "504" in message
+        or "connection" in message
+        or "unavailable" in message
+        or "unauthorized" in message
+        or "user not found" in message
+        or "forbidden" in message
+        or "bad gateway" in message
+        or "gateway timeout" in message
+        or "ratelimit" in name
     )
 
 
 class SynthesisLLMService:
-    def __init__(self, llm=None, *, max_concurrency=None, retry_delays=(1.5, 3.5, 7.0, 15.0)):
+    def __init__(
+        self,
+        llm: Any | None = None,
+        *,
+        max_concurrency: int | None = None,
+        retry_delays: tuple[float, ...] = (1.0, 2.0, 4.0),
+    ):
         self._llm = llm
-        settings = get_settings()
-        self._max_concurrency = max_concurrency or settings.synthesis_llm_max_concurrency
+        self._max_concurrency = max(1, max_concurrency if max_concurrency is not None else get_settings().synthesis_llm_max_concurrency)
         self._semaphore = None
         self._semaphore_loop = None
-        self._retry_delays = tuple(retry_delays)
+        self._retry_delays = retry_delays
         self._active_invocations = 0
         self._max_active_invocations = 0
 
-    def concurrency_snapshot(self) -> dict[str, int]:
-        """Return provider invocation concurrency counters for instrumentation."""
+    def _get_semaphore(self):
+        try:
+            current_loop = asyncio.get_running_loop()
+        except RuntimeError:
+            current_loop = None
+        if self._semaphore is None or (current_loop and self._semaphore_loop is not current_loop):
+            self._semaphore = asyncio.Semaphore(self._max_concurrency)
+            self._semaphore_loop = current_loop
+        return self._semaphore
+
+    def get_runtime_metrics(self) -> dict[str, int]:
         return {
             "active_invocations": self._active_invocations,
             "max_active_invocations": self._max_active_invocations,
             "configured_max_concurrency": self._max_concurrency,
         }
 
-    def _get_semaphore(self):
-        current_loop = asyncio.get_running_loop()
-        if self._semaphore is None or self._semaphore_loop is not current_loop:
-            self._semaphore = asyncio.Semaphore(self._max_concurrency)
-            self._semaphore_loop = current_loop
-        return self._semaphore
+    def concurrency_snapshot(self) -> dict[str, int]:
+        return self.get_runtime_metrics()
 
-    def _get_llm(self):
-        if self._llm is not None:
-            return self._llm
-
-        self._llm = create_synthesis_llm(get_settings())
+    def _get_llm(self) -> Any:
+        if self._llm is None:
+            self._llm = create_synthesis_llm(get_settings())
         return self._llm
-
-    def validate_configuration(self) -> None:
-        self._get_llm()
 
     def _get_runner_candidates(self, schema):
         settings = get_settings()
@@ -185,14 +185,15 @@ class SynthesisLLMService:
         primary = self._get_llm()
         m_name = getattr(primary, "model", getattr(primary, "model_name", "primary"))
         
-        # Try json_mode first (most compatible with proxies like GoRouter/OpenRouter)
+        # Try standard structured output
         try:
-            candidates.append((f"{m_name}:json_mode", primary.with_structured_output(schema, method="json_mode")))
+            candidates.append((m_name, primary.with_structured_output(schema)))
         except Exception:
             pass
 
+        # Try json_mode (most compatible with proxies like GoRouter/OpenRouter)
         try:
-            candidates.append((m_name, primary.with_structured_output(schema)))
+            candidates.append((f"{m_name}:json_mode", primary.with_structured_output(schema, method="json_mode")))
         except Exception:
             pass
 
@@ -202,34 +203,48 @@ class SynthesisLLMService:
             pass
 
         # 2. Universal Prompt-based JSON runner fallback (100% compatible with all proxies)
-        class UniversalJsonRunner:
-            def __init__(self, raw_llm, target_schema):
-                self._raw_llm = raw_llm
-                self._schema = target_schema
+        if hasattr(primary, "ainvoke") or hasattr(primary, "invoke"):
+            class UniversalJsonRunner:
+                def __init__(self, raw_llm, target_schema):
+                    self._raw_llm = raw_llm
+                    self._schema = target_schema
 
-            async def ainvoke(self, messages, **kwargs):
-                import json
-                schema_json = json.dumps(self._schema.model_json_schema(), indent=2)
-                sys_addition = f"\n\nCRITICAL: Output ONLY a valid JSON object matching this schema:\n{schema_json}"
-                augmented_messages = []
-                for role, content in messages:
-                    if role == "system":
-                        augmented_messages.append((role, content + sys_addition))
+                async def ainvoke(self, messages, **kwargs):
+                    import json
+                    if hasattr(self._schema, "model_json_schema"):
+                        schema_json = json.dumps(self._schema.model_json_schema(), indent=2)
+                    elif isinstance(self._schema, dict):
+                        schema_json = json.dumps(self._schema, indent=2)
                     else:
-                        augmented_messages.append((role, content))
-                
-                resp = await self._raw_llm.ainvoke(augmented_messages, **kwargs)
-                raw_text = resp.content if hasattr(resp, "content") else str(resp)
-                if isinstance(raw_text, list):
-                    raw_text = "".join(part.get("text", "") for part in raw_text if isinstance(part, dict))
-                raw_text = str(raw_text).strip()
-                if "```json" in raw_text:
-                    raw_text = raw_text.split("```json")[1].split("```")[0].strip()
-                elif "```" in raw_text:
-                    raw_text = raw_text.split("```")[1].split("```")[0].strip()
-                return self._schema.model_validate_json(raw_text)
+                        schema_json = "{}"
+                    sys_addition = f"\n\nCRITICAL: Output ONLY a valid JSON object matching this schema:\n{schema_json}"
+                    augmented_messages = []
+                    for role, content in messages:
+                        if role == "system":
+                            augmented_messages.append((role, content + sys_addition))
+                        else:
+                            augmented_messages.append((role, content))
+                    
+                    if hasattr(self._raw_llm, "ainvoke"):
+                        resp = await self._raw_llm.ainvoke(augmented_messages, **kwargs)
+                    else:
+                        resp = self._raw_llm.invoke(augmented_messages, **kwargs)
+                    raw_text = resp.content if hasattr(resp, "content") else str(resp)
+                    if isinstance(raw_text, list):
+                        raw_text = "".join(part.get("text", "") for part in raw_text if isinstance(part, dict))
+                    raw_text = str(raw_text).strip()
+                    if "```json" in raw_text:
+                        raw_text = raw_text.split("```json")[1].split("```")[0].strip()
+                    elif "```" in raw_text:
+                        raw_text = raw_text.split("```")[1].split("```")[0].strip()
+                    if hasattr(self._schema, "model_validate_json"):
+                        return self._schema.model_validate_json(raw_text)
+                    elif hasattr(self._schema, "parse_raw"):
+                        return self._schema.parse_raw(raw_text)
+                    else:
+                        return json.loads(raw_text)
 
-        candidates.append((f"{m_name}:universal_json", UniversalJsonRunner(primary, schema)))
+            candidates.append((f"{m_name}:universal_json", UniversalJsonRunner(primary, schema)))
 
         # 3. Fallback candidate for OpenAI / GPT-4o-mini (nếu primary khác gpt-4o-mini)
         oai_key = settings.effective_openai_api_key
@@ -311,8 +326,9 @@ class SynthesisLLMService:
                         raise exc
 
             if attempt < len(self._retry_delays):
-                jitter = random.uniform(0.3, 1.2)
-                await asyncio.sleep(self._retry_delays[attempt] + jitter)
+                delay = self._retry_delays[attempt]
+                jitter = random.uniform(0.1, 0.5) if delay > 0 else 0
+                await asyncio.sleep(delay + jitter)
 
         if last_exception:
             raise last_exception
@@ -557,18 +573,18 @@ class SynthesisLLMService:
         research_question: str,
         section_title: str,
         claims_context: str,
-        suggested_length: str = "300-600 words",
+        suggested_length: str = "250-500 words",
     ) -> SectionDraftOutput:
         return await self._invoke_structured(
             SectionDraftOutput,
             system=(
                 "Write an academic literature-review section in professional Vietnamese using only the verified claims "
-                "and evidence supplied. Return sentence-level structured output.\n"
+                f"and evidence supplied. Target length: {suggested_length}. Return sentence-level structured output.\n"
                 "- Classify each sentence as claim or discourse.\n"
                 "- Claim sentences state scientific facts and must be directly entailed by their claim_ids.\n"
                 "- Discourse sentences may connect, introduce, or summarize supplied claims, but must not add new facts.\n"
                 "- Do not create citation markers (they will be injected automatically).\n"
-                "- Write in deep comparative & synthesis-oriented prose: contrast mechanisms, compare outcomes, and explain the significance of findings.\n"
+                "- Compare and contrast findings across papers even if evidence is sparse; explain nuances and significance.\n"
                 "- Every factual statement must remain strictly grounded in the verified claims."
             ),
             human=(

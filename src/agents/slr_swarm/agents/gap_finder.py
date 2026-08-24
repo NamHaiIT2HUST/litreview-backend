@@ -10,6 +10,7 @@ Heatmap được dựng bằng cách *đo thật*: với mỗi ô (trục X × t
 from __future__ import annotations
 
 import asyncio
+import json
 
 from src.agents.slr_swarm.contracts import GapCell, GapMap, PICOFrame
 from src.agents.slr_swarm.json_utils import as_str_list, parse_object
@@ -30,7 +31,7 @@ PICO_SCHEMA = {
     "required": ["population", "intervention", "outcome", "search_keywords"],
 }
 
-_PROMPT = """You are an expert in academic Systematic Literature Review analysis.
+_PROMPT = """You are an expert in academic Systematic Literature Review analysis and PICO framework formulation.
 Given the following research topic and screening criteria:
 
 - Research Question / Topic: {idea}
@@ -63,9 +64,20 @@ Remember: EVERY string value in the JSON must be in ENGLISH. No Vietnamese text 
 
 
 def build_boolean_query(pico: PICOFrame) -> str:
-    """Ghép chuỗi từ khoá tìm kiếm."""
+    """Ghép chuỗi từ khoá tìm kiếm theo chuẩn Boolean / MeSH."""
+    if pico.mesh_terms:
+        clauses = []
+        if pico.population:
+            clauses.append(f'("{pico.population}")')
+        if pico.intervention:
+            clauses.append(f'("{pico.intervention}")')
+        for m in pico.mesh_terms:
+            clauses.append(f'"{m}"[MeSH]')
+        return " AND ".join(clauses)
+
     if pico.search_keywords:
         return " ".join(pico.search_keywords)
+
     clauses = [pico.population, pico.intervention]
     return " ".join(c for c in clauses if c)
 
@@ -143,39 +155,70 @@ async def run_gap_finder(state: dict, deps: SwarmDeps) -> dict:
     if not idea:
         return {"error": "Thiếu ý tưởng nghiên cứu (idea), Agent 1 không thể bắt đầu."}
 
-    from src.services.lora_client import call_lora_model
-    lora_instruction = "Extract PICO structure (Population, Intervention, Comparison, Outcome) and keywords in English."
-    lora_input = f"Domain: {research_field}\nTopic: {idea}\nInclude: {criteria_include}\nExclude: {criteria_exclude}"
-    
     data = None
-    lora_result = await call_lora_model("lora_agent3_pico", lora_instruction, lora_input)
-    if lora_result and isinstance(lora_result, dict) and lora_result.get("search_keywords"):
-        data = lora_result
-    else:
-        # Call configured LLM (OpenAI / Gemini / FPT / Groq)
-        try:
-            from src.services.synthesis_llm_service import synthesis_llm_service
-            llm = synthesis_llm_service._get_llm()
-            prompt = _PROMPT.format(
-                idea=idea,
-                research_field=research_field or "Computer Science / Artificial Intelligence",
-                criteria_include=criteria_include,
-                criteria_exclude=criteria_exclude
-            )
-            msg = await llm.ainvoke([("human", prompt)])
-            content = msg.content if hasattr(msg, "content") else str(msg)
-            if isinstance(content, list):
-                content = "".join(part.get("text", "") for part in content if isinstance(part, dict))
-            content = str(content).strip()
-            if "```json" in content:
-                content = content.split("```json")[1].split("```")[0].strip()
-            elif "```" in content:
-                content = content.split("```")[1].split("```")[0].strip()
-            data = json.loads(content)
-        except Exception as e:
-            import logging
-            logging.getLogger(__name__).warning(f"Gap Finder LLM call error: {e}")
-            data = None
+    if getattr(deps, "router", None):
+        llm_stub = deps.router.pick("gap_finder")
+        prompt = _PROMPT.format(
+            idea=idea,
+            research_field=research_field or "Computer Science / Artificial Intelligence",
+            criteria_include=criteria_include,
+            criteria_exclude=criteria_exclude
+        )
+        content = await llm_stub.complete(prompt)
+        content = str(content).strip()
+        if "```json" in content:
+            content = content.split("```json")[1].split("```")[0].strip()
+        elif "```" in content:
+            content = content.split("```")[1].split("```")[0].strip()
+        data = json.loads(content)
+    elif getattr(deps, "llm", None):
+        prompt = _PROMPT.format(
+            idea=idea,
+            research_field=research_field or "Computer Science / Artificial Intelligence",
+            criteria_include=criteria_include,
+            criteria_exclude=criteria_exclude
+        )
+        content = await deps.llm.complete(prompt)
+        content = str(content).strip()
+        if "```json" in content:
+            content = content.split("```json")[1].split("```")[0].strip()
+        elif "```" in content:
+            content = content.split("```")[1].split("```")[0].strip()
+        data = json.loads(content)
+
+    if not data:
+        from src.services.lora_client import call_lora_model
+        lora_instruction = "Extract PICO structure (Population, Intervention, Comparison, Outcome) and keywords in English."
+        lora_input = f"Domain: {research_field}\nTopic: {idea}\nInclude: {criteria_include}\nExclude: {criteria_exclude}"
+        
+        lora_result = await call_lora_model("lora_agent3_pico", lora_instruction, lora_input)
+        if lora_result and isinstance(lora_result, dict) and lora_result.get("search_keywords"):
+            data = lora_result
+        else:
+            # Call configured LLM (OpenAI / Gemini / FPT / Groq)
+            try:
+                from src.services.synthesis_llm_service import synthesis_llm_service
+                llm = synthesis_llm_service._get_llm()
+                prompt = _PROMPT.format(
+                    idea=idea,
+                    research_field=research_field or "Computer Science / Artificial Intelligence",
+                    criteria_include=criteria_include,
+                    criteria_exclude=criteria_exclude
+                )
+                msg = await llm.ainvoke([("human", prompt)])
+                content = msg.content if hasattr(msg, "content") else str(msg)
+                if isinstance(content, list):
+                    content = "".join(part.get("text", "") for part in content if isinstance(part, dict))
+                content = str(content).strip()
+                if "```json" in content:
+                    content = content.split("```json")[1].split("```")[0].strip()
+                elif "```" in content:
+                    content = content.split("```")[1].split("```")[0].strip()
+                data = json.loads(content)
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning(f"Gap Finder LLM call error: {e}")
+                data = None
 
     if not isinstance(data, dict):
         data = {}

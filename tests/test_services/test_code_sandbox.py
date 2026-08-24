@@ -109,6 +109,7 @@ async def test_execute_code_auto_repairs_indented_blocks():
 
 @pytest.mark.asyncio
 async def test_execute_code_supports_statsmodels():
+    pytest.importorskip("statsmodels")
     code = """
 import statsmodels.api as sm
 from statsmodels.tsa.stattools import adfuller

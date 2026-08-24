@@ -11,6 +11,11 @@ import {
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useDarkMode } from '../../contexts/DarkModeContext';
 
+import member1Img from '../../assets/member1.jpeg';
+import member2Img from '../../assets/member2.jpg';
+import member3Img from '../../assets/member3.JPG';
+import member4Img from '../../assets/member4.jpg';
+
 // ── Minimalist Clean Interactive Constellation Canvas with Parallax ──────
 function AcademicConstellationCanvas({ darkMode, scrollY = 0 }) {
   const canvasRef = useRef(null);
@@ -576,8 +581,9 @@ const DICTIONARY = {
           studentId: '2A202601421',
           role: 'Học viên khóa 3',
           course: 'Chương trình AI thực chiến',
-          img: '/src/assets/member1.png',
-          imgPublic: '/member1.png',
+          img: member1Img,
+          imgPublic: '/assets/member1.jpeg',
+          imgPosition: 'center 8%',
           initials: 'NL',
           color: 'from-blue-600 to-indigo-700'
         },
@@ -586,8 +592,9 @@ const DICTIONARY = {
           studentId: '2A202601125',
           role: 'Học viên khóa 3',
           course: 'Chương trình AI thực chiến',
-          img: '/src/assets/member2.png',
-          imgPublic: '/member2.png',
+          img: member2Img,
+          imgPublic: '/assets/member2.jpg',
+          imgPosition: 'center 15%',
           initials: 'TN',
           color: 'from-purple-600 to-pink-600'
         },
@@ -596,8 +603,9 @@ const DICTIONARY = {
           studentId: '2A202601970',
           role: 'Học viên khóa 3',
           course: 'Chương trình AI thực chiến',
-          img: '/src/assets/member3.png',
-          imgPublic: '/member3.png',
+          img: member3Img,
+          imgPublic: '/assets/member3.JPG',
+          imgPosition: 'center 15%',
           initials: 'NH',
           color: 'from-emerald-600 to-teal-700'
         },
@@ -606,8 +614,9 @@ const DICTIONARY = {
           studentId: '2A202601037',
           role: 'Học viên khóa 3',
           course: 'Chương trình AI thực chiến',
-          img: '/src/assets/member4.png',
-          imgPublic: '/member4.png',
+          img: member4Img,
+          imgPublic: '/assets/member4.jpg',
+          imgPosition: 'center 20%',
           initials: 'NH',
           color: 'from-primary-600 to-cyan-700'
         }
@@ -616,9 +625,9 @@ const DICTIONARY = {
     acknowledgments: {
       badge: 'LỜI TRI ÂN & CẢM ƠN',
       title: 'Lời Cảm Ơn Sâu Sắc',
-      p1: 'Nhóm chúng em xin gửi lời cảm ơn chân thành và sâu sắc nhất tới Ban Tổ chức, các Thầy Cô giảng dạy cùng toàn thể Đội ngũ Cố vấn của Chương trình AI Thực Chiến (Khóa 3). Cảm ơn Chương trình đã trao cho chúng em cơ hội quý báu được tiếp cận những nền tảng tri thức công nghệ tiên tiến nhất, được thử thách bản thân và trưởng thành vượt bậc qua từng dự án thực chiến.',
-      p2: 'Dự án LitReview AI không chỉ là kết tinh từ sự nỗ lực, say mê nghiên cứu của các thành viên trong nhóm, mà còn là minh chứng cho sự đồng hành tận tâm, định hướng sâu sát và nguồn cảm hứng bất tận từ các Thầy Cô. Những bài học thực tiễn, tư duy kiến trúc hệ thống và kỷ luật kỹ thuật tích lũy từ khóa học sẽ là hành trang vô giá để chúng em tiếp tục vững bước trên con đường nghiên cứu khoa học và phát triển công nghệ.',
-      p3: 'Kính chúc Chương trình AI Thực Chiến ngày càng phát triển vững mạnh, tiếp tục là bệ phóng tài năng hàng đầu giúp các thế hệ kỹ sư AI Việt Nam vươn tầm thế giới!',
+      p1: 'Nhóm chúng em xin gửi lời cảm ơn chân thành và sâu sắc nhất tới Ban Tổ chức Chương trình AI Thực Chiến (Khóa 3) đã kiến tạo nên một môi trường đào tạo chuyên sâu, bài bản và giàu tính thực tiễn — nơi chúng em được trao cơ hội quý giá để tiếp cận công nghệ đỉnh cao, thử thách bản thân và trưởng thành vượt bậc qua từng dự án thực chiến.',
+      p2: 'Chúng em xin bày tỏ lòng tri ân sâu sắc tới Quý Thầy Cô đã tâm huyết truyền đạt nền tảng tri thức chuyên sâu và tư duy nghiên cứu chuẩn mực; cảm ơn các anh chị Mentor và Lab Coach đã không quản ngày đêm sát cánh, hỗ trợ giải đáp kỹ thuật, định hướng kiến trúc hệ thống và đóng góp những phản biện sắc sảo để Đề tài P-165 (LitReview AI) được hoàn thiện một cách toàn diện và vượt bậc.',
+      p3: 'Những trải nghiệm thực chiến và kỷ luật kỹ thuật được tôi luyện tại khóa học sẽ mãi là bệ phóng vững chắc, là hành trang vô giá để chúng em vững bước trên con đường nghiên cứu khoa học và phát triển công nghệ. Kính chúc Ban Tổ chức, Quý Thầy Cô, các anh chị Mentor & Lab Coach dồi dào sức khỏe, hạnh phúc; chúc Chương trình AI Thực Chiến ngày càng phát triển rực rỡ, tiếp tục là bệ phóng tài năng hàng đầu giúp kỹ sư AI Việt Nam vươn tầm quốc tế!',
       signature: 'Trân trọng, Nhóm tác giả Đề tài P-165 — Học viên Khóa 3 Chương trình AI Thực Chiến',
     },
     final: {
@@ -748,8 +757,9 @@ const DICTIONARY = {
           studentId: '2A202601421',
           role: 'Cohort 3 Student',
           course: 'AI Engineering Program',
-          img: '/src/assets/member1.png',
-          imgPublic: '/member1.png',
+          img: member1Img,
+          imgPublic: '/assets/member1.jpeg',
+          imgPosition: 'center 8%',
           initials: 'NL',
           color: 'from-blue-600 to-indigo-700'
         },
@@ -758,8 +768,9 @@ const DICTIONARY = {
           studentId: '2A202601125',
           role: 'Cohort 3 Student',
           course: 'AI Engineering Program',
-          img: '/src/assets/member2.png',
-          imgPublic: '/member2.png',
+          img: member2Img,
+          imgPublic: '/assets/member2.jpg',
+          imgPosition: 'center 15%',
           initials: 'TN',
           color: 'from-purple-600 to-pink-600'
         },
@@ -768,8 +779,9 @@ const DICTIONARY = {
           studentId: '2A202601970',
           role: 'Cohort 3 Student',
           course: 'AI Engineering Program',
-          img: '/src/assets/member3.png',
-          imgPublic: '/member3.png',
+          img: member3Img,
+          imgPublic: '/assets/member3.JPG',
+          imgPosition: 'center 15%',
           initials: 'NH',
           color: 'from-emerald-600 to-teal-700'
         },
@@ -778,8 +790,9 @@ const DICTIONARY = {
           studentId: '2A202601037',
           role: 'Cohort 3 Student',
           course: 'AI Engineering Program',
-          img: '/src/assets/member4.png',
-          imgPublic: '/member4.png',
+          img: member4Img,
+          imgPublic: '/assets/member4.jpg',
+          imgPosition: 'center 20%',
           initials: 'NH',
           color: 'from-primary-600 to-cyan-700'
         }
@@ -788,10 +801,10 @@ const DICTIONARY = {
     acknowledgments: {
       badge: 'SPECIAL ACKNOWLEDGMENTS',
       title: 'Our Sincere Gratitude',
-      p1: 'Our team would like to express our deepest gratitude to the Organizing Committee, Instructors, and Mentors of the AI Engineering Program (Cohort 3). Thank you for providing us with the invaluable opportunity to master state-of-the-art AI technologies and grow through real-world engineering challenges.',
-      p2: 'The LitReview AI project is not only the result of our continuous dedication and team effort, but also the testament to the inspiring mentorship and thorough guidance provided throughout the journey. The practical knowledge and engineering mindset gained here will serve as our lifelong foundation in scientific research and AI innovation.',
-      p3: 'We wish the AI Engineering Program continued excellence, serving as a premier launchpad empowering future generations of Vietnamese AI innovators on the global stage!',
-      signature: 'Respectfully, Project Team P-165 — AI Engineering Cohort 3',
+      p1: 'Our team would like to express our deepest gratitude to the Organizing Committee of the AI Engineering Program (Cohort 3) for creating such an intensive, rigorous, and practical learning environment — giving us the invaluable opportunity to master state-of-the-art technologies and grow through real-world engineering challenges.',
+      p2: 'We extend our heartfelt appreciation to our Professors for imparting profound academic foundations and rigorous research methodologies; and to our dedicated Mentors and Lab Coaches for their continuous, hands-on guidance — troubleshooting complex technical roadblocks, providing insightful architectural critiques, and empowering Project P-165 (LitReview AI) to achieve its highest standards.',
+      p3: 'The real-world engineering discipline and invaluable insights gained from this program will serve as a lifelong launching pad for our future pursuits in AI innovation and scientific research. We wish the program continued excellence in nurturing top-tier AI engineering talents on the global stage!',
+      signature: 'Respectfully, Project Team P-165 — AI Engineering Program (Cohort 3)',
     },
     final: {
       title: 'Your next systematic literature review, completed 5x faster.',
@@ -2198,19 +2211,20 @@ export default function PublicLandingPage({ onOpenAuth }) {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {d.team.members.map((member, idx) => (
-              <ScrollReveal key={idx} variant="cascade" delay={idx * 100}>
-                <div className="card p-6 flex flex-col items-center text-center space-y-4 hover:border-primary-500 hover:shadow-2xl transition-all group backdrop-blur-md scrolly-card relative overflow-hidden">
+              <ScrollReveal key={idx} variant="cascade" delay={idx * 80}>
+                <div className="card p-6 flex flex-col items-center text-center space-y-4 hover:border-primary-500/80 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 group backdrop-blur-md scrolly-card relative overflow-hidden bg-surface-50/80 dark:bg-surface-900/60 border border-surface-200/80 dark:border-surface-800 rounded-2xl">
                   
-                  {/* Subtle top glow bar */}
-                  <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${member.color} opacity-80`} />
+                  {/* Subtle top accent bar */}
+                  <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${member.color} opacity-90`} />
 
-                  {/* Avatar / Photo Container */}
-                  <div className="relative w-28 h-28 rounded-2xl overflow-hidden shadow-lg border-2 border-surface-200/80 dark:border-surface-700/80 group-hover:scale-105 group-hover:border-primary-400 transition-all duration-300 bg-surface-100 dark:bg-surface-800 flex items-center justify-center">
+                  {/* Avatar / Portrait Photo Container */}
+                  <div className="relative w-32 h-32 rounded-2xl overflow-hidden shadow-md ring-2 ring-surface-200 dark:ring-surface-700/80 group-hover:ring-primary-500/60 group-hover:shadow-primary-500/20 group-hover:shadow-lg transition-all duration-300 bg-surface-100 dark:bg-surface-800 flex items-center justify-center">
                     <img
                       src={member.img}
                       alt={member.name}
+                      style={{ objectPosition: member.imgPosition || 'center 15%' }}
                       onError={(e) => {
-                        if (e.target.src.includes('/src/assets/')) {
+                        if (e.target.src !== member.imgPublic) {
                           e.target.src = member.imgPublic;
                         } else {
                           e.target.style.display = 'none';
@@ -2218,29 +2232,32 @@ export default function PublicLandingPage({ onOpenAuth }) {
                           if (fallback) fallback.style.display = 'flex';
                         }
                       }}
-                      className="w-full h-full object-cover object-center"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
-                    {/* Fallback Initials (shown if image is not yet uploaded) */}
+                    {/* Fallback Initials */}
                     <div className={`member-fallback w-full h-full bg-gradient-to-br ${member.color} text-white font-bold text-2xl flex items-center justify-center shadow-inner`} style={{ display: 'none' }}>
                       {member.initials}
                     </div>
                   </div>
 
-                  {/* Name and Info */}
-                  <div className="space-y-1.5 w-full">
-                    <h3 className="font-display font-bold text-base text-surface-900 dark:text-white leading-snug group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
-                      {member.name}
-                    </h3>
-                    
-                    <div className="flex items-center justify-center gap-1.5 pt-1">
-                      <span className="badge badge-primary font-mono text-[10px] px-2.5 py-0.5 font-bold shadow-2xs">
-                        ID: {member.studentId}
-                      </span>
+                  {/* Name and Student Info */}
+                  <div className="space-y-1.5 w-full flex-1 flex flex-col justify-between">
+                    <div>
+                      <h3 className="font-display font-bold text-base text-surface-900 dark:text-white leading-snug group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+                        {member.name}
+                      </h3>
+                      
+                      <div className="flex items-center justify-center gap-1.5 pt-1.5">
+                        <span className="inline-flex items-center gap-1 font-mono text-[11px] px-2.5 py-0.5 rounded-full font-semibold bg-primary-500/10 text-primary-600 dark:text-primary-400 border border-primary-500/20">
+                          <span className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-pulse"></span>
+                          ID: {member.studentId}
+                        </span>
+                      </div>
                     </div>
 
-                    <div className="pt-2 text-xs text-surface-600 dark:text-surface-300 font-medium">
+                    <div className="pt-2 text-xs border-t border-surface-200/60 dark:border-surface-800/80 w-full mt-2">
                       <span className="block text-primary-700 dark:text-primary-300 font-semibold">{member.role}</span>
-                      <span className="text-[11px] text-surface-400 dark:text-surface-400">{member.course}</span>
+                      <span className="text-[11px] text-surface-500 dark:text-surface-400">{member.course}</span>
                     </div>
                   </div>
 
