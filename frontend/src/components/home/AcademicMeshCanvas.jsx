@@ -23,7 +23,7 @@ export default function AcademicMeshCanvas({ darkMode }) {
     // Academic Paper Nodes definition
     const paperTopics = [
       'Deep Learning in Healthcare',
-      'PRISMA 2020 Systematic Review',
+      'PRISMA Systematic Review',
       'Transformer Attention Models',
       'Citation Snowballing Graph',
       'Clinical Trial Synthesis',

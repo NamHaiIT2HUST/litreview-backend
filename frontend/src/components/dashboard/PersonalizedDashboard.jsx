@@ -376,7 +376,7 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
               <div className="flex items-center gap-2">
                 <ShieldCheck className="w-5 h-5 text-primary-600 dark:text-primary-400" />
                 <h3 className="font-display font-bold text-sm text-surface-900 dark:text-white">
-                  {isVietnamese ? 'Sơ đồ Phễu Sàng lọc PRISMA 2020 (Dự án Hiện tại)' : 'PRISMA 2020 Screening Funnel (Active Project)'}
+                  {isVietnamese ? 'Sơ đồ Phễu Sàng lọc PRISMA (Dự án Hiện tại)' : 'PRISMA Screening Funnel (Active Project)'}
                 </h3>
               </div>
               <span className="badge badge-primary text-[10px]">
