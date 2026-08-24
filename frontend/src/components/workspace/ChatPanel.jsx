@@ -25,6 +25,11 @@ export default function ChatPanel({
   const [inputQuestion, setInputQuestion] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState(null);
+  const messagesEndRef = React.useRef(null);
+
+  React.useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages, isTyping]);
 
   const handleCopy = (text, idx) => {
     navigator.clipboard.writeText(text);
@@ -234,6 +239,7 @@ export default function ChatPanel({
             </div>
           </div>
         )}
+          <div ref={messagesEndRef} />
         </div>
       </div>
 

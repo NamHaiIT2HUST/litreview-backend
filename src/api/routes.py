@@ -909,9 +909,10 @@ async def workspace_chat(
         from langchain_core.documents import Document
 
         if target_pids:
+            # 1. Similarity search per paper
             search_tasks = [
                 vector_store_service.search_similar_documents(
-                    request.message, top_k=6, filters={"paper_id": str(pid).strip()}
+                    request.message, top_k=4, filters={"paper_id": str(pid).strip()}
                 )
                 for pid in target_pids
             ]
@@ -920,53 +921,51 @@ async def workspace_chat(
                 if isinstance(res, list) and res:
                     chunks.extend(res)
 
+            # 2. For each paper, ensure we also have the introductory/abstract chunks so broad & summary queries always have full context
+            from src.models.db_models import PDFChunk, PageText
             for pid in target_pids:
                 pid_str = str(pid).strip()
-
-
-                # Fallback 1: Trực tiếp lấy PDFChunks từ database nếu vector store chưa có hoặc lỗi
-                if not any(str(c.metadata.get("paper_id")) == pid_str for c in chunks):
-                    try:
-                        from src.models.db_models import PDFChunk, PageText
-                        stmt_db_chunks = (
-                            select(PDFChunk, PageText.page_number, Paper.file_path, Paper.title)
-                            .join(PageText, PDFChunk.page_text_id == PageText.id)
-                            .join(Paper, PDFChunk.paper_id == Paper.id)
-                            .where((Paper.id.cast(String) == pid_str) | (Paper.title.ilike(f"%{pid_str}%")))
-                            .order_by(PDFChunk.chunk_index)
-                            .limit(10)
-                        )
-                        db_rows = (await db.execute(stmt_db_chunks)).fetchall()
-                        for chunk_row, page_num, file_path, title in db_rows:
-                            doc = Document(
-                                page_content=chunk_row.chunk_text,
-                                metadata={
-                                    "paper_id": pid_str,
-                                    "page_text_id": str(chunk_row.page_text_id),
-                                    "chunk_id": str(chunk_row.id),
-                                    "ingestion_id": str(chunk_row.ingestion_id),
-                                    "page": page_num,
-                                    "chunk_index": chunk_row.chunk_index,
-                                    "page_char_start": chunk_row.page_char_start,
-                                    "page_char_end": chunk_row.page_char_end,
-                                    "source": str(file_path) if file_path else f"paper_{pid_str}.pdf",
-                                    "paper_title": str(title) if title else "Unknown Title"
-                                }
-                            )
-                            chunks.append(doc)
-                    except Exception:
-                        pass
-
-                # Fallback 2: Lấy metadata và Abstract của paper từ DB
-                if not any(str(c.metadata.get("paper_id")) == pid_str for c in chunks):
-                    stmt = select(Paper).where(
-                        (Paper.id.cast(String) == pid_str) | (Paper.title.ilike(f"%{pid_str}%")) | (Paper.dedup_key.ilike(f"%{pid_str}%"))
+                try:
+                    stmt_first_chunks = (
+                        select(PDFChunk, PageText.page_number, Paper.file_path, Paper.title, Paper.abstract)
+                        .join(PageText, PDFChunk.page_text_id == PageText.id)
+                        .join(Paper, PDFChunk.paper_id == Paper.id)
+                        .where((Paper.id.cast(String) == pid_str) | (Paper.title.ilike(f"%{pid_str}%")))
+                        .order_by(PDFChunk.chunk_index)
+                        .limit(2)
                     )
-                    paper = (await db.execute(stmt)).scalars().first()
-                    if paper:
-                        text = f"Title: {paper.title}\nAuthors: {paper.authors}\nJournal: {paper.journal or 'N/A'} ({paper.year or 'N/A'})\nAbstract: {paper.abstract or 'No abstract available'}"
-                        doc = Document(page_content=text, metadata={"paper_id": str(paper.id), "paper_title": paper.title, "page": 1, "source": paper.file_path or f"paper_{paper.id}.pdf"})
-                        chunks.append(doc)
+                    db_rows = (await db.execute(stmt_first_chunks)).fetchall()
+                    if db_rows:
+                        for chunk_row, page_num, file_path, title, abstract in db_rows:
+                            if not any(c.metadata.get("chunk_id") == str(chunk_row.id) for c in chunks):
+                                doc = Document(
+                                    page_content=chunk_row.chunk_text,
+                                    metadata={
+                                        "paper_id": pid_str,
+                                        "page_text_id": str(chunk_row.page_text_id),
+                                        "chunk_id": str(chunk_row.id),
+                                        "ingestion_id": str(chunk_row.ingestion_id),
+                                        "page": page_num,
+                                        "chunk_index": chunk_row.chunk_index,
+                                        "page_char_start": chunk_row.page_char_start,
+                                        "page_char_end": chunk_row.page_char_end,
+                                        "source": str(file_path) if file_path else f"paper_{pid_str}.pdf",
+                                        "paper_title": str(title) if title else "Unknown Title"
+                                    }
+                                )
+                                chunks.insert(0, doc)
+                    else:
+                        # Paper without PDF chunks: fetch metadata and Abstract from DB
+                        stmt = select(Paper).where(
+                            (Paper.id.cast(String) == pid_str) | (Paper.title.ilike(f"%{pid_str}%")) | (Paper.dedup_key.ilike(f"%{pid_str}%"))
+                        )
+                        paper = (await db.execute(stmt)).scalars().first()
+                        if paper:
+                            text = f"Title: {paper.title}\nAuthors: {paper.authors}\nJournal: {paper.journal or 'N/A'} ({paper.year or 'N/A'})\nAbstract: {paper.abstract or 'Research Topic: ' + paper.title}"
+                            doc = Document(page_content=text, metadata={"paper_id": str(paper.id), "paper_title": paper.title, "page": 1, "source": paper.file_path or f"paper_{paper.id}.pdf"})
+                            chunks.insert(0, doc)
+                except Exception as e:
+                    logger.warning(f"Error fetching introductory chunks for {pid_str}: {e}")
         else:
             try:
                 chunks = await vector_store_service.search_similar_documents(request.message, top_k=8, filters=None)
