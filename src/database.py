@@ -160,66 +160,81 @@ async def ensure_local_schema_compatibility():
     def sync_compat(sync_conn):
         inspector = inspect(sync_conn)
         existing_tables = inspector.get_table_names()
+        is_postgres = "postgresql" in str(DATABASE_URL) or "postgres" in str(DATABASE_URL)
+
+        def safe_exec(stmt_str: str):
+            try:
+                sync_conn.execute(text(stmt_str))
+            except Exception as e:
+                # Ignore duplicate column or already existing errors
+                pass
 
         # Check projects columns
         if "projects" in existing_tables:
-            cols = {c["name"] for c in inspector.get_columns("projects")}
-            if "user_id" not in cols:
-                try:
-                    sync_conn.execute(text("ALTER TABLE projects ADD COLUMN user_id CHAR(36)"))
-                except Exception as e:
-                    print(f"Notice: Could not add user_id column to projects: {e}")
+            if is_postgres:
+                safe_exec("ALTER TABLE projects ADD COLUMN IF NOT EXISTS user_id UUID")
+            else:
+                cols = {c["name"] for c in inspector.get_columns("projects")}
+                if "user_id" not in cols:
+                    safe_exec("ALTER TABLE projects ADD COLUMN user_id CHAR(36)")
 
         # Check synthesis_sessions columns
         if "synthesis_sessions" in existing_tables:
-            cols = {c["name"] for c in inspector.get_columns("synthesis_sessions")}
-            if "research_question" not in cols:
-                sync_conn.execute(text("ALTER TABLE synthesis_sessions ADD COLUMN research_question TEXT"))
-            if "qa_warning" not in cols:
-                sync_conn.execute(text("ALTER TABLE synthesis_sessions ADD COLUMN qa_warning TEXT"))
+            if is_postgres:
+                safe_exec("ALTER TABLE synthesis_sessions ADD COLUMN IF NOT EXISTS research_question TEXT")
+                safe_exec("ALTER TABLE synthesis_sessions ADD COLUMN IF NOT EXISTS qa_warning TEXT")
+            else:
+                cols = {c["name"] for c in inspector.get_columns("synthesis_sessions")}
+                if "research_question" not in cols:
+                    safe_exec("ALTER TABLE synthesis_sessions ADD COLUMN research_question TEXT")
+                if "qa_warning" not in cols:
+                    safe_exec("ALTER TABLE synthesis_sessions ADD COLUMN qa_warning TEXT")
 
         # Check evidence_records columns
         if "evidence_records" in existing_tables:
-            cols = {c["name"] for c in inspector.get_columns("evidence_records")}
-            if "merged_into_id" not in cols:
-                sync_conn.execute(text("ALTER TABLE evidence_records ADD COLUMN merged_into_id CHAR(32)"))
-            if "merge_reason" not in cols:
-                sync_conn.execute(text("ALTER TABLE evidence_records ADD COLUMN merge_reason TEXT"))
-            if "applies_to" not in cols:
-                sync_conn.execute(text("ALTER TABLE evidence_records ADD COLUMN applies_to VARCHAR(80) NOT NULL DEFAULT 'study'"))
-
-        # Check projects columns
-        if "projects" in existing_tables:
-            cols = {c["name"] for c in inspector.get_columns("projects")}
-            if "user_id" not in cols:
-                is_postgres = "postgresql" in DATABASE_URL
-                col_type = "UUID" if is_postgres else "CHAR(32)"
-                sync_conn.execute(text(f"ALTER TABLE projects ADD COLUMN user_id {col_type}"))
+            if is_postgres:
+                safe_exec("ALTER TABLE evidence_records ADD COLUMN IF NOT EXISTS merged_into_id CHAR(32)")
+                safe_exec("ALTER TABLE evidence_records ADD COLUMN IF NOT EXISTS merge_reason TEXT")
+                safe_exec("ALTER TABLE evidence_records ADD COLUMN IF NOT EXISTS applies_to VARCHAR(80) NOT NULL DEFAULT 'study'")
+            else:
+                cols = {c["name"] for c in inspector.get_columns("evidence_records")}
+                if "merged_into_id" not in cols:
+                    safe_exec("ALTER TABLE evidence_records ADD COLUMN merged_into_id CHAR(32)")
+                if "merge_reason" not in cols:
+                    safe_exec("ALTER TABLE evidence_records ADD COLUMN merge_reason TEXT")
+                if "applies_to" not in cols:
+                    safe_exec("ALTER TABLE evidence_records ADD COLUMN applies_to VARCHAR(80) NOT NULL DEFAULT 'study'")
 
         # Check papers columns
         if "papers" in existing_tables:
-            col_info = inspector.get_columns("papers")
-            cols = {c["name"] for c in col_info}
-            if "file_path" not in cols:
-                sync_conn.execute(text("ALTER TABLE papers ADD COLUMN file_path TEXT"))
-            if "pdf_status" not in cols:
-                sync_conn.execute(text("ALTER TABLE papers ADD COLUMN pdf_status VARCHAR(50) DEFAULT 'not_uploaded'"))
-            if "extraction_status" not in cols:
-                sync_conn.execute(text("ALTER TABLE papers ADD COLUMN extraction_status VARCHAR(50) DEFAULT 'not_extracted'"))
-            if "active_ingestion_id" not in cols:
-                is_postgres = "postgresql" in DATABASE_URL
-                col_type = "UUID" if is_postgres else "CHAR(36)"
-                sync_conn.execute(text(f"ALTER TABLE papers ADD COLUMN active_ingestion_id {col_type}"))
-            if "relevance_reason" not in cols:
-                sync_conn.execute(text("ALTER TABLE papers ADD COLUMN relevance_reason TEXT"))
-            if "tldr" not in cols:
-                sync_conn.execute(text("ALTER TABLE papers ADD COLUMN tldr TEXT"))
+            if is_postgres:
+                safe_exec("ALTER TABLE papers ADD COLUMN IF NOT EXISTS file_path TEXT")
+                safe_exec("ALTER TABLE papers ADD COLUMN IF NOT EXISTS pdf_status VARCHAR(50) DEFAULT 'not_uploaded'")
+                safe_exec("ALTER TABLE papers ADD COLUMN IF NOT EXISTS extraction_status VARCHAR(50) DEFAULT 'not_extracted'")
+                safe_exec("ALTER TABLE papers ADD COLUMN IF NOT EXISTS active_ingestion_id UUID")
+                safe_exec("ALTER TABLE papers ADD COLUMN IF NOT EXISTS relevance_reason TEXT")
+                safe_exec("ALTER TABLE papers ADD COLUMN IF NOT EXISTS tldr TEXT")
+            else:
+                cols = {c["name"] for c in inspector.get_columns("papers")}
+                if "file_path" not in cols:
+                    safe_exec("ALTER TABLE papers ADD COLUMN file_path TEXT")
+                if "pdf_status" not in cols:
+                    safe_exec("ALTER TABLE papers ADD COLUMN pdf_status VARCHAR(50) DEFAULT 'not_uploaded'")
+                if "extraction_status" not in cols:
+                    safe_exec("ALTER TABLE papers ADD COLUMN extraction_status VARCHAR(50) DEFAULT 'not_extracted'")
+                if "active_ingestion_id" not in cols:
+                    safe_exec("ALTER TABLE papers ADD COLUMN active_ingestion_id CHAR(36)")
+                if "relevance_reason" not in cols:
+                    safe_exec("ALTER TABLE papers ADD COLUMN relevance_reason TEXT")
+                if "tldr" not in cols:
+                    safe_exec("ALTER TABLE papers ADD COLUMN tldr TEXT")
 
             # Postgres: fix authors column type if it's ARRAY instead of JSONB
-            if "postgresql" in DATABASE_URL:
+            if is_postgres:
+                col_info = inspector.get_columns("papers")
                 for c in col_info:
                     if c["name"] == "authors" and str(c.get("type", "")).upper().startswith("ARRAY"):
-                        sync_conn.execute(text("ALTER TABLE papers ALTER COLUMN authors TYPE jsonb USING to_jsonb(authors)"))
+                        safe_exec("ALTER TABLE papers ALTER COLUMN authors TYPE jsonb USING to_jsonb(authors)")
                         break
 
     async with engine.begin() as conn:
