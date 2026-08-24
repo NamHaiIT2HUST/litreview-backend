@@ -269,7 +269,7 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
         <div className="card p-5 space-y-3 bg-white dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 shadow-xs hover:shadow-sm transition-all rounded-2xl">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{isVietnamese ? 'Khoảng trống Đề tài' : 'Research Gaps'}</span>
-            <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center">
               <Target className="w-5 h-5" />
             </div>
           </div>
@@ -277,7 +277,7 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
             <p className="text-2xl sm:text-3xl font-extrabold font-display text-slate-800 dark:text-white leading-none">{totalGaps}</p>
             <div className="mt-2 flex items-center gap-1.5">
               <span className="badge badge-warning text-[10px]">{totalGaps > 0 ? 'Extracted' : '0'}</span>
-              <span className="text-[11px] text-purple-600 dark:text-purple-400 font-semibold">
+              <span className="text-[11px] text-amber-600 dark:text-amber-400 font-semibold">
                 {totalGaps > 0 ? (isVietnamese ? 'Cơ hội mới' : 'New angles') : (isVietnamese ? 'Chưa bóc tách' : 'Pending')}
               </span>
             </div>
