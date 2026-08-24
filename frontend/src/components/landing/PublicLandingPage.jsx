@@ -616,9 +616,9 @@ const DICTIONARY = {
     acknowledgments: {
       badge: 'LỜI TRI ÂN & CẢM ƠN',
       title: 'Lời Cảm Ơn Sâu Sắc',
-      p1: 'Nhóm chúng em xin gửi lời cảm ơn chân thành và sâu sắc nhất tới Ban Tổ chức, các Thầy Cô giảng dạy cùng toàn thể Đội ngũ Cố vấn của Chương trình AI Thực Chiến (Khóa 3). Cảm ơn Chương trình đã trao cho chúng em cơ hội quý báu được tiếp cận những nền tảng tri thức công nghệ tiên tiến nhất, được thử thách bản thân và trưởng thành vượt bậc qua từng dự án thực chiến.',
-      p2: 'Dự án LitReview AI không chỉ là kết tinh từ sự nỗ lực, say mê nghiên cứu của các thành viên trong nhóm, mà còn là minh chứng cho sự đồng hành tận tâm, định hướng sâu sát và nguồn cảm hứng bất tận từ các Thầy Cô. Những bài học thực tiễn, tư duy kiến trúc hệ thống và kỷ luật kỹ thuật tích lũy từ khóa học sẽ là hành trang vô giá để chúng em tiếp tục vững bước trên con đường nghiên cứu khoa học và phát triển công nghệ.',
-      p3: 'Kính chúc Chương trình AI Thực Chiến ngày càng phát triển vững mạnh, tiếp tục là bệ phóng tài năng hàng đầu giúp các thế hệ kỹ sư AI Việt Nam vươn tầm thế giới!',
+      p1: 'Nhóm chúng em xin bày tỏ lòng biết ơn chân thành và sâu sắc nhất tới Ban Tổ chức chương trình AI Thực Chiến (Khóa 3), Quý Thầy Cô giảng dạy, cùng toàn thể các anh chị Mentor và Lab Coach đã luôn tận tâm chỉ bảo, đồng hành và dìu dắt chúng em trong suốt hành trình học tập và nghiên cứu vừa qua.',
+      p2: 'Chúng em xin gửi lời tri ân đặc biệt tới Quý Thầy Cô đã truyền ngọn lửa đam mê, tri thức chuyên sâu và tư duy nghiên cứu chuẩn mực; cảm ơn các anh chị Lab Coach và Mentor đã không quản ngày đêm sát cánh, hỗ trợ gỡ rối từng bài toán kỹ thuật hóc búa, định hướng kiến trúc hệ thống và đóng góp những phản biện chuyên môn sắc sảo giúp Đề tài P-165 (LitReview AI) được hoàn thiện một cách toàn diện và vượt bậc.',
+      p3: 'Những trải nghiệm thực chiến đỉnh cao và kỷ luật kỹ thuật được tôi luyện tại khóa học sẽ mãi là bệ phóng vững chắc, là hành trang vô giá để chúng em tự tin dấn thân vào các bài toán công nghệ lớn. Kính chúc Ban Tổ chức, Quý Thầy Cô, các anh chị Mentor & Lab Coach dồi dào sức khỏe, hạnh phúc; chúc Chương trình AI Thực Chiến ngày càng phát triển rực rỡ, tiếp tục đào tạo nên nhiều thế hệ kỹ sư AI xuất sắc vươn tầm thế giới!',
       signature: 'Trân trọng, Nhóm tác giả Đề tài P-165 — Học viên Khóa 3 Chương trình AI Thực Chiến',
     },
     final: {
@@ -788,10 +788,10 @@ const DICTIONARY = {
     acknowledgments: {
       badge: 'SPECIAL ACKNOWLEDGMENTS',
       title: 'Our Sincere Gratitude',
-      p1: 'Our team would like to express our deepest gratitude to the Organizing Committee, Instructors, and Mentors of the AI Engineering Program (Cohort 3). Thank you for providing us with the invaluable opportunity to master state-of-the-art AI technologies and grow through real-world engineering challenges.',
-      p2: 'The LitReview AI project is not only the result of our continuous dedication and team effort, but also the testament to the inspiring mentorship and thorough guidance provided throughout the journey. The practical knowledge and engineering mindset gained here will serve as our lifelong foundation in scientific research and AI innovation.',
-      p3: 'We wish the AI Engineering Program continued excellence, serving as a premier launchpad empowering future generations of Vietnamese AI innovators on the global stage!',
-      signature: 'Respectfully, Project Team P-165 — AI Engineering Cohort 3',
+      p1: 'Our team would like to express our deepest and most sincere gratitude to the Organizing Committee of the AI Engineering Program (Cohort 3), our esteemed Professors, Instructors, Mentors, and dedicated Lab Coaches who have tirelessly guided, supported, and inspired us throughout this intensive journey.',
+      p2: 'We extend our heartfelt appreciation to our Professors for imparting profound academic foundations and rigorous research methodologies; and to our wonderful Lab Coaches and Mentors for their continuous, hands-on guidance — troubleshooting complex technical roadblocks, providing insightful architectural critiques, and empowering Project P-165 (LitReview AI) to achieve its highest standards.',
+      p3: 'The real-world engineering discipline and invaluable insights gained from this program will serve as a lifelong launching pad for our future pursuits in AI innovation. We wish the program continued excellence in nurturing top-tier AI engineering talents on the global stage!',
+      signature: 'Respectfully, Project Team P-165 — AI Engineering Program (Cohort 3)',
     },
     final: {
       title: 'Your next systematic literature review, completed 5x faster.',
