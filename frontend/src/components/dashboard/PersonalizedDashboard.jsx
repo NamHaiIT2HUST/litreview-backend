@@ -356,49 +356,49 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
         </div>
       )}
       
-      {/* ── 1. Top NotebookLM Header Bar ── */}
-      <header className="sticky top-0 z-40 w-full bg-[#171A21]/95 backdrop-blur-md border-b border-slate-800/80 px-4 sm:px-8 py-3.5 flex items-center justify-between gap-4">
+      {/* ── 1. Top NotebookLM Header Bar (Proportionally Scaled) ── */}
+      <header className="sticky top-0 z-40 w-full bg-[#171A21]/95 backdrop-blur-md border-b border-slate-800/80 px-4 sm:px-8 lg:px-12 py-3.5 sm:py-4 lg:py-5 flex items-center justify-between gap-4">
         
         {/* Left: Brand Logo & Notebook Title */}
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
-            <BookOpen className="w-5 h-5" />
+        <div className="flex items-center gap-3 sm:gap-4">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/20 shrink-0">
+            <BookOpen className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
-          <span className="font-display font-bold text-lg text-white tracking-tight">
+          <span className="font-display font-extrabold text-lg sm:text-2xl lg:text-3xl text-white tracking-tight">
             LitReview Notebook
           </span>
         </div>
 
         {/* Right: Controls, Search, View Mode, + Tạo mới, Profile */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 sm:gap-4">
           
           {/* Search Input */}
-          <div className="relative hidden md:block w-48 lg:w-64">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <div className="relative hidden md:block w-48 sm:w-64 lg:w-80">
+            <Search className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder={isVietnamese ? 'Tìm kiếm sổ ghi chú...' : 'Search notebooks...'}
-              className="w-full pl-9 pr-3 py-1.5 rounded-full bg-[#232834] border border-slate-700/70 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+              className="w-full pl-10 sm:pl-11 pr-4 py-2 sm:py-2.5 rounded-full bg-[#232834] border border-slate-700/70 text-xs sm:text-sm text-white placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all shadow-inner"
             />
           </div>
 
           {/* Grid / List Toggle */}
-          <div className="flex items-center bg-[#232834] p-0.5 rounded-full border border-slate-700/70">
+          <div className="flex items-center bg-[#232834] p-1 rounded-full border border-slate-700/70">
             <button
               onClick={() => setViewMode('grid')}
-              className={`p-1.5 rounded-full transition-all cursor-pointer ${viewMode === 'grid' ? 'bg-[#313848] text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'}`}
+              className={`p-1.5 sm:p-2 rounded-full transition-all cursor-pointer ${viewMode === 'grid' ? 'bg-[#313848] text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'}`}
               title="Chế độ Lưới"
             >
-              <LayoutGrid className="w-3.5 h-3.5" />
+              <LayoutGrid className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
             </button>
             <button
               onClick={() => setViewMode('list')}
-              className={`p-1.5 rounded-full transition-all cursor-pointer ${viewMode === 'list' ? 'bg-[#313848] text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'}`}
+              className={`p-1.5 sm:p-2 rounded-full transition-all cursor-pointer ${viewMode === 'list' ? 'bg-[#313848] text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'}`}
               title="Chế độ Danh sách"
             >
-              <List className="w-3.5 h-3.5" />
+              <List className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
             </button>
           </div>
 
@@ -406,7 +406,7 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
           <select
             value={sortBy}
             onChange={e => setSortBy(e.target.value)}
-            className="hidden sm:block px-3 py-1.5 rounded-full bg-[#232834] border border-slate-700/70 text-xs text-slate-200 focus:outline-none cursor-pointer"
+            className="hidden sm:block px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-full bg-[#232834] border border-slate-700/70 text-xs sm:text-sm font-semibold text-slate-200 focus:outline-none cursor-pointer"
           >
             <option value="recent">{isVietnamese ? 'Gần đây nhất' : 'Most recent'}</option>
             <option value="name">{isVietnamese ? 'Tên A - Z' : 'Name A - Z'}</option>
@@ -416,9 +416,9 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
           {/* + Tạo mới Button */}
           <button
             onClick={onOpenNewProject}
-            className="px-4 py-1.5 rounded-full bg-white hover:bg-slate-100 text-slate-900 font-bold text-xs flex items-center gap-1.5 shadow-md hover:scale-105 transition-all cursor-pointer"
+            className="px-4 sm:px-6 py-2 sm:py-2.5 rounded-full bg-white hover:bg-slate-100 text-slate-900 font-extrabold text-xs sm:text-sm lg:text-base flex items-center gap-2 shadow-lg hover:scale-105 transition-all cursor-pointer"
           >
-            <Plus className="w-4 h-4 text-slate-900 stroke-[2.5]" />
+            <Plus className="w-4 h-4 sm:w-5 sm:h-5 text-slate-900 stroke-[2.8]" />
             <span>{isVietnamese ? 'Tạo mới' : 'New Notebook'}</span>
           </button>
 
@@ -426,11 +426,11 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
           {onStartTour && (
             <button
               onClick={onStartTour}
-              className="p-2 rounded-full text-slate-400 hover:text-white hover:bg-[#232834] transition-colors cursor-pointer flex items-center gap-1.5"
+              className="p-2 sm:p-2.5 rounded-full text-slate-400 hover:text-white hover:bg-[#232834] transition-colors cursor-pointer flex items-center gap-1.5"
               title={isVietnamese ? 'Cài đặt & Hướng dẫn' : 'Settings & Guide'}
             >
-              <Settings className="w-4 h-4" />
-              <span className="hidden sm:inline text-xs font-semibold text-slate-300">{isVietnamese ? 'Cài đặt' : 'Settings'}</span>
+              <Settings className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="hidden lg:inline text-xs sm:text-sm font-semibold text-slate-300">{isVietnamese ? 'Cài đặt' : 'Settings'}</span>
             </button>
           )}
 
@@ -439,10 +439,10 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
             <img
               src={currentUser.picture}
               alt={currentUser.name}
-              className="w-8 h-8 rounded-full object-cover ring-2 ring-blue-500/40 shrink-0"
+              className="w-9 h-9 sm:w-11 sm:h-11 rounded-full object-cover ring-2 ring-blue-500/40 shrink-0"
             />
           ) : (
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
+            <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-extrabold text-xs sm:text-sm flex items-center justify-center shrink-0 shadow-md">
               {userInitials}
             </div>
           )}
@@ -450,11 +450,11 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
         </div>
       </header>
 
-      {/* ── Main Hub Content Area (Proportional Scaling) ── */}
-      <main className="flex-1 w-full max-w-[1720px] mx-auto px-4 sm:px-6 lg:px-10 py-6 sm:py-8 space-y-8">
+      {/* ── Main Hub Content Area (Proportional Scaling & Spacious Margins) ── */}
+      <main className="flex-1 w-full max-w-[96vw] 2xl:max-w-[1840px] mx-auto px-4 sm:px-8 lg:px-12 py-6 sm:py-8 lg:py-10 space-y-8 sm:space-y-10 lg:space-y-12">
         
         {/* ── 2. Filter Category Pills (All, Mine, Featured, Shared, Collections) ── */}
-        <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar pb-1 text-xs font-semibold">
+        <div className="flex items-center gap-2.5 sm:gap-3.5 overflow-x-auto custom-scrollbar pb-1 text-xs sm:text-sm font-semibold">
           {[
             { id: 'all', label: isVietnamese ? 'Tất cả' : 'All' },
             { id: 'mine', label: isVietnamese ? 'Sổ ghi chú của tôi' : 'My notebooks' },
@@ -465,9 +465,9 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
             <button
               key={tab.id}
               onClick={() => setActiveFilter(tab.id)}
-              className={`px-4 py-1.5 rounded-full transition-all whitespace-nowrap cursor-pointer ${
+              className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-full transition-all whitespace-nowrap cursor-pointer ${
                 activeFilter === tab.id
-                  ? 'bg-white text-slate-900 font-bold shadow-sm'
+                  ? 'bg-white text-slate-900 font-extrabold shadow-md'
                   : 'bg-[#232834] text-slate-300 hover:bg-[#2e3444] hover:text-white border border-slate-700/60'
               }`}
             >
@@ -478,54 +478,54 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
 
         {/* ── 3. Section: Sổ ghi chú nổi bật (Featured Notebooks) ── */}
         {(activeFilter === 'all' || activeFilter === 'featured') && (
-          <section className="space-y-4">
+          <section className="space-y-4 sm:space-y-5">
             <div className="flex items-center justify-between">
-              <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">
+              <h2 className="text-lg sm:text-2xl 2xl:text-3xl font-extrabold text-white tracking-tight">
                 {isVietnamese ? 'Sổ ghi chú nổi bật' : 'Featured Notebooks'}
               </h2>
               <button
                 onClick={() => setActiveFilter('featured')}
-                className="text-xs font-semibold text-slate-400 hover:text-blue-400 flex items-center gap-1 transition-colors cursor-pointer"
+                className="text-xs sm:text-sm font-bold text-slate-400 hover:text-blue-400 flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 <span>{isVietnamese ? 'Xem tất cả' : 'View all'}</span>
-                <ChevronRight className="w-3.5 h-3.5" />
+                <ChevronRight className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-5 lg:gap-6">
               {FEATURED_NOTEBOOKS.map(feat => (
                 <div
                   key={feat.id}
                   onClick={() => handleOpenFeatured(feat)}
-                  className="group relative rounded-2xl overflow-hidden bg-[#202531] border border-slate-800 hover:border-blue-500/80 shadow-md hover:shadow-xl hover:shadow-blue-500/10 transition-all duration-300 cursor-pointer flex flex-col h-56"
+                  className="group relative rounded-3xl overflow-hidden bg-[#202531] border border-slate-800 hover:border-blue-500/80 shadow-md hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-300 cursor-pointer flex flex-col h-64 sm:h-72 lg:h-80 2xl:h-88"
                 >
                   {/* Cover Image */}
-                  <div className="h-28 w-full relative overflow-hidden bg-slate-800 shrink-0">
+                  <div className="h-32 sm:h-36 lg:h-44 2xl:h-48 w-full relative overflow-hidden bg-slate-800 shrink-0">
                     <img
                       src={feat.image}
                       alt={feat.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 filter brightness-90 contrast-110"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 filter brightness-95 contrast-105"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#202531] via-transparent to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#202531] via-[#202531]/40 to-transparent" />
                   </div>
 
                   {/* Body Content */}
-                  <div className="p-3.5 flex flex-col justify-between flex-1 min-w-0">
+                  <div className="p-4 sm:p-5 flex flex-col justify-between flex-1 min-w-0">
                     <div>
-                      <div className="flex items-center gap-1 text-[10px] font-semibold text-blue-400 truncate">
-                        <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />
+                      <div className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-blue-400 truncate">
+                        <span className="w-2 h-2 rounded-full bg-blue-400 shrink-0" />
                         <span className="truncate">{feat.source}</span>
                       </div>
-                      <h3 className="font-bold text-xs text-white group-hover:text-blue-300 transition-colors line-clamp-2 mt-1 leading-snug">
+                      <h3 className="font-extrabold text-xs sm:text-sm lg:text-base text-white group-hover:text-blue-300 transition-colors line-clamp-2 mt-1.5 leading-snug">
                         {feat.title}
                       </h3>
                     </div>
 
                     {/* Footer Meta */}
-                    <div className="flex items-center justify-between text-[10.5px] text-slate-400 pt-1 border-t border-slate-800/60 mt-auto">
+                    <div className="flex items-center justify-between text-xs sm:text-sm text-slate-400 pt-2 border-t border-slate-800/80 mt-auto">
                       <span className="truncate">{feat.date}</span>
-                      <span className="flex items-center gap-1 text-slate-300 font-medium shrink-0">
-                        {feat.sourcesCount} nguồn <Globe className="w-3 h-3 text-slate-400" />
+                      <span className="flex items-center gap-1 text-slate-300 font-semibold shrink-0">
+                        {feat.sourcesCount} nguồn <Globe className="w-3.5 h-3.5 text-slate-400" />
                       </span>
                     </div>
                   </div>
@@ -537,30 +537,30 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
 
         {/* ── 4. Section: Sổ ghi chú gần đây (Recent User Notebooks) ── */}
         {(activeFilter === 'all' || activeFilter === 'mine') && (
-          <section className="space-y-4">
+          <section className="space-y-4 sm:space-y-5">
             <div className="flex items-center justify-between">
-              <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">
+              <h2 className="text-lg sm:text-2xl 2xl:text-3xl font-extrabold text-white tracking-tight">
                 {isVietnamese ? 'Sổ ghi chú gần đây' : 'Recent Notebooks'}
               </h2>
-              <span className="text-xs text-slate-400">
+              <span className="text-xs sm:text-sm font-semibold text-slate-400">
                 {filteredProjects.length} {isVietnamese ? 'sổ ghi chú' : 'notebooks'}
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-7">
               
               {/* Card 1: + Tạo sổ ghi chú mới */}
               <button
                 onClick={onOpenNewProject}
-                className="h-44 rounded-2xl bg-[#202531]/60 hover:bg-[#202531] border border-dashed border-slate-700/80 hover:border-blue-500 flex flex-col items-center justify-center p-6 text-center transition-all group cursor-pointer shadow-sm hover:shadow-md"
+                className="h-52 sm:h-60 lg:h-68 2xl:h-72 rounded-3xl bg-[#202531]/60 hover:bg-[#202531] border-2 border-dashed border-slate-700/80 hover:border-blue-500 flex flex-col items-center justify-center p-6 sm:p-8 text-center transition-all group cursor-pointer shadow-md hover:shadow-xl"
               >
-                <div className="w-12 h-12 rounded-full bg-[#29303F] group-hover:bg-blue-600 text-slate-300 group-hover:text-white flex items-center justify-center mb-3 transition-all group-hover:scale-110 shadow-inner">
-                  <Plus className="w-6 h-6 stroke-[2.5]" />
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[#29303F] group-hover:bg-blue-600 text-slate-300 group-hover:text-white flex items-center justify-center mb-3.5 transition-all group-hover:scale-110 shadow-inner">
+                  <Plus className="w-7 h-7 sm:w-8 sm:h-8 stroke-[2.8]" />
                 </div>
-                <span className="font-bold text-xs sm:text-sm text-slate-200 group-hover:text-white transition-colors">
+                <span className="font-extrabold text-sm sm:text-base lg:text-lg text-slate-200 group-hover:text-white transition-colors">
                   {isVietnamese ? 'Tạo sổ ghi chú mới' : 'Create new notebook'}
                 </span>
-                <span className="text-[11px] text-slate-400 mt-0.5">
+                <span className="text-xs sm:text-sm text-slate-400 mt-1 font-medium">
                   {isVietnamese ? 'Chuẩn PRISMA & RAG' : 'PRISMA & RAG-ready'}
                 </span>
               </button>
@@ -578,21 +578,21 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
                   <div
                     key={proj.id}
                     onClick={() => handleOpenNotebook(proj)}
-                    className={`group relative h-44 rounded-2xl bg-[#202531] border transition-all duration-200 cursor-pointer p-4 flex flex-col justify-between shadow-sm hover:shadow-lg ${
+                    className={`group relative h-52 sm:h-60 lg:h-68 2xl:h-72 rounded-3xl bg-[#202531] border transition-all duration-200 cursor-pointer p-5 sm:p-6 lg:p-7 flex flex-col justify-between shadow-md hover:shadow-2xl ${
                       proj.is_pinned
-                        ? 'border-blue-500/70 hover:border-blue-400 bg-gradient-to-b from-[#202531] to-[#1c2438]'
-                        : 'border-slate-800/90 hover:border-slate-700'
+                        ? 'border-blue-500/80 hover:border-blue-400 bg-gradient-to-b from-[#202531] to-[#1a2234]'
+                        : 'border-slate-800 hover:border-slate-700'
                     }`}
                   >
                     {/* Card Top: Icon & 3-Dot Action Menu */}
                     <div className="flex items-center justify-between shrink-0">
-                      <div className="w-9 h-9 rounded-xl bg-[#29303F] border border-slate-700/60 flex items-center justify-center">
+                      <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#29303F] border border-slate-700/60 flex items-center justify-center shadow-inner">
                         {getNotebookIcon(proj.name, proj.research_field)}
                       </div>
 
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1.5">
                         {proj.is_pinned && (
-                          <Pin className="w-3.5 h-3.5 text-blue-400 fill-blue-400/40" />
+                          <Pin className="w-4 h-4 text-blue-400 fill-blue-400/40" />
                         )}
                         
                         {/* 3-Dot Button */}
@@ -603,39 +603,39 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
                               e.stopPropagation();
                               setActiveMenuProjectId(isMenuOpen ? null : proj.id);
                             }}
-                            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-[#2E3647] transition-colors cursor-pointer opacity-80 group-hover:opacity-100"
+                            className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-[#2E3647] transition-colors cursor-pointer opacity-80 group-hover:opacity-100"
                             title="Tùy chọn sổ ghi chú"
                           >
-                            <MoreVertical className="w-4 h-4" />
+                            <MoreVertical className="w-5 h-5" />
                           </button>
 
                           {/* Action Dropdown Menu */}
                           {isMenuOpen && (
                             <div
                               onClick={(e) => e.stopPropagation()}
-                              className="absolute right-0 top-full mt-1.5 w-44 rounded-xl bg-[#1E2330] border border-slate-700/80 shadow-2xl p-1 z-50 animate-slide-up text-xs font-semibold text-slate-200"
+                              className="absolute right-0 top-full mt-2 w-48 rounded-2xl bg-[#1E2330] border border-slate-700/80 shadow-2xl p-1.5 z-50 animate-slide-up text-xs sm:text-sm font-semibold text-slate-200"
                             >
                               <button
                                 onClick={(e) => handleStartRename(e, proj)}
-                                className="w-full px-3 py-2 rounded-lg text-left hover:bg-[#2A3142] flex items-center gap-2 transition-colors cursor-pointer"
+                                className="w-full px-3.5 py-2.5 rounded-xl text-left hover:bg-[#2A3142] flex items-center gap-2.5 transition-colors cursor-pointer"
                               >
-                                <Pencil className="w-3.5 h-3.5 text-slate-400" />
+                                <Pencil className="w-4 h-4 text-slate-400" />
                                 <span>{isVietnamese ? 'Đổi tên' : 'Rename'}</span>
                               </button>
 
                               <button
                                 onClick={(e) => handleTogglePin(e, proj.id, proj.is_pinned)}
-                                className="w-full px-3 py-2 rounded-lg text-left hover:bg-[#2A3142] flex items-center gap-2 transition-colors cursor-pointer"
+                                className="w-full px-3.5 py-2.5 rounded-xl text-left hover:bg-[#2A3142] flex items-center gap-2.5 transition-colors cursor-pointer"
                               >
-                                {proj.is_pinned ? <PinOff className="w-3.5 h-3.5 text-slate-400" /> : <Pin className="w-3.5 h-3.5 text-slate-400" />}
+                                {proj.is_pinned ? <PinOff className="w-4 h-4 text-slate-400" /> : <Pin className="w-4 h-4 text-slate-400" />}
                                 <span>{proj.is_pinned ? (isVietnamese ? 'Bỏ ghim' : 'Unpin') : (isVietnamese ? 'Ghim lên đầu' : 'Pin to top')}</span>
                               </button>
 
                               <button
                                 onClick={(e) => handleShare(e, proj)}
-                                className="w-full px-3 py-2 rounded-lg text-left hover:bg-[#2A3142] flex items-center gap-2 transition-colors cursor-pointer"
+                                className="w-full px-3.5 py-2.5 rounded-xl text-left hover:bg-[#2A3142] flex items-center gap-2.5 transition-colors cursor-pointer"
                               >
-                                <Share2 className="w-3.5 h-3.5 text-slate-400" />
+                                <Share2 className="w-4 h-4 text-slate-400" />
                                 <span>{isVietnamese ? 'Sao chép liên kết' : 'Copy link'}</span>
                               </button>
 
@@ -643,9 +643,9 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
 
                               <button
                                 onClick={(e) => handleDelete(e, proj.id)}
-                                className="w-full px-3 py-2 rounded-lg text-left hover:bg-rose-950/50 text-rose-400 font-bold flex items-center gap-2 transition-colors cursor-pointer"
+                                className="w-full px-3.5 py-2.5 rounded-xl text-left hover:bg-rose-950/50 text-rose-400 font-bold flex items-center gap-2.5 transition-colors cursor-pointer"
                               >
-                                <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                                <Trash2 className="w-4 h-4 text-rose-400" />
                                 <span>{isVietnamese ? 'Xóa sổ ghi chú' : 'Delete'}</span>
                               </button>
                             </div>
@@ -657,7 +657,7 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
                     {/* Card Body: Title (or Inline Editing Input) */}
                     <div className="my-auto min-w-0">
                       {isEditing ? (
-                        <div onClick={e => e.stopPropagation()} className="space-y-1.5">
+                        <div onClick={e => e.stopPropagation()} className="space-y-2">
                           <input
                             type="text"
                             autoFocus
@@ -667,34 +667,34 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
                               if (e.key === 'Enter') handleSaveRename(e, proj.id);
                               if (e.key === 'Escape') handleCancelRename(e);
                             }}
-                            className="w-full px-2.5 py-1 text-xs rounded-lg bg-[#2E3647] border border-blue-500 text-white font-bold focus:outline-none"
+                            className="w-full px-3 py-1.5 text-xs sm:text-sm rounded-xl bg-[#2E3647] border border-blue-500 text-white font-bold focus:outline-none"
                           />
-                          <div className="flex items-center gap-1 justify-end">
+                          <div className="flex items-center gap-2 justify-end">
                             <button
                               onClick={(e) => handleSaveRename(e, proj.id)}
-                              className="px-2 py-0.5 rounded bg-blue-600 hover:bg-blue-500 text-[10px] font-bold text-white"
+                              className="px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-xs font-bold text-white"
                             >
                               Lưu
                             </button>
                             <button
                               onClick={handleCancelRename}
-                              className="px-2 py-0.5 rounded bg-slate-700 hover:bg-slate-600 text-[10px] text-slate-300"
+                              className="px-3 py-1 rounded-lg bg-slate-700 hover:bg-slate-600 text-xs text-slate-300"
                             >
                               Hủy
                             </button>
                           </div>
                         </div>
                       ) : (
-                        <h3 className="font-bold text-xs sm:text-sm text-white group-hover:text-blue-300 transition-colors line-clamp-2 leading-snug">
+                        <h3 className="font-extrabold text-sm sm:text-base lg:text-lg 2xl:text-xl text-white group-hover:text-blue-300 transition-colors line-clamp-2 leading-snug">
                           {proj.name}
                         </h3>
                       )}
                     </div>
 
                     {/* Card Footer: Date & Source Count */}
-                    <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400 shrink-0">
+                    <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs sm:text-sm text-slate-400 shrink-0 font-medium">
                       <span className="truncate">{updatedDate}</span>
-                      <span className="font-medium text-slate-300 shrink-0">
+                      <span className="font-bold text-slate-200 shrink-0">
                         {sourceCount} {isVietnamese ? 'nguồn' : 'sources'}
                       </span>
                     </div>
