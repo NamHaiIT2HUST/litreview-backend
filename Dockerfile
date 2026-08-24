@@ -4,12 +4,10 @@ FROM python:3.11-slim AS builder
 WORKDIR /app
 
 COPY requirements.txt .
-# NOTE: Install CPU-only torch first to stop pip from pulling the default
-# CUDA-bundled wheel (~2.5GB of unused nvidia_* packages and huge RAM footprint).
-RUN pip install --no-cache-dir --retries 10 --timeout 120 --prefix=/install \
-        --index-url https://download.pytorch.org/whl/cpu torch \
-    && grep -Ev '^(ruff|pytest|pytest-asyncio)($|[<>=])' requirements.txt > requirements-runtime.txt \
-    && pip install --no-cache-dir --retries 10 --timeout 120 --prefix=/install -r requirements-runtime.txt
+RUN grep -Ev '^(ruff|pytest|pytest-asyncio)($|[<>=])' requirements.txt > requirements-runtime.txt \
+    && pip install --no-cache-dir --retries 10 --timeout 120 --prefix=/install \
+        --extra-index-url https://download.pytorch.org/whl/cpu \
+        -r requirements-runtime.txt
 
 # ---- Stage 2: Production ----
 FROM python:3.11-slim
