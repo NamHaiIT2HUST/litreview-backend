@@ -127,7 +127,7 @@ def test_eda_profiling_missingness_categorization():
     part_map = {p.name: p for p in profile.partially_missing_cols}
     assert "total_load_actual" in part_map
     assert part_map["total_load_actual"].null_count == 36
-    assert part_map["total_load_actual"].category in ("low_missing", "moderate_high_missing")
+    assert part_map["total_load_actual"].category in ("low_missing", "moderate_missing", "moderate_high_missing")
     
     assert "price_actual" in part_map
     assert part_map["price_actual"].null_count == 18

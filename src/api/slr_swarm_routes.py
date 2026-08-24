@@ -89,9 +89,26 @@ async def run_review(payload: SLRRunRequest) -> SLRRunResponse:
         error=state.get("error", ""),
     )
 
-# ----------------- STUDIO PANEL ENDPOINTS (DISABLED) -----------------
-# Các endpoint sau đây phục vụ panel "AI Studio (Agent 2-5)" đã bị xóa khỏi UI.
-# Giữ lại schemas và code để dễ rollback. Route trả 410 Gone.
+
+class DataAnalysisRequest(BaseModel):
+    csv_text: str = Field(min_length=1)
+    goal: str = ""
+
+
+@router.post("/analyze")
+async def analyze_data(payload: DataAnalysisRequest):
+    """Endpoint phân tích dữ liệu và lập kế hoạch thống kê."""
+    if not payload.csv_text or not payload.csv_text.strip():
+        raise HTTPException(status_code=422, detail="csv_text is empty")
+    deps = build_default_deps(use_real_llm=_is_real())
+    try:
+        res = await run_data_analysis(payload.csv_text, payload.goal, deps)
+        return res
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+
+# ----------------- STUDIO PANEL ENDPOINTS -----------------
 
 class SetupRequest(BaseModel):
     idea: str
