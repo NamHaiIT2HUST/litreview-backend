@@ -21,7 +21,8 @@ from pathlib import Path
 
 try:
     from dotenv import load_dotenv
-    load_dotenv()
+    dotenv_path = Path(__file__).resolve().parent.parent / ".env"
+    load_dotenv(dotenv_path=dotenv_path, override=True)
 except ImportError:
     pass
 
@@ -68,19 +69,24 @@ def _restore_pending(pending: Path) -> None:
 
 
 def main():
-    if not SERVER_URL:
+    server_url = os.environ.get("AI_LOG_SERVER", SERVER_URL)
+    api_key = os.environ.get("AI_LOG_API_KEY", API_KEY)
+    log_dir = Path(os.environ.get("AI_LOG_DIR", str(LOG_DIR)))
+    log_file = log_dir / "session.jsonl"
+
+    if not server_url:
         print("[ai-log] AI_LOG_SERVER not set — skipping submission.", file=sys.stderr)
         sys.exit(0)
 
-    if not LOG_FILE.exists() or LOG_FILE.stat().st_size == 0:
+    if not log_file.exists() or log_file.stat().st_size == 0:
         print("[ai-log] No logs to submit.", file=sys.stderr)
         sys.exit(0)
 
     # Atomic rename closes the race window: hook writes that arrive after this
     # land in a fresh LOG_FILE, not in the batch we're about to POST.
-    pending = LOG_FILE.with_name(f"session.pending.{int(time.time())}.jsonl")
+    pending = log_file.with_name(f"session.pending.{int(time.time())}.jsonl")
     try:
-        LOG_FILE.rename(pending)
+        log_file.rename(pending)
     except FileNotFoundError:
         print("[ai-log] No logs to submit.", file=sys.stderr)
         sys.exit(0)
@@ -109,10 +115,10 @@ def main():
 
     payload = json.dumps({"entries": entries}, ensure_ascii=False).encode("utf-8")
     headers = {"Content-Type": "application/json"}
-    if API_KEY:
-        headers["Authorization"] = f"Bearer {API_KEY}"
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
     req = urllib.request.Request(
-        SERVER_URL,
+        server_url,
         data=payload,
         headers=headers,
         method="POST",
@@ -120,7 +126,12 @@ def main():
 
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
-            print(f"[ai-log] Submitted {len(entries)} entries → {resp.status}", file=sys.stderr)
+            print(f"[ai-log] Submitted {len(entries)} entries → {resp.status} - {resp.read().decode('utf-8')}", file=sys.stderr)
+    except urllib.error.HTTPError as e:
+        _restore_pending(pending)
+        error_body = e.read().decode('utf-8') if hasattr(e, 'read') else ''
+        print(f"[ai-log] Submit failed: HTTP {e.code} ({e.reason}): {error_body} — logs kept locally.", file=sys.stderr)
+        sys.exit(0)
     except urllib.error.URLError as e:
         # Failure: restore the whole pending (including leftover) for next push.
         _restore_pending(pending)

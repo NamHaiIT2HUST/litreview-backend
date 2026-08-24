@@ -34,23 +34,24 @@ const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 function SourceCard({ paper, isChecked, onToggle, onRemove, darkMode }) {
   const { t } = useLanguage();
   return (
-    <div
+    <button
+      type="button"
       onClick={() => onToggle(paper.id)}
-      className={`group relative py-2 px-3 flex items-center justify-between rounded-xl cursor-pointer transition-all select-none ${
-        darkMode ? 'hover:bg-slate-800/60' : 'hover:bg-slate-100'
+      className={`group relative w-full text-left py-2 px-3 flex items-center justify-between rounded-xl cursor-pointer transition-all select-none ${
+        'hover:bg-slate-100 dark:hover:bg-slate-800/60'
       }`}
     >
       <div className="flex items-center gap-3 overflow-hidden">
         {/* PDF Badge */}
         <div className={`shrink-0 w-6 h-6 rounded flex items-center justify-center font-extrabold text-[8px] ${
-          darkMode ? 'bg-red-950/40 text-red-400 border border-red-900/50' : 'bg-red-50 text-red-600 border border-red-200'
+          'bg-red-50 text-red-600 border border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border dark:border-red-900/50'
         }`}>
           PDF
         </div>
 
         {/* Content */}
         <p className={`text-[13px] font-medium leading-tight truncate pr-4 ${
-          darkMode ? 'text-slate-300' : 'text-slate-700'
+          'text-slate-700 dark:text-slate-300'
         }`}>
           {paper.title || paper.filename}
         </p>
@@ -74,14 +75,14 @@ function SourceCard({ paper, isChecked, onToggle, onRemove, darkMode }) {
         <div
           className={`shrink-0 w-4 h-4 rounded-[4px] flex items-center justify-center transition-all ${
             isChecked
-              ? (darkMode ? 'bg-slate-300 text-slate-900' : 'bg-slate-700 text-white')
-              : (darkMode ? 'border border-slate-600 bg-transparent' : 'border border-slate-300 bg-transparent')
+              ? ('bg-slate-700 text-white dark:bg-slate-300 dark:text-slate-900')
+              : ('border border-slate-300 bg-transparent dark:border dark:border-slate-600 dark:bg-transparent')
           }`}
         >
           {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
         </div>
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -100,7 +101,8 @@ function AddSourceButton({ onFiles, isUploading, darkMode }) {
   }, [onFiles]);
 
   return (
-    <div
+    <button
+      type="button"
       onDrop={handleDrop}
       onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
       onDragLeave={() => setIsDragging(false)}
@@ -110,9 +112,7 @@ function AddSourceButton({ onFiles, isUploading, darkMode }) {
           ? 'border-blue-500 bg-blue-50'
           : isUploading
           ? 'border-blue-200 bg-blue-50/50 cursor-wait'
-          : darkMode
-          ? 'border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200'
-          : 'border-slate-300 bg-white hover:bg-slate-50 text-slate-700'
+          : 'border-slate-300 bg-white hover:bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200'
       }`}
     >
       <input
@@ -135,7 +135,7 @@ function AddSourceButton({ onFiles, isUploading, darkMode }) {
       <span className="text-[13px] font-semibold">
         {isUploading ? t('workspace.uploading') : isDragging ? t('workspace.drop_pdf') : t('workspace.add_source')}
       </span>
-    </div>
+    </button>
   );
 }
 
@@ -148,7 +148,7 @@ function UploadQueueItem({ item, darkMode }) {
   }[item.status];
 
   return (
-    <div className={`flex items-center gap-2 p-2 rounded-xl text-xs ${darkMode ? 'bg-slate-800' : 'bg-slate-50'}`}>
+    <div className={`flex items-center gap-2 p-2 rounded-xl text-xs ${'bg-slate-50 dark:bg-slate-800'}`}>
       {statusIcon}
       <div className="flex-1 min-w-0 truncate font-semibold dark:text-slate-300 text-slate-700">
         {item.filename}
@@ -376,138 +376,143 @@ export default function WorkspaceTab({
     } catch (err) {
       console.error('Failed to trigger chat response from synthesis prompt:', err);
     }
-  };
-
-  return (
-    <div 
-      className={`flex flex-col gap-4 h-[calc(100vh-75px)] p-4 lg:p-5 ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}
-      style={{ '--sidebar-width': `${isSourcesOpen ? sidebarWidth : 72}px` }}
-    >
-      <div className="flex flex-col lg:flex-row gap-5 flex-1 min-h-0">
+  };  return (
+    <div className="flex flex-col gap-4 h-screen p-4 overflow-hidden font-sans text-surface-900 dark:text-surface-100">
+      <div className="flex flex-col lg:flex-row gap-4 flex-1 min-h-0">
       
       {/* ── LEFT: Sources Panel ── */}
       <div 
         ref={sidebarRef}
-        className={`relative shrink-0 ${isSourcesOpen ? 'w-full lg:w-[var(--sidebar-width)]' : 'w-full lg:w-[72px]'} ${isResizing ? 'transition-none' : 'transition-all duration-300'}`}
+        className={`relative shrink-0 ${isSourcesOpen ? 'w-full lg:w-[var(--sidebar-width,260px)]' : 'w-full lg:w-[64px]'} ${isResizing ? 'transition-none' : 'transition-all duration-300 ease-in-out'}`}
       >
-        <div className={`h-full flex flex-col rounded-3xl border overflow-hidden shadow-sm ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+        <div className="card h-full flex flex-col overflow-hidden">
         
         {isSourcesOpen ? (
           <>
             {/* FULL HEADER */}
-            <div className={`flex items-center justify-between px-5 h-[56px] border-b shrink-0 ${darkMode ? 'border-slate-800' : 'border-slate-100'}`}>
-              <h3 className={`font-bold text-[14px] ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>
-                {t('workspace.source_title')}
-              </h3>
+            <div className="flex items-center justify-between px-4 h-14 border-b border-surface-100 dark:border-surface-800 shrink-0">
+              <div className="flex items-center gap-2">
+                <BookOpen className="w-4 h-4 text-primary-600 dark:text-primary-400" />
+                <h3 className="section-label">
+                  {t('workspace.source_title')}
+                </h3>
+              </div>
               <button 
                 onClick={() => setIsSourcesOpen(false)}
-                className={`p-1 rounded-lg transition-colors ${darkMode ? 'hover:bg-slate-800 text-slate-400' : 'hover:bg-slate-100 text-slate-500'}`}
-                title="Thu gọn nguồn tài liệu"
+                className="p-1.5 rounded-lg text-surface-400 hover:text-surface-600 dark:hover:text-surface-200 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
+                title="Collapse sources"
               >
-                <PanelLeftClose className="w-[18px] h-[18px]" />
+                <PanelLeftClose className="w-4 h-4" />
               </button>
             </div>
 
             {/* FULL CONTENT */}
-            <div className="flex-1 overflow-y-auto px-3 space-y-4 custom-scrollbar pb-4 pt-4">
-              <div className="px-1">
+            <div className="flex-1 overflow-y-auto px-3 space-y-4 pb-4 pt-3">
+              <div>
                 <AddSourceButton onFiles={uploadFiles} isUploading={isUploading} darkMode={darkMode} />
               </div>
               
               {uploadQueue.length > 0 && (
-                <div className="space-y-1.5 shrink-0 px-1">
+                <div className="space-y-1.5 shrink-0">
                   {uploadQueue.map((item, i) => (
                     <UploadQueueItem key={i} item={item} darkMode={darkMode} />
                   ))}
                 </div>
               )}
 
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center justify-between px-3 py-2">
-                  <span className={`text-[12px] font-medium ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between px-2 py-1.5 bg-surface-50 dark:bg-surface-800/50 rounded-lg border border-surface-200 dark:border-surface-700">
+                  <span className="text-[11px] font-semibold text-surface-500">
                     {scopedPapers.length}/{allSources.length} {t('workspace.using')}
                   </span>
-                  <div 
+                  <button 
+                    type="button"
                     onClick={handleSelectAll}
-                    className="flex items-center gap-2 cursor-pointer group"
+                    className="flex items-center gap-1.5 text-[11px] font-medium text-surface-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
                   >
-                    <span className={`text-[12px] font-medium transition-colors ${darkMode ? 'text-slate-400 group-hover:text-slate-200' : 'text-slate-500 group-hover:text-slate-800'}`}>
-                      {t('workspace.select_all')}
-                    </span>
-                    <div className={`shrink-0 w-4 h-4 rounded-[4px] flex items-center justify-center transition-all ${
+                    <span>{t('workspace.select_all')}</span>
+                    <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center transition-all ${
                       selectedPaperIds.length === allSources.length && allSources.length > 0
-                        ? (darkMode ? 'bg-slate-300 text-slate-900' : 'bg-slate-700 text-white')
-                        : (darkMode ? 'border border-slate-600 bg-transparent group-hover:border-slate-500' : 'border border-slate-300 bg-transparent group-hover:border-slate-400')
+                        ? 'bg-primary-600 text-white border-primary-600'
+                        : 'border-surface-300 dark:border-surface-600'
                     }`}>
-                      {selectedPaperIds.length === allSources.length && allSources.length > 0 && <Check className="w-3 h-3 stroke-[3]" />}
+                      {selectedPaperIds.length === allSources.length && allSources.length > 0 && <Check className="w-2.5 h-2.5 stroke-[3]" />}
                     </div>
-                  </div>
+                  </button>
                 </div>
 
-                <div className="flex flex-col gap-0.5">
+                <div className="space-y-1">
                 {allSources.map((paper) => (
                   <SourceCard
                     key={paper.id}
                     paper={paper}
                     isChecked={selectedPaperIds.includes(paper.id)}
-                    onToggle={(id) => setSelectedPaperIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id])}
-                    onRemove={removeSource}
+                    onToggle={togglePaperSelection}
+                    onRemove={handleRemoveSource}
                     darkMode={darkMode}
                   />
                 ))}
-                {allSources.length === 0 && !isUploading && (
-                  <div className={`text-center p-6 rounded-2xl border border-dashed ${darkMode ? 'border-slate-700 text-slate-500' : 'border-slate-300 text-slate-400'}`}>
-                    <BookOpen className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm font-semibold">{t('workspace.no_source_title')}</p>
-                    <p className="text-xs mt-1 opacity-75">{t('workspace.no_source_desc')}</p>
-                  </div>
-                )}
                 </div>
               </div>
             </div>
+
+            {/* FULL FOOTER */}
+            {allSources.length > 0 && (
+              <div className="shrink-0 p-3 border-t border-surface-100 dark:border-surface-800">
+                <button
+                  onClick={() => setIsHarnessOpen(true)}
+                  className="btn btn-secondary btn-sm w-full"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                  <span>RAG Evaluation</span>
+                </button>
+              </div>
+            )}
           </>
 
         ) : (
           <>
-            {/* MINI HEADER */}
-            <div className={`flex items-center justify-center h-[56px] border-b shrink-0 ${darkMode ? 'border-slate-800' : 'border-slate-100'}`}>
+            {/* COLLAPSED STATE */}
+            <div className="flex items-center justify-center h-14 border-b border-surface-100 dark:border-surface-800 shrink-0">
               <button 
                 onClick={() => setIsSourcesOpen(true)}
-                className={`p-1 rounded-lg transition-colors ${darkMode ? 'hover:bg-slate-800 text-slate-400' : 'hover:bg-slate-100 text-slate-500'}`}
-                title={t('workspace.expand_source')}
+                className="p-1.5 rounded-lg text-surface-400 hover:text-surface-600 dark:hover:text-surface-200 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
+                title="Expand sources"
               >
-                <PanelLeft className="w-[18px] h-[18px]" />
+                <PanelLeft className="w-4 h-4" />
               </button>
             </div>
-
-            {/* MINI CONTENT */}
-            <div className="flex-1 overflow-y-auto py-4 flex flex-col items-center gap-5 custom-scrollbar">
+            
+            <div className="flex-1 overflow-y-auto py-4 flex flex-col items-center gap-3">
               <button 
                 onClick={() => !isUploading && document.querySelector('input[type="file"]')?.click()}
-                className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all ${
-                  darkMode ? 'hover:bg-slate-800 text-slate-300' : 'hover:bg-slate-100 text-slate-600'
-                }`}
-                title="Tải lên tài liệu PDF"
+                className="w-9 h-9 flex items-center justify-center rounded-xl btn-secondary"
+                title="Upload PDF"
               >
-                {isUploading ? <Loader2 className="w-5 h-5 animate-spin text-blue-500" /> : <Plus className="w-6 h-6" />}
+                {isUploading ? <Loader2 className="w-4 h-4 animate-spin text-primary-500" /> : <Plus className="w-4 h-4" />}
               </button>
 
-              <div className="flex flex-col items-center gap-3">
+              <div className="flex flex-col items-center gap-2">
                 {allSources.map((paper) => (
                   <div 
                     key={paper.id} 
                     onClick={() => setIsSourcesOpen(true)}
-                    className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center font-extrabold text-[9px] cursor-pointer transition-all ${
-                      darkMode 
-                        ? 'border-red-900/50 bg-red-950/20 text-red-400 hover:border-red-800' 
-                        : 'border-red-600 bg-white text-red-600 hover:shadow-md hover:border-red-500'
-                    }`}
+                    className="w-8 h-8 rounded-lg bg-danger-light dark:bg-danger-dark text-danger text-[9px] font-bold flex items-center justify-center cursor-pointer hover:scale-105 transition-transform"
                     title={paper.title}
                   >
                     PDF
                   </div>
                 ))}
               </div>
+              {allSources.length > 0 && (
+                <button
+                  onClick={() => setIsHarnessOpen(true)}
+                  className="w-8 h-8 mt-auto rounded-lg bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 flex items-center justify-center hover:scale-105 transition-transform"
+                  title="RAG Evaluation"
+                >
+                  <ShieldCheck className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </>
 
@@ -517,39 +522,42 @@ export default function WorkspaceTab({
         {/* Resizer Handle */}
         {isSourcesOpen && (
           <div 
-             className="hidden lg:flex absolute -right-[12.5px] top-0 bottom-0 w-[25px] cursor-col-resize z-10 items-center justify-center group"
+             className="hidden lg:flex absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize z-10 items-center justify-center group"
              onMouseDown={(e) => { e.preventDefault(); setIsResizing(true); }}
           >
-             <div className={`w-1 h-12 rounded-full opacity-0 group-hover:opacity-100 transition-opacity ${darkMode ? 'bg-slate-600' : 'bg-slate-300'} ${isResizing ? 'opacity-100 bg-blue-500' : ''}`} />
+             <div className={`w-0.5 h-12 rounded-full opacity-0 group-hover:opacity-100 transition-opacity bg-surface-300 dark:bg-surface-600 ${isResizing ? 'opacity-100 bg-primary-500' : ''}`} />
           </div>
         )}
       </div>
 
       {/* ── RIGHT: Active Workspace Panel ── */}
-      <div className="flex-1 flex gap-5 h-full min-h-0 overflow-hidden relative">
+      <div className="flex-1 flex gap-4 h-full min-h-0 overflow-hidden relative">
         {/* Main Content Area (Chat/Synthesis/Data) */}
-        <div className={`flex-1 rounded-3xl border flex flex-col overflow-hidden shadow-sm transition-all ${
-            darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-          }`}>
+        <div className="card flex-1 flex flex-col overflow-hidden">
             {/* ── Workspace Header ── */}
-            <div className={`flex items-center justify-between px-5 h-[60px] border-b shrink-0 gap-4 ${darkMode ? 'border-slate-800' : 'border-slate-100'}`}>
+            <div className="flex items-center justify-between px-5 h-14 border-b border-surface-100 dark:border-surface-800 shrink-0 gap-3">
               
               {/* Left: Brand / Title */}
               <div className="flex items-center gap-2.5 shrink-0">
-                <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-sm shadow-xs">
-                  <Sparkles className="w-4 h-4" />
+                <div className="w-8 h-8 rounded-xl bg-primary-600 text-white flex items-center justify-center">
+                  <Bot className="w-4 h-4" />
                 </div>
-                <span className="text-[14px] font-bold text-slate-800 dark:text-slate-100 hidden sm:inline">
-                  {t('workspace.ai_assistant')}
-                </span>
+                <div className="hidden sm:block">
+                  <span className="font-display font-semibold text-xs text-surface-900 dark:text-white block leading-none">
+                    {t('workspace.ai_assistant')}
+                  </span>
+                  <span className="section-label mt-0.5 block">
+                    Workspace Mode
+                  </span>
+                </div>
               </div>
 
               {/* Center / Right: The 3 Main Workspace Navigation Tabs */}
-              <div className="flex items-center gap-3">
-                <div className="flex items-center bg-slate-100/90 dark:bg-slate-800/90 p-1 rounded-2xl border dark:border-slate-700/60 border-slate-200/80 shadow-xs">
+              <div className="flex items-center gap-2">
+                <div id="tour-workspace-tabs" className="flex items-center bg-surface-100 dark:bg-surface-800 p-1 rounded-xl border border-surface-200 dark:border-surface-700">
                   {[
                     { id: 'chat', label: t('workspace.tab_chat'), Icon: MessageSquare },
-                    { id: 'synthesis', label: t('workspace.tab_synthesis'), Icon: BookOpen },
+                    { id: 'synthesis', label: t('workspace.tab_synthesis'), Icon: FileText },
                     { id: 'analyze', label: t('workspace.tab_analyze'), Icon: BarChart2 },
                   ].map(({ id, label, Icon }) => {
                     const isActive = activeWorkspaceTab === id;
@@ -558,14 +566,14 @@ export default function WorkspaceTab({
                         key={id}
                         type="button"
                         onClick={() => setActiveWorkspaceTab(id)}
-                        className={`px-3.5 py-1.5 rounded-xl text-[12.5px] font-bold flex items-center gap-1.5 transition-all select-none cursor-pointer ${
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all select-none cursor-pointer ${
                           isActive
-                            ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
-                            : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                            ? 'bg-white dark:bg-surface-700 text-primary-600 dark:text-primary-400 shadow-xs'
+                            : 'text-surface-500 hover:text-surface-800 dark:hover:text-surface-200'
                         }`}
                       >
                         <Icon className="w-3.5 h-3.5" />
-                        <span className="hidden md:inline">{label}</span>
+                        <span className="hidden lg:inline">{label}</span>
                       </button>
                     );
                   })}
@@ -583,11 +591,7 @@ export default function WorkspaceTab({
                         ]);
                       }
                     }}
-                    className={`p-2 rounded-xl border transition-colors flex items-center justify-center cursor-pointer ${
-                      darkMode
-                        ? 'border-slate-800 text-slate-400 hover:text-red-400 hover:bg-red-950/20'
-                        : 'border-slate-200 text-slate-500 hover:text-red-600 hover:bg-red-50'
-                    }`}
+                    className="p-2 rounded-xl btn-ghost text-surface-400 hover:text-danger hover:bg-danger-light dark:hover:bg-danger-dark"
                     title={t('workspace.clear_chat')}
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -596,7 +600,7 @@ export default function WorkspaceTab({
               </div>
             </div>
             
-            <div className="flex-1 min-h-0 flex flex-col">
+            <div className="flex-1 min-h-0 flex flex-col relative z-0">
               {activeWorkspaceTab === 'chat' && (
                 <ChatPanel
                   workspacePapers={scopedPapers}
@@ -628,7 +632,7 @@ export default function WorkspaceTab({
 
         {/* Citation Verification Panel — slide-in overlay từ phải khi user click citation */}
         {activeCitation && (
-          <div className="w-[380px] shrink-0 h-full overflow-hidden rounded-3xl border shadow-sm bg-white dark:bg-slate-900 dark:border-slate-800 border-slate-200 transition-all animate-in slide-in-from-right-4 duration-300">
+          <div className="w-[380px] shrink-0 h-full overflow-hidden card border-primary-200 dark:border-primary-800 animate-slide-up">
             <VerificationPanel
               activeCitation={activeCitation}
               darkMode={darkMode}
@@ -639,10 +643,17 @@ export default function WorkspaceTab({
       </div>
       </div>
 
-      {/* Disclaimer Text (Centered at the very bottom of the entire layout) */}
-      <div className="shrink-0 pb-1 text-center -mt-2">
+      {/* RAG Evaluation Benchmark Harness Modal */}
+      <RAGEvalHarnessModal
+        isOpen={isHarnessOpen}
+        onClose={() => setIsHarnessOpen(false)}
+        workspacePapers={allSources}
+        darkMode={darkMode}
+      />
 
-        <p className={`text-[12px] font-medium ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+      {/* Disclaimer Text */}
+      <div className="shrink-0 text-center">
+        <p className="text-[11px] text-surface-400">
           {t('workspace.disclaimer')}
         </p>
       </div>

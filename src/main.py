@@ -15,6 +15,7 @@ from src.api.project_routes import router as project_router
 from src.api.screening_routes import router as screening_router
 from src.api.export_routes import router as export_router
 from src.api.slr_swarm_routes import router as slr_swarm_router
+from src.api.auth_routes import router as auth_router
 from src.config import get_settings
 from src.database import create_all_tables, ensure_local_schema_compatibility
 
@@ -155,6 +156,7 @@ app.include_router(root_router, prefix="/api/v1")
 app.include_router(screening_router, prefix="/api/v1")
 app.include_router(export_router, prefix="/api/v1")
 app.include_router(slr_swarm_router, prefix="/api/v1")
+app.include_router(auth_router, prefix="/api/v1")
 
 
 @app.get("/")
