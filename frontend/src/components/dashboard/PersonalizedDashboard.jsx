@@ -203,17 +203,29 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
     setTimeout(() => setDashboardToast(null), 2500);
   };
 
-  // Helper to dynamically calculate actual source count of any project
+  // Helper to dynamically calculate actual source count (uploaded/selected documents in notebook)
   const getProjectSourceCount = (proj) => {
     try {
-      const p1 = localStorage.getItem(`litreview_papers_${proj.id}`);
-      const p2 = localStorage.getItem(`litreview_workspace_papers_${proj.id}`);
-      const arr1 = p1 ? JSON.parse(p1) : [];
-      const arr2 = p2 ? JSON.parse(p2) : [];
-      const actualCount = Math.max(arr1.length, arr2.length);
-      return actualCount > 0 ? actualCount : (proj.paper_count || 0);
+      const wsPapers = localStorage.getItem(`litreview_workspace_papers_${proj.id}`);
+      const selectedPapers = localStorage.getItem(`litreview_selected_papers_${proj.id}`);
+      const selectedIds = localStorage.getItem(`litreview_selected_ids_${proj.id}`);
+      
+      const parsedWs = wsPapers ? JSON.parse(wsPapers) : [];
+      const parsedSel = selectedPapers ? JSON.parse(selectedPapers) : [];
+      const parsedIds = selectedIds ? JSON.parse(selectedIds) : [];
+      
+      const uploadedCount = Math.max(parsedWs.length, parsedSel.length, parsedIds.length);
+      if (uploadedCount > 0) return uploadedCount;
+
+      // Fallback for featured templates or projects with pre-populated papers
+      const papers = localStorage.getItem(`litreview_papers_${proj.id}`);
+      const parsedPapers = papers ? JSON.parse(papers) : [];
+      if (parsedPapers.length > 0 && parsedPapers.length <= 15) {
+        return parsedPapers.length;
+      }
+      return proj.paper_count && proj.paper_count <= 15 ? proj.paper_count : 0;
     } catch {
-      return proj.paper_count || 0;
+      return 0;
     }
   };
 
