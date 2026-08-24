@@ -359,26 +359,19 @@ function MainAppShell() {
 
   // ── RENDER: Authenticated Workspace Shell ───────────────────────────────
   return (
-    <>
+    <div className={layoutMode === 'horizontal' ? `min-h-screen bg-[#F4F6F9] dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 ${darkMode ? 'dark' : ''}` : `app-shell ${darkMode ? 'dark' : ''}`}>
       {layoutMode === 'horizontal' ? (
-        <div className={`min-h-screen bg-[#F4F6F9] dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 ${darkMode ? 'dark' : ''}`}>
-          {/* ── Top Horizontal Navbar ─────────────────────────────────── */}
-          <HorizontalNavbar
-            activeTab={activeTab}
-            setActiveTab={setActiveTab}
-            onOpenNewProject={() => setNewProjectModalOpen(true)}
-            layoutMode={layoutMode}
-            setLayoutMode={setLayoutMode}
-          />
-
-          {/* ── Main Content Area (Full width) ────────────────────────── */}
-          <main className="w-full min-h-[calc(100vh-4rem)]">
-            {renderMainContent()}
-          </main>
-        </div>
+        /* ── Top Horizontal Navbar ─────────────────────────────────── */
+        <HorizontalNavbar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          onOpenNewProject={() => setNewProjectModalOpen(true)}
+          layoutMode={layoutMode}
+          setLayoutMode={setLayoutMode}
+        />
       ) : (
-        <div className={`app-shell ${darkMode ? 'dark' : ''}`}>
-          {/* ── Vertical Sidebar ───────────────────────────────────────── */}
+        /* ── Vertical Sidebar ───────────────────────────────────────── */
+        <>
           <Sidebar
             activeTab={activeTab}
             setActiveTab={setActiveTab}
@@ -393,21 +386,19 @@ function MainAppShell() {
             layoutMode={layoutMode}
             setLayoutMode={setLayoutMode}
           />
-
-          {/* ── Mobile Overlay ─────────────────────────────────────────── */}
           {mobileSidebarOpen && (
             <div
               className="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm lg:hidden"
               onClick={() => setMobileSidebarOpen(false)}
             />
           )}
-
-          {/* ── Main Content Area (Sidebar Offset) ─────────────────────── */}
-          <main className={`app-content ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
-            {renderMainContent()}
-          </main>
-        </div>
+        </>
       )}
+
+      {/* ── Main Content Area (Preserved across layout toggles) ─────── */}
+      <main className={layoutMode === 'horizontal' ? "w-full min-h-[calc(100vh-4rem)]" : `app-content ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+        {renderMainContent()}
+      </main>
 
       {/* First-time User Product Onboarding Tour */}
       <OnboardingTour
@@ -429,7 +420,7 @@ function MainAppShell() {
         onClose={() => setAuthModalOpen(false)}
         initialMode={authModalMode}
       />
-    </>
+    </div>
   );
 }
 

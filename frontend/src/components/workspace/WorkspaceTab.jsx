@@ -178,7 +178,17 @@ export default function WorkspaceTab({
   const [isUploading, setIsUploading] = useState(false);
   const [selectedPaperIds, setSelectedPaperIds] = useState([]);
   const [deletedPaperIds, setDeletedPaperIds] = useState(new Set());
-  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState('chat');
+  const { activeProject } = useProject();
+  const currentProjectId = activeProject?.id;
+
+  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState(() => {
+    return localStorage.getItem(`litreview_workspace_subtab_${currentProjectId || 'default'}`) || 'chat';
+  });
+
+  React.useEffect(() => {
+    localStorage.setItem(`litreview_workspace_subtab_${currentProjectId || 'default'}`, activeWorkspaceTab);
+  }, [activeWorkspaceTab, currentProjectId]);
+
   const [isSourcesOpen, setIsSourcesOpen] = useState(true);
   const [isHarnessOpen, setIsHarnessOpen] = useState(false);
   
@@ -213,9 +223,6 @@ export default function WorkspaceTab({
       document.body.style.userSelect = 'auto';
     };
   }, [isResizing]);
-
-  const { activeProject } = useProject();
-  const currentProjectId = activeProject?.id;
 
   React.useEffect(() => {
     let cancelled = false;
