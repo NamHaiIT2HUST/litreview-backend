@@ -619,22 +619,25 @@ export default function WorkspaceTab({
                   })}
                 </div>
 
-                {activeWorkspaceTab === 'chat' && chatMessages && chatMessages.length > 1 && (
+                {activeWorkspaceTab === 'chat' && (
                   <button
                     onClick={() => {
-                      if (window.confirm(t('workspace.clear_chat_confirm'))) {
-                        setChatMessages([
-                          {
-                            sender: 'ai',
-                            text: `Chào mừng bạn đến với **LitReview Agent**! Hãy tìm kiếm trên Google Scholar, hệ thống sẽ tự động đối chiếu Scopus và chỉ giữ các bài đã xác minh.`
-                          }
-                        ]);
+                      const isVi = true;
+                      if (window.confirm(isVi ? 'Bạn có muốn làm mới toàn bộ đoạn chat cho đề tài này không?' : 'Do you want to reset the chat conversation for this project?')) {
+                        const welcomeText = activeProject?.name
+                          ? `Chào mừng bạn đến với **Không gian Phân tích** cho đề tài **${activeProject.name}**! Hãy chọn các bài báo từ phần *Tìm kiếm* để bắt đầu tổng hợp y văn có dẫn nguồn, hoặc tải lên tập tin PDF toàn văn để trích xuất sâu.`
+                          : `Chào mừng bạn đến với **LitReview Agent**! Hãy tìm kiếm trên Google Scholar, hệ thống sẽ tự động đối chiếu Scopus và chỉ giữ các bài đã xác minh.`;
+                        const freshMsg = [{ sender: 'ai', text: welcomeText }];
+                        setChatMessages(freshMsg);
+                        if (currentProjectId) {
+                          localStorage.setItem(`litreview_workspace_chat_${currentProjectId}`, JSON.stringify(freshMsg));
+                        }
                       }
                     }}
-                    className="p-2 rounded-xl btn-ghost text-surface-400 hover:text-danger hover:bg-danger-light dark:hover:bg-danger-dark"
-                    title={t('workspace.clear_chat')}
+                    className="p-2 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
+                    title="Làm mới đoạn chat cho đề tài này"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 )}
               </div>

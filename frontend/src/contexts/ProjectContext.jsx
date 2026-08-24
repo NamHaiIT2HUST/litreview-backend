@@ -207,6 +207,22 @@ export function ProjectProvider({ children }) {
       console.warn("Backend project creation failed, using local ID:", e);
     }
 
+    // Initialize 100% clean, fresh storage keys for this new project
+    const defaultWelcome = [
+      {
+        sender: 'ai',
+        text: `Chào mừng bạn đến với **Không gian Phân tích** cho đề tài **${newProject.name}**! Hãy chọn các bài báo từ phần *Tìm kiếm* để bắt đầu tổng hợp y văn có dẫn nguồn, hoặc tải lên tập tin PDF toàn văn để trích xuất sâu.`,
+      }
+    ];
+    try {
+      localStorage.setItem(`litreview_workspace_chat_${newProject.id}`, JSON.stringify(defaultWelcome));
+      localStorage.setItem(`litreview_papers_${newProject.id}`, JSON.stringify([]));
+      localStorage.setItem(`litreview_selected_ids_${newProject.id}`, JSON.stringify([]));
+      localStorage.setItem(`litreview_selected_papers_${newProject.id}`, JSON.stringify([]));
+      localStorage.setItem(`litreview_workspace_papers_${newProject.id}`, JSON.stringify([]));
+      localStorage.setItem(`litreview_workspace_subtab_${newProject.id}`, 'chat');
+    } catch {}
+
     setProjects(prev => [newProject, ...prev]);
     setActiveProjectId(newProject.id);
     return newProject;
