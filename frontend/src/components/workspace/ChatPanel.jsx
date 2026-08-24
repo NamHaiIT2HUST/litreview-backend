@@ -7,7 +7,7 @@ import rehypeKatex from 'rehype-katex';
 import CitationChip from './CitationChip';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { formatMathAndMarkdown } from '../../utils/mathUtils';
-import { API_BASE } from '../../utils/apiConfig';
+import { safeFetch } from '../../utils/apiConfig';
 
 
 
@@ -52,7 +52,7 @@ export default function ChatPanel({
         ? selectedSourceIds 
         : (workspacePapers ? workspacePapers.map(p => p.id) : []);
         
-      const response = await fetch(`${API_BASE}/workspace/chat`, {
+      const response = await safeFetch('/workspace/chat', {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: question, paper_ids: paperIds }),
@@ -94,8 +94,8 @@ export default function ChatPanel({
             className={`flex gap-4 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             {msg.sender === 'ai' && (
-              <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-md">
-                <Bot className="w-6 h-6" />
+              <div className="w-10 h-10 rounded-2xl overflow-hidden shrink-0 shadow-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center justify-center p-0.5">
+                <img src="/AI.png" alt="AI Assistant" className="w-full h-full object-cover rounded-[14px]" />
               </div>
             )}
             <div
@@ -227,8 +227,8 @@ export default function ChatPanel({
         
         {isTyping && (
           <div className="flex gap-4 justify-start">
-            <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-md">
-              <Bot className="w-6 h-6" />
+            <div className="w-10 h-10 rounded-2xl overflow-hidden shrink-0 shadow-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center justify-center p-0.5">
+              <img src="/AI.png" alt="AI Assistant" className="w-full h-full object-cover rounded-[14px]" />
             </div>
             <div className={`py-2.5 w-full max-w-full text-sm leading-relaxed flex items-center gap-1.5 ${
               'text-slate-900 dark:text-slate-200'
@@ -247,15 +247,6 @@ export default function ChatPanel({
 
       {/* Chat Input Bar */}
       <div className="relative mt-2 shrink-0 w-full flex flex-col items-center gap-2 mb-4 px-4">
-        {selectedSourceIds && selectedSourceIds.length > 0 && (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-100 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-[11px] font-semibold w-max shadow-sm self-start md:self-center md:-ml-[400px]">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
-            </span>
-            {t('chat.chatting_with')} {selectedSourceIds.length} {t('chat.specific_docs')}
-          </div>
-        )}
         <form onSubmit={handleSendMessage} className="relative w-full max-w-4xl mx-auto">
         <input
           type="text"

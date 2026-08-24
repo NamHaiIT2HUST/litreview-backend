@@ -246,12 +246,12 @@ class VectorStoreService:
         print(f"[vector-recovery] Auto-recovering vector store for paper {paper_id}...", flush=True)
         async with AsyncSessionLocal() as session:
             try:
-                # Query all chunks for this paper
+                from sqlalchemy import String as SAString
                 result = await session.execute(
                     select(PDFChunk, PageText.page_number, Paper.file_path, Paper.title)
                     .join(PageText, PDFChunk.page_text_id == PageText.id)
                     .join(Paper, PDFChunk.paper_id == Paper.id)
-                    .where(PDFChunk.paper_id == paper_id)
+                    .where(PDFChunk.paper_id.cast(SAString) == str(paper_id))
                 )
                 rows = result.fetchall()
                 if not rows:

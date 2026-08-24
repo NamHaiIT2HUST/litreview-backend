@@ -10,7 +10,7 @@ import { normalizeResearchSetup } from '../../utils/researchSetup';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useProject } from '../../contexts/ProjectContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { API_BASE } from '../../utils/apiConfig';
+import { API_BASE, safeFetch } from '../../utils/apiConfig';
 
 // ── Custom Vibrant Animated Academic Illustrative Badges ─────────────────────
 function TopicStepperIcon({ isApproved, isActive }) {
@@ -269,7 +269,7 @@ export default function ResearchSetupTab({ setActiveTab }) {
         return;
       }
 
-      const res = await fetch(`${API_BASE}/slr-swarm/optimize-scope`, {
+      const res = await safeFetch('/slr-swarm/optimize-scope', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -322,7 +322,7 @@ export default function ResearchSetupTab({ setActiveTab }) {
     setErrorMsg(null);
     try {
       const ideaText = projectData.research_question || projectData.name || '';
-      const res = await fetch(`${API_BASE}/slr-swarm/suggest-criteria`, {
+      const res = await safeFetch('/slr-swarm/suggest-criteria', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -373,7 +373,7 @@ export default function ResearchSetupTab({ setActiveTab }) {
         return;
       }
       
-      const res = await fetch(`${API_BASE}/slr-swarm/step1-setup`, {
+      const res = await safeFetch('/slr-swarm/step1-setup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 

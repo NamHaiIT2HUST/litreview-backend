@@ -28,7 +28,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 
-import { API_BASE } from '../../utils/apiConfig';
+import { API_BASE, safeFetch } from '../../utils/apiConfig';
 const MAX_FILE_SIZE_MB = 20;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
@@ -383,7 +383,7 @@ export default function WorkspaceTab({
     
     try {
       const paperIds = scopedPapers.map((p) => p.id);
-      const response = await fetch(`${API_BASE}/workspace/chat`, {
+      const response = await safeFetch('/workspace/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: questionText, paper_ids: paperIds }),
@@ -565,8 +565,8 @@ export default function WorkspaceTab({
               
               {/* Left: Brand / Title */}
               <div className="flex items-center gap-2.5 shrink-0">
-                <div className="w-8 h-8 rounded-xl bg-primary-600 text-white flex items-center justify-center">
-                  <Bot className="w-4 h-4" />
+                <div className="w-8 h-8 rounded-xl overflow-hidden shrink-0 shadow-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center justify-center p-0.5">
+                  <img src="/AI.png" alt="AI Assistant" className="w-full h-full object-cover rounded-[10px]" />
                 </div>
                 <div className="hidden sm:block">
                   <span className="font-display font-semibold text-xs text-surface-900 dark:text-white block leading-none">
@@ -630,6 +630,7 @@ export default function WorkspaceTab({
               {activeWorkspaceTab === 'chat' && (
                 <ChatPanel
                   workspacePapers={scopedPapers}
+                  selectedSourceIds={selectedPaperIds}
                   chatMessages={chatMessages}
                   setChatMessages={setChatMessages}
                   activeCitation={activeCitation}

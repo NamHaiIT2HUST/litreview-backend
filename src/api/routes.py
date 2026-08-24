@@ -926,13 +926,18 @@ async def workspace_chat(
             for pid in target_pids:
                 pid_str = str(pid).strip()
                 try:
+                    try:
+                        pid_uuid = uuid.UUID(pid_str)
+                    except Exception:
+                        pid_uuid = None
+
                     stmt_first_chunks = (
                         select(PDFChunk, PageText.page_number, Paper.file_path, Paper.title, Paper.abstract)
                         .join(PageText, PDFChunk.page_text_id == PageText.id)
                         .join(Paper, PDFChunk.paper_id == Paper.id)
-                        .where((Paper.id.cast(String) == pid_str) | (Paper.title.ilike(f"%{pid_str}%")))
+                        .where((Paper.id == pid_uuid) if pid_uuid else (Paper.title.ilike(f"%{pid_str}%")))
                         .order_by(PDFChunk.chunk_index)
-                        .limit(2)
+                        .limit(4)
                     )
                     db_rows = (await db.execute(stmt_first_chunks)).fetchall()
                     if db_rows:
@@ -957,7 +962,7 @@ async def workspace_chat(
                     else:
                         # Paper without PDF chunks: fetch metadata and Abstract from DB
                         stmt = select(Paper).where(
-                            (Paper.id.cast(String) == pid_str) | (Paper.title.ilike(f"%{pid_str}%")) | (Paper.dedup_key.ilike(f"%{pid_str}%"))
+                            (Paper.id == pid_uuid) if pid_uuid else (Paper.title.ilike(f"%{pid_str}%") | Paper.dedup_key.ilike(f"%{pid_str}%"))
                         )
                         paper = (await db.execute(stmt)).scalars().first()
                         if paper:
@@ -1707,15 +1712,10 @@ async def create_synthesis_session(
             detail="Papers not found: " + ", ".join(str(item) for item in missing),
         )
 
-    foreign_project = [
-        paper.id for paper in papers if paper.project_id != request.project_id
-    ]
-    if foreign_project:
-        raise HTTPException(
-            status_code=409,
-            detail="Papers do not belong to the selected project: "
-            + ", ".join(str(item) for item in foreign_project),
-        )
+    for paper in papers:
+        if paper.project_id is None or str(paper.project_id) != str(request.project_id):
+            paper.project_id = request.project_id
+    await db.flush()
 
     # Fast v2 (EXPERIMENTAL, opt-in via SYNTHESIS_MODE=fast_v2_experimental):
     # runs synchronously in-request through the real composition root and
