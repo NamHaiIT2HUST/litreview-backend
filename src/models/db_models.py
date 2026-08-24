@@ -35,6 +35,23 @@ def _now_utc():
     return datetime.now(UTC)
 
 
+class Role(str, enum.Enum):
+    admin = "admin"
+    user = "user"
+
+
+class User(Base):
+    __tablename__ = "users"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    username = Column(String, unique=True, nullable=False, index=True)
+    hashed_password = Column(String, nullable=False)
+    role = Column(SQLEnum(Role), default=Role.user)
+    created_at = Column(DateTime(timezone=True), default=_now_utc)
+    
+    projects = relationship("Project", back_populates="user")
+
+
+
 class RelevanceBucket(str, enum.Enum):
     high = "high"
     medium = "medium"

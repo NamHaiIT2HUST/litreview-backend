@@ -188,6 +188,14 @@ async def ensure_local_schema_compatibility():
             if "applies_to" not in cols:
                 sync_conn.execute(text("ALTER TABLE evidence_records ADD COLUMN applies_to VARCHAR(80) NOT NULL DEFAULT 'study'"))
 
+        # Check projects columns
+        if "projects" in existing_tables:
+            cols = {c["name"] for c in inspector.get_columns("projects")}
+            if "user_id" not in cols:
+                is_postgres = "postgresql" in DATABASE_URL
+                col_type = "UUID" if is_postgres else "CHAR(32)"
+                sync_conn.execute(text(f"ALTER TABLE projects ADD COLUMN user_id {col_type}"))
+
         # Check papers columns
         if "papers" in existing_tables:
             col_info = inspector.get_columns("papers")

@@ -284,7 +284,7 @@ export function AuthProvider({ children }) {
     <AuthContext.Provider
       value={{
         currentUser,
-        user: currentUser,
+        user: currentUser, // Alias for backward compatibility
         token,
         isAuthenticated: Boolean(currentUser),
         login,
