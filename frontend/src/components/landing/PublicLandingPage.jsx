@@ -1067,37 +1067,40 @@ export default function PublicLandingPage({ onOpenAuth }) {
 
       {/* ── 1. Top Glassmorphic Navigation Bar ─────────────────────────── */}
       <header className="sticky top-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-800/80 transition-colors shadow-2xs w-full">
-        <div className="w-full max-w-[1680px] mx-auto px-3 sm:px-5 lg:px-6 h-18 sm:h-20 flex items-center justify-between gap-2 lg:gap-3 xl:gap-4 relative z-10">
+        <div className="w-full max-w-[1680px] mx-auto px-3 sm:px-5 lg:px-6 h-18 sm:h-20 flex items-center justify-between gap-3 relative z-10">
           
-          {/* Brand */}
-          <div className="flex items-center gap-2 sm:gap-3 cursor-pointer select-none group shrink-0" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform shrink-0">
-              <BookOpen className="w-4.5 h-4.5 sm:w-5 sm:h-5" />
+          {/* Left: Brand + Desktop Nav Links (Dịch trọn bộ sang trái) */}
+          <div className="flex items-center gap-3 xl:gap-4 2xl:gap-7 shrink-0 min-w-0">
+            {/* Brand */}
+            <div className="flex items-center gap-2 sm:gap-2.5 cursor-pointer select-none group shrink-0" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform shrink-0">
+                <BookOpen className="w-4.5 h-4.5 sm:w-5 sm:h-5" />
+              </div>
+              <div>
+                <span className="font-display font-extrabold text-base sm:text-lg text-slate-900 dark:text-white leading-none tracking-tight block">
+                  LitReview
+                </span>
+                <p className="text-[10px] sm:text-[11px] font-semibold text-blue-600 dark:text-blue-400 mt-1 leading-none whitespace-nowrap">
+                  {language === 'vi' ? 'Nền tảng Nghiên cứu & Tổng quan Tài liệu' : 'Academic Literature Review Platform'}
+                </p>
+              </div>
             </div>
-            <div>
-              <span className="font-display font-extrabold text-base sm:text-lg text-slate-900 dark:text-white leading-none tracking-tight block">
-                LitReview
-              </span>
-              <p className="text-[10px] sm:text-[11px] font-semibold text-blue-600 dark:text-blue-400 mt-1 leading-none whitespace-nowrap">
-                {language === 'vi' ? 'Nền tảng Nghiên cứu & Tổng quan Tài liệu' : 'Academic Literature Review Platform'}
-              </p>
-            </div>
+
+            {/* Desktop Nav Links (Dịch sát logo sang trái) */}
+            <nav className="hidden lg:flex items-center gap-1 xl:gap-1.5 2xl:gap-3 text-xs xl:text-[12px] 2xl:text-[13px] font-bold text-slate-700 dark:text-slate-200 whitespace-nowrap">
+              <a href="#simulator" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1 px-1 xl:px-1.5">{d.nav.simulator}</a>
+              <a href="#agents" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1 px-1 xl:px-1.5">{d.nav.agents}</a>
+              <a href="#matrix" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1 px-1 xl:px-1.5">{d.nav.matrix}</a>
+              <a href="#prisma" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1 px-1 xl:px-1.5">{d.nav.prisma}</a>
+              <a href="#demo-accounts" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1 px-1 xl:px-1.5">{d.nav.demoProfiles}</a>
+              <a href="#faq" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1 px-1 xl:px-1.5">{d.nav.faq}</a>
+              <a href="#team" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1 px-1 xl:px-1.5">{d.nav.team}</a>
+              <a href="#acknowledgments" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1 px-1 xl:px-1.5">{d.nav.acknowledgments}</a>
+            </nav>
           </div>
 
-          {/* Desktop Nav Links */}
-          <nav className="hidden lg:flex items-center gap-1.5 xl:gap-2.5 2xl:gap-4 text-xs xl:text-[12.5px] 2xl:text-[13.5px] font-bold text-slate-700 dark:text-slate-200 whitespace-nowrap">
-            <a href="#simulator" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1 px-1 xl:px-1.5">{d.nav.simulator}</a>
-            <a href="#agents" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1 px-1 xl:px-1.5">{d.nav.agents}</a>
-            <a href="#matrix" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1 px-1 xl:px-1.5">{d.nav.matrix}</a>
-            <a href="#prisma" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1 px-1 xl:px-1.5">{d.nav.prisma}</a>
-            <a href="#demo-accounts" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1 px-1 xl:px-1.5">{d.nav.demoProfiles}</a>
-            <a href="#faq" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1 px-1 xl:px-1.5">{d.nav.faq}</a>
-            <a href="#team" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1 px-1 xl:px-1.5">{d.nav.team}</a>
-            <a href="#acknowledgments" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1 px-1 xl:px-1.5">{d.nav.acknowledgments}</a>
-          </nav>
-
-          {/* Controls & Actions */}
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* Right: Controls & Actions (Đầy đủ không gian rộng rãi ở góc phải) */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 ml-auto">
             
             {/* Language Switch */}
             <button
@@ -1121,7 +1124,7 @@ export default function PublicLandingPage({ onOpenAuth }) {
             {/* Auth Buttons */}
             <button
               onClick={() => onOpenAuth('login')}
-              className="btn btn-secondary px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-bold cursor-pointer shrink-0 whitespace-nowrap"
+              className="btn btn-secondary px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-bold cursor-pointer shrink-0 whitespace-nowrap"
             >
               {d.nav.login}
             </button>
