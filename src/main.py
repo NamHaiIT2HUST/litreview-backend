@@ -31,20 +31,22 @@ async def lifespan(app: FastAPI):
     await _ensure_default_project()
     print("Default project seeded.")
     await _ensure_default_admin()
-    # Fast v2 (EXPERIMENTAL): warm local evidence models (embedding +
-    # reranker) once at startup so a real request never pays cold-load
-    # latency. Zero LLM/API calls. Only runs when explicitly activated;
-    # fails the startup loudly rather than deferring a broken runtime to
-    # the first real request.
-    if settings.fast_v2_enabled:
-        from src.synthesis.fast_v2.runtime import warm_fast_v2
-
-        warmup_timings = await warm_fast_v2()
-        print(f"Fast v2 warmup complete: {warmup_timings}")
-    # Run minimal Scopus seeding in the background to prevent blocking server port binding
     import asyncio
+    # Fast v2 (EXPERIMENTAL): warm local evidence models in background task
+    # to allow the HTTP port to bind immediately and avoid startup timeouts
+    if settings.fast_v2_enabled:
+        async def _safe_warm_fast_v2():
+            try:
+                from src.synthesis.fast_v2.runtime import warm_fast_v2
+                warmup_timings = await warm_fast_v2()
+                print(f"Fast v2 warmup complete: {warmup_timings}")
+            except Exception as e:
+                print(f"Warning: Fast v2 warmup failed: {e}")
+        asyncio.create_task(_safe_warm_fast_v2())
+
+    # Run minimal Scopus seeding in the background to prevent blocking server port binding
     asyncio.create_task(_ensure_minimal_scopus_sources())
-    print("Scopus sources background seed scheduled.")
+    print("Background tasks scheduled. Server ready.")
     yield
     print("Shutting down...")
 
