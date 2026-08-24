@@ -224,7 +224,16 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
     setShowGapModal(true);
     setGapMapLoading(true);
     try {
-      const idea = projectData?.research_question || projectData?.name || activeProject?.research_question || activeProject?.name || 'Academic Research';
+      const idea = projectData?.research_question || projectData?.name || activeProject?.research_question || activeProject?.name || 'LLM for Mobile Robot Task Planning';
+      const currentPapers = (papers && papers.length > 0) 
+        ? papers 
+        : (() => {
+            try {
+              const cached = localStorage.getItem(`litreview_search_papers_${currentProjectId}`);
+              return cached ? JSON.parse(cached) : [];
+            } catch { return []; }
+          })();
+
       const res = await fetch(`${API_BASE}/slr-swarm/step1-setup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -233,19 +242,19 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
           research_field: projectData?.research_field || activeProject?.research_field || '',
           criteria_include: projectData?.criteria_include || activeProject?.criteria_include || [],
           criteria_exclude: projectData?.criteria_exclude || activeProject?.criteria_exclude || [],
-          corpus: (papers || []).map(p => ({
-            paper_id: String(p.id),
+          corpus: currentPapers.map((p, i) => ({
+            paper_id: String(p.id || p.doi || i),
             title: p.title || '',
             abstract: p.abstract || '',
-            year: p.year || 2024,
-            venue: p.journal || '',
+            year: Number(p.year) || 2024,
+            venue: p.journal || p.venue || '',
             doi: p.doi || ''
           }))
         })
       });
       if (res.ok) {
         const data = await res.json();
-        if (data.gap_map) {
+        if (data.gap_map && data.gap_map.cells && data.gap_map.cells.length > 0) {
           setGapMapData(data.gap_map);
           localStorage.setItem(`slr_gap_map_${currentProjectId}`, JSON.stringify(data.gap_map));
         }
@@ -365,12 +374,11 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
     }
   };
 
-  const toggleExpandAbstract = (id) => {
-    if (expandedPaperIds.includes(id)) {
-      setExpandedPaperIds(expandedPaperIds.filter(item => item !== id));
-    } else {
-      setExpandedPaperIds([...expandedPaperIds, id]);
-    }
+  const toggleExpandAbstract = (key) => {
+    if (!key) return;
+    setExpandedPaperIds(prev => 
+      prev.includes(key) ? prev.filter(item => item !== key) : [...prev, key]
+    );
   };
 
   const handleApiKeyChange = (e) => {
@@ -1142,13 +1150,14 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
           )}
 
           {/* View Mode: Cards View */}
-          {papers.length > 0 && viewMode === 'cards' && filteredAndSortedPapers.map((paper) => {
-            const isSelected = selectedPaperIds.includes(paper.id);
-            const isExpanded = expandedPaperIds.includes(paper.id);
+          {papers.length > 0 && viewMode === 'cards' && filteredAndSortedPapers.map((paper, idx) => {
+            const paperKey = String(paper.id || paper.doi || paper.title || `paper_${idx}`);
+            const isSelected = selectedPaperIds.includes(paper.id || paperKey);
+            const isExpanded = expandedPaperIds.includes(paperKey);
 
             return (
               <div
-                key={paper.id}
+                key={paperKey}
                 className={`p-6 md:p-8 rounded-3xl border transition-all duration-300 space-y-5 shadow-sm hover:shadow-xl hover:-translate-y-1 ${
                   'bg-white border-slate-200 hover:shadow-slate-300 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-200 dark:hover:shadow-blue-900/20'
                 } ${isSelected ? 'ring-2 ring-blue-500 border-blue-500 shadow-md' : ''}`}
@@ -1176,7 +1185,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                     </h3>
                     
                     <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
-                      Tác giả: {Array.isArray(paper.authors) ? paper.authors.join(', ') : paper.authors}
+                      {isVi ? 'Tác giả:' : 'Authors:'} {Array.isArray(paper.authors) ? paper.authors.join(', ') : paper.authors}
                     </p>
                   </div>
                 </div>
@@ -1187,7 +1196,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                 }`}>
                   {paper.tldr && (
                     <div className="mb-3 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-800/50">
-                      <p className="font-bold text-emerald-700 dark:text-emerald-400">⚡ Tóm tắt AI (TL;DR):</p>
+                      <p className="font-bold text-emerald-700 dark:text-emerald-400">⚡ {isVi ? 'Tóm tắt AI (TL;DR):' : 'AI Summary (TL;DR):'}</p>
                       <p className="text-emerald-800 dark:text-emerald-300 mt-1">{paper.tldr.replace('TL;DR: ', '')}</p>
                     </div>
                   )}
@@ -1195,25 +1204,26 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                   <p className="font-bold text-blue-600 dark:text-sky-400 mb-1">📝 Abstract:</p>
 
                   <p className={`text-slate-700 dark:text-slate-300 leading-relaxed font-normal ${
-                    paper.abstract?.length > 500 && !isExpanded ? 'line-clamp-3' : 'whitespace-pre-line'
+                    paper.abstract && paper.abstract.length > 250 && !isExpanded ? 'line-clamp-3' : 'whitespace-pre-line'
                   }`}>
-                    {paper.abstract}
+                    {paper.abstract || (isVi ? 'Không có tóm tắt.' : 'No abstract available.')}
                   </p>
 
-                  {paper.abstract?.length > 500 && (
+                  {paper.abstract && paper.abstract.length > 250 && (
                     <button
-                      onClick={() => toggleExpandAbstract(paper.id)}
-                      className="mt-3 text-xs font-extrabold text-blue-600 dark:text-sky-400 hover:underline flex items-center gap-1 transition-colors"
+                      type="button"
+                      onClick={() => toggleExpandAbstract(paperKey)}
+                      className="mt-3 text-xs font-extrabold text-blue-600 dark:text-sky-400 hover:underline flex items-center gap-1 transition-colors cursor-pointer"
                     >
                       {isExpanded ? (
                         <>
                           <ChevronUp className="w-4 h-4 text-blue-600 dark:text-sky-400" />
-                          <span>Thu gọn</span>
+                          <span>{isVi ? 'Thu gọn' : 'Show less'}</span>
                         </>
                       ) : (
                         <>
                           <ChevronDown className="w-4 h-4 text-blue-600 dark:text-sky-400" />
-                          <span>Xem thêm...</span>
+                          <span>{isVi ? 'Xem thêm...' : 'Read more...'}</span>
                         </>
                       )}
                     </button>
@@ -1341,7 +1351,9 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
             <div className="flex items-center justify-between border-b pb-4 border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-3">
                 <ShieldAlert className="w-6 h-6 text-indigo-500" />
-                <h3 className="font-extrabold text-lg">Tiêu chí Đánh giá Screening</h3>
+                <h3 className="font-extrabold text-lg">
+                  {isVi ? 'Tiêu chí Đánh giá Screening & PRISMA' : 'PRISMA Screening Protocol & Criteria'}
+                </h3>
               </div>
               <button
                 onClick={() => setShowScreeningModal(false)}
@@ -1776,13 +1788,15 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                   <FileText className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-display font-bold">Hồ sơ Bài báo (TL;DR One-Pager)</h3>
-                  <p className="text-xs font-mono text-slate-500 mt-1">{summaryPaper.id} | Trích xuất bởi AI</p>
+                  <h3 className="text-lg font-display font-bold">
+                    {isVi ? 'Hồ sơ Tóm tắt Bài báo (TL;DR One-Pager)' : 'Paper Summary & Key Insights (TL;DR)'}
+                  </h3>
+                  <p className="text-xs font-mono text-slate-500 mt-1">{summaryPaper.id} | {isVi ? 'Trích xuất bởi AI' : 'Extracted by AI'}</p>
                 </div>
               </div>
               <button
                 onClick={() => { setSummaryPaper(null); setSummaryData(null); }}
-                className="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 flex items-center justify-center transition-colors"
+                className="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 flex items-center justify-center transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5 text-slate-600 dark:text-slate-300" />
               </button>
@@ -1885,10 +1899,10 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                 </div>
                 <div>
                   <h3 className="text-lg font-display font-bold flex items-center gap-2">
-                    Cây Phả Hệ Trích Dẫn & Khám Phá Nguồn (Smart Snowballing)
+                    {isVi ? 'Cây Phả Hệ Trích Dẫn & Khám Phá Nguồn (Smart Snowballing)' : 'Citation Genealogy & Academic Snowballing'}
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Lần theo dòng chảy học thuật 2 chiều: <strong>Tiền đề lịch sử</strong> & <strong>Kế thừa mới nhất</strong>
+                    {isVi ? 'Lần theo dòng chảy học thuật 2 chiều: Tiền đề lịch sử & Kế thừa mới nhất' : 'Trace bidirectional citation graph: Historical Foundations & Recent Extensions'}
                   </p>
                 </div>
               </div>
