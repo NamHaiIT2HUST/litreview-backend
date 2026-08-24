@@ -470,7 +470,7 @@ const DICTIONARY = {
     },
     hero: {
       badge: 'QUY TRÌNH TỔNG QUAN TÀI LIỆU KHOA HỌC (SLR)',
-      title1: 'Tự động hóa Tổng quan Tài liệu,',
+      title1: 'Tự động hóa Tổng quan Tài liệu',
       titleHighlight: 'Chuẩn Scopus & PRISMA',
       desc: 'Khai phóng hàng trăm giờ đọc thủ công: Tự động định hình PICO, sàng lọc Scopus, trích xuất PDF và dựng ma trận so sánh phương pháp 100% neo trên DOI thực tế.',
       btnDemo: 'Trải nghiệm Không gian Mẫu',
@@ -585,7 +585,7 @@ const DICTIONARY = {
     },
     hero: {
       badge: 'ACADEMIC SYSTEMATIC LITERATURE REVIEW',
-      title1: 'Automate Literature Reviews,',
+      title1: 'Automate Literature Reviews',
       titleHighlight: 'PRISMA & Scopus Grounded',
       desc: 'Eliminate hundreds of hours of manual reading: Automate PICO scoping, Scopus screening, PDF extraction, and methodology synthesis matrices — 100% grounded on real DOIs.',
       btnDemo: 'Explore Demo Workspace',
@@ -1016,30 +1016,31 @@ export default function PublicLandingPage({ onOpenAuth }) {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center w-full py-6">
             
             {/* Left Column: Prestigious Value Proposition */}
-            <ScrollReveal variant="left" className="lg:col-span-6 space-y-6 text-left" delay={50}>
+            <ScrollReveal variant="left" className="lg:col-span-7 space-y-6 text-left" delay={50}>
               
               {/* Badge */}
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-primary-50 dark:bg-primary-950/70 border border-primary-200 dark:border-primary-800/80 shadow-xs backdrop-blur-md">
-                <ShieldCheck className="w-3.5 h-3.5 text-primary-600 dark:text-primary-400" />
-                <span className="text-[11px] font-bold text-primary-700 dark:text-primary-300 uppercase tracking-wider">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 dark:bg-blue-950/70 border border-blue-200 dark:border-blue-800/80 shadow-xs backdrop-blur-md">
+                <ShieldCheck className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                <span className="text-[11px] font-extrabold text-blue-700 dark:text-blue-300 uppercase tracking-wider">
                   {d.hero.badge}
                 </span>
               </div>
 
               {/* Headline */}
-              <h1 className="font-display font-extrabold text-3xl sm:text-4xl lg:text-[42px] xl:text-[46px] text-surface-900 dark:text-white tracking-tight leading-[1.18]">
-                {d.hero.title1}
-                <br />
-                <span className="gradient-text text-shimmer">{d.hero.titleHighlight}</span>
+              <h1 className="font-display font-extrabold text-3xl sm:text-4xl lg:text-[40px] xl:text-[45px] text-slate-900 dark:text-white tracking-tight leading-[1.32] space-y-2">
+                <span className="block">{d.hero.title1}</span>
+                <span className="block text-shimmer gradient-text pb-1">
+                  {d.hero.titleHighlight}
+                </span>
               </h1>
 
               {/* Subtitle */}
-              <p className="text-sm sm:text-base text-surface-600 dark:text-surface-300 max-w-xl leading-relaxed">
+              <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 max-w-xl leading-relaxed pt-1">
                 {d.hero.desc}
               </p>
 
               {/* Action Buttons */}
-              <div className="flex flex-wrap items-center gap-3.5 pt-1">
+              <div className="flex flex-wrap items-center gap-3.5 pt-2">
                 <button
                   onClick={() => onOpenAuth('demo')}
                   className="btn btn-primary btn-lg shadow-primary-md hover:scale-105 transition-all cursor-pointer font-bold"
@@ -1053,7 +1054,7 @@ export default function PublicLandingPage({ onOpenAuth }) {
                   href="#simulator"
                   className="btn btn-secondary btn-lg flex items-center gap-2 font-semibold"
                 >
-                  <Play className="w-4 h-4 text-primary-600" />
+                  <Play className="w-4 h-4 text-blue-600" />
                   <span>{d.hero.btnSimulate}</span>
                 </a>
               </div>
@@ -1062,7 +1063,7 @@ export default function PublicLandingPage({ onOpenAuth }) {
               <div className="pt-2 flex flex-wrap items-center gap-2.5">
                 {[
                   { icon: ShieldCheck, text: d.hero.trust1, color: 'text-emerald-500' },
-                  { icon: CheckCircle2, text: d.hero.trust2, color: 'text-primary-500' },
+                  { icon: CheckCircle2, text: d.hero.trust2, color: 'text-blue-500' },
                   { icon: Database, text: d.hero.trust3, color: 'text-sky-500' },
                   { icon: FileCode, text: d.hero.trust4, color: 'text-amber-500' },
                 ].map((pill, i) => {
@@ -1070,7 +1071,7 @@ export default function PublicLandingPage({ onOpenAuth }) {
                   return (
                     <div
                       key={i}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/90 dark:bg-surface-900/90 backdrop-blur-md border border-surface-200 dark:border-surface-800 text-xs font-medium text-surface-700 dark:text-surface-300 shadow-xs hover:border-primary-400 transition-colors"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200 dark:border-slate-800 text-xs font-medium text-slate-700 dark:text-slate-300 shadow-xs hover:border-blue-400 transition-colors"
                     >
                       <Icon className={`w-3.5 h-3.5 ${pill.color}`} />
                       <span>{pill.text}</span>
@@ -1082,7 +1083,7 @@ export default function PublicLandingPage({ onOpenAuth }) {
             </ScrollReveal>
 
             {/* Right Column: Hero Interactive 3D Preview Card */}
-            <ScrollReveal variant="right" className="lg:col-span-6 relative" delay={150}>
+            <ScrollReveal variant="right" className="lg:col-span-5 relative" delay={150}>
               
               {/* Ambient halo behind preview card */}
               <div className="absolute -inset-3 bg-gradient-to-r from-primary-500/25 to-indigo-600/25 rounded-3xl blur-2xl -z-10 animate-pulse" />
