@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   BookOpen, Target, Settings, Save, Loader2, Plus, X, 
-  CheckCircle2, Compass, AlertCircle, ArrowRight, Check,
+  CheckCircle2, Compass, AlertCircle, ArrowRight, ArrowLeft, Check,
   ShieldCheck, Edit3, Copy, Search, Sparkles,
   ChevronRight, Layers, FileCheck, HelpCircle, Lightbulb,
   CheckCheck, Bookmark, ArrowUpRight, Filter, Zap
@@ -888,12 +888,21 @@ export default function ResearchSetupTab({ setActiveTab }) {
 
           {/* Action buttons at end of Step 2 */}
           {!criteriaApproved && (
-            <div className="pt-4 mt-6 border-t border-surface-100 dark:border-surface-800 flex justify-end">
+            <div className="pt-4 mt-6 border-t border-surface-100 dark:border-surface-800 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => scrollToRef({ current: document.getElementById('section-topic-info') })}
+                className="btn btn-secondary w-full sm:w-auto flex items-center justify-center gap-2 font-semibold"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>{isVi ? 'Quay lại Bước 1: Đề tài' : 'Back to Step 1: Topic'}</span>
+              </button>
+
               <button 
                 type="button" 
                 onClick={handleApproveCriteria} 
                 disabled={loading}
-                className="btn btn-primary shadow-primary-sm font-bold flex items-center gap-2"
+                className="btn btn-primary w-full sm:w-auto shadow-primary-sm font-bold flex items-center justify-center gap-2"
               >
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
                 <span>{isVi ? 'Lưu & Chuyển sang bước tiếp theo' : 'Save & Continue to PICO'}</span>
@@ -907,6 +916,19 @@ export default function ResearchSetupTab({ setActiveTab }) {
       {/* ── SECTION 3: PHÂN TÍCH KHUNG PICO VÀ BỘ TỪ KHÓA TÌM KIẾM ────────── */}
       {criteriaApproved && (
         <div ref={step3CardRef} className="space-y-6 animate-slide-up">
+          
+          {/* Quick Back to Step 2 Link */}
+          <div className="flex justify-start">
+            <button
+              type="button"
+              onClick={() => scrollToRef(criteriaCardRef)}
+              className="btn btn-sm btn-ghost text-xs text-surface-500 hover:text-surface-900 dark:hover:text-white flex items-center gap-1.5 font-semibold"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>{isVi ? 'Quay lại Bước 2: Tiêu chí sàng lọc' : 'Back to Step 2: Criteria'}</span>
+            </button>
+          </div>
+
           <div className="card p-7 sm:p-9 text-center rounded-3xl bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-950 text-white space-y-5 shadow-2xl border border-indigo-500/20">
             <div className="w-14 h-14 mx-auto rounded-2xl bg-indigo-500/15 border border-indigo-400/20 flex items-center justify-center shadow-inner">
               <svg className="w-7 h-7 text-indigo-300 animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -965,22 +987,22 @@ export default function ResearchSetupTab({ setActiveTab }) {
                   </div>
                 </div>
 
-                {/* Top Right Save Configuration & Analysis Button */}
+                {/* Top Right Save Configuration & Analysis Button (Prominent & Clear) */}
                 <button 
                   type="button"
                   onClick={() => handleSave()}
                   disabled={loading}
-                  className="btn btn-secondary self-start sm:self-auto flex items-center gap-2 font-bold shadow-xs hover:border-primary-400 transition-all"
+                  className="btn bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white self-start sm:self-auto flex items-center gap-2 font-bold shadow-md shadow-emerald-500/20 px-4 py-2.5 rounded-xl border border-emerald-400/30 transition-all hover:scale-105"
                 >
                   {saved ? (
                     <>
-                      <Check className="w-4 h-4 text-emerald-500" />
-                      <span className="text-emerald-600 dark:text-emerald-400">{isVi ? 'Đã lưu cấu hình & phân tích!' : 'Saved Configuration & Analysis!'}</span>
+                      <Check className="w-4 h-4 stroke-[2.5]" />
+                      <span>{isVi ? 'Đã lưu cấu hình!' : 'Configuration Saved!'}</span>
                     </>
                   ) : (
                     <>
-                      {loading ? <Loader2 className="w-4 h-4 animate-spin text-primary-500" /> : <Save className="w-4 h-4 text-primary-500" />}
-                      <span>{isVi ? 'Lưu cấu hình & Phân tích' : 'Save Setup & Analysis'}</span>
+                      {loading ? <Loader2 className="w-4 h-4 animate-spin text-white" /> : <Save className="w-4 h-4 text-white" />}
+                      <span>{isVi ? 'Lưu Cấu hình & Phân tích' : 'Save Setup & Analysis'}</span>
                     </>
                   )}
                 </button>
