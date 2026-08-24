@@ -27,9 +27,6 @@ async def lifespan(app: FastAPI):
     await ensure_local_schema_compatibility()
     print("Database tables ready.")
     
-    # Ensure default admin user exists
-    await _ensure_admin_user()
-    
     # Seed the default project so synthesis & direct-upload always work
     await _ensure_default_project()
     print("Default project seeded.")

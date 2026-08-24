@@ -137,22 +137,6 @@ class SynthesisClaimType(str, enum.Enum):
     descriptive = "descriptive"
 
 
-class Role(str, enum.Enum):
-    admin = "admin"
-    user = "user"
-
-
-class User(Base):
-    __tablename__ = "users"
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    username = Column(String(50), unique=True, nullable=False, index=True)
-    hashed_password = Column(String(255), nullable=False)
-    role = Column(SQLEnum(Role), default=Role.user, nullable=False)
-    created_at = Column(DateTime(timezone=True), default=_now_utc)
-
-    projects = relationship("Project", back_populates="user")
-
-
 class Project(Base):
     __tablename__ = "projects"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

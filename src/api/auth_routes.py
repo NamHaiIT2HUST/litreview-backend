@@ -25,7 +25,7 @@ from src.models.db_models import User, Role
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 logger = logging.getLogger("litreview.auth")
 
-SECRET_KEY = os.getenv("SECRET_KEY", "SUPER_SECRET_KEY_LITREVIEW")
+SECRET_KEY = os.getenv("SECRET_KEY", "SUPER_SECRET_KEY_LITREVIEW_AI20K_AGENT_TOKEN_SECRET_KEY_2026")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
 
