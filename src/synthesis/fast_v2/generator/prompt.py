@@ -14,6 +14,12 @@ import re
 from typing import Sequence
 
 from src.synthesis.fast_v2.evidence.models import EvidenceUnit
+from src.synthesis.fast_v2.grounding.manifest import (
+    ClaimManifest,
+    ClaimStatement,
+    ClaimSupport,
+    GeneratedClaim,
+)
 
 PROMPT_VERSION = "p165_structured_claim_manifest_v2"
 
@@ -21,6 +27,54 @@ RESPONSE_START = "[Response_Start]"
 RESPONSE_END = "[Response_End]"
 
 _INTERNAL_CITATION = re.compile(r"\[(\d{1,3}(?:[-,]\s?\d{1,3})*)\]")
+
+
+class UnknownEvidenceHandleError(ValueError):
+    """Generated manifest referenced a handle absent from this request."""
+
+
+def build_evidence_handle_mapping(
+    evidence: Sequence[EvidenceUnit],
+) -> dict[str, str]:
+    """Map compact per-request handles to canonical EvidenceUnit IDs."""
+    return {
+        f"E{index:03d}": unit.evidence_id
+        for index, unit in enumerate(evidence, start=1)
+    }
+
+
+def bind_manifest_evidence_handles(
+    manifest: ClaimManifest,
+    handle_mapping: dict[str, str],
+) -> ClaimManifest:
+    """Resolve exact handles; reject every value outside the request map."""
+    claims: list[GeneratedClaim] = []
+    for claim in manifest.claims:
+        statements: list[ClaimStatement] = []
+        for statement in claim.statements:
+            supports: list[ClaimSupport] = []
+            for support in statement.supports:
+                canonical_id = handle_mapping.get(support.evidence_id)
+                if canonical_id is None:
+                    raise UnknownEvidenceHandleError(
+                        f"unknown evidence handle: {support.evidence_id}"
+                    )
+                supports.append(ClaimSupport(evidence_id=canonical_id))
+            statements.append(
+                ClaimStatement(
+                    claim_text=statement.claim_text,
+                    paper_id=statement.paper_id,
+                    supports=tuple(supports),
+                )
+            )
+        claims.append(
+            GeneratedClaim(
+                facet=claim.facet,
+                is_comparative=claim.is_comparative,
+                statements=tuple(statements),
+            )
+        )
+    return ClaimManifest(claims=tuple(claims))
 
 
 def sanitize_internal_citations(text: str) -> str:
@@ -36,16 +90,17 @@ def sanitize_internal_citations(text: str) -> str:
 
 
 def build_references_block(evidence: Sequence[EvidenceUnit]) -> str:
-    """Render raw canonical evidence with stable provenance identifiers."""
+    """Render evidence with deterministic prompt-local handles."""
+    handle_mapping = build_evidence_handle_mapping(evidence)
     return json.dumps(
         [
             {
-                "evidence_id": unit.evidence_id,
+                "evidence_id": handle,
                 "paper_id": str(unit.paper_id),
                 "title": unit.title or "",
                 "text": unit.text,
             }
-            for unit in evidence
+            for handle, unit in zip(handle_mapping, evidence)
         ],
         ensure_ascii=False,
         separators=(",", ":"),
@@ -77,12 +132,45 @@ Requested facets:
 {requested_facets}
 
 Return exactly one JSON object with this shape and no extra fields:
-{{"claims":[{{"facet":"<requested facet>","is_comparative":false,"statements":[{{"claim_text":"<one factual statement>","paper_id":"<selected paper UUID>","supports":[{{"evidence_id":"<exact EvidenceUnit ID>"}}]}}]}}]}}
+{{"claims":[{{"facet":"<requested facet>","is_comparative":false,"statements":[{{"claim_text":"<one factual statement>","paper_id":"<selected paper UUID>","supports":[{{"evidence_id":"<exact E### handle>"}}]}}]}}]}}
+
+SUPPORTS FORMAT — EXACT
+
+Valid:
+{{
+  "supports": [
+    {{
+      "evidence_id": "E001"
+    }}
+  ]
+}}
+
+Invalid — string evidence IDs:
+{{
+  "supports": ["E001"]
+}}
+
+Invalid — extra fields or explanations inside support objects:
+{{
+  "supports": [
+    {{
+      "evidence_id": "E001",
+      "reason": "..."
+    }}
+  ]
+}}
+
+- supports must always be an array of objects.
+- Each support object must contain exactly one key: evidence_id.
+- Never add reason, explanation, support_quote, quoted text, or any additional key.
+- Never put explanations, quotes, or natural language inside supports.
+- Never wrap JSON output in Markdown fences.
+- Return no commentary outside the single JSON object.
 
 Rules:
 - Every factual statement must have at least one support item.
 - Do not emit bracket-number citations inside claim_text.
-- Use only requested facets and IDs present above.
+- Copy only exact E### evidence handles and paper IDs present above.
 - A non-comparative claim has exactly one statement.
 - A comparative claim has one explicit statement per compared paper, with distinct paper_id values and support from each paper.
 - Do not use outside knowledge. Omit claims lacking support from the listed EvidenceUnits.

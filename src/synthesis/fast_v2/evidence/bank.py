@@ -30,6 +30,9 @@ from typing import Any, Mapping, Sequence
 from src.synthesis.fast_v2.evidence.models import EvidenceUnit
 
 
+DEFAULT_EVIDENCE_BANK_BUDGET = 12
+
+
 def merge_evidence(
     evidence_by_dimension: Mapping[str, Sequence[EvidenceUnit]],
 ) -> list[EvidenceUnit]:
@@ -67,6 +70,64 @@ def merge_evidence(
     return [merged[evidence_id] for evidence_id in order]
 
 
+def _selection_score(unit: EvidenceUnit) -> float | None:
+    if unit.best_dimension_score is not None:
+        return unit.best_dimension_score
+    if unit.rerank_score is not None:
+        return unit.rerank_score
+    return unit.retrieval_score
+
+
+def select_diverse_evidence(
+    evidence_by_dimension: Mapping[str, Sequence[EvidenceUnit]],
+    *,
+    budget: int = DEFAULT_EVIDENCE_BANK_BUDGET,
+    relevance_threshold: float = 0.0,
+) -> list[EvidenceUnit]:
+    """Select top-1 positive evidence per available paper, then global best.
+
+    Canonical evidence IDs are merged before selection, so one source chunk
+    can occupy at most one bank slot while retaining all dimension metadata.
+    Stable first-seen indices break equal-score ties deterministically.
+    """
+    if budget <= 0:
+        return []
+
+    merged = merge_evidence(evidence_by_dimension)
+    ranked = sorted(
+        (
+            (first_seen, unit)
+            for first_seen, unit in enumerate(merged)
+            if (
+                (score := _selection_score(unit)) is not None
+                and score > relevance_threshold
+            )
+        ),
+        key=lambda item: (-float(_selection_score(item[1])), item[0]),
+    )
+
+    selected: list[EvidenceUnit] = []
+    selected_ids: set[str] = set()
+    covered_papers: set[Any] = set()
+    for _first_seen, unit in ranked:
+        if unit.paper_id in covered_papers:
+            continue
+        covered_papers.add(unit.paper_id)
+        selected.append(unit)
+        selected_ids.add(unit.evidence_id)
+        if len(selected) == budget:
+            return selected
+
+    for _first_seen, unit in ranked:
+        if unit.evidence_id in selected_ids:
+            continue
+        selected.append(unit)
+        selected_ids.add(unit.evidence_id)
+        if len(selected) == budget:
+            break
+    return selected
+
+
 @dataclass(frozen=True)
 class GroundedEvidenceBank:
     """Serializable evidence bundle handed to the generator."""
@@ -92,9 +153,15 @@ class GroundedEvidenceBank:
         query_ms: float | None = None,
         retrieval_ms: float | None = None,
         rerank_ms: float | None = None,
+        evidence_budget: int = DEFAULT_EVIDENCE_BANK_BUDGET,
+        relevance_threshold: float = 0.0,
     ) -> GroundedEvidenceBank:
         requested = tuple(dimensions)
-        merged = merge_evidence(evidence_by_dimension)
+        merged = select_diverse_evidence(
+            evidence_by_dimension,
+            budget=evidence_budget,
+            relevance_threshold=relevance_threshold,
+        )
 
         paper_distribution: dict[str, int] = {}
         pages: dict[str, list[int]] = {}

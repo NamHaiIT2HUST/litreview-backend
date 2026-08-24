@@ -15,6 +15,11 @@ from src.synthesis.fast_v2.dimensions.facets import QuestionFacetDimensionQueryP
 from src.synthesis.fast_v2.generator.fake import FakeSynthesisGenerator
 from src.synthesis.fast_v2.observability import PHASES
 from src.synthesis.fast_v2.pipeline import FastSynthesisV2Pipeline, FastSynthesisV2Result
+from src.synthesis.fast_v2.grounding.semantic import (
+    DeterministicFakeSemanticVerifier,
+    SemanticVerdict,
+)
+from src.synthesis.fast_v2.writer import DeterministicFakeLiteratureWriter
 
 PAPER_A = uuid.uuid4()
 PAPER_B = uuid.uuid4()
@@ -210,6 +215,10 @@ async def test_dimension_metadata_survives_the_pipeline(pipeline):
 async def test_generator_receives_the_bank_that_the_pipeline_built(pipeline):
     result = await _run(pipeline)
     assert pipeline.generator.last_bank is result.evidence_bank
+    assert result.diagnostics["evidence_handle_mapping"] == {
+        f"E{index:03d}": unit.evidence_id
+        for index, unit in enumerate(result.evidence_bank.evidence, start=1)
+    }
 
 
 @pytest.mark.asyncio
@@ -234,7 +243,7 @@ async def test_result_declares_grounding_as_unvalidated(pipeline):
     assert result.claim_grounding_status == "unvalidated"
     assert result.grounded is False
     assert result.structured_provenance_validation == "passed"
-    assert result.semantic_entailment == "unvalidated"
+    assert result.semantic_entailment == "unverified"
 
 
 @pytest.mark.asyncio
@@ -244,7 +253,165 @@ async def test_result_metadata_is_serializable(pipeline):
     assert payload["claim_grounding_status"] == "unvalidated"
     assert payload["grounded"] is False
     assert payload["structured_provenance_validation"] == "passed"
-    assert payload["semantic_entailment"] == "unvalidated"
+    assert payload["semantic_entailment"] == "unverified"
+
+
+@pytest.mark.asyncio
+async def test_pipeline_batches_semantic_verification_without_extra_generation(units):
+    verifier = DeterministicFakeSemanticVerifier()
+    pipeline = FastSynthesisV2Pipeline(
+        retriever=StaticEvidenceRetriever(units),
+        reranker=ScoringReranker(),
+        generator=FakeSynthesisGenerator(),
+        semantic_verifier=verifier,
+    )
+
+    result = await _run(pipeline)
+
+    assert verifier.calls == 1
+    assert result.timings["generation_calls"] == 1
+    assert result.semantic_entailment == "passed"
+    assert result.grounded is True
+    assert result.diagnostics["semantic_verification_results"]
+
+
+@pytest.mark.asyncio
+async def test_pipeline_finalizes_only_supported_statements_and_keeps_audit():
+    supported_text = (
+        "The first scientific study formulates a constrained optimization "
+        "problem over a closed convex set and reports a convergence result "
+        "with an explicit step-size condition and bounded operator."
+    )
+    unsupported_text = (
+        "The second scientific study applies an iterative projection method "
+        "under a smoothness assumption and discusses convergence behavior."
+    )
+    semantic_units = [
+        _unit(PAPER_A, "Paper A", 1, supported_text),
+        _unit(PAPER_B, "Paper B", 2, unsupported_text),
+    ]
+    verifier = DeterministicFakeSemanticVerifier(
+        verdicts={
+            (0, 0): SemanticVerdict.supported,
+            (1, 0): SemanticVerdict.unsupported,
+        }
+    )
+    pipeline = FastSynthesisV2Pipeline(
+        retriever=StaticEvidenceRetriever(semantic_units),
+        reranker=ScoringReranker(),
+        generator=FakeSynthesisGenerator(),
+        semantic_verifier=verifier,
+    )
+
+    result = await _run(pipeline)
+
+    assert supported_text in result.text
+    assert unsupported_text not in result.text
+    assert len(result.citations) == 1
+    assert result.semantic_entailment == "partial"
+    assert result.grounded is True
+    assert len(result.diagnostics["parsed_claim_manifest"]["claims"]) == 2
+    provenance_audit = result.diagnostics["semantic_original_provenance_draft"]
+    assert provenance_audit["structured_provenance_validation"] == "passed"
+    assert len(provenance_audit["validated_claims"]) == 2
+    assert provenance_audit["validated_claims"][1]["statements"][0]["claim_text"] == (
+        unsupported_text
+    )
+    assert result.diagnostics["semantic_rejected_statement_details"] == [
+        {
+            "claim_index": 1,
+            "statement_index": 0,
+            "claim_text": unsupported_text,
+            "paper_id": str(PAPER_B),
+            "facet": "problem formulation",
+            "evidence_ids": [semantic_units[1].evidence_id],
+            "verdict": "unsupported",
+            "reason": "",
+        }
+    ]
+    assert [
+        item["verdict"]
+        for item in result.diagnostics["semantic_verification_results"]
+    ] == ["supported", "unsupported"]
+
+
+@pytest.mark.asyncio
+async def test_pipeline_writer_receives_only_semantic_supported_claims():
+    supported_text = "Paper A defines a constrained convex model."
+    partial_text = "Paper B reports a broader model and an additional guarantee."
+    semantic_units = [
+        _unit(PAPER_A, "Paper A", 1, supported_text),
+        _unit(PAPER_B, "Paper B", 2, partial_text),
+    ]
+    writer = DeterministicFakeLiteratureWriter(
+        content=json.dumps(
+            {
+                "sections": [
+                    {
+                        "title": "Problem Formulation",
+                        "paragraphs": [
+                            {
+                                "text": "Paper A defines a constrained convex model.",
+                                "supporting_claim_ids": ["claim_0_0"],
+                            }
+                        ],
+                    }
+                ]
+            }
+        ),
+        input_tokens=101,
+        output_tokens=37,
+    )
+    pipeline = FastSynthesisV2Pipeline(
+        retriever=StaticEvidenceRetriever(semantic_units),
+        reranker=ScoringReranker(),
+        generator=FakeSynthesisGenerator(),
+        semantic_verifier=DeterministicFakeSemanticVerifier(
+            verdicts={(1, 0): SemanticVerdict.partial}
+        ),
+        literature_writer=writer,
+    )
+
+    result = await _run(pipeline)
+
+    assert [claim.claim_id for claim in writer.last_claims] == ["claim_0_0"]
+    assert result.text.startswith("**Problem Formulation**")
+    assert supported_text in result.text
+    assert partial_text not in result.text
+    assert result.diagnostics["writer_calls"] == 1
+    assert result.diagnostics["writer_input_tokens"] == 101
+    assert result.diagnostics["writer_output_tokens"] == 37
+    assert result.diagnostics["writer_fallback_reason"] is None
+    assert result.diagnostics["writer_claim_coverage"]["coverage_percent"] == 100.0
+
+
+@pytest.mark.asyncio
+async def test_pipeline_writer_failure_falls_back_without_breaking_synthesis(units):
+    baseline_pipeline = FastSynthesisV2Pipeline(
+        retriever=StaticEvidenceRetriever(units),
+        reranker=ScoringReranker(),
+        generator=FakeSynthesisGenerator(),
+        semantic_verifier=DeterministicFakeSemanticVerifier(),
+    )
+    baseline = await _run(baseline_pipeline)
+    writer = DeterministicFakeLiteratureWriter(error=RuntimeError("writer offline"))
+    pipeline = FastSynthesisV2Pipeline(
+        retriever=StaticEvidenceRetriever(units),
+        reranker=ScoringReranker(),
+        generator=FakeSynthesisGenerator(),
+        semantic_verifier=DeterministicFakeSemanticVerifier(),
+        literature_writer=writer,
+    )
+
+    result = await _run(pipeline)
+
+    assert result.text
+    assert result.text == baseline.text
+    assert result.citations == baseline.citations
+    assert result.diagnostics["writer_calls"] == 1
+    assert "RuntimeError: writer offline" in result.diagnostics[
+        "writer_fallback_reason"
+    ]
 
 
 @pytest.mark.asyncio
@@ -316,7 +483,7 @@ async def test_no_negative_scored_evidence_reaches_the_bank(pipeline):
 
 
 @pytest.mark.asyncio
-async def test_comparative_scopes_select_independently_without_balancing_or_padding():
+async def test_comparative_scopes_preserve_positive_evidence_without_negative_padding():
     paper_a = uuid.UUID("11111111-1111-1111-1111-111111111111")
     paper_b = uuid.UUID("22222222-2222-2222-2222-222222222222")
 
@@ -376,13 +543,101 @@ async def test_comparative_scopes_select_independently_without_balancing_or_padd
         paper_b,
     ]
     assert result.evidence_bank.dimensions == ("formulation", "convergence")
-    assert result.evidence_bank.paper_distribution == {"Paper A": 3, "Paper B": 1}
-    assert len(result.evidence_bank.evidence) == 4
+    assert result.evidence_bank.paper_distribution == {"Paper A": 4, "Paper B": 1}
+    assert len(result.evidence_bank.evidence) == 5
     assert all(unit.best_dimension_score > 0 for unit in result.evidence_bank.evidence)
     assert all(
         unit.selected_for_dimensions == ("formulation", "convergence")
         for unit in result.evidence_bank.evidence
     )
+
+
+@pytest.mark.asyncio
+async def test_batched_cross_encoder_is_byte_for_byte_equivalent_to_sequential_path():
+    from src.synthesis.fast_v2.selection.cross_encoder import CrossEncoderReranker
+
+    class PairScoreModel:
+        def __init__(self):
+            self.predict_calls = 0
+            self.seen_pairs = []
+
+        def predict(self, pairs):
+            pairs = list(pairs)
+            self.predict_calls += 1
+            self.seen_pairs.extend(pairs)
+            return [
+                float(len(query) * 1000 + len(text))
+                for query, text in pairs
+            ]
+
+    class SequentialOnlyReranker:
+        def __init__(self, delegate):
+            self.delegate = delegate
+
+        def rerank(self, query, texts):
+            return self.delegate.rerank(query, texts)
+
+    parity_units = [
+        _unit(
+            PAPER_A,
+            "Paper A",
+            1,
+            "A substantive formulation statement with mathematical constraints.",
+        ),
+        _unit(
+            PAPER_B,
+            "Paper B",
+            2,
+            "A substantive algorithm statement with convergence conditions.",
+        ),
+        _unit(
+            PAPER_A,
+            "Paper A",
+            3,
+            "A substantive assumptions statement for the optimization method.",
+        ),
+    ]
+    sequential_model = PairScoreModel()
+    batched_model = PairScoreModel()
+    sequential_generator = FakeSynthesisGenerator()
+    batched_generator = FakeSynthesisGenerator()
+    sequential = FastSynthesisV2Pipeline(
+        retriever=StaticEvidenceRetriever(parity_units),
+        reranker=SequentialOnlyReranker(
+            CrossEncoderReranker(model_factory=lambda name: sequential_model)
+        ),
+        generator=sequential_generator,
+    )
+    batched = FastSynthesisV2Pipeline(
+        retriever=StaticEvidenceRetriever(parity_units),
+        reranker=CrossEncoderReranker(model_factory=lambda name: batched_model),
+        generator=batched_generator,
+    )
+
+    sequential_result = await _run(sequential)
+    batched_result = await _run(batched)
+
+    sequential_evidence = [
+        unit.to_dict() for unit in sequential_result.evidence_bank.evidence
+    ]
+    batched_evidence = [
+        unit.to_dict() for unit in batched_result.evidence_bank.evidence
+    ]
+    assert batched_evidence == sequential_evidence
+    assert [unit.evidence_id for unit in batched_result.evidence_bank.evidence] == [
+        unit.evidence_id for unit in sequential_result.evidence_bank.evidence
+    ]
+    assert [
+        (unit.evidence_id, unit.rerank_score)
+        for unit in batched_result.evidence_bank.evidence
+    ] == [
+        (unit.evidence_id, unit.rerank_score)
+        for unit in sequential_result.evidence_bank.evidence
+    ]
+    assert batched_generator.last_prompt == sequential_generator.last_prompt
+    assert sequential_model.predict_calls == len(DIMENSIONS)
+    assert batched_model.predict_calls == 1
+    assert batched_model.seen_pairs == sequential_model.seen_pairs
 
 # --------------------------------------------------------------------------
 # Event-loop safety

@@ -11,7 +11,7 @@ from src.synthesis.fast_v2.evidence.models import EvidenceUnit
 from src.synthesis.fast_v2.generator.remote_openscholar import FastV2GenerationError
 from src.synthesis.fast_v2.generator.hosted_api import HostedApiGenerator
 
-MANIFEST_CONTENT = """{"claims":[{"facet":"D1","is_comparative":false,"statements":[{"claim_text":"body text","paper_id":"11111111-1111-1111-1111-111111111111","supports":[{"evidence_id":"ev-fixture"}]}]}]}"""
+MANIFEST_CONTENT = """{"claims":[{"facet":"D1","is_comparative":false,"statements":[{"claim_text":"body text","paper_id":"11111111-1111-1111-1111-111111111111","supports":[{"evidence_id":"E001"}]}]}]}"""
 
 VALID_RESPONSE = {
     "id": "chatcmpl-abc123",
@@ -157,7 +157,8 @@ def test_endpoint_is_chat_completions():
 def test_valid_hosted_response_maps_to_generated_draft():
     client = _FakeClient(post_response=_FakeResponse(200, VALID_RESPONSE))
     gen = _make_generator(client)
-    draft = gen.generate(question="Q", evidence_bank=_bank())
+    bank = _bank()
+    draft = gen.generate(question="Q", evidence_bank=bank)
 
     assert draft.text == VALID_RESPONSE["choices"][0]["message"]["content"]
     assert draft.input_tokens == 1200
@@ -168,6 +169,30 @@ def test_valid_hosted_response_maps_to_generated_draft():
     assert gen.last_request_id == "chatcmpl-abc123"
     assert draft.claim_manifest is not None
     assert draft.claim_manifest.claims[0].facet == "D1"
+    assert (
+        draft.claim_manifest.claims[0].statements[0].supports[0].evidence_id
+        == bank.evidence[0].evidence_id
+    )
+    assert draft.evidence_handle_mapping == {
+        "E001": bank.evidence[0].evidence_id,
+    }
+
+
+def test_unknown_evidence_handle_fails_closed_without_prefix_matching():
+    content = MANIFEST_CONTENT.replace("E001", "ev-deadbeef")
+    response = {
+        **VALID_RESPONSE,
+        "choices": [
+            {"message": {"content": content}, "finish_reason": "stop"}
+        ],
+    }
+    client = _FakeClient(post_response=_FakeResponse(200, response))
+    gen = _make_generator(client)
+
+    with pytest.raises(FastV2GenerationError, match="unknown evidence handle"):
+        gen.generate(question="Q", evidence_bank=_bank())
+
+    assert len(client.post_calls) == 1
 
 
 def test_malformed_manifest_fails_closed_after_one_request():

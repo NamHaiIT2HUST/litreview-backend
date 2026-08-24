@@ -31,6 +31,9 @@ from src.synthesis.fast_v2.generator.base import FastV2GenerationError, Generate
 from src.synthesis.fast_v2.generator.prompt import (
     PROMPT_VERSION,
     RESPONSE_END,
+    UnknownEvidenceHandleError,
+    bind_manifest_evidence_handles,
+    build_evidence_handle_mapping,
     build_prompt,
     extract_native_citation_indices,
 )
@@ -126,6 +129,9 @@ class HostedApiGenerator:
             evidence=evidence_bank.evidence,
             dimensions=evidence_bank.dimensions,
         )
+        evidence_handle_mapping = build_evidence_handle_mapping(
+            evidence_bank.evidence
+        )
 
         payload = {
             "model": self.model,
@@ -204,6 +210,17 @@ class HostedApiGenerator:
                 diagnostics=failure_diagnostics,
                 raw_generated_content=text,
             ) from exc
+        try:
+            claim_manifest = bind_manifest_evidence_handles(
+                claim_manifest,
+                evidence_handle_mapping,
+            )
+        except UnknownEvidenceHandleError as exc:
+            raise FastV2GenerationError(
+                f"Hosted API returned {exc}",
+                diagnostics=failure_diagnostics,
+                raw_generated_content=text,
+            ) from exc
 
         return GeneratedDraft(
             text=text,
@@ -216,6 +233,7 @@ class HostedApiGenerator:
             finish_reason=finish_reason,
             stop_reason=None,  # no vLLM-style stop_reason in the OpenAI-compatible contract
             generation_ms=network_ms,
+            evidence_handle_mapping=evidence_handle_mapping,
             native_citation_indices=extract_native_citation_indices(text),
             generation_config=dict(self.generation_config),
         )

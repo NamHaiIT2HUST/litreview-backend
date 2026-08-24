@@ -286,6 +286,43 @@ def test_strict_parser_rejects_malformed_or_extra_fields(payload):
         parse_claim_manifest(payload)
 
 
+@pytest.mark.parametrize(
+    "raw_supports",
+    [
+        ["E001"],
+        [{"evidence_id": "E001", "reason": "explanation"}],
+        [{"evidence_id": "E001", "support_quote": "quoted source"}],
+        [{"evidence_id": "E001", "explanation": "natural language"}],
+    ],
+)
+def test_strict_parser_rejects_malformed_support_items(raw_supports):
+    payload = {
+        "claims": [
+            {
+                "facet": "formulation",
+                "is_comparative": False,
+                "statements": [
+                    {
+                        "claim_text": "A factual claim.",
+                        "paper_id": str(PAPER_A),
+                        "supports": raw_supports,
+                    }
+                ],
+            }
+        ]
+    }
+
+    with pytest.raises(ClaimManifestParseError):
+        parse_claim_manifest(json.dumps(payload))
+
+
+def test_strict_parser_rejects_markdown_fences_around_manifest():
+    unit = _unit(paper_id=PAPER_A, title="A", text="Source.", facet="formulation")
+
+    with pytest.raises(ClaimManifestParseError):
+        parse_claim_manifest(f"```json\n{_manifest_json(unit)}\n```")
+
+
 def test_generated_draft_exposes_claim_manifest():
     unit = _unit(paper_id=PAPER_A, title="A", text="Source.", facet="formulation")
     manifest = parse_claim_manifest(_manifest_json(unit))
@@ -299,7 +336,7 @@ def test_generated_draft_exposes_claim_manifest():
     assert draft.to_dict()["claim_manifest"]["claims"][0]["facet"] == "formulation"
 
 
-def test_structured_prompt_exposes_stable_ids_raw_text_and_manifest_schema():
+def test_structured_prompt_exposes_stable_handles_raw_text_and_manifest_schema():
     unit = _unit(
         paper_id=PAPER_A,
         title="A",
@@ -307,12 +344,13 @@ def test_structured_prompt_exposes_stable_ids_raw_text_and_manifest_schema():
         facet="formulation",
     )
     prompt = build_prompt(question="Q", evidence=(unit,), dimensions=("formulation",))
-    assert unit.evidence_id in prompt
+    assert '"evidence_id":"E001"' in prompt
+    assert unit.evidence_id not in prompt
     assert str(PAPER_A) in prompt
     assert unit.text in prompt
     assert '"claims"' in prompt
     assert '"supports":[{"evidence_id"' in prompt
-    assert "support_quote" not in prompt
+    assert '"support_quote":' not in prompt
     assert "Return exactly one JSON object" in prompt
 
 
@@ -412,6 +450,153 @@ def test_grounding_diagnostics_preserve_manifest_and_nested_validation_failures(
             ],
         }
     ]
+
+
+def test_grounding_diagnostics_distinguish_empty_manifest_from_rejected_manifest():
+    unit = _unit(
+        paper_id=PAPER_A,
+        title="A",
+        text="Canonical source.",
+        facet="formulation",
+    )
+    service = StructuredClaimManifestGroundingService()
+
+    empty = service.evaluate(
+        draft=_draft_with_manifest(ClaimManifest(claims=())),
+        evidence_bank=_bank(unit),
+    )
+    rejected = service.evaluate(
+        draft=_draft_with_manifest(
+            _manifest(_statement(paper_id=PAPER_A, evidence_id="ev-missing"))
+        ),
+        evidence_bank=_bank(unit),
+    )
+
+    assert empty.diagnostics["generated_manifest_statistics"] == {
+        "generated_claim_groups": 0,
+        "generated_statements": 0,
+        "statements_with_evidence_ids": 0,
+        "evidence_ids_referenced": [],
+    }
+    assert empty.diagnostics["provenance_validation_statistics"] == {
+        "accepted_statements": 0,
+        "rejected_statements": 0,
+        "rejection_reasons_by_category": {
+            "missing_evidence": 0,
+            "unknown_evidence_id": 0,
+            "paper_ownership_mismatch": 0,
+            "facet_mismatch": 0,
+            "comparative_validation_failure": 0,
+            "other": 0,
+        },
+    }
+    assert rejected.diagnostics["generated_manifest_statistics"] == {
+        "generated_claim_groups": 1,
+        "generated_statements": 1,
+        "statements_with_evidence_ids": 1,
+        "evidence_ids_referenced": ["ev-missing"],
+    }
+    assert rejected.diagnostics["provenance_validation_statistics"] == {
+        "accepted_statements": 0,
+        "rejected_statements": 1,
+        "rejection_reasons_by_category": {
+            "missing_evidence": 0,
+            "unknown_evidence_id": 1,
+            "paper_ownership_mismatch": 0,
+            "facet_mismatch": 0,
+            "comparative_validation_failure": 0,
+            "other": 0,
+        },
+    }
+
+
+def test_grounding_diagnostics_count_accepted_rejected_and_reason_categories():
+    unit = _unit(
+        paper_id=PAPER_A,
+        title="A",
+        text="Canonical source.",
+        facet="formulation",
+    )
+    manifest = ClaimManifest(
+        claims=(
+            GeneratedClaim(
+                facet="formulation",
+                is_comparative=False,
+                statements=(
+                    _statement(paper_id=PAPER_A, evidence_id=unit.evidence_id),
+                ),
+            ),
+            GeneratedClaim(
+                facet="future_work",
+                is_comparative=True,
+                statements=(
+                    ClaimStatement(
+                        claim_text="Rejected statement.",
+                        paper_id=PAPER_B,
+                        supports=(),
+                    ),
+                ),
+            ),
+            GeneratedClaim(
+                facet="formulation",
+                is_comparative=False,
+                statements=(
+                    _statement(
+                        paper_id=PAPER_B,
+                        evidence_id=unit.evidence_id,
+                        text="Rejected native citation [4].",
+                    ),
+                ),
+            ),
+        )
+    )
+
+    grounded = StructuredClaimManifestGroundingService().evaluate(
+        draft=_draft_with_manifest(manifest),
+        evidence_bank=_bank(unit),
+    )
+
+    assert grounded.diagnostics["provenance_validation_statistics"] == {
+        "accepted_statements": 1,
+        "rejected_statements": 2,
+        "rejection_reasons_by_category": {
+            "missing_evidence": 1,
+            "unknown_evidence_id": 0,
+            "paper_ownership_mismatch": 1,
+            "facet_mismatch": 1,
+            "comparative_validation_failure": 1,
+            "other": 1,
+        },
+    }
+
+
+def test_grounding_statistics_do_not_copy_generator_secrets():
+    unit = _unit(
+        paper_id=PAPER_A,
+        title="A",
+        text="Canonical source.",
+        facet="formulation",
+    )
+    secret = "sk-secret-must-not-leak"
+    draft = GeneratedDraft(
+        text='{"claims":[]}',
+        model_name="fake",
+        prompt_version=PROMPT_VERSION,
+        claim_manifest=ClaimManifest(claims=()),
+        generation_config={
+            "api_key": secret,
+            "Authorization": f"Bearer {secret}",
+        },
+    )
+
+    grounded = StructuredClaimManifestGroundingService().evaluate(
+        draft=draft,
+        evidence_bank=_bank(unit),
+    )
+
+    serialized = json.dumps(grounded.diagnostics)
+    assert secret not in serialized
+    assert "Authorization" not in serialized
 
 
 def test_grounding_service_fails_closed_when_manifest_is_missing():

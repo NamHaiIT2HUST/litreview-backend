@@ -1,7 +1,9 @@
 """Tests 12-16: generator adapter, frozen generation config, CPU safety."""
 from __future__ import annotations
 
-
+import json
+import sys
+from types import SimpleNamespace
 import uuid
 
 import pytest
@@ -17,6 +19,7 @@ from src.synthesis.fast_v2.generator.openscholar import (
 )
 from src.synthesis.fast_v2.generator.prompt import (
     PROMPT_VERSION,
+    build_references_block,
     build_prompt,
     sanitize_internal_citations,
 )
@@ -94,6 +97,52 @@ def test_generating_without_a_gpu_backend_fails_loudly_not_silently():
     generator = OpenScholarGenerator(engine_factory=lambda *_a, **_k: None)
     with pytest.raises(RuntimeError):
         generator.generate(question="q", evidence_bank=_bank())
+
+
+def test_local_openscholar_manifest_handle_resolves_to_canonical_bank_id(
+    monkeypatch,
+):
+    bank = _bank(1)
+    unit = bank.evidence[0]
+    content = json.dumps(
+        {
+            "claims": [
+                {
+                    "facet": "d",
+                    "is_comparative": False,
+                    "statements": [
+                        {
+                            "claim_text": "Supported claim.",
+                            "paper_id": str(unit.paper_id),
+                            "supports": [{"evidence_id": "E001"}],
+                        }
+                    ],
+                }
+            ]
+        }
+    )
+    completion = SimpleNamespace(
+        text=content,
+        token_ids=[1],
+        finish_reason="stop",
+        stop_reason=None,
+    )
+    request_output = SimpleNamespace(outputs=[completion], prompt_token_ids=[1])
+    engine = SimpleNamespace(generate=lambda prompts, params: [request_output])
+    monkeypatch.setitem(
+        sys.modules,
+        "vllm",
+        SimpleNamespace(SamplingParams=lambda **kwargs: kwargs),
+    )
+    generator = OpenScholarGenerator(engine_factory=lambda _model: engine)
+
+    draft = generator.generate(question="q", evidence_bank=bank)
+
+    assert (
+        draft.claim_manifest.claims[0].statements[0].supports[0].evidence_id
+        == unit.evidence_id
+    )
+    assert draft.evidence_handle_mapping == {"E001": unit.evidence_id}
 
 
 # --------------------------------------------------------------------------
@@ -183,13 +232,28 @@ def test_prompt_version_names_structured_claim_contract():
     assert PROMPT_VERSION == "p165_structured_claim_manifest_v2"
 
 
-def test_prompt_uses_stable_evidence_and_paper_ids_not_temporary_indices():
+def test_prompt_uses_deterministic_handles_and_keeps_paper_ids():
     bank = _bank(3)
     prompt = build_prompt(question=bank.question, evidence=bank.evidence)
+    references = build_references_block(bank.evidence)
+
+    assert '"evidence_id":"E001"' in references
+    assert '"evidence_id":"E002"' in references
+    assert '"evidence_id":"E003"' in references
     for unit in bank.evidence:
-        assert unit.evidence_id in prompt
+        assert unit.evidence_id not in prompt
         assert str(unit.paper_id) in prompt
     assert "[0] through" not in prompt
+
+
+def test_evidence_handle_order_is_deterministic_from_bank_order():
+    bank = _bank(3)
+
+    first = build_references_block(bank.evidence)
+    second = build_references_block(bank.evidence)
+
+    assert first == second
+    assert first.index('"E001"') < first.index('"E002"') < first.index('"E003"')
 
 
 def test_prompt_restricts_the_model_to_the_provided_references():
@@ -204,6 +268,24 @@ def test_prompt_requires_json_without_legacy_response_markers():
     assert "Return exactly one JSON object" in prompt
     assert "[Response_Start]" not in prompt
     assert "[Response_End]" not in prompt
+
+
+def test_prompt_contains_exact_valid_and_invalid_support_examples():
+    prompt = build_prompt(question="q", evidence=_bank().evidence)
+
+    assert "SUPPORTS FORMAT — EXACT" in prompt
+    assert '''"supports": [
+    {
+      "evidence_id": "E001"
+    }
+  ]''' in prompt
+    assert '''"supports": ["E001"]''' in prompt
+    assert '''"evidence_id": "E001",
+      "reason": "..."''' in prompt
+    assert "exactly one key: evidence_id" in prompt
+    assert "explanations, quotes, or natural language" in prompt
+    assert "Markdown fences" in prompt
+    assert "no commentary outside" in prompt
 
 
 def test_raw_pdf_citation_markers_are_sanitized_out_of_the_index_namespace():

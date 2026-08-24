@@ -22,7 +22,7 @@ VALID_RESPONSE = {
             "statements": [{
                 "claim_text": "body text",
                 "paper_id": "11111111-1111-1111-1111-111111111111",
-                "supports": [{"evidence_id": "ev-fixture"}],
+                "supports": [{"evidence_id": "E001"}],
             }],
         }],
     }),
@@ -186,6 +186,22 @@ def test_network_and_remote_generation_ms_recorded_separately():
     gen.generate(question="Q", evidence_bank=_bank())
     assert gen.last_remote_generation_ms == VALID_RESPONSE["generation_ms"]
     assert gen.last_network_ms is not None
+
+
+def test_remote_manifest_handle_resolves_to_canonical_bank_id():
+    client = _FakeClient(post_response=_FakeResponse(200, VALID_RESPONSE))
+    gen = _make_generator(client)
+    bank = _bank()
+
+    draft = gen.generate(question="Q", evidence_bank=bank)
+
+    assert (
+        draft.claim_manifest.claims[0].statements[0].supports[0].evidence_id
+        == bank.evidence[0].evidence_id
+    )
+    assert draft.evidence_handle_mapping == {
+        "E001": bank.evidence[0].evidence_id,
+    }
 
 
 # --------------------------------------------------------------------------

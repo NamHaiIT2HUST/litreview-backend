@@ -16,10 +16,75 @@ from typing import Any, Protocol, runtime_checkable
 from src.synthesis.fast_v2.evidence.bank import GroundedEvidenceBank
 from src.synthesis.fast_v2.generator.base import GeneratedDraft
 from src.synthesis.fast_v2.grounding.manifest import (
+    ClaimManifest,
     DroppedClaim,
+    ManifestValidationResult,
     StructuredClaimManifestGuard,
     ValidatedClaim,
 )
+
+
+_PROVENANCE_REASON_CATEGORIES = {
+    "missing_support": "missing_evidence",
+    "unknown_evidence_id": "unknown_evidence_id",
+    "wrong_paper": "paper_ownership_mismatch",
+    "invalid_facet": "facet_mismatch",
+    "comparative_paper_coverage": "comparative_validation_failure",
+}
+
+
+def _generated_manifest_statistics(manifest: ClaimManifest) -> dict[str, Any]:
+    statements = [
+        statement
+        for claim in manifest.claims
+        for statement in claim.statements
+    ]
+    evidence_ids = list(
+        dict.fromkeys(
+            support.evidence_id
+            for statement in statements
+            for support in statement.supports
+        )
+    )
+    return {
+        "generated_claim_groups": len(manifest.claims),
+        "generated_statements": len(statements),
+        "statements_with_evidence_ids": sum(
+            bool(statement.supports) for statement in statements
+        ),
+        "evidence_ids_referenced": evidence_ids,
+    }
+
+
+def _provenance_validation_statistics(
+    manifest: ClaimManifest,
+    validation: ManifestValidationResult,
+) -> dict[str, Any]:
+    reason_counts = {
+        "missing_evidence": 0,
+        "unknown_evidence_id": 0,
+        "paper_ownership_mismatch": 0,
+        "facet_mismatch": 0,
+        "comparative_validation_failure": 0,
+        "other": 0,
+    }
+    rejected_statements = 0
+    for dropped in validation.dropped_claims:
+        rejected_statements += len(manifest.claims[dropped.claim_index].statements)
+        categories = {
+            _PROVENANCE_REASON_CATEGORIES.get(reason, "other")
+            for reason in dropped.reasons
+        }
+        for category in categories:
+            reason_counts[category] += 1
+
+    return {
+        "accepted_statements": sum(
+            len(claim.statements) for claim in validation.valid_claims
+        ),
+        "rejected_statements": rejected_statements,
+        "rejection_reasons_by_category": reason_counts,
+    }
 
 
 class ClaimGroundingStatus(str, Enum):
@@ -157,6 +222,15 @@ class StructuredClaimManifestGroundingService:
                 "evidence_count": len(evidence_bank.evidence),
                 "valid_claims": len(validation.valid_claims),
                 "dropped_claims": len(validation.dropped_claims),
+                "generated_manifest_statistics": _generated_manifest_statistics(
+                    draft.claim_manifest
+                ),
+                "provenance_validation_statistics": (
+                    _provenance_validation_statistics(
+                        draft.claim_manifest,
+                        validation,
+                    )
+                ),
                 "parsed_claim_manifest": draft.claim_manifest.to_dict(),
                 "claim_validation": list(validation.claim_validation),
             },

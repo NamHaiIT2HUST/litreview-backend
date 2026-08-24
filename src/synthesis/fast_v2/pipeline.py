@@ -11,6 +11,8 @@ Dataflow::
       -> merge_evidence_bank
       -> generate_openscholar          (exactly ONE generation call)
       -> structured_provenance_guard   (semantic entailment unvalidated)
+      -> semantic_verification         (one optional batch call)
+      -> grounded_literature_writer    (one optional controlled call)
       -> deterministic_finalize        (P-165 owns citations)
 
 Invariant: **ZERO query-time LLM evidence-extraction calls.** This pipeline
@@ -44,10 +46,21 @@ from src.synthesis.fast_v2.grounding.interface import (
     ClaimGroundingService,
     StructuredClaimManifestGroundingService,
 )
+from src.synthesis.fast_v2.grounding.semantic import (
+    SemanticVerifier,
+    verify_and_filter_statements,
+)
 from src.synthesis.fast_v2.hygiene.classifier import filter_evidence_units
 from src.synthesis.fast_v2.observability import PhaseTimings
 from src.synthesis.fast_v2.selection.policy import EvidenceSelectionPolicy
-from src.synthesis.fast_v2.selection.rerank import IdentityReranker, apply_reranker
+from src.synthesis.fast_v2.selection.rerank import (
+    IdentityReranker,
+    apply_reranker_many,
+)
+from src.synthesis.fast_v2.writer import (
+    GroundedLiteratureWriter,
+    apply_grounded_literature_writer,
+)
 
 SYNTHESIS_MODE = "fast_v2_experimental"
 
@@ -69,12 +82,12 @@ class FastSynthesisV2Result:
     rejected_native_indices: tuple[int, ...] = ()
     structured_provenance_validation: str = "not_evaluated"
     semantic_entailment: str = "unvalidated"
+    semantic_grounded: bool = False
     diagnostics: dict[str, Any] = field(default_factory=dict)
 
     @property
     def grounded(self) -> bool:
-        """Always False: structural provenance is not semantic grounding."""
-        return False
+        return self.semantic_grounded
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -107,6 +120,8 @@ class FastSynthesisV2Pipeline:
         planner: DimensionQueryPlanner | None = None,
         selection_policy: EvidenceSelectionPolicy | None = None,
         grounding_service: ClaimGroundingService | None = None,
+        semantic_verifier: SemanticVerifier | None = None,
+        literature_writer: GroundedLiteratureWriter | None = None,
         candidates_per_dimension: int = 40,
         extraction_llm: Any | None = None,
     ) -> None:
@@ -118,6 +133,8 @@ class FastSynthesisV2Pipeline:
         self.grounding_service = (
             grounding_service or StructuredClaimManifestGroundingService()
         )
+        self.semantic_verifier = semantic_verifier
+        self.literature_writer = literature_writer
         self.candidates_per_dimension = candidates_per_dimension
 
         # Held only so tests can prove it is never used. fast_v2 performs no
@@ -138,6 +155,7 @@ class FastSynthesisV2Pipeline:
 
             evidence_by_dimension: dict[str, list] = {}
             hygiene_dropped = 0
+            rerank_requests: list[tuple[Any, list]] = []
 
             for query in queries:
                 # -- retrieve_evidence_first (no LLM) ------------------------
@@ -157,23 +175,37 @@ class FastSynthesisV2Pipeline:
                 with timings.phase("hygiene_ms"):
                     kept, dropped = filter_evidence_units(candidates)
                     hygiene_dropped += len(dropped)
+                rerank_requests.append((query, kept))
 
-                # -- rerank_per_dimension ------------------------------------
-                with timings.phase("rerank_ms"):
-                    reranked = await asyncio.to_thread(
-                        apply_reranker,
-                        self.reranker,
-                        query=query.query_text,
-                        units=kept,
-                    )
+            # -- rerank_per_dimension ----------------------------------------
+            # CrossEncoder flattens these requests in their existing
+            # facet-major order, predicts once, then restores group boundaries.
+            # Other rerankers retain sequential behavior through the helper's
+            # capability fallback.
+            with timings.phase("rerank_ms"):
+                reranked_groups = await asyncio.to_thread(
+                    apply_reranker_many,
+                    self.reranker,
+                    requests=[
+                        (query.query_text, kept)
+                        for query, kept in rerank_requests
+                    ],
+                )
 
-                # -- apply_relevance_gate ------------------------------------
+            for (query, _kept), reranked in zip(
+                rerank_requests, reranked_groups
+            ):
+                # -- prepare Evidence Bank candidate pool --------------------
                 with timings.phase("evidence_bank_ms"):
-                    evidence_by_dimension.setdefault(query.dimension, []).extend(
-                        self.selection_policy.select(
-                            reranked, dimension=query.dimension
-                        )
+                    dimension_candidates = evidence_by_dimension.setdefault(
+                        query.dimension, []
                     )
+                    for unit in reranked:
+                        score = self.selection_policy.score_of(unit)
+                        if score is not None:
+                            dimension_candidates.append(
+                                unit.with_dimension(query.dimension, score)
+                            )
 
             # -- merge_evidence_bank ------------------------------------------
             with timings.phase("evidence_bank_ms"):
@@ -187,6 +219,9 @@ class FastSynthesisV2Pipeline:
                     query_ms=timings.timings["dimension_query_ms"],
                     retrieval_ms=timings.timings["retrieval_ms"],
                     rerank_ms=timings.timings["rerank_ms"],
+                    relevance_threshold=(
+                        self.selection_policy.relevance_threshold
+                    ),
                 )
 
             # -- generate_openscholar (exactly ONE call) ----------------------
@@ -204,10 +239,23 @@ class FastSynthesisV2Pipeline:
                     draft=draft, evidence_bank=bank
                 )
 
+            semantic = await asyncio.to_thread(
+                verify_and_filter_statements,
+                original_draft=grounded,
+                evidence_bank=bank,
+                verifier=self.semantic_verifier,
+            )
+            writer = await asyncio.to_thread(
+                apply_grounded_literature_writer,
+                semantic=semantic,
+                evidence_bank=bank,
+                writer=self.literature_writer,
+            )
+
             # -- deterministic_finalize ---------------------------------------
             with timings.phase("finalize_ms"):
                 finalized = finalize_structured_draft(
-                    grounded=grounded,
+                    grounded=writer.finalizer_draft,
                     evidence_bank=bank,
                 )
 
@@ -217,14 +265,15 @@ class FastSynthesisV2Pipeline:
             citations=finalized.citations,
             timings=timings.to_dict(),
             claim_grounding_status=grounded.claim_grounding_status.value,
-            grounding_warning=grounded.warning,
+            grounding_warning=semantic.warning,
             citation_authority=finalized.citation_authority,
             native_citation_indices=finalized.native_citation_indices,
             rejected_native_indices=finalized.rejected_native_indices,
             structured_provenance_validation=(
                 grounded.structured_provenance_validation
             ),
-            semantic_entailment=grounded.semantic_entailment,
+            semantic_entailment=semantic.semantic_entailment,
+            semantic_grounded=semantic.grounded,
             diagnostics={
                 "hygiene_dropped": hygiene_dropped,
                 "model_name": draft.model_name,
@@ -235,7 +284,18 @@ class FastSynthesisV2Pipeline:
                 "generation_network_ms": draft.generation_ms,
                 "input_tokens": draft.input_tokens,
                 "output_tokens": draft.output_tokens,
+                "evidence_handle_mapping": dict(draft.evidence_handle_mapping),
                 **grounded.diagnostics,
+                "semantic_verification_ms": semantic.verification_ms,
+                "semantic_verified_statements": len(semantic.verified_statements),
+                "semantic_rejected_statements": len(semantic.rejected_statements),
+                **semantic.diagnostics,
+                "writer_calls": writer.writer_calls,
+                "writer_latency_ms": writer.writer_latency_ms,
+                "writer_input_tokens": writer.writer_input_tokens,
+                "writer_output_tokens": writer.writer_output_tokens,
+                "writer_fallback_reason": writer.writer_fallback_reason,
+                "writer_claim_coverage": writer.claim_coverage,
                 **finalized.diagnostics,
             },
         )

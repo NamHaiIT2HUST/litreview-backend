@@ -152,6 +152,37 @@ def test_apply_reranker_reorders_units_by_the_adapter_ordering():
     ]
 
 
+def test_batch_rerank_uses_one_predict_call_and_preserves_pair_and_group_order():
+    from src.synthesis.fast_v2.selection.cross_encoder import CrossEncoderReranker
+
+    model = RecordingCrossEncoder([0.1, 3.0, 2.0, -1.0, 4.0])
+    reranker = CrossEncoderReranker(model_factory=lambda name: model)
+
+    result = reranker.rerank_many(
+        [
+            ("formulation", ["alpha", "beta"]),
+            ("convergence", ["gamma", "delta", "epsilon"]),
+        ]
+    )
+
+    assert model.predict_calls == 1
+    assert model.seen_pairs == [
+        ("formulation", "alpha"),
+        ("formulation", "beta"),
+        ("convergence", "gamma"),
+        ("convergence", "delta"),
+        ("convergence", "epsilon"),
+    ]
+    assert result == [
+        [(1, pytest.approx(3.0)), (0, pytest.approx(0.1))],
+        [
+            (2, pytest.approx(4.0)),
+            (0, pytest.approx(2.0)),
+            (1, pytest.approx(-1.0)),
+        ],
+    ]
+
+
 def test_top_k_truncates_only_when_explicitly_configured():
     from src.synthesis.fast_v2.selection.cross_encoder import CrossEncoderReranker
 

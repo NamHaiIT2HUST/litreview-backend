@@ -5,7 +5,11 @@ import uuid
 
 import pytest
 
-from src.synthesis.fast_v2.evidence.bank import GroundedEvidenceBank, merge_evidence
+from src.synthesis.fast_v2.evidence.bank import (
+    GroundedEvidenceBank,
+    merge_evidence,
+    select_diverse_evidence,
+)
 from src.synthesis.fast_v2.evidence.models import EvidenceUnit
 
 PAPER_A = uuid.uuid4()
@@ -213,3 +217,141 @@ def test_bank_never_pads_to_reach_a_quota():
     )
     assert bank.evidence == ()
     assert bank.coverage["evidence_count"] == 0
+
+
+# --------------------------------------------------------------------------
+# Diversity-aware Evidence Bank selection
+# --------------------------------------------------------------------------
+
+def _scored_unit(
+    score: float,
+    *,
+    paper_id: uuid.UUID,
+    title: str,
+    dimension: str = "topic",
+    chunk_id: uuid.UUID | None = None,
+) -> EvidenceUnit:
+    return (
+        _unit(
+            chunk_id or uuid.uuid4(),
+            paper_id=paper_id,
+            title=title,
+            text=f"Evidence from {title} scored {score}.",
+        )
+        .with_scores(rerank_score=score)
+        .with_dimension(dimension, score)
+    )
+
+
+def test_diverse_selection_covers_all_six_papers_with_positive_evidence():
+    papers = [uuid.uuid4() for _ in range(6)]
+    candidates = [
+        _scored_unit(
+            100.0 - index,
+            paper_id=paper_id,
+            title=f"Paper {index + 1}",
+        )
+        for index, paper_id in enumerate(papers)
+    ]
+    candidates.extend(
+        _scored_unit(
+            90.0 - index,
+            paper_id=papers[0],
+            title="Paper 1",
+        )
+        for index in range(10)
+    )
+
+    selected = select_diverse_evidence(
+        {"topic": candidates}, budget=12, relevance_threshold=0.0
+    )
+
+    assert {unit.paper_id for unit in selected} == set(papers)
+
+
+def test_diverse_selection_never_exceeds_twelve_evidence_units():
+    papers = [uuid.uuid4() for _ in range(6)]
+    candidates = [
+        _scored_unit(
+            float(100 - paper_index * 3 - unit_index),
+            paper_id=paper_id,
+            title=f"Paper {paper_index + 1}",
+        )
+        for paper_index, paper_id in enumerate(papers)
+        for unit_index in range(3)
+    ]
+
+    selected = select_diverse_evidence(
+        {"topic": candidates}, budget=12, relevance_threshold=0.0
+    )
+
+    assert len(selected) == 12
+
+
+def test_diverse_selection_deduplicates_by_canonical_evidence_id():
+    paper_id = uuid.uuid4()
+    chunk_id = uuid.uuid4()
+    first = _scored_unit(
+        2.0,
+        paper_id=paper_id,
+        title="Paper",
+        dimension="formulation",
+        chunk_id=chunk_id,
+    )
+    duplicate = _scored_unit(
+        3.0,
+        paper_id=paper_id,
+        title="Paper",
+        dimension="convergence",
+        chunk_id=chunk_id,
+    )
+
+    selected = select_diverse_evidence(
+        {"formulation": [first], "convergence": [duplicate]},
+        budget=12,
+        relevance_threshold=0.0,
+    )
+
+    assert len(selected) == 1
+    assert selected[0].evidence_id == first.evidence_id
+    assert selected[0].dimension_scores == pytest.approx(
+        {"formulation": 2.0, "convergence": 3.0}
+    )
+
+
+def test_diverse_selection_is_deterministic():
+    papers = [uuid.uuid4() for _ in range(6)]
+    candidates = [
+        _scored_unit(
+            float(10 - index),
+            paper_id=paper_id,
+            title=f"Paper {index + 1}",
+        )
+        for index, paper_id in enumerate(papers)
+    ]
+
+    first = select_diverse_evidence(
+        {"topic": candidates}, budget=12, relevance_threshold=0.0
+    )
+    second = select_diverse_evidence(
+        {"topic": candidates}, budget=12, relevance_threshold=0.0
+    )
+
+    assert [unit.to_dict() for unit in first] == [unit.to_dict() for unit in second]
+
+
+def test_diverse_selection_never_pads_with_zero_or_negative_scores():
+    positive_paper = uuid.uuid4()
+    negative_paper = uuid.uuid4()
+    candidates = [
+        _scored_unit(1.0, paper_id=positive_paper, title="Positive"),
+        _scored_unit(0.0, paper_id=negative_paper, title="Zero"),
+        _scored_unit(-1.0, paper_id=negative_paper, title="Negative"),
+    ]
+
+    selected = select_diverse_evidence(
+        {"topic": candidates}, budget=12, relevance_threshold=0.0
+    )
+
+    assert [unit.rerank_score for unit in selected] == [1.0]
+    assert {unit.paper_id for unit in selected} == {positive_paper}

@@ -62,6 +62,50 @@ def apply_reranker(
     return scored
 
 
+def apply_reranker_many(
+    reranker: EvidenceReranker,
+    *,
+    requests: Sequence[tuple[str, Sequence[EvidenceUnit]]],
+) -> list[list[EvidenceUnit]]:
+    """Apply an optional batch capability without changing reranker protocol.
+
+    Rerankers without ``rerank_many`` retain the exact sequential behavior.
+    Batch-capable rerankers must return one scored group per request, in the
+    same request order.
+    """
+    groups = [(query, list(units)) for query, units in requests]
+    rerank_many = getattr(reranker, "rerank_many", None)
+    if not callable(rerank_many):
+        return [
+            apply_reranker(reranker, query=query, units=units)
+            for query, units in groups
+        ]
+
+    ranked_groups = list(
+        rerank_many(
+            [(query, [unit.text for unit in units]) for query, units in groups]
+        )
+    )
+    if len(ranked_groups) != len(groups):
+        raise ValueError(
+            f"Batch reranker returned {len(ranked_groups)} groups for "
+            f"{len(groups)} requests; group association must be complete."
+        )
+
+    results: list[list[EvidenceUnit]] = []
+    for (_query, units), ranked in zip(groups, ranked_groups):
+        scored: list[EvidenceUnit] = []
+        for index, score in ranked:
+            if not 0 <= index < len(units):
+                raise IndexError(
+                    f"Reranker returned out-of-range index {index} for "
+                    f"{len(units)} candidates; check the batch return-order contract."
+                )
+            scored.append(units[index].with_scores(rerank_score=float(score)))
+        results.append(scored)
+    return results
+
+
 class IdentityReranker:
     """Debug/test-only passthrough that preserves the retrieval score.
 

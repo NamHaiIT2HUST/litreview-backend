@@ -54,6 +54,7 @@ class GeneratedDraft:
     finish_reason: str | None = None
     stop_reason: str | None = None
     generation_ms: float | None = None
+    evidence_handle_mapping: dict[str, str] = field(default_factory=dict)
 
     #: Diagnostics only. Never published as final citations.
     native_citation_indices: tuple[int, ...] = ()
@@ -73,6 +74,7 @@ class GeneratedDraft:
             "finish_reason": self.finish_reason,
             "stop_reason": self.stop_reason,
             "generation_ms": self.generation_ms,
+            "evidence_handle_mapping": dict(self.evidence_handle_mapping),
             "native_citation_indices": list(self.native_citation_indices),
             "generation_config": dict(self.generation_config),
         }

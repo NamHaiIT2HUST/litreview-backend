@@ -110,11 +110,27 @@ class CrossEncoderReranker:
 
         Returns ``(index, score)`` where ``index`` refers into ``texts``.
         """
-        candidates = list(texts)
-        if not candidates:
-            # Mirrors the upstream early return: an empty shortlist must never
-            # be a reason to load a model.
-            return []
+        return self.rerank_many(((query, texts),))[0]
+
+    def rerank_many(
+        self,
+        requests: Sequence[tuple[str, Sequence[str]]],
+    ) -> list[list[tuple[int, float]]]:
+        """Score ordered query/text groups with one model prediction call.
+
+        Pairs are flattened group-major and text-major, exactly matching the
+        pair order produced by sequential :meth:`rerank` calls. Scores are
+        then split and ranked independently per original group.
+        """
+        groups = [(query, list(texts)) for query, texts in requests]
+        pairs = [
+            (query, text)
+            for query, candidates in groups
+            for text in candidates
+        ]
+        if not pairs:
+            # Empty shortlists must never be a reason to load the model.
+            return [[] for _query, _candidates in groups]
 
         model = self.load()
         if model is None:
@@ -124,21 +140,26 @@ class CrossEncoderReranker:
                 "explicitly if you intend 'no reranking happened'."
             )
 
-        pairs = [(query, text) for text in candidates]
         scores = model.predict(pairs)
 
-        if len(scores) != len(candidates):
+        if len(scores) != len(pairs):
             raise ValueError(
                 f"Cross-encoder returned {len(scores)} scores for "
-                f"{len(candidates)} candidates; scores must be positional and "
+                f"{len(pairs)} candidates; scores must be positional and "
                 "complete, otherwise index re-association is unsound."
             )
 
-        ranked = sorted(
-            enumerate(float(score) for score in scores),
-            key=lambda item: item[1],
-            reverse=True,
-        )
-        if self.top_k is not None:
-            ranked = ranked[: self.top_k]
-        return ranked
+        results: list[list[tuple[int, float]]] = []
+        offset = 0
+        for _query, candidates in groups:
+            group_scores = scores[offset : offset + len(candidates)]
+            offset += len(candidates)
+            ranked = sorted(
+                enumerate(float(score) for score in group_scores),
+                key=lambda item: item[1],
+                reverse=True,
+            )
+            if self.top_k is not None:
+                ranked = ranked[: self.top_k]
+            results.append(ranked)
+        return results

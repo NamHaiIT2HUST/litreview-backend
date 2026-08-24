@@ -34,6 +34,9 @@ from src.synthesis.fast_v2.generator.base import FastV2GenerationError, Generate
 from src.synthesis.fast_v2.generator.prompt import (
     PROMPT_VERSION,
     RESPONSE_END,
+    UnknownEvidenceHandleError,
+    bind_manifest_evidence_handles,
+    build_evidence_handle_mapping,
     build_prompt,
     extract_native_citation_indices,
 )
@@ -120,6 +123,9 @@ class OpenScholarGenerator:
             evidence=evidence_bank.evidence,
             dimensions=evidence_bank.dimensions,
         )
+        evidence_handle_mapping = build_evidence_handle_mapping(
+            evidence_bank.evidence
+        )
 
         engine = self.load()
         if engine is None:
@@ -146,6 +152,15 @@ class OpenScholarGenerator:
             raise FastV2GenerationError(
                 f"Local OpenScholar returned invalid claim manifest: {exc}"
             ) from exc
+        try:
+            claim_manifest = bind_manifest_evidence_handles(
+                claim_manifest,
+                evidence_handle_mapping,
+            )
+        except UnknownEvidenceHandleError as exc:
+            raise FastV2GenerationError(
+                f"Local OpenScholar returned {exc}"
+            ) from exc
 
         return GeneratedDraft(
             text=text,
@@ -158,6 +173,7 @@ class OpenScholarGenerator:
             finish_reason=getattr(completion, "finish_reason", None),
             stop_reason=getattr(completion, "stop_reason", None),
             generation_ms=generation_ms,
+            evidence_handle_mapping=evidence_handle_mapping,
             native_citation_indices=extract_native_citation_indices(text),
             generation_config=dict(self.generation_config),
         )

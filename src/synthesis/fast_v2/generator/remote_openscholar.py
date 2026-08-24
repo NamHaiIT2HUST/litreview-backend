@@ -32,6 +32,9 @@ from src.synthesis.fast_v2.generator.openscholar import (
 )
 from src.synthesis.fast_v2.generator.prompt import (
     PROMPT_VERSION,
+    UnknownEvidenceHandleError,
+    bind_manifest_evidence_handles,
+    build_evidence_handle_mapping,
     build_prompt,
     extract_native_citation_indices,
 )
@@ -139,6 +142,9 @@ class RemoteOpenScholarGenerator:
             evidence=evidence_bank.evidence,
             dimensions=evidence_bank.dimensions,
         )
+        evidence_handle_mapping = build_evidence_handle_mapping(
+            evidence_bank.evidence
+        )
         payload = {"prompt": prompt, "generation_config": dict(self.generation_config)}
 
         client = self._get_client()
@@ -183,6 +189,15 @@ class RemoteOpenScholarGenerator:
             raise FastV2GenerationError(
                 f"OpenScholar GPU service returned invalid claim manifest: {exc}"
             ) from exc
+        try:
+            claim_manifest = bind_manifest_evidence_handles(
+                claim_manifest,
+                evidence_handle_mapping,
+            )
+        except UnknownEvidenceHandleError as exc:
+            raise FastV2GenerationError(
+                f"OpenScholar GPU service returned {exc}"
+            ) from exc
 
         return GeneratedDraft(
             text=text,
@@ -195,6 +210,7 @@ class RemoteOpenScholarGenerator:
             finish_reason=data.get("finish_reason"),
             stop_reason=data.get("stop_reason"),
             generation_ms=network_ms,  # total wall time of the HTTP round trip
+            evidence_handle_mapping=evidence_handle_mapping,
             native_citation_indices=extract_native_citation_indices(text),
             generation_config=dict(self.generation_config),
         )

@@ -14,6 +14,7 @@ from src.synthesis.fast_v2.evidence.bank import GroundedEvidenceBank
 from src.synthesis.fast_v2.generator.base import GeneratedDraft
 from src.synthesis.fast_v2.generator.prompt import (
     PROMPT_VERSION,
+    build_evidence_handle_mapping,
     build_prompt,
     extract_native_citation_indices,
 )
@@ -44,6 +45,9 @@ class FakeSynthesisGenerator:
             question=question,
             evidence=evidence_bank.evidence,
             dimensions=evidence_bank.dimensions,
+        )
+        evidence_handle_mapping = build_evidence_handle_mapping(
+            evidence_bank.evidence
         )
 
         manifest = ClaimManifest(
@@ -87,5 +91,6 @@ class FakeSynthesisGenerator:
             finish_reason="stop",
             stop_reason="[Response_End]",
             generation_ms=0.0,
+            evidence_handle_mapping=evidence_handle_mapping,
             native_citation_indices=extract_native_citation_indices(text),
         )
