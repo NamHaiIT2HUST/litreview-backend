@@ -260,19 +260,18 @@ function MainAppShell() {
       <div className="animate-slide-up w-full">
 
         {/* Admin Dashboard */}
-        {(activeTab === 'admin' || (currentUser?.role === 'admin' && activeTab === 'overview')) && (
+        {activeTab === 'admin' && (
           <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-10 py-6">
             <AdminDashboard darkMode={darkMode} />
           </div>
         )}
 
-        {/* Overview / Personalized Dashboard (for regular users) */}
-        {activeTab === 'overview' && currentUser?.role !== 'admin' && (
-          <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-10 py-6">
+        {/* Overview / Personalized Dashboard */}
+        {activeTab === 'overview' && (
+          <div className="w-full min-h-screen">
             <PersonalizedDashboard
               setActiveTab={setActiveTab}
               onOpenNewProject={() => setNewProjectModalOpen(true)}
-              onStartTour={handleStartTour}
             />
           </div>
         )}
