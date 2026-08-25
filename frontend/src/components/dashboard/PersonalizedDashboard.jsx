@@ -149,56 +149,56 @@ const getNotebookVisual = (title = '', field = '') => {
   const text = (title + ' ' + field).toLowerCase();
   if (text.includes('robot') || text.includes('tự hành') || text.includes('arm') || text.includes('ros')) {
     return {
-      gradient: 'from-cyan-900/60 via-blue-950/40 to-[#202531]',
-      bannerBg: 'bg-gradient-to-br from-cyan-600/30 via-blue-600/20 to-indigo-900/40',
-      badgeColor: 'text-cyan-300 bg-cyan-950/70 border-cyan-500/30',
+      gradient: 'from-cyan-500/25 via-blue-600/20 to-slate-900',
+      bannerBg: 'bg-gradient-to-br from-cyan-600/40 via-sky-600/30 to-blue-900/50',
+      badgeColor: 'text-cyan-300 bg-cyan-950/80 border-cyan-400/40 shadow-xs',
       tag: 'Robotics & Tự hành',
       icon: '🤖',
-      glowBorder: 'hover:border-cyan-500/60 hover:shadow-cyan-500/10',
-      accentColor: 'from-cyan-500 to-blue-600',
+      glowBorder: 'hover:border-cyan-400/80 hover:shadow-lg hover:shadow-cyan-500/20',
+      accentColor: 'from-cyan-400 to-blue-600',
     };
   }
   if (text.includes('ecg') || text.includes('tim') || text.includes('y tế') || text.includes('sức khỏe') || text.includes('mắt') || text.includes('med') || text.includes('sinh')) {
     return {
-      gradient: 'from-rose-900/60 via-pink-950/40 to-[#202531]',
-      bannerBg: 'bg-gradient-to-br from-rose-600/30 via-pink-600/20 to-purple-900/40',
-      badgeColor: 'text-rose-300 bg-rose-950/70 border-rose-500/30',
+      gradient: 'from-rose-500/25 via-pink-600/20 to-slate-900',
+      bannerBg: 'bg-gradient-to-br from-rose-600/40 via-pink-600/30 to-purple-900/50',
+      badgeColor: 'text-rose-300 bg-rose-950/80 border-rose-400/40 shadow-xs',
       tag: 'Y sinh & Tín hiệu',
       icon: '🩺',
-      glowBorder: 'hover:border-rose-500/60 hover:shadow-rose-500/10',
-      accentColor: 'from-rose-500 to-pink-600',
+      glowBorder: 'hover:border-rose-400/80 hover:shadow-lg hover:shadow-rose-500/20',
+      accentColor: 'from-rose-400 to-pink-600',
     };
   }
   if (text.includes('llm') || text.includes('ai') || text.includes('ngôn ngữ') || text.includes('transformer') || text.includes('gpt') || text.includes('trí tuệ')) {
     return {
-      gradient: 'from-indigo-900/60 via-purple-950/40 to-[#202531]',
-      bannerBg: 'bg-gradient-to-br from-indigo-600/30 via-purple-600/20 to-blue-900/40',
-      badgeColor: 'text-indigo-300 bg-indigo-950/70 border-indigo-500/30',
+      gradient: 'from-indigo-500/25 via-purple-600/20 to-slate-900',
+      bannerBg: 'bg-gradient-to-br from-indigo-600/40 via-purple-600/30 to-blue-900/50',
+      badgeColor: 'text-indigo-300 bg-indigo-950/80 border-indigo-400/40 shadow-xs',
       tag: 'Trí tuệ Nhân tạo & LLM',
       icon: '🧠',
-      glowBorder: 'hover:border-indigo-500/60 hover:shadow-indigo-500/10',
-      accentColor: 'from-indigo-500 to-purple-600',
+      glowBorder: 'hover:border-indigo-400/80 hover:shadow-lg hover:shadow-indigo-500/20',
+      accentColor: 'from-indigo-400 to-purple-600',
     };
   }
   if (text.includes('dữ liệu') || text.includes('data') || text.includes('máy tính') || text.includes('chip') || text.includes('nhúng') || text.includes('embedded')) {
     return {
-      gradient: 'from-emerald-900/60 via-teal-950/40 to-[#202531]',
-      bannerBg: 'bg-gradient-to-br from-emerald-600/30 via-teal-600/20 to-slate-900/40',
-      badgeColor: 'text-emerald-300 bg-emerald-950/70 border-emerald-500/30',
+      gradient: 'from-emerald-500/25 via-teal-600/20 to-slate-900',
+      bannerBg: 'bg-gradient-to-br from-emerald-600/40 via-teal-600/30 to-slate-900/50',
+      badgeColor: 'text-emerald-300 bg-emerald-950/80 border-emerald-400/40 shadow-xs',
       tag: 'Khoa học Dữ liệu & Hệ thống',
       icon: '⚡',
-      glowBorder: 'hover:border-emerald-500/60 hover:shadow-emerald-500/10',
-      accentColor: 'from-emerald-500 to-teal-600',
+      glowBorder: 'hover:border-emerald-400/80 hover:shadow-lg hover:shadow-emerald-500/20',
+      accentColor: 'from-emerald-400 to-teal-600',
     };
   }
   return {
-    gradient: 'from-blue-900/60 via-indigo-950/40 to-[#202531]',
-    bannerBg: 'bg-gradient-to-br from-blue-600/30 via-indigo-600/20 to-purple-900/40',
-    badgeColor: 'text-blue-300 bg-blue-950/70 border-blue-500/30',
+    gradient: 'from-blue-500/25 via-indigo-600/20 to-slate-900',
+    bannerBg: 'bg-gradient-to-br from-blue-600/40 via-indigo-600/30 to-purple-900/50',
+    badgeColor: 'text-blue-300 bg-blue-950/80 border-blue-400/40 shadow-xs',
     tag: field || 'Nghiên cứu Tổng quan',
     icon: '📚',
-    glowBorder: 'hover:border-blue-500/60 hover:shadow-blue-500/10',
-    accentColor: 'from-blue-500 to-indigo-600',
+    glowBorder: 'hover:border-blue-400/80 hover:shadow-lg hover:shadow-blue-500/20',
+    accentColor: 'from-blue-400 to-indigo-600',
   };
 };
 
