@@ -1,6 +1,4 @@
 import asyncio
-import logging
-import os
 from typing import List
 
 from langchain_chroma import Chroma
@@ -51,8 +49,13 @@ def build_embeddings(
 ):
     """Construct the configured embedding backend without silent fallback.
 
-    Real providers either initialize successfully or raise. The non-semantic
-    hash backend is available only through EMBEDDING_PROVIDER=hash-debug.
+    Real providers either initialize successfully or raise; no provider is ever
+    substituted for another. An embedding model defines the coordinate space of
+    a persisted index, so swapping one is a schema change that requires
+    re-indexing, not a runtime fallback.
+
+    The non-semantic hash backend is reachable only through the explicit
+    EMBEDDING_PROVIDER=hash-debug opt-in.
     """
     provider = getattr(settings, "embedding_provider", "local")
 
@@ -84,15 +87,28 @@ def build_embeddings(
             or getattr(settings, "openai_api_key", "")
         )
         if not embedding_key:
-            gemini_key = getattr(settings, "effective_gemini_api_key", "") or os.getenv("GEMINI_API_KEY")
-            if gemini_key and len(gemini_key) > 20 and not gemini_key.endswith("..."):
-                try:
-                    from langchain_google_genai import GoogleGenerativeAIEmbeddings
-                    return GoogleGenerativeAIEmbeddings(model="models/text-embedding-004", google_api_key=gemini_key)
-                except Exception:
-                    pass
-            from langchain_community.embeddings import FakeEmbeddings
-            return FakeEmbeddings(size=1536)
+            # Deliberately fails instead of substituting another provider.
+            #
+            # The previous version fell back to Gemini embeddings and then to
+            # FakeEmbeddings(size=1536) -- random, non-semantic vectors. Because
+            # the collection name is derived from EMBEDDING_PROVIDER rather than
+            # from the backend actually built, those vectors were written into a
+            # collection named for OpenAI. Documents were chunked, embedded as
+            # noise, and persisted to Chroma and Postgres at full storage cost,
+            # while every later retrieval against them was meaningless -- with no
+            # warning logged anywhere.
+            #
+            # An embedding model defines the coordinate space of a persisted
+            # index, so substituting one is not a fallback: it is an unannounced
+            # schema change. Missing credentials must surface as a configuration
+            # error.
+            raise RuntimeError(
+                "EMBEDDING_PROVIDER=openai requires OPENAI_EMBEDDING_API_KEY or "
+                "OPENAI_API_KEY. Set one in .env, or select a provider you do "
+                "have credentials for. Switching EMBEDDING_PROVIDER or "
+                "EMBEDDING_MODEL changes the vector space and requires "
+                "re-indexing existing documents."
+            )
 
         embedding_model = settings.embedding_model or "text-embedding-3-small"
         explicit_embedding_base = getattr(
@@ -177,16 +193,17 @@ class VectorStoreService:
         )
 
     async def add_documents(self, documents: List[Document]):
-        """Nhúng và lưu chunk mà không block event loop của FastAPI/LangGraph."""
+        """Nhúng và lưu chunk mà không block event loop của FastAPI/LangGraph.
+
+        Raises on failure. Returning 0 on error made a failed write
+        indistinguishable from "nothing to write", so callers committed the
+        surrounding ingestion as successful while Chroma held no vectors.
+        """
         if not documents:
             return 0
 
-        try:
-            await asyncio.to_thread(self.vector_store.add_documents, documents=documents)
-            return len(documents)
-        except Exception as exc:
-            logging.getLogger(__name__).error("Vector store add_documents failed: %s", exc)
-            return 0
+        await asyncio.to_thread(self.vector_store.add_documents, documents=documents)
+        return len(documents)
 
     async def stage_documents_for_paper(
         self, paper_id: str, documents: List[Document]
@@ -206,11 +223,11 @@ class VectorStoreService:
             where={"paper_id": str(paper_id)},
         )
         old_ids = list(existing.get("ids", []) or [])
-        try:
-            await asyncio.to_thread(self.vector_store.add_documents, documents=documents)
-        except Exception as exc:
-            logging.getLogger(__name__).error("Vector store stage_documents_for_paper failed: %s", exc)
-            return []
+        # Propagates on failure. Swallowing the error here returned an empty
+        # old-id list, which the caller could not distinguish from "there were
+        # no previous vectors" -- so the DB recorded a successful ingestion for
+        # documents that were never indexed.
+        await asyncio.to_thread(self.vector_store.add_documents, documents=documents)
         return old_ids
 
     async def delete_document_ids(self, ids: list[str]) -> int:
@@ -328,4 +345,28 @@ class VectorStoreService:
         )
 
 
-vector_store_service = VectorStoreService()
+class _LazyVectorStoreService:
+    """Process-wide vector store, constructed on first use rather than on import.
+
+    ``VectorStoreService.__init__`` resolves embedding credentials. Now that
+    ``build_embeddings`` fails loudly on a missing key instead of silently
+    substituting a fake backend, building the singleton at import time would
+    turn a configuration problem into an import-time crash in every module that
+    merely imports this one -- including tests that never touch retrieval.
+
+    Deferring construction keeps the error where it belongs: at the point
+    something actually tries to embed or search.
+    """
+
+    _instance: VectorStoreService | None = None
+
+    def _resolve(self) -> VectorStoreService:
+        if _LazyVectorStoreService._instance is None:
+            _LazyVectorStoreService._instance = VectorStoreService()
+        return _LazyVectorStoreService._instance
+
+    def __getattr__(self, name: str):
+        return getattr(self._resolve(), name)
+
+
+vector_store_service = _LazyVectorStoreService()

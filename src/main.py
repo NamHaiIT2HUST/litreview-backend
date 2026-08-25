@@ -1,7 +1,9 @@
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+from src.config import ENV_FILE
+
+load_dotenv(ENV_FILE)
 os.environ["LANGCHAIN_TRACING_V2"] = "false"
 os.environ["LANGSMITH_TRACING"] = "false"
 
@@ -16,12 +18,15 @@ from src.api.screening_routes import router as screening_router
 from src.api.export_routes import router as export_router
 from src.api.slr_swarm_routes import router as slr_swarm_router
 from src.api.auth_routes import router as auth_router
-from src.config import get_settings
+from src.config import get_settings, validate_security_settings
 from src.database import create_all_tables, ensure_local_schema_compatibility
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
+    # Raises SecurityConfigurationError and aborts startup rather than running
+    # with a publicly-known signing key or seeded admin credentials.
+    validate_security_settings(settings)
     print(f"Starting {settings.app_name} in {settings.app_env} mode")
     await create_all_tables()  # Ensure all tables exist (idempotent)
     await ensure_local_schema_compatibility()
@@ -140,7 +145,17 @@ async def _ensure_default_project():
             print(f"Warning: could not seed default project: {e}")
 
 async def _ensure_default_admin():
-    """Seed the default admin account (admin123 / 123) if no admin exists."""
+    """Seed an admin account, but only when explicitly configured to.
+
+    This used to unconditionally create ``admin123`` with the password ``123``
+    on every startup in every environment, including production. Seeding is now
+    opt-in, development-only, and takes the password from configuration;
+    ``validate_security_settings`` enforces both conditions.
+    """
+    settings = get_settings()
+    if not settings.seed_default_admin:
+        return
+
     from sqlalchemy import select as _select
     from src.database import AsyncSessionLocal
     from src.models.db_models import User, Role
@@ -149,17 +164,17 @@ async def _ensure_default_admin():
     async with AsyncSessionLocal() as session:
         try:
             exists = await session.execute(
-                _select(User).where(User.username == "admin123")
+                _select(User).where(User.username == settings.seed_admin_username)
             )
             if exists.scalars().first() is None:
                 admin_user = User(
-                    username="admin123",
-                    hashed_password=hash_password("123"),
+                    username=settings.seed_admin_username,
+                    hashed_password=hash_password(settings.seed_admin_password),
                     role=Role.admin
                 )
                 session.add(admin_user)
                 await session.commit()
-                print("Default admin account seeded (admin123).")
+                print(f"Development admin account seeded ({settings.seed_admin_username}).")
         except Exception as e:
             await session.rollback()
             print(f"Warning: could not seed default admin: {e}")
@@ -173,9 +188,11 @@ app = FastAPI(
 )
 
 settings = get_settings()
+# CORS_ORIGINS was documented in .env.example but never read: the middleware
+# was pinned to "*", so the setting had no effect at all.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.cors_origin_list,
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -197,12 +214,13 @@ async def root_health():
 
 @app.get("/health")
 async def health():
+    # Deliberately does not echo API key prefixes. This endpoint is
+    # unauthenticated and publicly reachable; key prefixes identify the
+    # provider and key format and are not safe to publish.
     return {
         "status": "ok",
         "env": settings.app_env,
-        "model_name": settings.model_name,
-        "gemini_key_prefix": settings.gemini_api_key[:10] if settings.gemini_api_key else "None",
-        "openai_key_prefix": settings.openai_api_key[:10] if settings.openai_api_key else "None"
+        "version": app.version,
     }
 
 if __name__ == "__main__":

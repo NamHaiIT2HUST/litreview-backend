@@ -10,7 +10,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   import.meta.url,
 ).toString();
 
-import { API_BASE } from '../../utils/apiConfig';
+import { API_BASE, safeFetch } from '../../utils/apiConfig';
 
 export default function VerificationPanel({ activeCitation, onClose, darkMode }) {
   const { t } = useLanguage();
@@ -42,7 +42,7 @@ export default function VerificationPanel({ activeCitation, onClose, darkMode })
     let active = true;
     if (activeCitation?.filename && activeCitation?.quoted_snippet) {
       setLoadingCoords(true);
-      fetch(`${API_BASE}/workspace/evidence-coords`, {
+      safeFetch(`${API_BASE}/workspace/evidence-coords`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -14,7 +14,11 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy import text
 from sqlalchemy.orm import DeclarativeBase
 
-load_dotenv()
+from src.config import ENV_FILE
+
+# Scoped to this project's root; see src/config.py for why a bare load_dotenv()
+# is unsafe here.
+load_dotenv(ENV_FILE)
 os.makedirs("data", exist_ok=True)
 
 

@@ -16,12 +16,39 @@ export const getApiBase = () => {
 
 export const API_BASE = getApiBase();
 
+export const AUTH_TOKEN_STORAGE_KEY = 'litreview_auth_token';
+
+export const getAuthToken = () => {
+  try {
+    return localStorage.getItem(AUTH_TOKEN_STORAGE_KEY) || null;
+  } catch {
+    return null;
+  }
+};
+
+// The API now authenticates every data route, so the stored token has to travel
+// with every request. Attaching it here keeps call sites from each having to
+// remember, and avoids a second source of truth for where the token lives.
+const withAuthHeaders = (options = {}) => {
+  const token = getAuthToken();
+  if (!token) return options;
+  return {
+    ...options,
+    headers: {
+      ...(options.headers || {}),
+      Authorization: `Bearer ${token}`,
+    },
+  };
+};
+
 export const safeFetch = async (urlOrEndpoint, options = {}) => {
   let primaryUrl = urlOrEndpoint;
   if (!primaryUrl.startsWith('http://') && !primaryUrl.startsWith('https://')) {
     const base = getApiBase();
     primaryUrl = `${base}${urlOrEndpoint.startsWith('/') ? '' : '/'}${urlOrEndpoint}`;
   }
+
+  options = withAuthHeaders(options);
 
   try {
     const res = await fetch(primaryUrl, options);

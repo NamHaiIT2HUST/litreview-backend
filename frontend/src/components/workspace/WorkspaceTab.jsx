@@ -409,7 +409,7 @@ export default function WorkspaceTab({
         return;
       }
       try {
-        const response = await fetch(`${API_BASE}/projects/${currentProjectId}/papers?include_unverified=true`);
+        const response = await safeFetch(`${API_BASE}/projects/${currentProjectId}/papers?include_unverified=true`);
         if (!response.ok) return;
         const persisted = persistedDirectUploadSources(await response.json());
         if (cancelled) return;
@@ -482,7 +482,7 @@ export default function WorkspaceTab({
         formData.append('project_id', currentProjectId);
       }
       try {
-        const res = await fetch(`${API_BASE}/workspace/direct-upload`, { method: 'POST', body: formData });
+        const res = await safeFetch(`${API_BASE}/workspace/direct-upload`, { method: 'POST', body: formData });
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail || t('workspace.error'));
         items[i] = { ...item, status: 'done' };
@@ -529,7 +529,7 @@ export default function WorkspaceTab({
     }
 
     try {
-      await fetch(`${API_BASE}/papers/${id}`, { method: 'DELETE' });
+      await safeFetch(`${API_BASE}/papers/${id}`, { method: 'DELETE' });
     } catch (err) {
       console.error('Failed to delete paper from backend:', err);
     }

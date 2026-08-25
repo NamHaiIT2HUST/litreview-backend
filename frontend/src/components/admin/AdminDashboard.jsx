@@ -3,7 +3,7 @@ import {
   Users, Search, BookOpen, FolderGit2, Trash2, 
   RefreshCw, Shield, Clock, AlertCircle, CheckCircle2, UserCheck
 } from 'lucide-react';
-import { API_BASE } from '../../utils/apiConfig';
+import { API_BASE, safeFetch } from '../../utils/apiConfig';
 
 export default function AdminDashboard({ darkMode }) {
   const [stats, setStats] = useState(null);
@@ -16,7 +16,7 @@ export default function AdminDashboard({ darkMode }) {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`${API_BASE}/auth/admin/stats`);
+      const res = await safeFetch(`${API_BASE}/auth/admin/stats`);
       if (!res.ok) throw new Error('Không thể tải dữ liệu thống kê');
       const data = await res.json();
       setStats(data);
@@ -35,7 +35,7 @@ export default function AdminDashboard({ darkMode }) {
     if (!window.confirm(`Bạn có chắc chắn muốn xóa người dùng "${username}"?`)) return;
     setDeletingId(userId);
     try {
-      const res = await fetch(`${API_BASE}/auth/admin/users/${userId}`, {
+      const res = await safeFetch(`${API_BASE}/auth/admin/users/${userId}`, {
         method: 'DELETE'
       });
       const data = await res.json();

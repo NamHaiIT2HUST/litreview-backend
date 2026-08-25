@@ -6,6 +6,7 @@ specific provider directly.  Every synthesis step uses a Pydantic schema.
 from __future__ import annotations
 
 import asyncio
+import logging
 import time
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -28,6 +29,8 @@ from src.models.synthesis_schemas import (
     EvidenceDimension,
     ReviewQABatchOutput,
 )
+
+logger = logging.getLogger(__name__)
 
 _TRACE_CONTEXT: ContextVar[tuple[object, UUID, str] | None] = ContextVar("synthesis_llm_trace", default=None)
 
@@ -94,9 +97,24 @@ def create_synthesis_llm(
         from langchain_openai import ChatOpenAI
         openai_cls = ChatOpenAI
 
+    if not openai_key:
+        # Constructing a client with a placeholder key succeeded silently and
+        # deferred the failure to call time, where every retry and candidate
+        # issued a real, billed request against a key that could never work.
+        # A production instance was found running in exactly this state.
+        raise RuntimeError(
+            "No API key is configured for the synthesis LLM. Set one of "
+            "OPENAI_API_KEY / GEMINI_API_KEY / GROQ_API_KEY in .env, or set "
+            "SYNTHESIS_LLM_PROVIDER to a provider you have credentials for."
+        )
+    if not model_name:
+        raise RuntimeError(
+            "No synthesis model is configured. Set SYNTHESIS_MODEL in .env."
+        )
+
     kwargs = {
-        "model": model_name or "claude-opus-5-thinking",
-        "api_key": openai_key or "sk-placeholder",
+        "model": model_name,
+        "api_key": openai_key,
         "temperature": settings.synthesis_temperature,
         "max_tokens": 8192,
         "max_retries": 1,
@@ -110,33 +128,84 @@ def create_synthesis_llm(
     return openai_cls(**kwargs)
 
 
+# Errors that no amount of retrying can clear: the credential, the request, or
+# the model name is wrong. Retrying them burns paid tokens and returns nothing.
+_PERMANENT_STATUS_CODES = frozenset({400, 401, 403, 404, 422})
+
+# Genuinely temporary conditions, where the same request may succeed later or
+# on a different provider.
+_TRANSIENT_STATUS_CODES = frozenset({408, 409, 429})
+
+_PERMANENT_MESSAGE_MARKERS = (
+    "invalid api key",
+    "incorrect api key",
+    "invalid_api_key",
+    "api key not valid",
+    "unauthorized",
+    "forbidden",
+    "permission denied",
+    "model not found",
+    "does not exist",
+    "unsupported",
+)
+
+_TRANSIENT_MESSAGE_MARKERS = (
+    "429",
+    "resource_exhausted",
+    "quota",
+    "rate limit",
+    "ratelimit",
+    "overloaded",
+    "high demand",
+    "timeout",
+    "timed out",
+    "503",
+    "500",
+    "502",
+    "504",
+    "connection",
+    "unavailable",
+    "bad gateway",
+    "gateway timeout",
+)
+
+
+def _is_permanent_provider_error(exc: BaseException) -> bool:
+    """True when retrying or switching candidates cannot possibly help.
+
+    A bad key, an unknown model, or a malformed request fails identically on
+    every attempt. These used to be classified as transient, so a single bad
+    key drove the full candidate x retry matrix -- up to 24 billed calls for one
+    logical step, all of them failing.
+    """
+    status_code = getattr(exc, "status_code", None)
+    if isinstance(status_code, int):
+        if status_code in _PERMANENT_STATUS_CODES:
+            return True
+        if status_code in _TRANSIENT_STATUS_CODES or status_code >= 500:
+            return False
+
+    message = str(exc).lower()
+    # Transient markers win: providers often report quota exhaustion with a 4xx
+    # code whose text says "rate limit", and that case must stay retryable.
+    if any(marker in message for marker in _TRANSIENT_MESSAGE_MARKERS):
+        return False
+    return any(marker in message for marker in _PERMANENT_MESSAGE_MARKERS)
+
+
 def _is_transient_provider_error(exc: BaseException) -> bool:
     status_code = getattr(exc, "status_code", None)
-    if status_code in (400, 401, 403, 404, 409, 422, 429) or (isinstance(status_code, int) and status_code >= 500):
-        return True
+    if isinstance(status_code, int):
+        if status_code in _PERMANENT_STATUS_CODES:
+            return False
+        if status_code in _TRANSIENT_STATUS_CODES or status_code >= 500:
+            return True
+
     name = type(exc).__name__.lower()
     message = str(exc).lower()
-    return (
-        "429" in message
-        or "resource_exhausted" in message
-        or "quota" in message
-        or "rate limit" in message
-        or "overloaded" in message
-        or "high demand" in message
-        or "timeout" in message
-        or "503" in message
-        or "500" in message
-        or "502" in message
-        or "504" in message
-        or "connection" in message
-        or "unavailable" in message
-        or "unauthorized" in message
-        or "user not found" in message
-        or "forbidden" in message
-        or "bad gateway" in message
-        or "gateway timeout" in message
-        or "ratelimit" in name
-    )
+    if any(marker in message for marker in _TRANSIENT_MESSAGE_MARKERS) or "ratelimit" in name:
+        return True
+    return not _is_permanent_provider_error(exc)
 
 
 class SynthesisLLMService:
@@ -196,7 +265,6 @@ class SynthesisLLMService:
         return self._llm
 
     def _get_runner_candidates(self, schema):
-        settings = get_settings()
         candidates = []
         
         # 1. Primary configured LLM
@@ -264,36 +332,18 @@ class SynthesisLLMService:
 
             candidates.append((f"{m_name}:universal_json", UniversalJsonRunner(primary, schema)))
 
-        # 3. Fallback candidate for OpenAI / GPT-4o-mini (nếu primary khác gpt-4o-mini)
-        oai_key = settings.effective_openai_api_key
-        if oai_key and m_name != "gpt-4o-mini":
-            try:
-                from langchain_openai import ChatOpenAI
-                llm_oai = ChatOpenAI(
-                    model="gpt-4o-mini",
-                    api_key=oai_key,
-                    base_url=settings.get_api_base or None,
-                    temperature=settings.synthesis_temperature,
-                    default_headers={"User-Agent": "Mozilla/5.0"}
-                )
-                candidates.append(("gpt-4o-mini", llm_oai.with_structured_output(schema, method="json_mode")))
-            except Exception:
-                pass
-
-        # 4. Fallback candidate for Gemini (CHỈ KHI có key AIzaSy thực sự)
-        gemini_key = settings.effective_gemini_api_key
-        if gemini_key and gemini_key.startswith("AIzaSy") and m_name != "gemini-2.0-flash":
-            try:
-                from langchain_google_genai import ChatGoogleGenerativeAI
-                llm_gem = ChatGoogleGenerativeAI(
-                    model="gemini-2.0-flash",
-                    google_api_key=gemini_key,
-                    temperature=settings.synthesis_temperature
-                )
-                candidates.append(("gemini-2.0-flash", llm_gem.with_structured_output(schema)))
-            except Exception:
-                pass
-
+        # Two hardcoded cross-provider candidates (gpt-4o-mini and
+        # gemini-2.0-flash) used to be appended here. Together with the three
+        # structured-output methods above they made six candidates per call,
+        # and _invoke_structured retried the whole list on every attempt.
+        #
+        # They are removed for two reasons. First, cost: a single logical step
+        # could issue up to six billed requests per attempt across two
+        # providers. Second, correctness: silently answering with a different
+        # model than the configured one changes the output without telling
+        # anyone. Provider fallback belongs in a router that checks a model
+        # actually supports what the task requires -- see
+        # docs/architecture/SYSTEM_CONTRACTS.md section 10.
         return candidates
 
     async def _invoke_structured(self, schema, *, system: str, human: str | list):
@@ -337,11 +387,23 @@ class SynthesisLLMService:
                             duration_ms=int((time.perf_counter() - started) * 1000), status="error",
                             prompt_json={"system": system, "human": human}, error=str(exc)[:4000],
                         ))
+                    if _is_permanent_provider_error(exc):
+                        # A bad key, unknown model, or malformed request fails
+                        # the same way on every candidate and every retry.
+                        # Stopping here is what keeps one misconfiguration from
+                        # issuing the whole candidate x retry matrix of billed
+                        # calls.
+                        logger.error(
+                            "Synthesis LLM call failed permanently on %s (%s); "
+                            "not retrying or trying further candidates.",
+                            model_tag,
+                            type(exc).__name__,
+                        )
+                        raise exc
                     if _is_transient_provider_error(exc):
                         # Switch to the next candidate model/key immediately
                         continue
-                    else:
-                        raise exc
+                    raise exc
 
             if attempt < len(self._retry_delays):
                 delay = self._retry_delays[attempt]

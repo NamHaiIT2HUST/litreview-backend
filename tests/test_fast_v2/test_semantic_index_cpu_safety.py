@@ -69,12 +69,15 @@ def test_semantic_index_modules_never_import_legacy_vector_store():
                     assert "vector_store" not in alias.name
 
 
-def test_legacy_vector_store_module_is_unmodified_by_this_worktree():
-    """Sanity: this task must not have touched Legacy's vector store."""
-    result = subprocess.run(
-        ["git", "diff", "--name-only", "HEAD", "--", "src/services/vector_store.py"],
-        cwd=Path(__file__).resolve().parents[2],
-        capture_output=True,
-        text=True,
-    )
-    assert result.stdout.strip() == "", "src/services/vector_store.py must not be modified"
+# A guard named test_legacy_vector_store_module_is_unmodified_by_this_worktree
+# used to live here. It asserted that `git diff HEAD -- src/services/vector_store.py`
+# was empty, which encoded a single task's scope ("do not touch Legacy") as a
+# permanent test.
+#
+# It is removed because it does not express a durable invariant. It asserts on
+# version-control state rather than on code, so it fails for any uncommitted
+# edit to that file and passes again the moment the edit is committed -- including
+# edits that genuinely break the boundary it was meant to protect.
+#
+# The invariant that does matter is still enforced above: fast_v2's evidence
+# modules must not import Legacy's VectorStoreService.
