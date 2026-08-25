@@ -8,8 +8,10 @@ export const getApiBase = () => {
     if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '0.0.0.0') {
       return `http://${hostname}:8000/api/v1`;
     }
+    // On production HTTPS domain, use relative /api/v1 which is proxied by Vercel directly to AWS EC2
+    return '/api/v1';
   }
-  return 'https://litreview-backend-production-0298.up.railway.app/api/v1';
+  return 'http://18.143.200.110:8000/api/v1';
 };
 
 export const API_BASE = getApiBase();
@@ -38,11 +40,11 @@ export const safeFetch = async (urlOrEndpoint, options = {}) => {
       } catch {}
     }
 
-    // Remote fallback if not on local dev
+    // Remote fallback to direct AWS EC2
     if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
       const path = primaryUrl.includes('/api/v1') ? primaryUrl.split('/api/v1')[1] : '';
       if (path) {
-        const fallbackUrl = `https://litreview-backend-production-0298.up.railway.app/api/v1${path}`;
+        const fallbackUrl = `http://18.143.200.110:8000/api/v1${path}`;
         try {
           return await fetch(fallbackUrl, options);
         } catch (fallbackErr) {
