@@ -85,9 +85,12 @@ def build_embeddings(
         )
         if not embedding_key:
             gemini_key = getattr(settings, "effective_gemini_api_key", "") or os.getenv("GEMINI_API_KEY")
-            if gemini_key:
-                from langchain_google_genai import GoogleGenerativeAIEmbeddings
-                return GoogleGenerativeAIEmbeddings(model="models/text-embedding-004", google_api_key=gemini_key)
+            if gemini_key and len(gemini_key) > 20 and not gemini_key.endswith("..."):
+                try:
+                    from langchain_google_genai import GoogleGenerativeAIEmbeddings
+                    return GoogleGenerativeAIEmbeddings(model="models/text-embedding-004", google_api_key=gemini_key)
+                except Exception:
+                    pass
             from langchain_community.embeddings import FakeEmbeddings
             return FakeEmbeddings(size=1536)
 
