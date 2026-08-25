@@ -331,7 +331,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
             } catch { return []; }
           })();
 
-      const res = await fetch(`${API_BASE}/slr-swarm/step1-setup`, {
+      const res = await safeFetch('/slr-swarm/step1-setup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -392,7 +392,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
     setSummaryData(null);
     setSummaryLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/slr-swarm/paper-summary`, {
+      const res = await safeFetch('/slr-swarm/paper-summary', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -427,7 +427,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
     setGenealogyData(null);
     setGenealogyLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/slr-swarm/paper-genealogy`, {
+      const res = await safeFetch('/slr-swarm/paper-genealogy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -513,7 +513,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
     setAiScreeningLoading(true);
 
     try {
-      const res = await fetch(`${API_BASE}/papers/${encodeURIComponent(paper.id)}/screen`, {
+      const res = await safeFetch(`/papers/${encodeURIComponent(paper.id)}/screen`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -575,7 +575,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
         if (cached) {
           setProjectData(JSON.parse(cached));
         }
-        const res = await fetch(`${API_BASE}/projects/${currentProjectId}`);
+        const res = await safeFetch(`/projects/${currentProjectId}`);
         if (res.ok) {
           const data = await res.json();
           setProjectData(data);
@@ -595,7 +595,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
   const fetchHistory = useCallback(async () => {
     try {
       setHistoryLoading(true);
-      const res = await fetch(`${API_BASE}/projects/${currentProjectId}/search-history`);
+      const res = await safeFetch(`/projects/${currentProjectId}/search-history`);
       if (!res.ok) return;
       const data = await res.json();
       setHistory(data.history || []);
@@ -610,7 +610,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
   // Tải papers của 1 lần search cụ thể từ backend
   const loadPapersForQuery = useCallback(async (queryId, queryString) => {
     try {
-      const res = await fetch(`${API_BASE}/search-queries/${queryId}/papers`);
+      const res = await safeFetch(`/search-queries/${queryId}/papers`);
       if (!res.ok) return;
       const dbPapers = await res.json();
       const converted = dbPapers.map(dbPaperToPaperSchema);
@@ -671,7 +671,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
     setError('');
 
     try {
-      const response = await fetch(`${API_BASE}/projects/${currentProjectId}/search`, {
+      const response = await safeFetch(`/projects/${currentProjectId}/search`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -736,7 +736,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
     setScreeningLoading(prev => ({ ...prev, [paperId]: true }));
     setScreeningError(null);
     try {
-      const res = await fetch(`${API_BASE}/papers/${paperId}/screen`, { method: 'POST' });
+      const res = await safeFetch(`/papers/${paperId}/screen`, { method: 'POST' });
       if (res.ok) {
         const data = await res.json();
         setPapers(prev => prev.map(p => p.id === paperId ? { ...p, screening_data: data } : p));
@@ -754,7 +754,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
   const handleDecision = async (paperId, decision) => {
     setPapers(prev => prev.filter(p => p.id !== paperId));
     try {
-      await fetch(`${API_BASE}/papers/${paperId}/screening-decision`, {
+      await safeFetch(`/papers/${paperId}/screening-decision`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ decision, note: '' })

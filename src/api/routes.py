@@ -104,13 +104,25 @@ def _compute_dedup_key(doi: str, title: str, authors: list[str] | str, year: int
 
     return f"{title_norm}|{first_author}|{year}"
 
+def _resolve_project_id(pid_raw: str | UUID | None) -> UUID:
+    if isinstance(pid_raw, UUID):
+        return pid_raw
+    if not pid_raw:
+        return UUID("00000000-0000-0000-0000-000000000001")
+    try:
+        return UUID(str(pid_raw))
+    except Exception:
+        return uuid.uuid5(uuid.NAMESPACE_DNS, str(pid_raw))
+
+
 async def _persist_search(
     db: AsyncSession,
+    *,
     query_string: str,
-    papers_pydantic,
-    project_id: str | UUID = DEFAULT_PROJECT_ID,
+    papers_pydantic: list[PaperRecord],
+    project_id: str | UUID,
     strategy_label: str | None = None,
-    is_duplicated_from: str | None = None,
+    is_duplicated_from: UUID | None = None,
 ) -> tuple[UUID, int]:
     """
     Lưu 1 lần search vào DB:
@@ -118,12 +130,20 @@ async def _persist_search(
     2. Dedup: kiểm tra dedup_key đã tồn tại trong project chưa.
     3. Insert CachedPaper cho mỗi paper chưa trùng.
     Trả về search_query_id vừa tạo và số paper bị skip do dedup trong project.
-
-    Search & Verify P0: paper mới được đối chiếu Scopus ngay trong pipeline này
-    để UI render kết quả Top 20 đã xác minh. Endpoint quality-check chỉ còn là
-    re-check/detail cho từng paper.
     """
-    project_uuid = uuid.UUID(str(project_id)) if isinstance(project_id, (str, UUID)) else project_id
+    project_uuid = _resolve_project_id(project_id)
+    
+    # Ensure project exists
+    p_check = await db.get(Project, project_uuid)
+    if not p_check:
+        p_new = Project(
+            id=project_uuid,
+            name="Research Project",
+            research_question=query_string,
+        )
+        db.add(p_new)
+        await db.flush()
+
     sq = SearchQuery(
         id=uuid.uuid4(),
         project_id=project_uuid,
@@ -334,7 +354,7 @@ async def search_papers(
             )
 
             if sq_id:
-                project_uuid = uuid.UUID(str(project_id))
+                project_uuid = _resolve_project_id(project_id)
                 keys = [_compute_dedup_key(p.doi, p.title, p.authors, p.year) for p in target_papers]
                 result = await db.execute(
                     select(Paper).where(Paper.project_id == project_uuid, Paper.dedup_key.in_(keys))
