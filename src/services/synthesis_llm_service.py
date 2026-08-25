@@ -74,18 +74,19 @@ def create_synthesis_llm(
         )
 
     # 2. Gemini
-    if provider == "gemini":
+    if provider == "gemini" or (not openai_key and gemini_key):
         if not gemini_key:
             raise RuntimeError("GEMINI_API_KEY is required when synthesis_llm_provider='gemini'")
         if gemini_cls is None:
             from langchain_google_genai import ChatGoogleGenerativeAI
             gemini_cls = ChatGoogleGenerativeAI
-        g_model = model_name if model_name.startswith("gemini-") else "gemini-2.0-flash"
+        g_model = model_name if (model_name and model_name.startswith("gemini-") and "2.0" not in model_name and "1.5" not in model_name) else "gemini-flash-lite-latest"
         return gemini_cls(
             model=g_model,
             google_api_key=gemini_key,
             temperature=settings.synthesis_temperature,
             max_output_tokens=8192,
+            max_retries=1,
         )
 
     # 3. OpenAI / OpenAI-compatible (DeepSeek, OpenRouter, GoRouter, vLLM, OpenAI, Ollama, etc.)
@@ -98,6 +99,8 @@ def create_synthesis_llm(
         "api_key": openai_key or "sk-placeholder",
         "temperature": settings.synthesis_temperature,
         "max_tokens": 8192,
+        "max_retries": 1,
+        "timeout": 15,
         "default_headers": {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"},
     }
     api_base = settings.get_api_base() if callable(getattr(settings, "get_api_base", None)) else (getattr(settings, "get_api_base", None) or getattr(settings, "openai_api_base", None) or getattr(settings, "llm_base_url", None) or "")

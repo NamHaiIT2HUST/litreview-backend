@@ -303,8 +303,9 @@ class PaperSummaryRequest(BaseModel):
 @router.post("/paper-summary")
 async def get_paper_summary(payload: PaperSummaryRequest) -> dict:
     """Sinh bản tóm tắt TL;DR và cấu trúc bài báo cực kỳ chi tiết."""
-    # Dùng key từ biến môi trường để bảo mật khi push code lên GitHub
-    API_KEY = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY") or ""
+    import os
+    import json
+    import asyncio
     
     abstract_text = payload.abstract if payload.abstract and len(payload.abstract) > 20 else "NO ABSTRACT AVAILABLE."
     
@@ -395,34 +396,82 @@ Return ONLY a valid JSON object with EXACTLY these keys:
   }}
 }}
 """
+    import os
+    import json
+    import asyncio
+    from src.config import get_settings
+    s = get_settings()
+
+    gemini_keys = s.all_gemini_api_keys
+    gemini_key = (os.getenv("GEMINI_KEY_PICO") or (gemini_keys[0] if len(gemini_keys) > 0 else "") or s.gemini_api_key or os.getenv("GEMINI_API_KEY") or "").strip()
+    groq_key = (os.getenv("GROQ_API_KEY") or s.groq_api_key or "").strip()
+    openai_key = (os.getenv("OPENAI_API_KEY") or s.effective_openai_api_key or s.openai_api_key or "").strip()
+
+    llm_candidates = []
+    if gemini_key:
+        from langchain_google_genai import ChatGoogleGenerativeAI
+        for m in ["gemini-flash-lite-latest", "gemini-3.5-flash-lite", "gemini-flash-latest"]:
+            try:
+                llm_candidates.append(ChatGoogleGenerativeAI(model=m, google_api_key=gemini_key, temperature=0.3, max_retries=1))
+            except Exception:
+                pass
+
+    if groq_key:
+        try:
+            from langchain_groq import ChatGroq
+            llm_candidates.append(ChatGroq(model="llama-3.3-70b-versatile", groq_api_key=groq_key, temperature=0.3, max_retries=1))
+        except Exception:
+            pass
+
+    if openai_key:
+        try:
+            from langchain_openai import ChatOpenAI
+            llm_candidates.append(ChatOpenAI(
+                model=s.effective_model_name or "deepseek/deepseek-v3.2",
+                openai_api_key=openai_key,
+                base_url=s.get_api_base or None,
+                temperature=0.3,
+                max_retries=1,
+                timeout=10,
+            ))
+        except Exception:
+            pass
+
     try:
-        import json
         from src.services.synthesis_llm_service import synthesis_llm_service
-        llm = synthesis_llm_service._get_llm()
-        msg = await llm.ainvoke([("human", prompt)])
-        raw_text = msg.content if hasattr(msg, "content") else str(msg)
-        if isinstance(raw_text, list):
-            raw_text = "".join(part.get("text", "") for part in raw_text if isinstance(part, dict))
-        # Làm sạch JSON (loại bỏ markdown block nếu có)
-        raw_text = raw_text.strip()
-        if raw_text.startswith("```json"):
-            raw_text = raw_text[7:]
-        if raw_text.startswith("```"):
-            raw_text = raw_text[3:]
-        if raw_text.endswith("```"):
-            raw_text = raw_text[:-3]
-            
-        data = json.loads(raw_text.strip())
-        return data
-    except Exception as e:
-        return {
-            "error": str(e),
-            "tldr": f"Không thể kết nối đến máy chủ AI (Lỗi: {str(e)[:50]}). Vui lòng thử lại.",
-            "objective": "Lỗi kết nối",
-            "methodology": "Lỗi kết nối",
-            "dataset": "Lỗi kết nối",
-            "key_findings": "Lỗi kết nối",
-            "limitations": "Lỗi kết nối",
-            "reliability_metrics": {}
-        }
+        fallback_llm = synthesis_llm_service._get_llm()
+        if fallback_llm:
+            llm_candidates.append(fallback_llm)
+    except Exception:
+        pass
+
+    last_error = None
+    for candidate in llm_candidates:
+        try:
+            msg = await asyncio.wait_for(candidate.ainvoke([("human", prompt)]), timeout=12.0)
+            raw_text = msg.content if hasattr(msg, "content") else str(msg)
+            if isinstance(raw_text, list):
+                raw_text = "".join(part.get("text", "") for part in raw_text if isinstance(part, dict))
+            raw_text = str(raw_text).strip()
+            if "```json" in raw_text:
+                raw_text = raw_text.split("```json")[1].split("```")[0].strip()
+            elif "```" in raw_text:
+                raw_text = raw_text.split("```")[1].split("```")[0].strip()
+                
+            data = json.loads(raw_text.strip())
+            return data
+        except Exception as e:
+            last_error = e
+            logger.warning(f"Paper summary candidate failed ({type(candidate).__name__}): {e}")
+
+    return {
+        "error": str(last_error),
+        "tldr": "Hệ thống AI đang gặp tải cao hoặc gián đoạn mạng tạm thời. Vui lòng bấm thử lại sau giây lát.",
+        "objective": "Không thể kết nối tới AI",
+        "methodology": "Không thể kết nối tới AI",
+        "dataset": "Không thể kết nối tới AI",
+        "key_findings": "Không thể kết nối tới AI",
+        "limitations": "Không thể kết nối tới AI",
+        "reliability_metrics": {}
+    }
 

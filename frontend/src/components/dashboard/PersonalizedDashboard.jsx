@@ -144,28 +144,67 @@ const FEATURED_NOTEBOOKS = [
   }
 ];
 
+// Helper to get rich visual aesthetics and themes for user notebooks matching NotebookLM
+const getNotebookVisual = (title = '', field = '') => {
+  const text = (title + ' ' + field).toLowerCase();
+  if (text.includes('robot') || text.includes('tự hành') || text.includes('arm') || text.includes('ros')) {
+    return {
+      gradient: 'from-cyan-900/60 via-blue-950/40 to-[#202531]',
+      bannerBg: 'bg-gradient-to-br from-cyan-600/30 via-blue-600/20 to-indigo-900/40',
+      badgeColor: 'text-cyan-300 bg-cyan-950/70 border-cyan-500/30',
+      tag: 'Robotics & Tự hành',
+      icon: '🤖',
+      glowBorder: 'hover:border-cyan-500/60 hover:shadow-cyan-500/10',
+      accentColor: 'from-cyan-500 to-blue-600',
+    };
+  }
+  if (text.includes('ecg') || text.includes('tim') || text.includes('y tế') || text.includes('sức khỏe') || text.includes('mắt') || text.includes('med') || text.includes('sinh')) {
+    return {
+      gradient: 'from-rose-900/60 via-pink-950/40 to-[#202531]',
+      bannerBg: 'bg-gradient-to-br from-rose-600/30 via-pink-600/20 to-purple-900/40',
+      badgeColor: 'text-rose-300 bg-rose-950/70 border-rose-500/30',
+      tag: 'Y sinh & Tín hiệu',
+      icon: '🩺',
+      glowBorder: 'hover:border-rose-500/60 hover:shadow-rose-500/10',
+      accentColor: 'from-rose-500 to-pink-600',
+    };
+  }
+  if (text.includes('llm') || text.includes('ai') || text.includes('ngôn ngữ') || text.includes('transformer') || text.includes('gpt') || text.includes('trí tuệ')) {
+    return {
+      gradient: 'from-indigo-900/60 via-purple-950/40 to-[#202531]',
+      bannerBg: 'bg-gradient-to-br from-indigo-600/30 via-purple-600/20 to-blue-900/40',
+      badgeColor: 'text-indigo-300 bg-indigo-950/70 border-indigo-500/30',
+      tag: 'Trí tuệ Nhân tạo & LLM',
+      icon: '🧠',
+      glowBorder: 'hover:border-indigo-500/60 hover:shadow-indigo-500/10',
+      accentColor: 'from-indigo-500 to-purple-600',
+    };
+  }
+  if (text.includes('dữ liệu') || text.includes('data') || text.includes('máy tính') || text.includes('chip') || text.includes('nhúng') || text.includes('embedded')) {
+    return {
+      gradient: 'from-emerald-900/60 via-teal-950/40 to-[#202531]',
+      bannerBg: 'bg-gradient-to-br from-emerald-600/30 via-teal-600/20 to-slate-900/40',
+      badgeColor: 'text-emerald-300 bg-emerald-950/70 border-emerald-500/30',
+      tag: 'Khoa học Dữ liệu & Hệ thống',
+      icon: '⚡',
+      glowBorder: 'hover:border-emerald-500/60 hover:shadow-emerald-500/10',
+      accentColor: 'from-emerald-500 to-teal-600',
+    };
+  }
+  return {
+    gradient: 'from-blue-900/60 via-indigo-950/40 to-[#202531]',
+    bannerBg: 'bg-gradient-to-br from-blue-600/30 via-indigo-600/20 to-purple-900/40',
+    badgeColor: 'text-blue-300 bg-blue-950/70 border-blue-500/30',
+    tag: field || 'Nghiên cứu Tổng quan',
+    icon: '📚',
+    glowBorder: 'hover:border-blue-500/60 hover:shadow-blue-500/10',
+    accentColor: 'from-blue-500 to-indigo-600',
+  };
+};
+
 // Helper to get nice Notebook icons matching NotebookLM
 const getNotebookIcon = (title = '', field = '') => {
-  const text = (title + ' ' + field).toLowerCase();
-  if (text.includes('robot') || text.includes('tự hành')) {
-    return <span className="text-lg select-none">🤖</span>;
-  }
-  if (text.includes('y tế') || text.includes('sức khỏe') || text.includes('tim') || text.includes('mắt') || text.includes('med')) {
-    return <span className="text-lg select-none">💖</span>;
-  }
-  if (text.includes('mạng') || text.includes('chip') || text.includes('embedded') || text.includes('nhúng')) {
-    return <span className="text-lg select-none">📟</span>;
-  }
-  if (text.includes('interview') || text.includes('audio') || text.includes('tiếng') || text.includes('thoại')) {
-    return <span className="text-lg select-none">🎙️</span>;
-  }
-  if (text.includes('toán') || text.includes('lý thuyết') || text.includes('suy luận') || text.includes('llm') || text.includes('ai')) {
-    return <span className="text-lg select-none">💡</span>;
-  }
-  if (text.includes('dữ liệu') || text.includes('data') || text.includes('cấu trúc') || text.includes('system')) {
-    return <span className="text-lg select-none">💻</span>;
-  }
-  return <span className="text-lg select-none">📚</span>;
+  return <span className="text-lg select-none">{getNotebookVisual(title, field).icon}</span>;
 };
 
 export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, onStartTour }) {
@@ -701,23 +740,36 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-7">
               
-              {/* Card 1: + Tạo sổ ghi chú mới */}
+              {/* Card 1: + Tạo sổ ghi chú mới (Modern Glassmorphic Design) */}
               <button
                 onClick={handleCreateNewNotebook}
-                className="h-52 sm:h-60 lg:h-68 2xl:h-72 rounded-3xl bg-[#202531]/60 hover:bg-[#202531] border-2 border-dashed border-slate-700/80 hover:border-blue-500 flex flex-col items-center justify-center p-6 sm:p-8 text-center transition-all group cursor-pointer shadow-md hover:shadow-xl"
+                className="h-64 sm:h-72 lg:h-80 2xl:h-88 rounded-3xl bg-gradient-to-b from-[#202531]/70 via-[#181e2b]/80 to-[#121622]/90 border-2 border-dashed border-blue-500/30 hover:border-blue-400 hover:shadow-2xl hover:shadow-blue-500/20 hover:scale-[1.02] flex flex-col items-center justify-center p-6 sm:p-8 text-center transition-all duration-300 group cursor-pointer relative overflow-hidden"
               >
-                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[#29303F] group-hover:bg-blue-600 text-slate-300 group-hover:text-white flex items-center justify-center mb-3.5 transition-all group-hover:scale-110 shadow-inner">
-                  <Plus className="w-7 h-7 sm:w-8 sm:h-8 stroke-[2.8]" />
+                <div className="absolute inset-0 bg-radial from-blue-500/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                
+                <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-3xl bg-gradient-to-br from-blue-500 to-indigo-600 group-hover:from-blue-400 group-hover:to-indigo-500 text-white flex items-center justify-center mb-4 transition-all duration-300 group-hover:scale-110 shadow-lg shadow-blue-500/30 group-hover:shadow-blue-500/50">
+                  <Plus className="w-8 h-8 sm:w-9 sm:h-9 stroke-[2.8]" />
                 </div>
-                <span className="font-extrabold text-sm sm:text-base lg:text-lg text-slate-200 group-hover:text-white transition-colors">
+                
+                <span className="font-extrabold text-base sm:text-lg lg:text-xl text-white group-hover:text-blue-300 transition-colors tracking-tight">
                   {isVietnamese ? 'Tạo sổ ghi chú mới' : 'Create new notebook'}
                 </span>
-                <span className="text-xs sm:text-sm text-slate-400 mt-1 font-medium">
-                  {isVietnamese ? 'Chuẩn PRISMA & RAG' : 'PRISMA & RAG-ready'}
-                </span>
+                
+                <p className="text-xs sm:text-sm text-slate-400 mt-1.5 font-medium max-w-xs">
+                  {isVietnamese ? 'Khởi tạo đề tài chuẩn PRISMA & AI RAG Synthesis' : 'Start SLR with PRISMA & AI RAG'}
+                </p>
+
+                <div className="flex flex-wrap items-center justify-center gap-1.5 mt-4 pt-3 border-t border-slate-800/80 w-full">
+                  <span className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-300">
+                    ✦ PRISMA Ready
+                  </span>
+                  <span className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-300">
+                    ✦ Scopus Auto-Screen
+                  </span>
+                </div>
               </button>
 
-              {/* User Projects Cards */}
+              {/* User Projects Cards with Aesthetic Banners & Visual Themes */}
               {filteredProjects.map((proj) => {
                 const isEditing = editingProjectId === proj.id;
                 const isMenuOpen = activeMenuProjectId === proj.id;
@@ -725,131 +777,165 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
                   ? new Date(proj.updated_at).toLocaleDateString('vi-VN', { day: 'numeric', month: 'short', year: 'numeric' })
                   : (isVietnamese ? 'Hôm nay' : 'Today');
                 const sourceCount = getProjectSourceCount(proj);
+                const visual = getNotebookVisual(proj.name, proj.research_field);
 
                 return (
                   <div
                     key={proj.id}
                     onClick={() => handleOpenNotebook(proj)}
-                    className={`group relative h-52 sm:h-60 lg:h-68 2xl:h-72 rounded-3xl bg-[#202531] border transition-all duration-200 cursor-pointer p-5 sm:p-6 lg:p-7 flex flex-col justify-between shadow-md hover:shadow-2xl ${
+                    className={`group relative rounded-3xl bg-[#202531] border transition-all duration-300 cursor-pointer flex flex-col h-64 sm:h-72 lg:h-80 2xl:h-88 shadow-md hover:shadow-2xl hover:scale-[1.02] ${
                       proj.is_pinned
-                        ? 'border-blue-500/80 hover:border-blue-400 bg-gradient-to-b from-[#202531] to-[#1a2234]'
-                        : 'border-slate-800 hover:border-slate-700'
-                    }`}
+                        ? 'border-blue-500/80 hover:border-blue-400 shadow-blue-500/10'
+                        : `border-slate-800 ${visual.glowBorder}`
+                    } ${isMenuOpen ? 'z-40' : 'z-10'}`}
                   >
-                    {/* Card Top: Icon & 3-Dot Action Menu */}
-                    <div className="flex items-center justify-between shrink-0">
-                      <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#29303F] border border-slate-700/60 flex items-center justify-center shadow-inner">
-                        {getNotebookIcon(proj.name, proj.research_field)}
+                    {/* Cover Banner with Ambient Themed Background & Abstract Pattern */}
+                    <div className={`h-32 sm:h-36 w-full relative rounded-t-3xl shrink-0 ${visual.bannerBg} p-4 flex flex-col justify-between`}>
+                      
+                      {/* Ambient Grid Lines & Glow Orbs clipped to top corners */}
+                      <div className="absolute inset-0 rounded-t-3xl overflow-hidden pointer-events-none">
+                        <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff08_1px,transparent_1px),linear-gradient(to_bottom,#ffffff08_1px,transparent_1px)] bg-[size:16px_16px]" />
+                        <div className="absolute -right-6 -top-6 w-28 h-28 rounded-full bg-white/10 blur-xl" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-[#202531] via-[#202531]/30 to-transparent" />
                       </div>
 
-                      <div className="flex items-center gap-1.5">
-                        {proj.is_pinned && (
-                          <Pin className="w-4 h-4 text-blue-400 fill-blue-400/40" />
-                        )}
-                        
-                        {/* 3-Dot Button */}
-                        <div className="relative">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveMenuProjectId(isMenuOpen ? null : proj.id);
-                            }}
-                            className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-[#2E3647] transition-colors cursor-pointer opacity-80 group-hover:opacity-100"
-                            title="Tùy chọn sổ ghi chú"
-                          >
-                            <MoreVertical className="w-5 h-5" />
-                          </button>
+                      {/* Top Bar inside Banner: Topic Badge & Action Menu */}
+                      <div className="relative z-20 flex items-center justify-between gap-2">
+                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border backdrop-blur-md shadow-xs truncate max-w-[75%] ${visual.badgeColor}`}>
+                          <span className="w-2 h-2 rounded-full bg-current opacity-80" />
+                          <span className="truncate">{visual.tag}</span>
+                        </span>
 
-                          {/* Action Dropdown Menu */}
-                          {isMenuOpen && (
-                            <div
-                              onClick={(e) => e.stopPropagation()}
-                              className="absolute right-0 top-full mt-2 w-48 rounded-2xl bg-[#1E2330] border border-slate-700/80 shadow-2xl p-1.5 z-50 animate-slide-up text-xs sm:text-sm font-semibold text-slate-200"
-                            >
-                              <button
-                                onClick={(e) => handleStartRename(e, proj)}
-                                className="w-full px-3.5 py-2.5 rounded-xl text-left hover:bg-[#2A3142] flex items-center gap-2.5 transition-colors cursor-pointer"
-                              >
-                                <Pencil className="w-4 h-4 text-slate-400" />
-                                <span>{isVietnamese ? 'Đổi tên' : 'Rename'}</span>
-                              </button>
-
-                              <button
-                                onClick={(e) => handleTogglePin(e, proj.id, proj.is_pinned)}
-                                className="w-full px-3.5 py-2.5 rounded-xl text-left hover:bg-[#2A3142] flex items-center gap-2.5 transition-colors cursor-pointer"
-                              >
-                                {proj.is_pinned ? <PinOff className="w-4 h-4 text-slate-400" /> : <Pin className="w-4 h-4 text-slate-400" />}
-                                <span>{proj.is_pinned ? (isVietnamese ? 'Bỏ ghim' : 'Unpin') : (isVietnamese ? 'Ghim lên đầu' : 'Pin to top')}</span>
-                              </button>
-
-                              <button
-                                onClick={(e) => handleShare(e, proj)}
-                                className="w-full px-3.5 py-2.5 rounded-xl text-left hover:bg-[#2A3142] flex items-center gap-2.5 transition-colors cursor-pointer"
-                              >
-                                <Share2 className="w-4 h-4 text-slate-400" />
-                                <span>{isVietnamese ? 'Sao chép liên kết' : 'Copy link'}</span>
-                              </button>
-
-                              <div className="my-1 border-t border-slate-700/60" />
-
-                              <button
-                                onClick={(e) => handleDelete(e, proj.id)}
-                                className="w-full px-3.5 py-2.5 rounded-xl text-left hover:bg-rose-950/50 text-rose-400 font-bold flex items-center gap-2.5 transition-colors cursor-pointer"
-                              >
-                                <Trash2 className="w-4 h-4 text-rose-400" />
-                                <span>{isVietnamese ? 'Xóa sổ ghi chú' : 'Delete'}</span>
-                              </button>
+                        <div className="flex items-center gap-1">
+                          {proj.is_pinned && (
+                            <div className="p-1.5 rounded-full bg-blue-500/20 border border-blue-500/40 text-blue-300 shadow-xs" title="Đã ghim">
+                              <Pin className="w-3.5 h-3.5 fill-blue-400" />
                             </div>
                           )}
+                          
+                          {/* 3-Dot Button */}
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveMenuProjectId(isMenuOpen ? null : proj.id);
+                              }}
+                              className="p-1.5 rounded-full bg-black/40 hover:bg-black/70 text-slate-300 hover:text-white backdrop-blur-md transition-colors cursor-pointer"
+                              title="Tùy chọn sổ ghi chú"
+                            >
+                              <MoreVertical className="w-4 h-4" />
+                            </button>
+
+                            {/* Action Dropdown Menu */}
+                            {isMenuOpen && (
+                              <div
+                                onClick={(e) => e.stopPropagation()}
+                                className="absolute right-0 top-full mt-2 w-52 rounded-2xl bg-[#161B26] border border-slate-700 shadow-2xl p-2 z-50 animate-slide-up text-xs sm:text-sm font-semibold text-slate-200"
+                              >
+                                <button
+                                  onClick={(e) => handleStartRename(e, proj)}
+                                  className="w-full px-3.5 py-2.5 rounded-xl text-left hover:bg-[#232A3B] flex items-center gap-2.5 transition-colors cursor-pointer text-slate-200"
+                                >
+                                  <Pencil className="w-4 h-4 text-slate-400" />
+                                  <span>{isVietnamese ? 'Đổi tên' : 'Rename'}</span>
+                                </button>
+
+                                <button
+                                  onClick={(e) => handleTogglePin(e, proj.id, proj.is_pinned)}
+                                  className="w-full px-3.5 py-2.5 rounded-xl text-left hover:bg-[#232A3B] flex items-center gap-2.5 transition-colors cursor-pointer text-slate-200"
+                                >
+                                  {proj.is_pinned ? <PinOff className="w-4 h-4 text-slate-400" /> : <Pin className="w-4 h-4 text-slate-400" />}
+                                  <span>{proj.is_pinned ? (isVietnamese ? 'Bỏ ghim' : 'Unpin') : (isVietnamese ? 'Ghim lên đầu' : 'Pin to top')}</span>
+                                </button>
+
+                                <button
+                                  onClick={(e) => handleShare(e, proj)}
+                                  className="w-full px-3.5 py-2.5 rounded-xl text-left hover:bg-[#232A3B] flex items-center gap-2.5 transition-colors cursor-pointer text-slate-200"
+                                >
+                                  <Share2 className="w-4 h-4 text-slate-400" />
+                                  <span>{isVietnamese ? 'Sao chép liên kết' : 'Copy link'}</span>
+                                </button>
+
+                                <div className="my-1.5 border-t border-slate-700/80" />
+
+                                <button
+                                  onClick={(e) => handleDelete(e, proj.id)}
+                                  className="w-full px-3.5 py-2.5 rounded-xl text-left hover:bg-rose-950/60 text-rose-400 hover:text-rose-300 font-bold flex items-center gap-2.5 transition-colors cursor-pointer"
+                                >
+                                  <Trash2 className="w-4 h-4 text-rose-400" />
+                                  <span>{isVietnamese ? 'Xóa sổ ghi chú' : 'Delete notebook'}</span>
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Sticker Avatar: Cleanly elevated inside the banner */}
+                      <div className="relative z-10 flex items-center">
+                        <div className={`w-12 h-12 sm:w-13 sm:h-13 rounded-2xl bg-gradient-to-br ${visual.accentColor} p-0.5 shadow-lg group-hover:scale-110 group-hover:shadow-xl transition-all duration-300`}>
+                          <div className="w-full h-full rounded-[14px] bg-[#161B26]/95 backdrop-blur-md flex items-center justify-center text-2xl shadow-inner">
+                            {visual.icon}
+                          </div>
+                        </div>
+                      </div>
+
+                    </div>
+
+                    {/* Card Body: Title & Research Question Subtitle */}
+                    <div className="p-4 sm:p-5 pt-4 flex flex-col justify-between flex-1 min-w-0">
+                      <div>
+                        {isEditing ? (
+                          <div onClick={e => e.stopPropagation()} className="space-y-2">
+                            <input
+                              type="text"
+                              autoFocus
+                              value={editingName}
+                              onChange={e => setEditingName(e.target.value)}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') handleSaveRename(e, proj.id);
+                                if (e.key === 'Escape') handleCancelRename(e);
+                              }}
+                              className="w-full px-3 py-1.5 text-xs sm:text-sm rounded-xl bg-[#2E3647] border border-blue-500 text-white font-bold focus:outline-none"
+                            />
+                            <div className="flex items-center gap-2 justify-end">
+                              <button
+                                onClick={(e) => handleSaveRename(e, proj.id)}
+                                className="px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-xs font-bold text-white"
+                              >
+                                Lưu
+                              </button>
+                              <button
+                                onClick={handleCancelRename}
+                                className="px-3 py-1 rounded-lg bg-slate-700 hover:bg-slate-600 text-xs text-slate-300"
+                              >
+                                Hủy
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <h3 className="font-extrabold text-sm sm:text-base text-white group-hover:text-blue-300 transition-colors line-clamp-2 leading-snug tracking-tight">
+                              {proj.name}
+                            </h3>
+                            <p className="text-xs text-slate-400 line-clamp-2 mt-1.5 leading-relaxed">
+                              {proj.research_question || proj.research_field || (isVietnamese ? 'Tổng quan hệ thống & Phân tích tổng hợp' : 'Systematic literature review')}
+                            </p>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Card Footer: Date & Source Count with Globe */}
+                      <div className="flex items-center justify-between text-xs text-slate-400 pt-3 border-t border-slate-800/80 mt-auto">
+                        <span className="truncate">{updatedDate}</span>
+                        <div className="flex items-center gap-1.5 text-slate-200 font-bold shrink-0 group-hover:text-blue-300 transition-colors">
+                          <span>{sourceCount} {isVietnamese ? 'nguồn' : 'sources'}</span>
+                          <Globe className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-400 transition-colors" />
                         </div>
                       </div>
                     </div>
 
-                    {/* Card Body: Title (or Inline Editing Input) */}
-                    <div className="my-auto min-w-0">
-                      {isEditing ? (
-                        <div onClick={e => e.stopPropagation()} className="space-y-2">
-                          <input
-                            type="text"
-                            autoFocus
-                            value={editingName}
-                            onChange={e => setEditingName(e.target.value)}
-                            onKeyDown={e => {
-                              if (e.key === 'Enter') handleSaveRename(e, proj.id);
-                              if (e.key === 'Escape') handleCancelRename(e);
-                            }}
-                            className="w-full px-3 py-1.5 text-xs sm:text-sm rounded-xl bg-[#2E3647] border border-blue-500 text-white font-bold focus:outline-none"
-                          />
-                          <div className="flex items-center gap-2 justify-end">
-                            <button
-                              onClick={(e) => handleSaveRename(e, proj.id)}
-                              className="px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-xs font-bold text-white"
-                            >
-                              Lưu
-                            </button>
-                            <button
-                              onClick={handleCancelRename}
-                              className="px-3 py-1 rounded-lg bg-slate-700 hover:bg-slate-600 text-xs text-slate-300"
-                            >
-                              Hủy
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <h3 className="font-extrabold text-sm sm:text-base lg:text-lg 2xl:text-xl text-white group-hover:text-blue-300 transition-colors line-clamp-2 leading-snug">
-                          {proj.name}
-                        </h3>
-                      )}
-                    </div>
-
-                    {/* Card Footer: Date & Source Count */}
-                    <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs sm:text-sm text-slate-400 shrink-0 font-medium">
-                      <span className="truncate">{updatedDate}</span>
-                      <span className="font-bold text-slate-200 shrink-0">
-                        {sourceCount} {isVietnamese ? 'nguồn' : 'sources'}
-                      </span>
-                    </div>
                   </div>
                 );
               })}

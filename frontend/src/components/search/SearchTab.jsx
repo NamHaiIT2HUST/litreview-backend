@@ -1735,19 +1735,46 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                 </div>
               ) : gapMapData && gapMapData.cells && gapMapData.cells.length > 0 ? (
                 (() => {
-                  const totalCells = gapMapData.cells.length;
-                  const emptyCount = gapMapData.cells.filter(c => c.saturation === 'empty').length;
-                  const sparseCount = gapMapData.cells.filter(c => c.saturation === 'sparse').length;
-                  const saturatedCount = gapMapData.cells.filter(c => c.saturation === 'saturated').length;
+                  // Calculate dynamic matching against the active search papers
+                  const computedCells = gapMapData.cells.map(c => {
+                    if (!papers || papers.length === 0) return c;
+                    const xWords = (c.dimension_x || '').toLowerCase().split(/[\s,&/]+/).filter(w => w.length >= 3 && !['with', 'from', 'using', 'models', 'and', 'the'].includes(w));
+                    const yWords = (c.dimension_y || '').toLowerCase().split(/[\s,&/]+/).filter(w => w.length >= 3 && !['with', 'from', 'using', 'models', 'and', 'the'].includes(w));
+                    
+                    const count = papers.filter(p => {
+                      const full = `${p.title || ''} ${p.abstract || ''} ${p.journal || ''}`.toLowerCase();
+                      const matchX = xWords.length === 0 || xWords.some(w => full.includes(w));
+                      const matchY = yWords.length === 0 || yWords.some(w => full.includes(w));
+                      return matchX && matchY;
+                    }).length;
+                    
+                    const sat = count === 0 ? 'empty' : count <= 2 ? 'sparse' : 'saturated';
+                    return { ...c, paper_count: count, saturation: sat };
+                  });
+
+                  const totalCells = computedCells.length;
+                  const emptyCount = computedCells.filter(c => c.saturation === 'empty').length;
+                  const sparseCount = computedCells.filter(c => c.saturation === 'sparse').length;
+                  const saturatedCount = computedCells.filter(c => c.saturation === 'saturated').length;
                   const emptyPct = Math.round((emptyCount / totalCells) * 100);
                   const sparsePct = Math.round((sparseCount / totalCells) * 100);
-                  const saturatedPct = 100 - emptyPct - sparsePct;
+                  const saturatedPct = Math.max(0, 100 - emptyPct - sparsePct);
 
                   // Group by Dimension X (Architecture / Method)
                   const archDistribution = {};
-                  gapMapData.cells.forEach(c => {
-                    archDistribution[c.dimension_x] = (archDistribution[c.dimension_x] || 0) + (c.paper_count || 0);
+                  computedCells.forEach(c => {
+                    archDistribution[c.dimension_x] = Math.max(archDistribution[c.dimension_x] || 0, c.paper_count || 0);
                   });
+                  // Calculate direct matching count per architectural branch
+                  Object.keys(archDistribution).forEach(arch => {
+                    const archWords = arch.toLowerCase().split(/[\s,&/]+/).filter(w => w.length >= 3 && !['with', 'from', 'using', 'models', 'and', 'the'].includes(w));
+                    const directCount = (papers || []).filter(p => {
+                      const full = `${p.title || ''} ${p.abstract || ''} ${p.journal || ''}`.toLowerCase();
+                      return archWords.some(w => full.includes(w));
+                    }).length;
+                    archDistribution[arch] = Math.max(archDistribution[arch], directCount);
+                  });
+
                   const maxArchPapers = Math.max(...Object.values(archDistribution), 1);
 
                   return (
@@ -1877,7 +1904,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                          {gapMapData.cells.map((c, idx) => (
+                          {computedCells.map((c, idx) => (
                             <button 
                               key={idx} 
                               type="button"

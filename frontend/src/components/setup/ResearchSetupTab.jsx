@@ -749,12 +749,16 @@ export default function ResearchSetupTab({ setActiveTab }) {
             
             <span className={`badge text-xs font-bold ${
               scopeResult.status === 'optimal' ? 'badge-success' :
-              scopeResult.status === 'too_narrow' ? 'badge-primary' : 'badge-warning'
+              scopeResult.status === 'too_narrow' ? 'badge-primary' : 
+              scopeResult.status === 'error' ? 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300 border border-red-300 dark:border-red-800' :
+              'badge-warning'
             }`}>
               {scopeResult.status === 'optimal' 
                 ? (isVi ? '✨ Phạm vi tối ưu' : '✨ Optimal Scope')
                 : scopeResult.status === 'too_narrow' 
                 ? (isVi ? '🔍 Đề tài quá hẹp' : '🔍 Too Narrow')
+                : scopeResult.status === 'error'
+                ? (isVi ? '⚠️ Tạm thời gián đoạn' : '⚠️ Service Unavailable')
                 : (isVi ? '⚠️ Đề tài quá rộng' : '⚠️ Too Broad')}
             </span>
           </div>
