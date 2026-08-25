@@ -204,7 +204,7 @@ export function AuthProvider({ children }) {
 
     const clientId =
       import.meta.env.VITE_GOOGLE_CLIENT_ID ||
-      '447985190531-p2gko4a06q485g1mku819bno42qsifen.apps.googleusercontent.com';
+      '1063554185752-ai26hqjeg9k2fse4utkqfftvafgrjnr4.apps.googleusercontent.com';
 
     if (typeof window !== 'undefined' && window.google?.accounts?.oauth2) {
       return new Promise((resolve, reject) => {

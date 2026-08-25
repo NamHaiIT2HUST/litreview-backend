@@ -31,7 +31,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
 
 GOOGLE_CLIENT_ID = os.getenv(
     "GOOGLE_CLIENT_ID",
-    "447985190531-p2gko4a06q485g1mku819bno42qsifen.apps.googleusercontent.com"
+    "1063554185752-ai26hqjeg9k2fse4utkqfftvafgrjnr4.apps.googleusercontent.com"
 )
 GOOGLE_REDIRECT_URI = os.getenv(
     "GOOGLE_REDIRECT_URI",
