@@ -210,27 +210,6 @@ async def get_project_papers(
         
     return paper_records
 
-@router.put("/projects/{project_id}", response_model=ProjectResponse)
-async def update_project(project_id: UUID, request: ProjectCreateRequest, db: AsyncSession = Depends(get_db)):
-    """Module 1: Update an existing project."""
-    result = await db.execute(select(Project).where(Project.id == project_id))
-    project = result.scalar_one_or_none()
-    
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-        
-    project.name = request.name
-    project.research_question = request.research_question
-    project.research_field = request.research_field
-    project.year_from = request.year_from
-    project.year_to = request.year_to
-    project.criteria_include = request.criteria_include
-    project.criteria_exclude = request.criteria_exclude
-    
-    await db.commit()
-    await db.refresh(project)
-    return project
-
 
 @router.delete("/projects/{project_id}", status_code=204)
 async def delete_project(project_id: UUID, db: AsyncSession = Depends(get_db)):
