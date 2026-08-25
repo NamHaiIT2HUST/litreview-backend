@@ -66,46 +66,60 @@ class RealLLMAdapter(LLMPort):
 
         from src.config import get_settings
         s = get_settings()
-        gemini_key = (os.getenv("GEMINI_KEY_PICO") or s.effective_gemini_api_key or s.gemini_api_key or os.getenv("GOOGLE_API_KEY") or "").strip()
+        keys = s.all_gemini_api_keys
+        gemini_key = (os.getenv("GEMINI_KEY_PICO") or (keys[2] if len(keys) > 2 else (keys[0] if len(keys) > 0 else "")) or s.gemini_api_key or os.getenv("GOOGLE_API_KEY") or "").strip()
         groq_key = (os.getenv("GROQ_API_KEY") or s.groq_api_key or "").strip()
         openai_key = (os.getenv("OPENAI_API_KEY") or s.effective_openai_api_key or s.openai_api_key or "").strip()
 
-        llm = None
+        llm_candidates = []
         if gemini_key:
-            try:
-                from langchain_google_genai import ChatGoogleGenerativeAI
-                llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", google_api_key=gemini_key, temperature=0.3)
-            except Exception:
-                pass
-        if not llm and groq_key:
+            from langchain_google_genai import ChatGoogleGenerativeAI
+            for m in ["gemini-flash-lite-latest", "gemini-3.5-flash-lite", "gemini-flash-latest"]:
+                try:
+                    llm_candidates.append(ChatGoogleGenerativeAI(model=m, google_api_key=gemini_key, temperature=0.3, max_retries=1))
+                except Exception:
+                    pass
+
+        if groq_key:
             try:
                 from langchain_groq import ChatGroq
-                llm = ChatGroq(model="llama-3.3-70b-versatile", groq_api_key=groq_key, temperature=0.3)
-            except Exception:
-                pass
-        if not llm and openai_key:
-            try:
-                from langchain_openai import ChatOpenAI
-                llm = ChatOpenAI(model="gpt-4o-mini", openai_api_key=openai_key, temperature=0.3)
-            except Exception:
-                pass
-        if not llm:
-            try:
-                from src.services.synthesis_llm_service import synthesis_llm_service
-                llm = synthesis_llm_service._get_llm()
+                llm_candidates.append(ChatGroq(model="llama-3.3-70b-versatile", groq_api_key=groq_key, temperature=0.3, max_retries=1))
             except Exception:
                 pass
 
-        if llm:
+        if openai_key:
             try:
-                msg = await llm.ainvoke([("human", prompt)])
+                from langchain_openai import ChatOpenAI
+                llm_candidates.append(ChatOpenAI(
+                    model=s.effective_model_name or "deepseek/deepseek-v3.2",
+                    openai_api_key=openai_key,
+                    base_url=s.get_api_base or None,
+                    temperature=0.3,
+                    max_retries=1,
+                    timeout=10,
+                ))
+            except Exception:
+                pass
+
+        try:
+            from src.services.synthesis_llm_service import synthesis_llm_service
+            fallback_llm = synthesis_llm_service._get_llm()
+            if fallback_llm:
+                llm_candidates.append(fallback_llm)
+        except Exception:
+            pass
+
+        import asyncio
+        for llm in llm_candidates:
+            try:
+                msg = await asyncio.wait_for(llm.ainvoke([("human", prompt)]), timeout=10.0)
                 content = msg.content if hasattr(msg, "content") else str(msg)
                 if isinstance(content, list):
                     return "".join(part.get("text", "") for part in content if isinstance(part, dict))
                 return str(content)
             except Exception as e:
                 import logging
-                logging.getLogger(__name__).error(f"RealLLMAdapter error: {e}")
+                logging.getLogger(__name__).warning(f"RealLLMAdapter candidate error: {e}")
 
         return "{}"
 

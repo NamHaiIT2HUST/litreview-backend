@@ -77,42 +77,53 @@ async def run_scope_optimizer(idea: str, research_field: str = "") -> ScopeAnaly
     # 2. GỌI LLM VỚI ĐA NHÀ CUNG CẤP (Gemini, Groq, OpenAI)
     prompt = SCOPE_PROMPT.format(idea=idea.strip(), research_field=research_field.strip() or "Khoa học máy tính / AI")
     
-    gemini_key = (os.getenv("GEMINI_KEY_SCOPE_OPTIMIZER") or s.effective_gemini_api_key or s.gemini_api_key or os.getenv("GOOGLE_API_KEY") or "").strip()
+    keys = s.all_gemini_api_keys
+    gemini_key = (os.getenv("GEMINI_KEY_SCOPE_OPTIMIZER") or (keys[0] if len(keys) > 0 else "") or s.gemini_api_key or os.getenv("GOOGLE_API_KEY") or "").strip()
     groq_key = (os.getenv("GROQ_API_KEY") or s.groq_api_key or "").strip()
     openai_key = (os.getenv("OPENAI_API_KEY") or s.effective_openai_api_key or s.openai_api_key or "").strip()
 
-    llm_instance = None
+    llm_candidates = []
     if gemini_key:
-        try:
-            from langchain_google_genai import ChatGoogleGenerativeAI
-            llm_instance = ChatGoogleGenerativeAI(model="gemini-1.5-flash", google_api_key=gemini_key, temperature=0.3)
-        except Exception:
-            pass
+        from langchain_google_genai import ChatGoogleGenerativeAI
+        for m in ["gemini-flash-lite-latest", "gemini-3.5-flash-lite", "gemini-flash-latest"]:
+            try:
+                llm_candidates.append(ChatGoogleGenerativeAI(model=m, google_api_key=gemini_key, temperature=0.3, max_retries=1))
+            except Exception:
+                pass
 
-    if not llm_instance and groq_key:
+    if groq_key:
         try:
             from langchain_groq import ChatGroq
-            llm_instance = ChatGroq(model="llama-3.3-70b-versatile", groq_api_key=groq_key, temperature=0.3)
+            llm_candidates.append(ChatGroq(model="llama-3.3-70b-versatile", groq_api_key=groq_key, temperature=0.3, max_retries=1))
         except Exception:
             pass
 
-    if not llm_instance and openai_key:
+    if openai_key:
         try:
             from langchain_openai import ChatOpenAI
-            llm_instance = ChatOpenAI(model="gpt-4o-mini", openai_api_key=openai_key, temperature=0.3)
+            llm_candidates.append(ChatOpenAI(
+                model=s.effective_model_name or "deepseek/deepseek-v3.2",
+                openai_api_key=openai_key,
+                base_url=s.get_api_base or None,
+                temperature=0.3,
+                max_retries=1,
+                timeout=10,
+            ))
         except Exception:
             pass
 
-    if not llm_instance:
-        try:
-            from src.services.synthesis_llm_service import synthesis_llm_service
-            llm_instance = synthesis_llm_service._get_llm()
-        except Exception:
-            pass
+    try:
+        from src.services.synthesis_llm_service import synthesis_llm_service
+        fallback_llm = synthesis_llm_service._get_llm()
+        if fallback_llm:
+            llm_candidates.append(fallback_llm)
+    except Exception:
+        pass
 
-    if llm_instance:
+    import asyncio
+    for candidate in llm_candidates:
         try:
-            msg = await llm_instance.ainvoke([("human", prompt)])
+            msg = await asyncio.wait_for(candidate.ainvoke([("human", prompt)]), timeout=10.0)
             content = msg.content if hasattr(msg, "content") else str(msg)
             if isinstance(content, list):
                 content = "".join(part.get("text", "") for part in content if isinstance(part, dict))
@@ -129,9 +140,34 @@ async def run_scope_optimizer(idea: str, research_field: str = "") -> ScopeAnaly
                 suggested_topics=data.get("suggested_topics", [])
             )
         except Exception as e:
+            last_error = e
             logger.error(f"Error running scope optimizer with LLM: {e}")
 
-    # Fallback dự phòng nếu mất mạng/hết quota
+    # Xử lý thông báo lỗi chi tiết khi hết Quota hoặc Timeout
+    error_str = str(last_error).lower() if 'last_error' in locals() and last_error else ""
+    if "429" in error_str or "resource_exhausted" in error_str or "quota" in error_str or "rate limit" in error_str:
+        return ScopeAnalysisResult(
+            status="error",
+            score=0,
+            feedback="⚠️ Hệ thống đang gặp lỗi quá tải hạn mức AI (Quota/Rate Limit). Vui lòng thử lại sau khoảng 1-2 phút hoặc kiểm tra lại API Key.",
+            suggested_topics=[]
+        )
+    elif "timeout" in error_str or "timed out" in error_str or "deadline" in error_str or "connection" in error_str:
+        return ScopeAnalysisResult(
+            status="error",
+            score=0,
+            feedback="⏳ Hệ thống đang gặp sự cố phản hồi chậm hoặc gián đoạn kết nối mạng (Request Timeout). Vui lòng thử lại sau ít phút.",
+            suggested_topics=[]
+        )
+    elif 'last_error' in locals() and last_error:
+        return ScopeAnalysisResult(
+            status="error",
+            score=0,
+            feedback=f"⚠️ Hệ thống AI đang gặp sự cố kết nối ({type(last_error).__name__}). Vui lòng thử lại sau ít phút.",
+            suggested_topics=[]
+        )
+
+    # Fallback mặc định
     return ScopeAnalysisResult(
         status="optimal",
         score=75,
