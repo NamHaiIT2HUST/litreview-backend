@@ -152,15 +152,15 @@ class Project(Base):
     updated_at = Column(DateTime(timezone=True), default=_now_utc, onupdate=_now_utc)
 
     user = relationship("User", back_populates="projects")
-    queries = relationship("SearchQuery", back_populates="project")
-    papers = relationship("Paper", back_populates="project")
-    synthesis_sessions = relationship("SynthesisSession", back_populates="project")
+    queries = relationship("SearchQuery", back_populates="project", cascade="all, delete-orphan")
+    papers = relationship("Paper", back_populates="project", cascade="all, delete-orphan")
+    synthesis_sessions = relationship("SynthesisSession", back_populates="project", cascade="all, delete-orphan")
 
 
 class SearchQuery(Base):
     __tablename__ = "search_queries"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    project_id = Column(UUID(as_uuid=True), ForeignKey("projects.id"))
+    project_id = Column(UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"))
     query_string = Column(Text, nullable=False)
     strategy_label = Column(String, nullable=True)
     result_count = Column(Integer, default=0)
@@ -180,7 +180,7 @@ class SearchQueryPaper(Base):
 class Paper(Base):
     __tablename__ = "papers"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    project_id = Column(UUID(as_uuid=True), ForeignKey("projects.id"))
+    project_id = Column(UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"))
     search_query_id = Column(UUID(as_uuid=True), ForeignKey("search_queries.id"), nullable=True)
 
     title = Column(Text, nullable=False)
@@ -223,9 +223,9 @@ class Paper(Base):
     extraction = relationship("Extraction", back_populates="paper", uselist=False, cascade="all, delete-orphan")
     pdf_chunks = relationship("PDFChunk", back_populates="paper", cascade="all, delete-orphan")
     page_texts = relationship("PageText", back_populates="paper", cascade="all, delete-orphan")
-    evidence_attempts = relationship("EvidenceExtractionAttempt", back_populates="paper")
-    evidence_records = relationship("EvidenceRecord", back_populates="paper")
-    vector_cleanup_jobs = relationship("VectorCleanupJob", back_populates="paper")
+    evidence_attempts = relationship("EvidenceExtractionAttempt", back_populates="paper", cascade="all, delete-orphan")
+    evidence_records = relationship("EvidenceRecord", back_populates="paper", cascade="all, delete-orphan")
+    vector_cleanup_jobs = relationship("VectorCleanupJob", back_populates="paper", cascade="all, delete-orphan")
 
 
 class VectorCleanupJob(Base):

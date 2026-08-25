@@ -234,8 +234,13 @@ async def update_project(project_id: UUID, request: ProjectCreateRequest, db: As
 
 @router.delete("/projects/{project_id}", status_code=204)
 async def delete_project(project_id: UUID, db: AsyncSession = Depends(get_db)):
-    """Module 1: Delete a research project and its associated papers."""
-    from src.models.db_models import Paper, PageText, PDFChunk
+    """Module 1: Delete a research project and all its associated child data cleanly."""
+    from src.models.db_models import (
+        Paper, PageText, PDFChunk, SearchQuery, SearchQueryPaper, 
+        SynthesisSession, Citation, SynthesisClaim, SynthesisSection,
+        EvidenceRecord, EvidenceExtractionAttempt, Extraction, ScreeningHistory,
+        VectorCleanupJob
+    )
     from sqlalchemy import delete as sql_delete
 
     result = await db.execute(select(Project).where(Project.id == project_id))
@@ -243,13 +248,43 @@ async def delete_project(project_id: UUID, db: AsyncSession = Depends(get_db)):
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    # Delete related papers and text chunks
+    # 1. Get all paper IDs
     papers_res = await db.execute(select(Paper.id).where(Paper.project_id == project_id))
     paper_ids = papers_res.scalars().all()
+
+    # 2. Get all query IDs
+    queries_res = await db.execute(select(SearchQuery.id).where(SearchQuery.project_id == project_id))
+    query_ids = queries_res.scalars().all()
+
+    # 3. Get all session IDs
+    sessions_res = await db.execute(select(SynthesisSession.id).where(SynthesisSession.project_id == project_id))
+    session_ids = sessions_res.scalars().all()
+
+    # Delete session children
+    if session_ids:
+        await db.execute(sql_delete(Citation).where(Citation.synthesis_session_id.in_(session_ids)))
+        await db.execute(sql_delete(SynthesisClaim).where(SynthesisClaim.synthesis_session_id.in_(session_ids)))
+        await db.execute(sql_delete(SynthesisSection).where(SynthesisSection.synthesis_session_id.in_(session_ids)))
+        await db.execute(sql_delete(EvidenceRecord).where(EvidenceRecord.synthesis_session_id.in_(session_ids)))
+        await db.execute(sql_delete(EvidenceExtractionAttempt).where(EvidenceExtractionAttempt.synthesis_session_id.in_(session_ids)))
+        await db.execute(sql_delete(SynthesisSession).where(SynthesisSession.id.in_(session_ids)))
+
+    # Delete paper children
     if paper_ids:
+        await db.execute(sql_delete(SearchQueryPaper).where(SearchQueryPaper.paper_id.in_(paper_ids)))
         await db.execute(sql_delete(PageText).where(PageText.paper_id.in_(paper_ids)))
         await db.execute(sql_delete(PDFChunk).where(PDFChunk.paper_id.in_(paper_ids)))
+        await db.execute(sql_delete(Extraction).where(Extraction.paper_id.in_(paper_ids)))
+        await db.execute(sql_delete(ScreeningHistory).where(ScreeningHistory.paper_id.in_(paper_ids)))
+        await db.execute(sql_delete(EvidenceRecord).where(EvidenceRecord.paper_id.in_(paper_ids)))
+        await db.execute(sql_delete(EvidenceExtractionAttempt).where(EvidenceExtractionAttempt.paper_id.in_(paper_ids)))
+        await db.execute(sql_delete(VectorCleanupJob).where(VectorCleanupJob.paper_id.in_(paper_ids)))
         await db.execute(sql_delete(Paper).where(Paper.id.in_(paper_ids)))
+
+    # Delete search queries
+    if query_ids:
+        await db.execute(sql_delete(SearchQueryPaper).where(SearchQueryPaper.search_query_id.in_(query_ids)))
+        await db.execute(sql_delete(SearchQuery).where(SearchQuery.id.in_(query_ids)))
 
     await db.delete(project)
     await db.commit()
