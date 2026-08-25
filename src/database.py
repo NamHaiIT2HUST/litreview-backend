@@ -19,7 +19,9 @@ os.makedirs("data", exist_ok=True)
 
 
 def _resolve_host_to_ipv4(url: str) -> str:
-    """Resolve database hostname to IPv4 address to prevent Render's IPv6 limitation with Supabase."""
+    """Supabase Pooler and modern cloud hosts need domain name for SNI tenant routing."""
+    if "pooler.supabase.com" in url or "supabase" in url:
+        return url
     if not ("postgresql" in url or "postgres" in url):
         return url
     try:
