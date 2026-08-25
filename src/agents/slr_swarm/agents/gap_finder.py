@@ -195,30 +195,65 @@ async def run_gap_finder(state: dict, deps: SwarmDeps) -> dict:
         if lora_result and isinstance(lora_result, dict) and lora_result.get("search_keywords"):
             data = lora_result
         else:
-            # Call configured LLM (OpenAI / Gemini / FPT / Groq)
-            try:
-                from src.services.synthesis_llm_service import synthesis_llm_service
-                llm = synthesis_llm_service._get_llm()
-                prompt = _PROMPT.format(
-                    idea=idea,
-                    research_field=research_field or "Computer Science / Artificial Intelligence",
-                    criteria_include=criteria_include,
-                    criteria_exclude=criteria_exclude
-                )
-                msg = await llm.ainvoke([("human", prompt)])
-                content = msg.content if hasattr(msg, "content") else str(msg)
-                if isinstance(content, list):
-                    content = "".join(part.get("text", "") for part in content if isinstance(part, dict))
-                content = str(content).strip()
-                if "```json" in content:
-                    content = content.split("```json")[1].split("```")[0].strip()
-                elif "```" in content:
-                    content = content.split("```")[1].split("```")[0].strip()
-                data = json.loads(content)
-            except Exception as e:
-                import logging
-                logging.getLogger(__name__).warning(f"Gap Finder LLM call error: {e}")
-                data = None
+            # Multi-provider LLM cascade (Gemini, Groq, OpenAI)
+            from src.config import get_settings
+            s = get_settings()
+            import os
+            gemini_key = (os.getenv("GEMINI_KEY_PICO") or s.effective_gemini_api_key or s.gemini_api_key or os.getenv("GOOGLE_API_KEY") or "").strip()
+            groq_key = (os.getenv("GROQ_API_KEY") or s.groq_api_key or "").strip()
+            openai_key = (os.getenv("OPENAI_API_KEY") or s.effective_openai_api_key or s.openai_api_key or "").strip()
+
+            llm_instance = None
+            if gemini_key:
+                try:
+                    from langchain_google_genai import ChatGoogleGenerativeAI
+                    llm_instance = ChatGoogleGenerativeAI(model="gemini-1.5-flash", google_api_key=gemini_key, temperature=0.3)
+                except Exception:
+                    pass
+
+            if not llm_instance and groq_key:
+                try:
+                    from langchain_groq import ChatGroq
+                    llm_instance = ChatGroq(model="llama-3.3-70b-versatile", groq_api_key=groq_key, temperature=0.3)
+                except Exception:
+                    pass
+
+            if not llm_instance and openai_key:
+                try:
+                    from langchain_openai import ChatOpenAI
+                    llm_instance = ChatOpenAI(model="gpt-4o-mini", openai_api_key=openai_key, temperature=0.3)
+                except Exception:
+                    pass
+
+            if not llm_instance:
+                try:
+                    from src.services.synthesis_llm_service import synthesis_llm_service
+                    llm_instance = synthesis_llm_service._get_llm()
+                except Exception:
+                    pass
+
+            if llm_instance:
+                try:
+                    prompt = _PROMPT.format(
+                        idea=idea,
+                        research_field=research_field or "Computer Science / Artificial Intelligence",
+                        criteria_include=criteria_include,
+                        criteria_exclude=criteria_exclude
+                    )
+                    msg = await llm_instance.ainvoke([("human", prompt)])
+                    content = msg.content if hasattr(msg, "content") else str(msg)
+                    if isinstance(content, list):
+                        content = "".join(part.get("text", "") for part in content if isinstance(part, dict))
+                    content = str(content).strip()
+                    if "```json" in content:
+                        content = content.split("```json")[1].split("```")[0].strip()
+                    elif "```" in content:
+                        content = content.split("```")[1].split("```")[0].strip()
+                    data = json.loads(content)
+                except Exception as e:
+                    import logging
+                    logging.getLogger(__name__).warning(f"Gap Finder LLM call error: {e}")
+                    data = None
 
     if not isinstance(data, dict):
         data = {}

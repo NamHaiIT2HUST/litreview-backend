@@ -1802,15 +1802,18 @@ async def create_synthesis_session(
     # Auto-ingest any papers missing active_ingestion_id (with timeout to avoid hanging)
     from src.services.ingestion_service import ensure_paper_ingested
     for paper in papers:
-        if paper.active_ingestion_id is None:
+        p_id_str = str(paper.id) if hasattr(paper, 'id') else "unknown"
+        if getattr(paper, 'active_ingestion_id', None) is None:
             try:
                 await asyncio.wait_for(ensure_paper_ingested(db, paper), timeout=10.0)
             except asyncio.TimeoutError:
+                await db.rollback()
                 import logging
-                logging.getLogger(__name__).warning("Auto-ingestion timed out for paper %s, skipping", paper.id)
+                logging.getLogger(__name__).warning("Auto-ingestion timed out for paper %s, skipping", p_id_str)
             except Exception as ing_err:
+                await db.rollback()
                 import logging
-                logging.getLogger(__name__).warning("Auto-ingestion error for paper %s: %s", paper.id, ing_err)
+                logging.getLogger(__name__).warning("Auto-ingestion error for paper %s: %s", p_id_str, ing_err)
 
     session = SynthesisSession(
         id=uuid.uuid4(),

@@ -74,38 +74,62 @@ async def run_scope_optimizer(idea: str, research_field: str = "") -> ScopeAnaly
             suggested_topics=lora_result.get("suggested_topics", [])
         )
         
-    # 2. NẾU LORA OFF, FALLBACK SANG GEMINI
-    # Ưu tiên key chuyên dụng cho Scope Optimizer
-    api_key = (
-        os.getenv("GEMINI_KEY_SCOPE_OPTIMIZER")
-        or s.effective_gemini_api_key
-        or s.gemini_api_key
-        or ""
-    ).strip()
-
+    # 2. GỌI LLM VỚI ĐA NHÀ CUNG CẤP (Gemini, Groq, OpenAI)
     prompt = SCOPE_PROMPT.format(idea=idea.strip(), research_field=research_field.strip() or "Khoa học máy tính / AI")
+    
+    gemini_key = (os.getenv("GEMINI_KEY_SCOPE_OPTIMIZER") or s.effective_gemini_api_key or s.gemini_api_key or os.getenv("GOOGLE_API_KEY") or "").strip()
+    groq_key = (os.getenv("GROQ_API_KEY") or s.groq_api_key or "").strip()
+    openai_key = (os.getenv("OPENAI_API_KEY") or s.effective_openai_api_key or s.openai_api_key or "").strip()
 
-    try:
-        from src.services.synthesis_llm_service import synthesis_llm_service
-        llm = synthesis_llm_service._get_llm()
-        msg = await llm.ainvoke([("human", prompt)])
-        content = msg.content if hasattr(msg, "content") else str(msg)
-        if isinstance(content, list):
-            content = "".join(part.get("text", "") for part in content if isinstance(part, dict))
-        content = str(content).strip()
-        if "```json" in content:
-            content = content.split("```json")[1].split("```")[0].strip()
-        elif "```" in content:
-            content = content.split("```")[1].split("```")[0].strip()
-        data = json.loads(content)
-        return ScopeAnalysisResult(
-            status=data.get("status", "optimal"),
-            score=int(data.get("score", 80)),
-            feedback=data.get("feedback", "Phạm vi nghiên cứu hợp lý."),
-            suggested_topics=data.get("suggested_topics", [])
-        )
-    except Exception as e:
-        logger.error(f"Error running scope optimizer: {e}")
+    llm_instance = None
+    if gemini_key:
+        try:
+            from langchain_google_genai import ChatGoogleGenerativeAI
+            llm_instance = ChatGoogleGenerativeAI(model="gemini-1.5-flash", google_api_key=gemini_key, temperature=0.3)
+        except Exception:
+            pass
+
+    if not llm_instance and groq_key:
+        try:
+            from langchain_groq import ChatGroq
+            llm_instance = ChatGroq(model="llama-3.3-70b-versatile", groq_api_key=groq_key, temperature=0.3)
+        except Exception:
+            pass
+
+    if not llm_instance and openai_key:
+        try:
+            from langchain_openai import ChatOpenAI
+            llm_instance = ChatOpenAI(model="gpt-4o-mini", openai_api_key=openai_key, temperature=0.3)
+        except Exception:
+            pass
+
+    if not llm_instance:
+        try:
+            from src.services.synthesis_llm_service import synthesis_llm_service
+            llm_instance = synthesis_llm_service._get_llm()
+        except Exception:
+            pass
+
+    if llm_instance:
+        try:
+            msg = await llm_instance.ainvoke([("human", prompt)])
+            content = msg.content if hasattr(msg, "content") else str(msg)
+            if isinstance(content, list):
+                content = "".join(part.get("text", "") for part in content if isinstance(part, dict))
+            content = str(content).strip()
+            if "```json" in content:
+                content = content.split("```json")[1].split("```")[0].strip()
+            elif "```" in content:
+                content = content.split("```")[1].split("```")[0].strip()
+            data = json.loads(content)
+            return ScopeAnalysisResult(
+                status=data.get("status", "optimal"),
+                score=int(data.get("score", 80)),
+                feedback=data.get("feedback", "Phạm vi nghiên cứu hợp lý."),
+                suggested_topics=data.get("suggested_topics", [])
+            )
+        except Exception as e:
+            logger.error(f"Error running scope optimizer with LLM: {e}")
 
     # Fallback dự phòng nếu mất mạng/hết quota
     return ScopeAnalysisResult(

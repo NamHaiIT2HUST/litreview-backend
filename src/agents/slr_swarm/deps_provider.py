@@ -64,18 +64,50 @@ class RealLLMAdapter(LLMPort):
         if schema:
             prompt += f"\n\nOutput MUST be valid JSON matching this schema:\n{json.dumps(schema)}"
 
-        try:
-            from src.services.synthesis_llm_service import synthesis_llm_service
-            llm = synthesis_llm_service._get_llm()
-            msg = await llm.ainvoke([("human", prompt)])
-            content = msg.content if hasattr(msg, "content") else str(msg)
-            if isinstance(content, list):
-                return "".join(part.get("text", "") for part in content if isinstance(part, dict))
-            return str(content)
-        except Exception as e:
-            import logging
-            logging.getLogger(__name__).error(f"RealLLMAdapter error: {e}")
-            return "{}"
+        from src.config import get_settings
+        s = get_settings()
+        gemini_key = (os.getenv("GEMINI_KEY_PICO") or s.effective_gemini_api_key or s.gemini_api_key or os.getenv("GOOGLE_API_KEY") or "").strip()
+        groq_key = (os.getenv("GROQ_API_KEY") or s.groq_api_key or "").strip()
+        openai_key = (os.getenv("OPENAI_API_KEY") or s.effective_openai_api_key or s.openai_api_key or "").strip()
+
+        llm = None
+        if gemini_key:
+            try:
+                from langchain_google_genai import ChatGoogleGenerativeAI
+                llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", google_api_key=gemini_key, temperature=0.3)
+            except Exception:
+                pass
+        if not llm and groq_key:
+            try:
+                from langchain_groq import ChatGroq
+                llm = ChatGroq(model="llama-3.3-70b-versatile", groq_api_key=groq_key, temperature=0.3)
+            except Exception:
+                pass
+        if not llm and openai_key:
+            try:
+                from langchain_openai import ChatOpenAI
+                llm = ChatOpenAI(model="gpt-4o-mini", openai_api_key=openai_key, temperature=0.3)
+            except Exception:
+                pass
+        if not llm:
+            try:
+                from src.services.synthesis_llm_service import synthesis_llm_service
+                llm = synthesis_llm_service._get_llm()
+            except Exception:
+                pass
+
+        if llm:
+            try:
+                msg = await llm.ainvoke([("human", prompt)])
+                content = msg.content if hasattr(msg, "content") else str(msg)
+                if isinstance(content, list):
+                    return "".join(part.get("text", "") for part in content if isinstance(part, dict))
+                return str(content)
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(f"RealLLMAdapter error: {e}")
+
+        return "{}"
 
 from src.services.search_service import get_serpapi_count
 from src.agents.slr_swarm.ports import SearchPort

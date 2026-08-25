@@ -19,7 +19,9 @@ os.makedirs("data", exist_ok=True)
 
 
 def _resolve_host_to_ipv4(url: str) -> str:
-    """Resolve database hostname to IPv4 address to prevent Render's IPv6 limitation with Supabase."""
+    """Supabase Pooler and modern cloud hosts need domain name for SNI tenant routing."""
+    if "pooler.supabase.com" in url or "supabase" in url:
+        return url
     if not ("postgresql" in url or "postgres" in url):
         return url
     try:
@@ -89,7 +91,7 @@ DATABASE_URL = _resolve_host_to_ipv4(
 def _get_engine_and_session(url: str):
     connect_args = {}
     if "sqlite" in url:
-        connect_args = {"check_same_thread": False, "timeout": 30}
+        connect_args = {"check_same_thread": False, "timeout": 60}
     elif "postgresql" in url or "postgres" in url:
         connect_args = {"statement_cache_size": 0}
 
@@ -140,6 +142,9 @@ async def create_all_tables():
 
     try:
         async with engine.begin() as conn:
+            if "sqlite" in str(DATABASE_URL):
+                await conn.execute(text("PRAGMA journal_mode=WAL;"))
+                await conn.execute(text("PRAGMA busy_timeout=60000;"))
             await conn.run_sync(Base.metadata.create_all)
     except Exception as e:
         if "postgresql" in DATABASE_URL or "postgres" in DATABASE_URL:
@@ -148,6 +153,8 @@ async def create_all_tables():
             DATABASE_URL = "sqlite+aiosqlite:///./data/app.db"
             engine, AsyncSessionLocal = _get_engine_and_session(DATABASE_URL)
             async with engine.begin() as conn:
+                await conn.execute(text("PRAGMA journal_mode=WAL;"))
+                await conn.execute(text("PRAGMA busy_timeout=60000;"))
                 await conn.run_sync(Base.metadata.create_all)
         else:
             raise
