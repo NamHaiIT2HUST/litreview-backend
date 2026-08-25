@@ -207,4 +207,6 @@ async def health():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("src.main:app", host=settings.app_host, port=settings.app_port, reload=True, reload_dirs=["src"])
+    port = int(os.getenv("PORT", settings.app_port))
+    uvicorn.run("src.main:app", host=settings.app_host, port=port, reload=False)
+
