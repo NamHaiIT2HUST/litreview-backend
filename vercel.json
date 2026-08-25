@@ -5,11 +5,11 @@
   "rewrites": [
     {
       "source": "/api/v1/:path*",
-      "destination": "http://18.143.200.110:8000/api/v1/:path*"
+      "destination": "http://13.212.121.28:8000/api/v1/:path*"
     },
     {
       "source": "/health",
-      "destination": "http://18.143.200.110:8000/health"
+      "destination": "http://13.212.121.28:8000/health"
     },
     {
       "source": "/(.*)",

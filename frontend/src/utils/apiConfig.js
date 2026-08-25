@@ -11,7 +11,7 @@ export const getApiBase = () => {
     // On production HTTPS domain, use relative /api/v1 which is proxied by Vercel directly to AWS EC2
     return '/api/v1';
   }
-  return 'http://18.143.200.110:8000/api/v1';
+  return 'http://13.212.121.28:8000/api/v1';
 };
 
 export const API_BASE = getApiBase();
@@ -44,7 +44,7 @@ export const safeFetch = async (urlOrEndpoint, options = {}) => {
     if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
       const path = primaryUrl.includes('/api/v1') ? primaryUrl.split('/api/v1')[1] : '';
       if (path) {
-        const fallbackUrl = `http://18.143.200.110:8000/api/v1${path}`;
+        const fallbackUrl = `http://13.212.121.28:8000/api/v1${path}`;
         try {
           return await fetch(fallbackUrl, options);
         } catch (fallbackErr) {
