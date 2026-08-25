@@ -92,12 +92,12 @@ class Settings(BaseSettings):
         aiza_tokens = [t for t in tokens if t.startswith("AIzaSy")]
         if aiza_tokens:
             return random.choice(aiza_tokens)
-        return ""
+        return tokens[0] if tokens else ""
 
     @property
     def all_gemini_api_keys(self) -> list[str]:
         raw = self.gemini_api_key or self.google_api_key or os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEYS") or ""
-        return [t.strip() for t in raw.split(",") if t.strip()]
+        return [t.strip(' "\'') for t in raw.split(",") if t.strip(' "\'')]
 
     @property
     def get_api_base(self) -> str:

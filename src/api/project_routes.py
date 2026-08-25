@@ -136,17 +136,43 @@ async def create_project(
     return project
 
 
+import uuid
+
+def _resolve_project_id(pid_raw: str | UUID) -> UUID:
+    if isinstance(pid_raw, UUID):
+        return pid_raw
+    try:
+        return UUID(str(pid_raw))
+    except Exception:
+        return uuid.uuid5(uuid.NAMESPACE_DNS, str(pid_raw))
+
+
 @router.put("/projects/{project_id}", response_model=ProjectResponse)
 async def update_project(
-    project_id: UUID,
+    project_id: str,
     request: ProjectCreateRequest,
     db: AsyncSession = Depends(get_db)
 ):
     """Module 1: Update research project details (scope, question, criteria)."""
-    result = await db.execute(select(Project).where(Project.id == project_id))
+    p_uuid = _resolve_project_id(project_id)
+    result = await db.execute(select(Project).where(Project.id == p_uuid))
     project = result.scalar_one_or_none()
     if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+        # Create if not exists for seamless UX
+        project = Project(
+            id=p_uuid,
+            name=request.name,
+            research_question=request.research_question,
+            research_field=request.research_field,
+            year_from=request.year_from,
+            year_to=request.year_to,
+            criteria_include=request.criteria_include,
+            criteria_exclude=request.criteria_exclude,
+        )
+        db.add(project)
+        await db.commit()
+        await db.refresh(project)
+        return project
 
     project.name = request.name
     project.research_question = request.research_question
@@ -162,9 +188,10 @@ async def update_project(
 
 
 @router.get("/projects/{project_id}", response_model=ProjectResponse)
-async def get_project(project_id: UUID, db: AsyncSession = Depends(get_db)):
+async def get_project(project_id: str, db: AsyncSession = Depends(get_db)):
     """Module 1: Get project details."""
-    result = await db.execute(select(Project).where(Project.id == project_id))
+    p_uuid = _resolve_project_id(project_id)
+    result = await db.execute(select(Project).where(Project.id == p_uuid))
     project = result.scalar_one_or_none()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -172,20 +199,17 @@ async def get_project(project_id: UUID, db: AsyncSession = Depends(get_db)):
 
 @router.get("/projects/{project_id}/papers", response_model=list[PaperRecord])
 async def get_project_papers(
-    project_id: UUID,
+    project_id: str,
     decision: str = None,
     include_unverified: bool = False,
     db: AsyncSession = Depends(get_db)
 ):
-    """Get papers for a project.
-
-    By default this returns only Scopus-verified papers so the Search view and
-    history stay aligned with the Google Scholar -> Scopus acceptance flow.
-    """
+    """Get papers for a project."""
     from sqlalchemy import or_, func
     from src.models.db_models import Paper, PageText, PDFChunk
     
-    stmt = select(Paper).where(Paper.project_id == project_id)
+    p_uuid = _resolve_project_id(project_id)
+    stmt = select(Paper).where(Paper.project_id == p_uuid)
     if not include_unverified:
         stmt = stmt.where(or_(Paper.scopus_status == "indexed", Paper.source == "direct_upload"))
     if decision:
@@ -212,7 +236,7 @@ async def get_project_papers(
 
 
 @router.delete("/projects/{project_id}", status_code=204)
-async def delete_project(project_id: UUID, db: AsyncSession = Depends(get_db)):
+async def delete_project(project_id: str, db: AsyncSession = Depends(get_db)):
     """Module 1: Delete a research project and all its associated child data cleanly."""
     from src.models.db_models import (
         Paper, PageText, PDFChunk, SearchQuery, SearchQueryPaper, 
@@ -222,21 +246,22 @@ async def delete_project(project_id: UUID, db: AsyncSession = Depends(get_db)):
     )
     from sqlalchemy import delete as sql_delete
 
-    result = await db.execute(select(Project).where(Project.id == project_id))
+    p_uuid = _resolve_project_id(project_id)
+    result = await db.execute(select(Project).where(Project.id == p_uuid))
     project = result.scalar_one_or_none()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
     # 1. Get all paper IDs
-    papers_res = await db.execute(select(Paper.id).where(Paper.project_id == project_id))
+    papers_res = await db.execute(select(Paper.id).where(Paper.project_id == p_uuid))
     paper_ids = papers_res.scalars().all()
 
     # 2. Get all query IDs
-    queries_res = await db.execute(select(SearchQuery.id).where(SearchQuery.project_id == project_id))
+    queries_res = await db.execute(select(SearchQuery.id).where(SearchQuery.project_id == p_uuid))
     query_ids = queries_res.scalars().all()
 
     # 3. Get all session IDs
-    sessions_res = await db.execute(select(SynthesisSession.id).where(SynthesisSession.project_id == project_id))
+    sessions_res = await db.execute(select(SynthesisSession.id).where(SynthesisSession.project_id == p_uuid))
     session_ids = sessions_res.scalars().all()
 
     # Delete session children
@@ -270,9 +295,10 @@ async def delete_project(project_id: UUID, db: AsyncSession = Depends(get_db)):
     return None
 
 @router.patch("/projects/{project_id}/criteria", response_model=ProjectResponse)
-async def update_criteria(project_id: UUID, request: CriteriaUpdateRequest, db: AsyncSession = Depends(get_db)):
+async def update_criteria(project_id: str, request: CriteriaUpdateRequest, db: AsyncSession = Depends(get_db)):
     """Module 1: Update Inclusion/Exclusion Criteria."""
-    result = await db.execute(select(Project).where(Project.id == project_id))
+    p_uuid = _resolve_project_id(project_id)
+    result = await db.execute(select(Project).where(Project.id == p_uuid))
     project = result.scalar_one_or_none()
     
     if not project:
@@ -287,7 +313,7 @@ async def update_criteria(project_id: UUID, request: CriteriaUpdateRequest, db: 
 
 @router.post("/projects/{project_id}/suggest-keywords", response_model=KeywordSuggestionResponse)
 async def suggest_keywords(
-    project_id: UUID,
+    project_id: str,
     request: ProjectCreateRequest,
     x_gemini_key: str | None = Header(None, description="Gemini API Key (user-provided)"),
     db: AsyncSession = Depends(get_db),
