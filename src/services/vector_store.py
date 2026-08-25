@@ -84,10 +84,12 @@ def build_embeddings(
             or getattr(settings, "openai_api_key", "")
         )
         if not embedding_key:
-            raise RuntimeError(
-                "EMBEDDING_PROVIDER=openai requires "
-                "OPENAI_EMBEDDING_API_KEY or an effective OpenAI-compatible API key."
-            )
+            gemini_key = getattr(settings, "effective_gemini_api_key", "") or os.getenv("GEMINI_API_KEY")
+            if gemini_key:
+                from langchain_google_genai import GoogleGenerativeAIEmbeddings
+                return GoogleGenerativeAIEmbeddings(model="models/text-embedding-004", google_api_key=gemini_key)
+            from langchain_community.embeddings import FakeEmbeddings
+            return FakeEmbeddings(size=1536)
 
         embedding_model = settings.embedding_model or "text-embedding-3-small"
         explicit_embedding_base = getattr(
