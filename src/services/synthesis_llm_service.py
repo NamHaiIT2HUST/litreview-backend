@@ -86,7 +86,7 @@ def create_synthesis_llm(
             google_api_key=gemini_key,
             temperature=settings.synthesis_temperature,
             max_output_tokens=8192,
-            max_retries=1,
+            timeout=30,
         )
 
     # 3. OpenAI / OpenAI-compatible (DeepSeek, OpenRouter, GoRouter, vLLM, OpenAI, Ollama, etc.)
@@ -103,9 +103,9 @@ def create_synthesis_llm(
         "timeout": 15,
         "default_headers": {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"},
     }
-    api_base = settings.get_api_base() if callable(getattr(settings, "get_api_base", None)) else (getattr(settings, "get_api_base", None) or getattr(settings, "openai_api_base", None) or getattr(settings, "llm_base_url", None) or "")
+    api_base = settings.get_api_base if not callable(getattr(settings, "get_api_base", None)) else settings.get_api_base()
     if api_base:
-        kwargs["base_url"] = api_base
+        kwargs["base_url"] = str(api_base)
 
     return openai_cls(**kwargs)
 

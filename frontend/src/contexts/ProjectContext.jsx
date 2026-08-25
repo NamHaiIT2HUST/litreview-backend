@@ -211,7 +211,8 @@ export function ProjectProvider({ children }) {
     const defaultWelcome = [
       {
         sender: 'ai',
-        text: `Chào mừng bạn đến với **Không gian Phân tích** cho đề tài **${newProject.name}**! Hãy chọn các bài báo từ phần *Tìm kiếm* để bắt đầu tổng hợp y văn có dẫn nguồn, hoặc tải lên tập tin PDF toàn văn để trích xuất sâu.`,
+        isWelcome: true,
+        text: "",
       }
     ];
     try {
