@@ -279,21 +279,27 @@ class RAGService:
             else:
                 provider = "openai"
 
+        api_base_val = getattr(settings, "get_api_base", "")
+        if callable(api_base_val):
+            api_base_val = api_base_val()
+        api_base_str = str(api_base_val or "")
+
         # 1. Gemini
         if provider == "gemini":
             if not gemini_key:
                 if openai_key:
-                    # Graceful fallback to OpenAI-compatible
                     provider = "openai"
                 else:
-                    raise RuntimeError("Gemini API key required. Set GEMINI_API_KEY or GOOGLE_API_KEY in .env.")
+                    raise RuntimeError("Gemini API key required. Set GEMINI_API_KEY in .env.")
             else:
                 from langchain_google_genai import ChatGoogleGenerativeAI
-                g_model = model_name if model_name.startswith("gemini-") else "gemini-2.0-flash"
+                g_model = model_name if (model_name and model_name.startswith("gemini-") and "2.0" not in model_name and "1.5" not in model_name) else "gemini-flash-lite-latest"
                 return ChatGoogleGenerativeAI(
                     model=g_model,
                     google_api_key=gemini_key,
                     temperature=settings.llm_temperature,
+                    max_retries=1,
+                    timeout=20.0,
                 )
 
         # 2. Groq
@@ -302,7 +308,7 @@ class RAGService:
                 if openai_key:
                     provider = "openai"
                 else:
-                    raise RuntimeError("Groq synthesis requires GROQ_API_KEY in .env.")
+                    raise RuntimeError("Groq requires GROQ_API_KEY in .env.")
             else:
                 from langchain_groq import ChatGroq
                 return ChatGroq(
@@ -311,19 +317,16 @@ class RAGService:
                     temperature=settings.llm_temperature,
                 )
 
-        # 3. OpenAI-compatible (DeepSeek, OpenRouter, xkiro, SiliconFlow, OpenAI, vLLM, custom proxy)
+        # 3. OpenAI-compatible (DeepSeek / xkiro / OpenRouter / OpenAI)
         if not openai_key:
             if gemini_key:
                 from langchain_google_genai import ChatGoogleGenerativeAI
                 return ChatGoogleGenerativeAI(
-                    model="gemini-2.0-flash",
+                    model="gemini-flash-lite-latest",
                     google_api_key=gemini_key,
                     temperature=settings.llm_temperature,
                 )
-            raise RuntimeError(
-                "API key required. Set OPENAI_API_KEY, LLM_API_KEY, DEEPSEEK_API_KEY, "
-                "or GEMINI_API_KEY in .env."
-            )
+            raise RuntimeError("API key required. Set OPENAI_API_KEY or GEMINI_API_KEY in .env.")
 
         from langchain_openai import ChatOpenAI
         base_url = settings.get_api_base or None
@@ -331,7 +334,7 @@ class RAGService:
         if base_url and "openrouter" in base_url:
             extra_headers = {"HTTP-Referer": "https://localhost", "X-Title": "LitReview Agent"}
         return ChatOpenAI(
-            model=model_name or "gpt-4o-mini",
+            model=model_name or "deepseek/deepseek-v3.2",
             api_key=openai_key,
             base_url=base_url,
             temperature=settings.llm_temperature,
