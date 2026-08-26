@@ -136,6 +136,19 @@ async def ainvoke_with_failover(
                 kind = classify(exc)
                 errors.append((selection.profile.key, f"{kind.value}: {str(exc)[:200]}"))
 
+                # AUTH/QUOTA/permanent failures already log below with the
+                # context that matters for them. Every other kind (retryable
+                # transient errors) used to fail silently -- the invoker would
+                # retry and eventually move on to another provider with no
+                # trace of what actually went wrong on the first one, which is
+                # exactly the failure this line exists to stop being invisible.
+                if kind not in (FailureKind.AUTH, FailureKind.QUOTA) and not kind.is_permanent:
+                    logger.warning(
+                        "Attempt %d on %s (key %s) failed (%s), retrying: %s",
+                        attempt + 1, selection.profile.key, selection.credential.alias,
+                        kind.value, exc,
+                    )
+
                 if kind is FailureKind.AUTH:
                     selection.credential.disable(f"rejected by {selection.profile.provider}")
                     logger.warning(
