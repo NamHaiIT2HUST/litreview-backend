@@ -604,7 +604,7 @@ export default function WorkspaceTab({
       const response = await safeFetch('/workspace/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: questionText, paper_ids: paperIds }),
+        body: JSON.stringify({ message: questionText, paper_ids: paperIds, project_id: activeProject?.id || null }),
       });
       if (response.ok) {
         const data = await response.json();
@@ -621,7 +621,7 @@ export default function WorkspaceTab({
       console.error('Failed to trigger chat response from synthesis prompt:', err);
     }
   };  return (
-    <div className="flex flex-col gap-4 h-screen p-4 overflow-hidden font-sans text-surface-900 dark:text-surface-100">
+    <div className="flex flex-col gap-4 h-[calc(100vh-4rem)] p-4 overflow-hidden font-sans text-surface-900 dark:text-surface-100">
       <div className="flex flex-col lg:flex-row gap-4 flex-1 min-h-0">
       
       {/* ── LEFT: Sources Panel ── */}

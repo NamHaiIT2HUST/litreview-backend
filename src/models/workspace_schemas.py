@@ -53,6 +53,13 @@ class WorkspaceChatRequest(BaseModel):
     paper_id: str | None = None
     paper_ids: list[str] | None = None
     papers_data: list[dict[str, Any]] | None = None
+    # When paper_ids is empty, the backend falls back to "every paper in the
+    # workspace" -- without project_id that fallback previously meant every
+    # direct-upload paper for every user in the whole database, so one
+    # project's chat could answer from another project's (or another user's)
+    # documents. Required for the fallback path; optional only so the request
+    # still validates before every caller is migrated to send it.
+    project_id: str | None = None
 
 
 class CitationEntry(BaseModel):

@@ -809,6 +809,8 @@ async def direct_upload_json(
     )
     db.add(paper)
 
+    from langchain_core.documents import Document
+
     pages_docs = []
     for idx, page_content in enumerate(payload.pages):
         pages_docs.append(
@@ -1013,19 +1015,27 @@ async def workspace_chat(
         # Bước 1: Xác định danh sách paper_ids mục tiêu
         target_pids = request.paper_ids if getattr(request, "paper_ids", None) else ([request.paper_id] if getattr(request, "paper_id", None) else [])
 
-        # Nếu frontend không truyền paper_ids (hoặc rỗng), tự động lấy tất cả paper trong workspace
+        # Nếu frontend không truyền paper_ids (hoặc rỗng), tự động lấy tất cả paper
+        # trong ĐÚNG project hiện tại. Thiếu điều kiện lọc project_id ở đây từng
+        # khiến câu hỏi của một project trả lời bằng tài liệu direct-upload của
+        # BẤT KỲ project/người dùng nào khác trong toàn hệ thống.
         if not target_pids:
-            try:
-                from src.models.db_models import ScreeningHistory
-                stmt = select(Paper.id).outerjoin(
-                    ScreeningHistory, Paper.id == ScreeningHistory.paper_id
-                ).where(
-                    (ScreeningHistory.decision.in_(["keep", "maybe"])) | (Paper.source == "direct_upload")
-                )
-                all_papers_result = await db.execute(stmt)
-                target_pids = [str(r[0]) for r in all_papers_result.fetchall()]
-            except Exception:
+            if not request.project_id:
                 target_pids = []
+            else:
+                try:
+                    from src.models.db_models import ScreeningHistory
+                    project_uuid = _resolve_project_id(request.project_id)
+                    stmt = select(Paper.id).outerjoin(
+                        ScreeningHistory, Paper.id == ScreeningHistory.paper_id
+                    ).where(
+                        Paper.project_id == project_uuid,
+                        (ScreeningHistory.decision.in_(["keep", "maybe"])) | (Paper.source == "direct_upload"),
+                    )
+                    all_papers_result = await db.execute(stmt)
+                    target_pids = [str(r[0]) for r in all_papers_result.fetchall()]
+                except Exception:
+                    target_pids = []
 
         chunks = []
         from sqlalchemy import String
