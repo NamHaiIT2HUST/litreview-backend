@@ -1570,7 +1570,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
               <button
                 onClick={() => { setAiScreeningPaper(null); setAiScreeningResult(null); }}
                 className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors font-bold"
-                title="Đóng cửa sổ (X)"
+                title="Đóng cửa sổ"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1704,7 +1704,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                 onClick={() => { setAiScreeningPaper(null); setAiScreeningResult(null); }}
                 className="px-5 py-2.5 rounded-xl text-xs font-bold bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 transition-colors"
               >
-                Đóng (X)
+                Đóng
               </button>
             </div>
           </div>
@@ -2575,7 +2575,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                 onClick={() => { setGenealogyPaper(null); setGenealogyData(null); }}
                 className="px-6 py-2.5 rounded-xl text-xs font-bold bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 transition-colors"
               >
-                Đóng (X)
+                Đóng
               </button>
             </div>
           </div>
