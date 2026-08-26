@@ -10,7 +10,7 @@ import PaperTable from './PaperTable';
 import { exportPapersToExcel } from '../../utils/excelExport';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useProject } from '../../contexts/ProjectContext';
-import { API_BASE } from '../../utils/apiConfig';
+import { API_BASE, safeFetch } from '../../utils/apiConfig';
 const DEFAULT_PROJECT_ID = '00000000-0000-0000-0000-000000000001';
 
 function dbPaperToPaperSchema(dbPaper) {
