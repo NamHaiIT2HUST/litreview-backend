@@ -26,7 +26,8 @@ import {
   BarChart2,
   MessageSquare,
   ShieldCheck,
-  Clock
+  Clock,
+  X
 } from 'lucide-react';
 
 import { API_BASE, safeFetch } from '../../utils/apiConfig';
