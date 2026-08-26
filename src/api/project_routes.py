@@ -2,10 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from uuid import UUID
-from typing import Optional
-import json
+import logging
 import re
-import os
+
+from pydantic import BaseModel, Field
 
 from src.api.deps import AuthenticatedUser, get_current_user
 from src.database import get_db
@@ -17,7 +17,6 @@ from src.models.project_schemas import (
     KeywordSuggestionResponse
 )
 from src.models.schemas import PaperRecord
-from src.services.rag_service import rag_service
 
 router = APIRouter()
 
@@ -185,7 +184,23 @@ async def get_project_papers(
     p_uuid = _resolve_project_id(project_id)
     stmt = select(Paper).where(Paper.project_id == p_uuid)
     if not include_unverified:
-        stmt = stmt.where(or_(Paper.scopus_status == "indexed", Paper.source == "direct_upload"))
+        # "undetermined" is included deliberately. It means the journal was not
+        # found in the local Scopus source table, which is a statement about our
+        # data rather than about the paper -- most obviously on a deployment
+        # where that table has not been imported at all.
+        #
+        # Excluding it used to make the list look empty, and the workaround for
+        # that was in scopus_matcher: guess "indexed" from the publisher name
+        # and invent a quartile. Showing the paper with an honest "not verified"
+        # status is the version of that fix which does not put fabricated
+        # rankings in the database.
+        stmt = stmt.where(
+            or_(
+                Paper.scopus_status == "indexed",
+                Paper.scopus_status == "undetermined",
+                Paper.source == "direct_upload",
+            )
+        )
     if decision:
         stmt = stmt.where(Paper.screening_decision == decision)
         
@@ -322,92 +337,37 @@ Return ONLY a JSON array of exactly 7 strings. All in English. Mix individual ke
 Example: ["ECG classification 1D CNN", "one-dimensional convolutional neural network electrocardiogram", "1D CNN arrhythmia detection", "deep learning ECG signal", "time-series classification neural network", "ECG AND \\"1D CNN\\" AND classification", "cardiac signal deep learning model"]
 """
 
-    # Determine Gemini API key: header > .env GEMINI_API_KEY > .env GOOGLE_API_KEY
-    from src.config import get_settings
-    settings = get_settings()
-    gemini_key = x_gemini_key if isinstance(x_gemini_key, str) else ""
-    gemini_key = gemini_key.strip()
-    if not gemini_key:
-        gemini_key = settings.effective_gemini_api_key
+    # One call through the router. This handler previously carried its own
+    # provider selection (an openai-or-gemini flag derived from whether
+    # settings.model_name contained "gpt"), two near-identical response-parsing
+    # blocks, and a catch-all that turned any failure into keywords = [] --
+    # indistinguishable from "the model had no suggestions".
+    from src.services.llm import NoCapableProviderError, ainvoke_with_failover
 
-    keywords: list[str] = []
+    class _Keywords(BaseModel):
+        keywords: list[str] = Field(default_factory=list, max_length=7)
 
-    # Decide provider
-    use_openai = False
-    if settings.openai_api_key and (
-        "gpt" in settings.model_name.lower() or not gemini_key
-    ):
-        use_openai = True
-
-    if use_openai:
-        try:
-            from langchain_openai import ChatOpenAI
-            llm = ChatOpenAI(
-                model=settings.model_name,
-                openai_api_key=settings.openai_api_key,
-                openai_api_base=settings.get_api_base or None,
-                temperature=0.0
-            )
-            # Use sync invoke since it's cleaner in this handler
-            response = llm.invoke(prompt)
-            content = response.content.strip()
-
-            # Clean markdown fences and extract JSON
-            try:
-                json_match = re.search(r'\[.*\]', content, re.DOTALL)
-                if json_match:
-                    content = json_match.group(0)
-                parsed = json.loads(content)
-                if isinstance(parsed, list):
-                    keywords = [str(x) for x in parsed][:7]
-                else:
-                    keywords = []
-            except json.JSONDecodeError as je:
-                import logging
-                logging.getLogger(__name__).warning(f"Failed to parse JSON from OpenAI: {content} - Error: {je}")
-                keywords = []
-        except Exception as e:
-            import logging
-            logging.getLogger(__name__).warning(f"OpenAI keyword generation failed: {e}")
-
-    elif gemini_key:
-        try:
-            from google import genai
-
-            client = genai.Client(api_key=gemini_key)
-            gemini_model = settings.model_name
-            if "gemini" not in gemini_model.lower():
-                gemini_model = "gemini-1.5-flash"
-
-            response = client.models.generate_content(
-                model=gemini_model,
-                contents=prompt,
-            )
-            content = response.text.strip()
-
-            # Clean markdown fences and extract JSON
-            try:
-                # Attempt to find JSON array anywhere in the text
-                json_match = re.search(r'\[.*\]', content, re.DOTALL)
-                if json_match:
-                    content = json_match.group(0)
-                parsed = json.loads(content)
-                if isinstance(parsed, list):
-                    keywords = [str(x) for x in parsed][:7]
-                else:
-                    keywords = []
-            except json.JSONDecodeError as je:
-                import logging
-                logging.getLogger(__name__).warning(f"Failed to parse JSON: {content} - Error: {je}")
-                keywords = []
-        except Exception as e:
-            import logging
-            logging.getLogger(__name__).warning(f"Gemini keyword generation failed: {e}")
-    else:
-        import logging
-        logging.getLogger(__name__).warning(
-            "No API key available for OpenAI/Gemini. Using fallback keywords."
+    try:
+        result, outcome = await ainvoke_with_failover(
+            "generate_keywords",
+            lambda client: client.with_structured_output(_Keywords),
+            [("human", prompt)],
+            temperature=0.0,
         )
+        keywords = [k for k in result.keywords if k.strip()][:7]
+        logging.getLogger(__name__).info(
+            "Keywords generated by %s (key %s).",
+            outcome.selection.profile.key, outcome.selection.credential.alias,
+        )
+    except NoCapableProviderError:
+        # Deliberately not fatal for this endpoint: suggestions are an
+        # assistive feature and the researcher can type their own terms. The
+        # fallback list is generic-but-honest, derived from the request rather
+        # than invented by a model.
+        logging.getLogger(__name__).warning(
+            "No LLM provider available for keyword suggestions; using fallback terms."
+        )
+        keywords = []
 
     if not keywords:
         keywords = _fallback_keywords(request)

@@ -1,4 +1,4 @@
-# Trạng thái thi công — Giai đoạn 0–3
+# Trạng thái thi công — Giai đoạn 0–5
 
 Nhánh: `docs/system-contracts-audit-and-plan`. Cập nhật 2026-08-26.
 
@@ -15,11 +15,11 @@ Kế hoạch đầy đủ ở [SYSTEM_CONTRACTS.md](./SYSTEM_CONTRACTS.md). Tài
 | 1 — Chặn đốt tiền | Xong |
 | 2 — Chuẩn hóa môi trường | Xong, trừ việc hợp nhất Alembic (xem "Cố ý hoãn") |
 | 3 — Vector Index contract | Xong |
-| 4 — LLM Router | Chưa bắt đầu |
-| 5 — API contract | Chưa bắt đầu |
-| 6 — Synthesis | Chưa bắt đầu |
+| 4 — LLM Router | Xong (đã chuyển 3 call site sang router) |
+| 5 — API contract & dọn nợ | Xong phần toàn vẹn dữ liệu; contract test còn lại |
+| 6 — Synthesis | Chưa bắt đầu (tạm gác theo yêu cầu) |
 
-**Test:** 9 failed / 602 passed → **1 failed / 625 passed**. Lỗi còn lại
+**Test:** 9 failed / 602 passed → **1 failed / 668 passed**. Lỗi còn lại
 (`test_agent_basic_flow`) đã có từ trước nhánh này, không liên quan các thay đổi ở đây.
 
 **Frontend:** `npm run build` chạy được, đã kiểm tra tại chỗ.
@@ -240,3 +240,94 @@ thất bại. Cần đặt key thật, hoặc tắt tính năng LLM cho tới kh
 
 **Đổi mật khẩu bất kỳ tài khoản `admin123` nào đang tồn tại trong DB.** Nhánh này ngừng
 *tạo* tài khoản đó, nhưng không xóa tài khoản đã có.
+
+
+---
+
+## Giai đoạn 4 — LLM Router
+
+Module mới `src/services/llm/`:
+
+| File | Vai trò |
+|---|---|
+| `registry.py` | **Nơi duy nhất** chứa tên model. 10 model, kèm context window và khả năng structured output |
+| `capability.py` | 20 task khai báo yêu cầu (`json_schema`, `min_context`, `tool_calling`) |
+| `credentials.py` | Nhiều key mỗi provider, round-robin xác định, có bí danh; key 429 bị ngưng tạm, key 401 bị vô hiệu |
+| `errors.py` | Phân loại `QUOTA` / `AUTH` / `PERMISSION` / `NOT_FOUND` / `BAD_REQUEST` / `TRANSIENT` |
+| `router.py` | `select(task)` — capability gate, thứ tự do `LLM_PROVIDER_PRIORITY` |
+| `invoker.py` | `ainvoke_with_failover` + `CallBudget` |
+
+Cách dùng, ở mọi nơi:
+
+```python
+from src.services.llm import ainvoke_with_failover
+result, outcome = await ainvoke_with_failover("generate_criteria", build_runner, messages)
+```
+
+Log mỗi lần chọn provider giải thích chính nó:
+
+```
+llm.select task=extract_evidence needs=json_schema ctx>=32000
+  skipped=groq(no credential configured (GROQ_API_KEY is unset))
+  selected=gemini:gemini-2.0-flash key=lien
+```
+
+### Chi phí — đo bằng test, không phải ước lượng
+
+| Tình huống | Trước | Sau |
+|---|---|---|
+| Key sai (401) | tới 24 lệnh gọi tính phí | 1 lệnh gọi mỗi key rồi chuyển |
+| Model không tồn tại (404) | tới 24 | **1**, không thử provider khác |
+| Không có key nào | vẫn dựng `sk-placeholder`, 24 lệnh gọi | **0** |
+| Chạy loạn | không giới hạn | `CallBudget` chặn |
+
+28 test trong `tests/test_services/test_llm_router.py` khẳng định các con số này.
+
+### Cấu hình mới
+
+```env
+LLM_PROVIDER_PRIORITY=gemini,groq,openai
+
+# Nhiều key một provider, có bí danh để truy vết log
+GEMINI_API_KEYS=lien:AIza...,huyen:AIza...,team:AIza...
+
+# Model tách khỏi credential — đổi key KHÔNG đổi model
+GEMINI_MODEL=gemini-2.0-flash
+OPENAI_MODEL=gpt-4o-mini
+```
+
+Mỗi người đặt `LLM_PROVIDER_PRIORITY` riêng trong `.env` local — không đụng file chung, không conflict khi merge.
+
+### Call site đã chuyển
+
+| File | Trước |
+|---|---|
+| `criteria_generator.py` | 5 client tự dựng, `keys[1]`, lỗi trả trong `criteria_include` |
+| `scope_optimizer.py` | 5 client tự dựng, `keys[0]`, lỗi trả trong `feedback` |
+| `project_routes.py` (keywords) | cờ openai-hay-gemini theo tên model, 2 khối parse, lỗi → `[]` |
+
+### Còn lại của Giai đoạn 4
+
+`rag_service.py`, `synthesis_llm_service.py`, `deps_provider.py`, `gap_finder.py` vẫn giữ cascade riêng. Chúng đã nhận bản vá phân loại lỗi ở Giai đoạn 1 nên không còn đốt tiền như trước, nhưng chưa đi qua router. Chuyển từng file một, mỗi file một PR.
+
+---
+
+## Giai đoạn 5 — Toàn vẹn dữ liệu
+
+**Bỏ chỗ bịa quartile Scopus.** `scopus_matcher.py` khi không tìm thấy tạp chí trong bảng nguồn thì đoán `scopus_status="indexed"` và gán `Q1`/`Q2` theo số trích dẫn, kèm comment *"to look professional"*. Docstring của **chính module đó** (dòng 19-24) đã ghi rõ quartile phải luôn là None vì file nguồn Scopus không có cột quartile — cùng kiểu vi phạm như docstring của `build_embeddings`. Giờ trả `undetermined` + quartile None.
+
+Kèm theo: bộ lọc danh sách paper nhận cả `undetermined`, nếu không danh sách sẽ trống — đó chính là lý do heuristic bịa kia ra đời. Hiển thị paper với trạng thái "chưa xác thực" là cách sửa đúng, không phải nhét thứ hạng bịa vào DB.
+
+**Bỏ ID Scopus bịa.** `main.py` seed 24 tạp chí với `sourcerecord_id` tự chế (`"12345678901"` cho PLOS ONE, một dãy MDPI đánh số liên tiếp). Giờ dùng tiền tố `seed:` không thể nhầm với ID Scopus thật, quartile để None.
+
+**Xóa hàm trùng tên.** `scholar_api.py` có hai `search_papers_semanticscholar`; bản sau đè bản trước lúc import. Bản chết có chữ ký `(query, api_key=None, limit=10)` trong khi call site truyền `limit` ở vị trí thứ hai — nếu nó là bản sống thì `limit` sẽ bị nhận làm API key. Cascade 429→OpenAlex của nó đã có sẵn trong `search_papers_auto`.
+
+**`except Exception: pass`**: 55 → 44.
+
+**Structured error** cho `NO_CAPABLE_LLM_PROVIDER` (503), `LLM_BUDGET_EXCEEDED` (429), `PDF_INGESTION_FAILED` (422).
+
+### Còn lại của Giai đoạn 5
+
+- Contract test / Zod validation cho response schema (mục 11.3–11.4) — chưa làm.
+- 44 vị trí `except Exception: pass` còn lại chưa rà từng cái.
+- 894 lỗi ruff có sẵn vẫn làm CI đỏ — vẫn nên để một commit riêng.
