@@ -60,68 +60,39 @@ from src.agents.slr_swarm.ports import LLMPort
 from src.config import get_settings
 
 class RealLLMAdapter(LLMPort):
+    """Backs the PICO/Gap-Finder agent (Agent 3 in the Research Setup tab).
+
+    Used to build its own cascade of up to 5 hand-instantiated clients,
+    independent of :mod:`src.services.llm` -- so it always tried the "lite"
+    Gemini models first regardless of ``GEMINI_MODEL``, and its per-agent key
+    (``GEMINI_KEY_PICO``) was read ad hoc instead of through the same
+    dedicated-key mechanism Agents 1 and 2 use. That made the three "identical"
+    agents in the UI behave by three different rules. Routing through
+    :func:`ainvoke_with_failover` gives all three the same model, the same
+    dedicated-key precedence, and the same quota/auth failover behaviour.
+    """
+
     async def complete(self, prompt: str, *, schema: dict | None = None) -> str:
         if schema:
             prompt += f"\n\nOutput MUST be valid JSON matching this schema:\n{json.dumps(schema)}"
 
-        from src.config import get_settings
-        s = get_settings()
-        keys = s.all_gemini_api_keys
-        gemini_key = (os.getenv("GEMINI_KEY_PICO") or (keys[2] if len(keys) > 2 else (keys[0] if len(keys) > 0 else "")) or s.gemini_api_key or os.getenv("GOOGLE_API_KEY") or "").strip()
-        groq_key = (os.getenv("GROQ_API_KEY") or s.groq_api_key or "").strip()
-        openai_key = (os.getenv("OPENAI_API_KEY") or s.effective_openai_api_key or s.openai_api_key or "").strip()
-
-        llm_candidates = []
-        if gemini_key:
-            from langchain_google_genai import ChatGoogleGenerativeAI
-            for m in ["gemini-flash-lite-latest", "gemini-3.5-flash-lite", "gemini-flash-latest"]:
-                try:
-                    llm_candidates.append(ChatGoogleGenerativeAI(model=m, google_api_key=gemini_key, temperature=0.3, max_retries=1))
-                except Exception:
-                    pass
-
-        if groq_key:
-            try:
-                from langchain_groq import ChatGroq
-                llm_candidates.append(ChatGroq(model="llama-3.3-70b-versatile", groq_api_key=groq_key, temperature=0.3, max_retries=1))
-            except Exception:
-                pass
-
-        if openai_key:
-            try:
-                from langchain_openai import ChatOpenAI
-                llm_candidates.append(ChatOpenAI(
-                    model=s.effective_model_name or "deepseek/deepseek-v3.2",
-                    openai_api_key=openai_key,
-                    base_url=s.get_api_base or None,
-                    temperature=0.3,
-                    max_retries=1,
-                    timeout=10,
-                ))
-            except Exception:
-                pass
+        from src.services.llm import ainvoke_with_failover
 
         try:
-            from src.services.synthesis_llm_service import synthesis_llm_service
-            fallback_llm = synthesis_llm_service._get_llm()
-            if fallback_llm:
-                llm_candidates.append(fallback_llm)
-        except Exception:
-            pass
-
-        import asyncio
-        for llm in llm_candidates:
-            try:
-                msg = await asyncio.wait_for(llm.ainvoke([("human", prompt)]), timeout=10.0)
-                content = msg.content if hasattr(msg, "content") else str(msg)
-                if isinstance(content, list):
-                    return "".join(part.get("text", "") for part in content if isinstance(part, dict))
-                return str(content)
-            except Exception as e:
-                import logging
-                logging.getLogger(__name__).warning(f"RealLLMAdapter candidate error: {e}")
-
-        return "{}"
+            result, _outcome = await ainvoke_with_failover(
+                "find_gaps",
+                lambda client: client,
+                [("human", prompt)],
+                temperature=0.3,
+            )
+            content = result.content if hasattr(result, "content") else str(result)
+            if isinstance(content, list):
+                return "".join(part.get("text", "") for part in content if isinstance(part, dict))
+            return str(content)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"RealLLMAdapter failover call failed: {e}")
+            return "{}"
 
 from src.services.search_service import get_serpapi_count
 from src.agents.slr_swarm.ports import SearchPort
