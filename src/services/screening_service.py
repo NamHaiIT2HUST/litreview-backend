@@ -1,6 +1,4 @@
-import json
 import datetime
-import asyncio
 import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -109,90 +107,29 @@ Tóm tắt (Abstract): {abstract}
 }}
 """
     
-    import os
-    from src.config import get_settings
-    s = get_settings()
-    
-    gemini_keys = s.all_gemini_api_keys
-    gemini_key = (os.getenv("GEMINI_KEY_PICO") or (gemini_keys[0] if len(gemini_keys) > 0 else "") or s.gemini_api_key or os.getenv("GEMINI_API_KEY") or "").strip()
-    groq_key = (os.getenv("GROQ_API_KEY") or s.groq_api_key or "").strip()
-    openai_key = (os.getenv("OPENAI_API_KEY") or s.effective_openai_api_key or s.openai_api_key or "").strip()
-
-    llm_candidates = []
-    if gemini_key:
-        from langchain_google_genai import ChatGoogleGenerativeAI
-        for m in ["gemini-flash-lite-latest", "gemini-3.5-flash-lite", "gemini-flash-latest"]:
-            try:
-                llm_candidates.append(ChatGoogleGenerativeAI(model=m, google_api_key=gemini_key, temperature=0.2, max_retries=1))
-            except Exception:
-                pass
-
-    if groq_key:
-        try:
-            from langchain_groq import ChatGroq
-            llm_candidates.append(ChatGroq(model="llama-3.3-70b-versatile", groq_api_key=groq_key, temperature=0.2, max_retries=1))
-        except Exception:
-            pass
-
-    if openai_key:
-        try:
-            from langchain_openai import ChatOpenAI
-            llm_candidates.append(ChatOpenAI(
-                model=s.effective_model_name or "deepseek/deepseek-v3.2",
-                openai_api_key=openai_key,
-                base_url=s.get_api_base or None,
-                temperature=0.2,
-                max_retries=1,
-                timeout=10,
-            ))
-        except Exception:
-            pass
+    # Used to build its own cascade of up to 5 hand-instantiated clients with
+    # a hardcoded, gradually-deprecated model list and its own key resolution
+    # order -- the same duplicated pattern that made the three Research Setup
+    # agents behave by three different rules. Routing through the shared
+    # ainvoke_with_failover gives screening the same model/key/failover
+    # behaviour as everything else, and a model rename only has to happen once.
+    from src.services.llm import ainvoke_with_failover
 
     try:
-        from src.services.synthesis_llm_service import synthesis_llm_service
-        fallback_llm = synthesis_llm_service._get_llm()
-        if fallback_llm:
-            llm_candidates.append(fallback_llm)
-    except Exception:
-        pass
-
-    last_error = None
-    for candidate in llm_candidates:
-        try:
-            msg = await asyncio.wait_for(candidate.ainvoke([("human", prompt)]), timeout=10.0)
-            content = msg.content if hasattr(msg, "content") else str(msg)
-            if isinstance(content, list):
-                content = "".join(part.get("text", "") for part in content if isinstance(part, dict))
-            content = str(content).strip()
-
-            if "```json" in content:
-                content = content.split("```json")[1].split("```")[0].strip()
-            elif "```" in content:
-                content = content.split("```")[1].split("```")[0].strip()
-                
-            data = json.loads(content)
-            bucket = data.get("relevance_bucket", "high")
-            if bucket not in ["high", "medium", "low", "insufficient_info"]:
-                bucket = "high"
-                
-            return ScreenResponse(
-                relevance_bucket=bucket,
-                reason=data.get("reason", {
-                    "matches": [f"Bài báo '{paper.title}' phù hợp với hướng nghiên cứu."],
-                    "mismatches": ["Không phát hiện vi phạm tiêu chí loại trừ."],
-                    "exclusion_notes": []
-                })
-            )
-        except Exception as e:
-            last_error = e
-            logger.warning(f"Screening candidate failed ({type(candidate).__name__}): {e}")
-
-    logger.error(f"All screening candidates failed. Last error: {last_error}")
-    return ScreenResponse(
-        relevance_bucket="insufficient_info",
-        reason={
-            "matches": [],
-            "mismatches": ["Hệ thống AI đang gặp tải cao hoặc gián đoạn mạng tạm thời. Vui lòng thử lại sau giây lát."],
-            "exclusion_notes": []
-        }
-    )
+        result, _outcome = await ainvoke_with_failover(
+            "screen_paper",
+            lambda client: client.with_structured_output(ScreenResponse),
+            [("human", prompt)],
+            temperature=0.2,
+        )
+        return result
+    except Exception as e:
+        logger.error(f"Screening LLM call failed: {e}")
+        return ScreenResponse(
+            relevance_bucket="insufficient_info",
+            reason={
+                "matches": [],
+                "mismatches": ["Hệ thống AI đang gặp tải cao hoặc gián đoạn mạng tạm thời. Vui lòng thử lại sau giây lát."],
+                "exclusion_notes": []
+            }
+        )

@@ -9,7 +9,6 @@ Heatmap được dựng bằng cách *đo thật*: với mỗi ô (trục X × t
 
 from __future__ import annotations
 
-import asyncio
 import json
 
 from src.agents.slr_swarm.contracts import GapCell, GapMap, PICOFrame
@@ -187,85 +186,20 @@ async def run_gap_finder(state: dict, deps: SwarmDeps) -> dict:
         data = json.loads(content)
 
     if not data:
+        # The primary call above already went through ainvoke_with_failover,
+        # which tries every configured provider with its own retry budget --
+        # a second hand-rolled cascade of Gemini/Groq/OpenAI clients here
+        # (this used to build one) would just retry the same exhausted
+        # providers a second time under a different key-lookup order. LoRA is
+        # a genuinely distinct model, worth one more try; past that, the
+        # keyword-extraction heuristic below is the honest fallback.
         from src.services.lora_client import call_lora_model
         lora_instruction = "Extract PICO structure (Population, Intervention, Comparison, Outcome) and keywords in English."
         lora_input = f"Domain: {research_field}\nTopic: {idea}\nInclude: {criteria_include}\nExclude: {criteria_exclude}"
-        
+
         lora_result = await call_lora_model("lora_agent3_pico", lora_instruction, lora_input)
         if lora_result and isinstance(lora_result, dict) and lora_result.get("search_keywords"):
             data = lora_result
-        else:
-            from src.config import get_settings
-            s = get_settings()
-            import os
-            keys = s.all_gemini_api_keys
-            gemini_key = (os.getenv("GEMINI_KEY_PICO") or (keys[2] if len(keys) > 2 else (keys[0] if len(keys) > 0 else "")) or s.gemini_api_key or os.getenv("GOOGLE_API_KEY") or "").strip()
-            groq_key = (os.getenv("GROQ_API_KEY") or s.groq_api_key or "").strip()
-            openai_key = (os.getenv("OPENAI_API_KEY") or s.effective_openai_api_key or s.openai_api_key or "").strip()
-
-            llm_candidates = []
-            if gemini_key:
-                from langchain_google_genai import ChatGoogleGenerativeAI
-                for m in ["gemini-flash-lite-latest", "gemini-3.5-flash-lite", "gemini-flash-latest"]:
-                    try:
-                        llm_candidates.append(ChatGoogleGenerativeAI(model=m, google_api_key=gemini_key, temperature=0.3, max_retries=1))
-                    except Exception:
-                        pass
-
-            if groq_key:
-                try:
-                    from langchain_groq import ChatGroq
-                    llm_candidates.append(ChatGroq(model="llama-3.3-70b-versatile", groq_api_key=groq_key, temperature=0.3, max_retries=1))
-                except Exception:
-                    pass
-
-            if openai_key:
-                try:
-                    from langchain_openai import ChatOpenAI
-                    llm_candidates.append(ChatOpenAI(
-                        model=s.effective_model_name or "deepseek/deepseek-v3.2",
-                        openai_api_key=openai_key,
-                        base_url=s.get_api_base or None,
-                        temperature=0.3,
-                        max_retries=1,
-                        timeout=10,
-                    ))
-                except Exception:
-                    pass
-
-            try:
-                from src.services.synthesis_llm_service import synthesis_llm_service
-                fallback_llm = synthesis_llm_service._get_llm()
-                if fallback_llm:
-                    llm_candidates.append(fallback_llm)
-            except Exception:
-                pass
-
-            import asyncio
-            for candidate in llm_candidates:
-                try:
-                    prompt = _PROMPT.format(
-                        idea=idea,
-                        research_field=research_field or "Computer Science / Artificial Intelligence",
-                        criteria_include=criteria_include,
-                        criteria_exclude=criteria_exclude
-                    )
-                    msg = await asyncio.wait_for(candidate.ainvoke([("human", prompt)]), timeout=10.0)
-                    content = msg.content if hasattr(msg, "content") else str(msg)
-                    if isinstance(content, list):
-                        content = "".join(part.get("text", "") for part in content if isinstance(part, dict))
-                    content = str(content).strip()
-                    if "```json" in content:
-                        content = content.split("```json")[1].split("```")[0].strip()
-                    elif "```" in content:
-                        content = content.split("```")[1].split("```")[0].strip()
-                    data = json.loads(content)
-                    if data and isinstance(data, dict) and data.get("search_keywords"):
-                        break
-                except Exception as e:
-                    import logging
-                    logging.getLogger(__name__).warning(f"Gap Finder candidate error: {e}")
-                    data = None
 
     if not isinstance(data, dict):
         data = {}

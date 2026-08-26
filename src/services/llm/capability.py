@@ -73,6 +73,8 @@ TASK_REGISTRY: dict[str, LLMCapability] = {
     # ---- Free-form ----
     "rag_chat": LLMCapability(json_schema=False, min_context=32_000),
     "eval_judge": LLMCapability(json_schema=False, min_context=32_000),
+    # Prompt can carry a paper's entire extracted full text (up to ~200k chars).
+    "paper_summary": LLMCapability(json_schema=False, min_context=128_000),
 }
 
 

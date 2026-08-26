@@ -6,6 +6,7 @@ không cần API key. Khi có vLLM/Ollama + SerpApi thật, chỉ cần thay
 """
 
 from __future__ import annotations
+import logging
 import os
 import time
 
@@ -25,6 +26,7 @@ from src.agents.slr_swarm.kpi import compute_kpi, estimated_cost_saved
 from src.config import get_settings
 
 router = APIRouter(prefix="/slr-swarm", tags=["slr-swarm"])
+logger = logging.getLogger(__name__)
 
 def _is_real() -> bool:
     is_test = bool(os.environ.get("PYTEST_CURRENT_TEST")) or get_settings().app_env == "test"
@@ -396,82 +398,36 @@ Return ONLY a valid JSON object with EXACTLY these keys:
   }}
 }}
 """
-    import os
     import json
-    import asyncio
-    from src.config import get_settings
-    s = get_settings()
-
-    gemini_keys = s.all_gemini_api_keys
-    gemini_key = (os.getenv("GEMINI_KEY_PICO") or (gemini_keys[0] if len(gemini_keys) > 0 else "") or s.gemini_api_key or os.getenv("GEMINI_API_KEY") or "").strip()
-    groq_key = (os.getenv("GROQ_API_KEY") or s.groq_api_key or "").strip()
-    openai_key = (os.getenv("OPENAI_API_KEY") or s.effective_openai_api_key or s.openai_api_key or "").strip()
-
-    llm_candidates = []
-    if gemini_key:
-        from langchain_google_genai import ChatGoogleGenerativeAI
-        for m in ["gemini-flash-lite-latest", "gemini-3.5-flash-lite", "gemini-flash-latest"]:
-            try:
-                llm_candidates.append(ChatGoogleGenerativeAI(model=m, google_api_key=gemini_key, temperature=0.3, max_retries=1))
-            except Exception:
-                pass
-
-    if groq_key:
-        try:
-            from langchain_groq import ChatGroq
-            llm_candidates.append(ChatGroq(model="llama-3.3-70b-versatile", groq_api_key=groq_key, temperature=0.3, max_retries=1))
-        except Exception:
-            pass
-
-    if openai_key:
-        try:
-            from langchain_openai import ChatOpenAI
-            llm_candidates.append(ChatOpenAI(
-                model=s.effective_model_name or "deepseek/deepseek-v3.2",
-                openai_api_key=openai_key,
-                base_url=s.get_api_base or None,
-                temperature=0.3,
-                max_retries=1,
-                timeout=10,
-            ))
-        except Exception:
-            pass
+    from src.services.llm import ainvoke_with_failover
 
     try:
-        from src.services.synthesis_llm_service import synthesis_llm_service
-        fallback_llm = synthesis_llm_service._get_llm()
-        if fallback_llm:
-            llm_candidates.append(fallback_llm)
-    except Exception:
-        pass
+        msg, _outcome = await ainvoke_with_failover(
+            "paper_summary",
+            lambda client: client,
+            [("human", prompt)],
+            temperature=0.3,
+        )
+        raw_text = msg.content if hasattr(msg, "content") else str(msg)
+        if isinstance(raw_text, list):
+            raw_text = "".join(part.get("text", "") for part in raw_text if isinstance(part, dict))
+        raw_text = str(raw_text).strip()
+        if "```json" in raw_text:
+            raw_text = raw_text.split("```json")[1].split("```")[0].strip()
+        elif "```" in raw_text:
+            raw_text = raw_text.split("```")[1].split("```")[0].strip()
 
-    last_error = None
-    for candidate in llm_candidates:
-        try:
-            msg = await asyncio.wait_for(candidate.ainvoke([("human", prompt)]), timeout=12.0)
-            raw_text = msg.content if hasattr(msg, "content") else str(msg)
-            if isinstance(raw_text, list):
-                raw_text = "".join(part.get("text", "") for part in raw_text if isinstance(part, dict))
-            raw_text = str(raw_text).strip()
-            if "```json" in raw_text:
-                raw_text = raw_text.split("```json")[1].split("```")[0].strip()
-            elif "```" in raw_text:
-                raw_text = raw_text.split("```")[1].split("```")[0].strip()
-                
-            data = json.loads(raw_text.strip())
-            return data
-        except Exception as e:
-            last_error = e
-            logger.warning(f"Paper summary candidate failed ({type(candidate).__name__}): {e}")
-
-    return {
-        "error": str(last_error),
-        "tldr": "Hệ thống AI đang gặp tải cao hoặc gián đoạn mạng tạm thời. Vui lòng bấm thử lại sau giây lát.",
-        "objective": "Không thể kết nối tới AI",
-        "methodology": "Không thể kết nối tới AI",
-        "dataset": "Không thể kết nối tới AI",
-        "key_findings": "Không thể kết nối tới AI",
-        "limitations": "Không thể kết nối tới AI",
-        "reliability_metrics": {}
-    }
+        return json.loads(raw_text.strip())
+    except Exception as e:
+        logger.warning(f"Paper summary LLM call failed: {e}")
+        return {
+            "error": str(e),
+            "tldr": "Hệ thống AI đang gặp tải cao hoặc gián đoạn mạng tạm thời. Vui lòng bấm thử lại sau giây lát.",
+            "objective": "Không thể kết nối tới AI",
+            "methodology": "Không thể kết nối tới AI",
+            "dataset": "Không thể kết nối tới AI",
+            "key_findings": "Không thể kết nối tới AI",
+            "limitations": "Không thể kết nối tới AI",
+            "reliability_metrics": {}
+        }
 
