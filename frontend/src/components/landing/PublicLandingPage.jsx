@@ -831,21 +831,29 @@ export default function PublicLandingPage({ onOpenAuth }) {
       const currentScroll = window.scrollY;
       setScrollY(currentScroll);
 
+      // If reached bottom of page, activate last section (acknowledgments)
+      if ((window.innerHeight + window.scrollY) >= document.documentElement.scrollHeight - 80) {
+        setActiveSection('acknowledgments');
+        return;
+      }
+
       // Determine active section for scrollytelling navigator
-      const sections = ['hero', 'simulator', 'agents', 'matrix', 'prisma', 'demo-accounts', 'faq'];
+      const sections = ['hero', 'simulator', 'agents', 'matrix', 'prisma', 'demo-accounts', 'faq', 'team', 'acknowledgments'];
+      let current = 'hero';
       for (const sId of sections) {
         const el = document.getElementById(sId);
         if (el) {
           const rect = el.getBoundingClientRect();
-          if (rect.top <= window.innerHeight * 0.45 && rect.bottom >= window.innerHeight * 0.15) {
-            setActiveSection(sId);
-            break;
+          if (rect.top <= window.innerHeight * 0.45) {
+            current = sId;
           }
         }
       }
+      setActiveSection(current);
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
