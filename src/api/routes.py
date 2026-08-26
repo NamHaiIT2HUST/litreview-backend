@@ -748,6 +748,105 @@ async def direct_upload_paper_pdf(
     )
 
 
+class DirectUploadJsonRequest(BaseModel):
+    title: str
+    filename: str
+    pages: list[str]
+    project_id: str | None = None
+
+
+@router.post("/workspace/direct-upload-json", response_model=DirectUploadResponse)
+async def direct_upload_json(
+    payload: DirectUploadJsonRequest,
+    db: AsyncSession = Depends(get_db)
+) -> DirectUploadResponse:
+    """Ingest pre-extracted PDF text directly to avoid 4.5MB edge payload limits."""
+    project_uuid = _resolve_project_id(payload.project_id)
+
+    project_result = await db.execute(select(Project).where(Project.id == project_uuid))
+    p_obj = project_result.scalar_one_or_none()
+    if p_obj is None:
+        p_obj = Project(
+            id=project_uuid,
+            title="Default Research Project",
+            description="Auto-created project workspace",
+            research_field="Computer Science & AI"
+        )
+        db.add(p_obj)
+        await db.flush()
+
+    from src.models.db_models import SearchQuery
+    dummy_query_result = await db.execute(
+        select(SearchQuery).where(
+            SearchQuery.project_id == project_uuid,
+            SearchQuery.query_string == "Direct Ingestion"
+        )
+    )
+    dummy_query = dummy_query_result.scalar_one_or_none()
+    if not dummy_query:
+        dummy_query = SearchQuery(
+            id=uuid.uuid4(),
+            project_id=project_uuid,
+            query_string="Direct Ingestion",
+            result_count=0
+        )
+        db.add(dummy_query)
+        await db.flush()
+
+    from datetime import datetime
+    paper_id = uuid.uuid4()
+    clean_title = (payload.title or payload.filename.rsplit(".", 1)[0]).strip()
+    paper = Paper(
+        id=paper_id,
+        project_id=project_uuid,
+        search_query_id=dummy_query.id,
+        title=clean_title or payload.filename,
+        authors=[],
+        year=datetime.now().year,
+        source="direct_upload",
+        dedup_key=f"direct-upload:{paper_id}",
+        screening_decision="keep",
+    )
+    db.add(paper)
+
+    pages_docs = []
+    for idx, page_content in enumerate(payload.pages):
+        pages_docs.append(
+            Document(
+                page_content=page_content or "",
+                metadata={"source": payload.filename, "page": idx}
+            )
+        )
+    
+    chunks = processor.text_splitter.split_documents(pages_docs)
+    processor._attach_chunk_metadata(pages_docs, chunks)
+    for chunk in chunks:
+        chunk.metadata["paper_title"] = paper.title
+
+    ingestion_id = await persist_pdf_provenance(
+        db=db,
+        paper=paper,
+        pages=pages_docs,
+        chunks=chunks,
+        parser_metadata={"parser_name": "client_pdfjs", "parser_version": "1.0", "ingestion_version": "page-offset-v1"},
+    )
+    try:
+        await vector_store_service.stage_documents_for_paper(str(paper.id), chunks)
+        await db.commit()
+    except Exception:
+        await vector_store_service.delete_documents_by_ingestion(str(ingestion_id))
+        raise
+
+    return DirectUploadResponse(
+        paper_id=str(paper.id),
+        title=paper.title,
+        filename=payload.filename,
+        total_pages=len(pages_docs),
+        total_chunks=len(chunks),
+        message="PDF saved, ingested, and persisted in the workspace.",
+    )
+
+
 @router.post("/workspace/upload", response_model=UploadResponse)
 async def upload_paper_pdf(
     file: UploadFile = File(...),

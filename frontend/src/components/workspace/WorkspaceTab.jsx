@@ -6,6 +6,7 @@ import SynthesisPanel from './SynthesisPanel';
 import DataAnalysisPanel from './DataAnalysisPanel';
 import RAGEvalHarnessModal from './RAGEvalHarnessModal';
 import { reconcileSelectedPaperIds, selectedPapersFromIds } from '../../utils/workspaceScope';
+import { extractPdfTextPages } from '../../utils/pdfExtract';
 import { useProject } from '../../contexts/ProjectContext';
 
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -490,14 +491,32 @@ export default function WorkspaceTab({
         setUploadQueue([...items]);
         continue;
       }
-      const formData = new FormData();
-      formData.append('file', item.file);
-      formData.append('title', item.filename.replace(/\.pdf$/i, ''));
-      if (currentProjectId) {
-        formData.append('project_id', currentProjectId);
-      }
       try {
-        const res = await safeFetch('/workspace/direct-upload', { method: 'POST', body: formData });
+        let res;
+        // 1. Try fast client-side PDF text extraction first to bypass any payload size limits
+        const extractedPages = await extractPdfTextPages(item.file);
+        if (extractedPages && extractedPages.length > 0) {
+          res = await safeFetch('/workspace/direct-upload-json', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              title: item.filename.replace(/\.pdf$/i, ''),
+              filename: item.filename,
+              pages: extractedPages,
+              project_id: currentProjectId || null
+            })
+          });
+        } else {
+          // 2. Fallback to FormData upload
+          const formData = new FormData();
+          formData.append('file', item.file);
+          formData.append('title', item.filename.replace(/\.pdf$/i, ''));
+          if (currentProjectId) {
+            formData.append('project_id', currentProjectId);
+          }
+          res = await safeFetch('/workspace/direct-upload', { method: 'POST', body: formData });
+        }
+
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail || t('workspace.error'));
         items[i] = { ...item, status: 'done' };
