@@ -521,6 +521,20 @@ export default function WorkspaceTab({
         if (!res.ok) throw new Error(data.detail || t('workspace.error'));
         items[i] = { ...item, status: 'done' };
         setUploadQueue([...items]);
+
+        // The fast client-side-text path above never sends the original PDF
+        // bytes to the server (that's the whole point -- it avoids the 4.5MB
+        // edge payload limit), so the server has no file to show in the
+        // Verification panel. Attach it now in the background via the
+        // existing full-upload endpoint so verification works without
+        // blocking the "instant" upload UX above.
+        if (extractedPages && extractedPages.length > 0 && data.paper_id) {
+          const attachForm = new FormData();
+          attachForm.append('file', item.file);
+          attachForm.append('paper_id', data.paper_id);
+          safeFetch('/workspace/upload', { method: 'POST', body: attachForm }).catch(() => {});
+        }
+
         setWorkspacePapers((prev) => [
           {
             id: data.paper_id,
