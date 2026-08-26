@@ -46,7 +46,7 @@ _PROVIDER_MODEL_ENV = {
 
 _PROVIDER_DEFAULT_MODEL = {
     "openai": "gpt-4o-mini",
-    "gemini": "gemini-2.0-flash",
+    "gemini": "gemini-1.5-flash",
     "groq": "llama-3.3-70b-versatile",
     "deepseek": "deepseek-chat",
     "openrouter": "openai/gpt-4o-mini",

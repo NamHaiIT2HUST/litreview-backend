@@ -143,7 +143,7 @@ class Project(Base):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     name = Column(String, nullable=False)
     research_question = Column(Text, nullable=False)
-    research_field = Column(String, nullable=False)
+    research_field = Column(String, nullable=True, default="Computer Science & AI")
     year_from = Column(Integer, nullable=True)
     year_to = Column(Integer, nullable=True)
     criteria_include = Column(ARRAY(String), nullable=True)
