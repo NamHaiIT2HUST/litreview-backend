@@ -160,6 +160,22 @@ export default function SynthesisPanel({
             setSessionId(sessionToLoad.id);
             setStatus(sessionToLoad.status);
             localStorage.setItem(`litreview_active_synthesis_id_${currentProjectId}`, sessionToLoad.id);
+            // The history list only carries summary fields (id/status/...),
+            // not review_markdown -- the report view renders only when
+            // `result` is set, so a session that finished before this visit
+            // showed neither the spinner (status !== running) nor the report
+            // (result still null): a silent blank state. Fetch the full
+            // record for an already-finished session so it actually renders.
+            if (sessionToLoad.status === 'done') {
+              try {
+                const detailRes = await safeFetch(`/synthesis-sessions/${sessionToLoad.id}`);
+                if (detailRes.ok) {
+                  setResult(await detailRes.json());
+                }
+              } catch (e) {
+                console.error('Failed to fetch synthesis session detail', e);
+              }
+            }
           } else {
             setSessionId(null);
             setStatus('idle');
