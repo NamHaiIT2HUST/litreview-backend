@@ -76,6 +76,18 @@ function MainAppShell() {
     } catch {}
   };
 
+  // A fresh login must always land on Overview so the user can pick which
+  // notebook to open. Without this, a tab left over in sessionStorage from a
+  // previous session (e.g. Setup, from before logging out) silently persists
+  // and a brand new login appears to "skip" Overview entirely.
+  const wasAuthenticatedRef = useRef(isAuthenticated);
+  useEffect(() => {
+    if (!wasAuthenticatedRef.current && isAuthenticated) {
+      setActiveTab('overview');
+    }
+    wasAuthenticatedRef.current = isAuthenticated;
+  }, [isAuthenticated]);
+
   useEffect(() => {
     if (currentUser?.role === 'admin' && activeTab !== 'admin' && activeTab !== 'overview') {
       setActiveTab('admin');

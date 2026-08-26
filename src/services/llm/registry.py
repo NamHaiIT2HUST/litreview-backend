@@ -71,13 +71,16 @@ MODEL_REGISTRY: dict[str, ModelProfile] = {
 
         # ---- Google Gemini ----
         # Structured output is supported; parallel tool calling is not assumed.
-        _profile("gemini", "gemini-2.0-flash", context_window=1_000_000,
+        # Google retires dated model names on its own schedule -- gemini-2.0-flash
+        # and gemini-1.5-flash both returned 404 NOT_FOUND in production, each
+        # pointing at whatever replaced it. Keep this list to names Google's own
+        # error responses currently confirm as live, not to what looked current
+        # when last edited.
+        _profile("gemini", "gemini-3.6-flash", context_window=1_000_000,
                  tool_calling=False, cost_tier=1),
         _profile("gemini", "gemini-flash-lite-latest", context_window=1_000_000,
                  tool_calling=False, cost_tier=1),
         _profile("gemini", "gemini-flash-latest", context_window=1_000_000,
-                 tool_calling=False, cost_tier=1),
-        _profile("gemini", "gemini-1.5-flash", context_window=1_000_000,
                  tool_calling=False, cost_tier=1),
 
         # ---- Groq ----
