@@ -660,14 +660,18 @@ async def direct_upload_paper_pdf(
     """Create a persistent paper row and provenance-aware ingestion from a PDF."""
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are allowed.")
-    try:
-        project_uuid = uuid.UUID(project_id)
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail="project_id must be a valid UUID.") from exc
+    project_uuid = _resolve_project_id(project_id)
 
     project_result = await db.execute(select(Project).where(Project.id == project_uuid))
     if project_result.scalar_one_or_none() is None:
-        raise HTTPException(status_code=404, detail=f"Project '{project_id}' not found")
+        p_obj = Project(
+            id=project_uuid,
+            title="Default Research Project",
+            description="Auto-created project workspace",
+            research_field="Computer Science & AI"
+        )
+        db.add(p_obj)
+        await db.flush()
 
     # Ensure there is a dummy SearchQuery for direct uploads to satisfy legacy NOT NULL constraints on search_query_id
     from src.models.db_models import SearchQuery
