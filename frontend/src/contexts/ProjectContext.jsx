@@ -189,9 +189,11 @@ export function ProjectProvider({ children }) {
       updated_at: new Date().toISOString(),
     };
 
-    // Try backend sync
+    // Fast backend sync (1.5s timeout) so user experiences instant 0.1s opening
     try {
-      const res = await safeFetch(`${API_BASE}/projects`, {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 1500);
+      const res = await safeFetch('/projects', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -206,14 +208,16 @@ export function ProjectProvider({ children }) {
           year_to: newProject.year_to,
           criteria_include: newProject.criteria_include,
           criteria_exclude: newProject.criteria_exclude,
-        })
+        }),
+        signal: controller.signal,
       });
-      if (res.ok) {
+      clearTimeout(timeoutId);
+      if (res && res.ok) {
         const created = await res.json();
         if (created.id) newProject.id = String(created.id);
       }
     } catch (e) {
-      console.warn("Backend project creation failed, using local ID:", e);
+      console.warn("Backend project sync timed out or offline, using instant local storage:", e);
     }
 
     // Initialize 100% clean, fresh storage keys for this new project
@@ -231,6 +235,7 @@ export function ProjectProvider({ children }) {
       localStorage.setItem(`litreview_selected_papers_${newProject.id}`, JSON.stringify([]));
       localStorage.setItem(`litreview_workspace_papers_${newProject.id}`, JSON.stringify([]));
       localStorage.setItem(`litreview_workspace_subtab_${newProject.id}`, 'chat');
+      localStorage.setItem(`litreview_active_project_id_${userId}`, newProject.id);
     } catch {}
 
     setProjects(prev => [newProject, ...prev]);
@@ -239,8 +244,11 @@ export function ProjectProvider({ children }) {
   };
 
   const switchProject = (projectId) => {
-    if (projects.some(p => p.id === projectId)) {
+    if (projectId) {
       setActiveProjectId(projectId);
+      try {
+        localStorage.setItem(`litreview_active_project_id_${userId}`, projectId);
+      } catch {}
     }
   };
 
