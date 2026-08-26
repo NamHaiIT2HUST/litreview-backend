@@ -143,19 +143,33 @@ function AddSourceButton({ onFiles, isUploading, darkMode }) {
 }
 
 // ─── Upload Queue Item ────────────────────────────────────────────────────────
-function UploadQueueItem({ item, darkMode }) {
+function UploadQueueItem({ item, onDismiss, darkMode }) {
   const statusIcon = {
-    pending: <Loader2 className="w-3.5 h-3.5 text-blue-500 animate-spin" />,
-    done: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />,
-    error: <AlertCircle className="w-3.5 h-3.5 text-red-500" />,
+    pending: <Loader2 className="w-3.5 h-3.5 text-blue-500 animate-spin shrink-0" />,
+    done: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />,
+    error: <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />,
   }[item.status];
 
   return (
-    <div className={`flex items-center gap-2 p-2 rounded-xl text-xs ${'bg-slate-50 dark:bg-slate-800'}`}>
+    <div className={`flex items-center gap-2 p-2 rounded-xl text-xs ${item.status === 'error' ? 'bg-red-50/80 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50' : 'bg-slate-50 dark:bg-slate-800'}`}>
       {statusIcon}
-      <div className="flex-1 min-w-0 truncate font-semibold dark:text-slate-300 text-slate-700">
-        {item.filename}
+      <div className="flex-1 min-w-0">
+        <p className="truncate font-semibold dark:text-slate-300 text-slate-700">
+          {item.filename}
+        </p>
+        {item.error && (
+          <p className="text-[10px] text-red-500 truncate mt-0.5">{item.error}</p>
+        )}
       </div>
+      {onDismiss && (
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer shrink-0"
+        >
+          <X className="w-3 h-3" />
+        </button>
+      )}
     </div>
   );
 }
@@ -637,7 +651,12 @@ export default function WorkspaceTab({
                   {uploadQueue.length > 0 && (
                     <div className="space-y-1.5 shrink-0">
                       {uploadQueue.map((item, i) => (
-                        <UploadQueueItem key={i} item={item} darkMode={darkMode} />
+                        <UploadQueueItem 
+                          key={i} 
+                          item={item} 
+                          onDismiss={() => setUploadQueue(prev => prev.filter((_, idx) => idx !== i))}
+                          darkMode={darkMode} 
+                        />
                       ))}
                     </div>
                   )}
