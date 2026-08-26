@@ -45,9 +45,6 @@ export const getAuthToken = () => {
   }
 };
 
-// The API now authenticates every data route, so the stored token has to travel
-// with every request. Attaching it here keeps call sites from each having to
-// remember, and avoids a second source of truth for where the token lives.
 const withAuthHeaders = (options = {}) => {
   const token = getAuthToken();
   if (!token) return options;
@@ -72,19 +69,22 @@ export const safeFetch = async (urlOrEndpoint, options = {}) => {
   try {
     return await fetch(primaryUrl, requestOptions);
   } catch (err) {
-    // Local development only: some machines resolve exactly one of these two.
-    // This is a genuine retry of the same target, not a different backend.
-    if (primaryUrl.includes('localhost:8000')) {
-      return fetch(primaryUrl.replace('localhost:8000', '127.0.0.1:8000'), requestOptions);
+    // Local development auto-fallback between 8001 <-> 8000 and localhost <-> 127.0.0.1
+    if (primaryUrl.includes(':8001')) {
+      try {
+        return await fetch(primaryUrl.replace(':8001', ':8000'), requestOptions);
+      } catch {}
     }
-    if (primaryUrl.includes('127.0.0.1:8000')) {
-      return fetch(primaryUrl.replace('127.0.0.1:8000', 'localhost:8000'), requestOptions);
+    if (primaryUrl.includes(':8000')) {
+      try {
+        return await fetch(primaryUrl.replace(':8000', ':8001'), requestOptions);
+      } catch {}
     }
-
-    // A cross-origin fallback to a hardcoded http:// address used to live here.
-    // It could never run: the deployed site is HTTPS, and browsers block mixed
-    // active content. It read as resilience while doing nothing, and it pointed
-    // at a backend the caller had not chosen. Removed rather than repaired.
+    if (primaryUrl.includes('localhost:')) {
+      try {
+        return await fetch(primaryUrl.replace('localhost:', '127.0.0.1:'), requestOptions);
+      } catch {}
+    }
     throw err;
   }
 };
