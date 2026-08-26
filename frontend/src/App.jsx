@@ -60,14 +60,21 @@ function MainAppShell() {
     setAuthModalOpen(true);
   };
 
-  // ── Always start/switch to overview tab on login ────────────────────────
-  const [activeTab, setActiveTab] = useState('overview');
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      setActiveTab('overview');
+  // ── Always remember/persist current active tab across refreshes ───────────
+  const [activeTab, setActiveTabState] = useState(() => {
+    try {
+      return sessionStorage.getItem('litreview_active_tab') || 'overview';
+    } catch {
+      return 'overview';
     }
-  }, [isAuthenticated]);
+  });
+
+  const setActiveTab = (tab) => {
+    setActiveTabState(tab);
+    try {
+      sessionStorage.setItem('litreview_active_tab', tab);
+    } catch {}
+  };
 
   useEffect(() => {
     if (currentUser?.role === 'admin' && activeTab !== 'admin' && activeTab !== 'overview') {
