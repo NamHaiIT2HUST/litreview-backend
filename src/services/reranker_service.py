@@ -1,6 +1,5 @@
 import os
-import torch
-from sentence_transformers import CrossEncoder
+import re
 
 class RerankerService:
     _instance = None
@@ -14,15 +13,18 @@ class RerankerService:
     def _get_model(self):
         if self._model is None:
             model_path = "./models/temp_bge-base"
-            # Fallback to HuggingFace if local model doesn't exist
-            if not os.path.exists(model_path):
-                print("⚠️ Local model not found. Loading base bge-reranker-base from HuggingFace.")
-                model_path = "BAAI/bge-reranker-base"
+            if os.path.exists(model_path):
+                try:
+                    import torch
+                    from sentence_transformers import CrossEncoder
+                    device = "cuda" if torch.cuda.is_available() else "cpu"
+                    print(f"✅ Loading fine-tuned academic reranker from {model_path}...")
+                    self._model = CrossEncoder(model_path, max_length=384, device=device)
+                except Exception as e:
+                    print(f"⚠️ Failed to load local CrossEncoder: {e}")
+                    self._model = "fallback"
             else:
-                print(f"✅ Loading fine-tuned academic reranker from {model_path}...")
-            
-            device = "cuda" if torch.cuda.is_available() else "cpu"
-            self._model = CrossEncoder(model_path, max_length=384, device=device)
+                self._model = "fallback"
         return self._model
 
     def rerank_papers(self, query: str, papers: list) -> list:
@@ -35,26 +37,41 @@ class RerankerService:
 
         model = self._get_model()
         
-        # Prepare pairs: [query, title + abstract]
-        pairs = []
-        for p in papers:
-            doc_text = f"{p.get('title', '')}. {p.get('abstract', '')}"
-            pairs.append([query, doc_text])
-        
-        # Predict scores
-        scores = model.predict(pairs)
-        
-        # Attach scores and sort
+        if model != "fallback":
+            try:
+                pairs = []
+                for p in papers:
+                    doc_text = f"{p.get('title', '')}. {p.get('abstract', '')}"
+                    pairs.append([query, doc_text])
+                
+                scores = model.predict(pairs)
+                scored_papers = []
+                for i, p in enumerate(papers):
+                    paper_copy = dict(p)
+                    paper_copy['relevance_score'] = float(scores[i])
+                    scored_papers.append(paper_copy)
+                    
+                scored_papers.sort(key=lambda x: x['relevance_score'], reverse=True)
+                return scored_papers
+            except Exception as e:
+                print(f"Reranker model inference failed, using heuristic: {e}")
+
+        # Ultra-fast heuristic ranking based on query term overlap, title matches, and recency
+        query_words = set(re.findall(r'\w+', query.lower()))
         scored_papers = []
-        for i, p in enumerate(papers):
+        for p in papers:
             paper_copy = dict(p)
-            # Convert float32 to python float for JSON serialization
-            paper_copy['relevance_score'] = float(scores[i])
-            scored_papers.append(paper_copy)
+            title = str(p.get('title', '')).lower()
+            abstract = str(p.get('abstract', '')).lower()
             
-        # Sort descending by score
+            title_hits = sum(2.0 for w in query_words if w in title)
+            abstract_hits = sum(1.0 for w in query_words if w in abstract)
+            
+            score = title_hits * 3.0 + abstract_hits * 1.0
+            paper_copy['relevance_score'] = float(score)
+            scored_papers.append(paper_copy)
+
         scored_papers.sort(key=lambda x: x['relevance_score'], reverse=True)
         return scored_papers
 
-# Singleton instance
 reranker_service = RerankerService()

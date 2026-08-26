@@ -82,7 +82,7 @@ async def fetch_full_abstract_openalex(client: httpx.AsyncClient, title: str, do
             clean_doi = doi.strip().replace("https://doi.org/", "")
             url = f"https://api.openalex.org/works/https://doi.org/{clean_doi}"
             params = {"mailto": "litreview.agent@gmail.com"}
-            res = await client.get(url, params=params, timeout=5.0)
+            res = await client.get(url, params=params, timeout=2.5)
             if res.status_code == 200:
                 item = res.json()
                 inv = item.get("abstract_inverted_index")
@@ -100,7 +100,7 @@ async def fetch_full_abstract_openalex(client: httpx.AsyncClient, title: str, do
         if cleaned_title:
             url = "https://api.openalex.org/works"
             params = {"search": cleaned_title, "per-page": 1, "mailto": "litreview.agent@gmail.com"}
-            res = await client.get(url, params=params, timeout=5.0)
+            res = await client.get(url, params=params, timeout=2.5)
             if res.status_code == 200:
                 results = res.json().get("results", [])
                 if results:
@@ -130,7 +130,7 @@ async def fetch_full_abstract_s2(client: httpx.AsyncClient, title: str, doi: Opt
             clean_doi = doi.strip().replace("https://doi.org/", "")
             url = f"https://api.semanticscholar.org/graph/v1/paper/DOI:{clean_doi}"
             params = {"fields": "title,abstract,tldr,externalIds,publicationVenue"}
-            res = await client.get(url, params=params, timeout=5.0)
+            res = await client.get(url, params=params, timeout=2.5)
             if res.status_code == 200:
                 item = res.json()
                 abstract = item.get("abstract")
@@ -326,7 +326,7 @@ async def fetch_crossref_info(client: httpx.AsyncClient, title: str) -> tuple[st
         url = "https://api.crossref.org/works"
         params = {"query.title": clean_title, "rows": 1}
         headers = {"User-Agent": "LitReviewAgent/1.0 (mailto:admin@litreview.org)"}
-        res = await client.get(url, params=params, headers=headers, timeout=4.0)
+        res = await client.get(url, params=params, headers=headers, timeout=2.0)
         if res.status_code == 200:
             items = res.json().get("message", {}).get("items", [])
             if items:
