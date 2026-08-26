@@ -1,4 +1,6 @@
+import logging
 import os
+
 from dotenv import load_dotenv
 
 from src.config import ENV_FILE
@@ -9,8 +11,9 @@ os.environ["LANGSMITH_TRACING"] = "false"
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from src.api.routes import router as root_router
 from src.api.project_routes import router as project_router
@@ -20,6 +23,12 @@ from src.api.slr_swarm_routes import router as slr_swarm_router
 from src.api.auth_routes import router as auth_router
 from src.config import get_settings, validate_security_settings
 from src.database import create_all_tables, ensure_local_schema_compatibility
+from src.services.embedding_manager import (
+    EmbeddingConfigurationError,
+    EmbeddingIndexMismatchError,
+)
+
+logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -197,6 +206,34 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.exception_handler(EmbeddingIndexMismatchError)
+async def _embedding_index_mismatch_handler(request, exc: EmbeddingIndexMismatchError):
+    """Fail hard in the logic layer, but hand the UI something it can act on.
+
+    409 Conflict, not 500: the request is well-formed and the server is healthy;
+    the stored index and the current configuration simply disagree. The payload
+    names the required action so the frontend can offer a re-index instead of
+    showing a stack trace -- and, critically, so it never shows an empty result
+    list, which would be indistinguishable from "this document says nothing".
+    """
+    logger.error("Embedding index mismatch on %s: %s", request.url.path, exc)
+    return JSONResponse(status_code=status.HTTP_409_CONFLICT, content=exc.to_error_payload())
+
+
+@app.exception_handler(EmbeddingConfigurationError)
+async def _embedding_configuration_handler(request, exc: EmbeddingConfigurationError):
+    """A misconfigured embedding provider is an operator problem, not a result."""
+    logger.error("Embedding configuration error on %s: %s", request.url.path, exc)
+    return JSONResponse(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        content={
+            "error_code": "EMBEDDING_NOT_CONFIGURED",
+            "message": str(exc),
+            "required_action": "FIX_CONFIGURATION",
+        },
+    )
+
 
 app.include_router(project_router, prefix="/api/v1")
 app.include_router(root_router, prefix="/api/v1")

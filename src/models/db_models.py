@@ -624,3 +624,106 @@ class SynthesisMetrics(Base):
     section_metrics = Column(JSON, nullable=False, default=list)
     created_at = Column(DateTime(timezone=True), default=_now_utc, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=_now_utc, onupdate=_now_utc, nullable=False)
+
+
+# ── Vector index registry ─────────────────────────────────────────────────────
+#
+# An embedding model defines the coordinate space of everything indexed with it.
+# Vectors written by one model cannot be searched with another, even at matching
+# dimensionality: the results look ordinary and mean nothing. So an embedding
+# configuration is closer to a database schema than to an API provider choice,
+# and it must be recorded rather than inferred from whatever the process happens
+# to be configured with at the moment.
+#
+# Postgres is the control plane here -- it answers "which papers are in which
+# index, and is that index usable" for audits, migrations and admin tooling.
+# Chroma holds the vectors and its own copy of the identity, so the two can be
+# checked against each other when a collection is opened.
+
+
+class VectorIndexStatus(str, enum.Enum):
+    building = "building"
+    active = "active"
+    deprecated = "deprecated"
+
+
+class PaperIndexStatus(str, enum.Enum):
+    pending = "pending"
+    indexing = "indexing"
+    ready = "ready"
+    failed = "failed"
+
+
+class VectorIndex(Base):
+    """One embedding space: a provider, a model, a dimensionality, a version.
+
+    Identity belongs to an index rather than to a paper, because one paper can
+    exist in several indexes over time (re-indexed onto a new model, kept in the
+    old one until the new build is verified). Storing provider/model on Paper
+    would have to be undone the first time that happens.
+    """
+
+    __tablename__ = "vector_indexes"
+    __table_args__ = (
+        UniqueConstraint("collection_name", name="uq_vector_index_collection"),
+        UniqueConstraint("provider", "model", "version", name="uq_vector_index_identity"),
+        CheckConstraint("dimension > 0", name="ck_vector_index_dimension_positive"),
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    # Derived from the identity below, never from runtime configuration. The
+    # previous scheme appended only the provider name taken from settings, so a
+    # collection could be called "..._openai_v3" while holding vectors produced
+    # by something else entirely.
+    collection_name = Column(String(200), nullable=False, index=True)
+    provider = Column(String(50), nullable=False)
+    model = Column(String(200), nullable=False)
+    dimension = Column(Integer, nullable=False)
+    version = Column(Integer, nullable=False, default=1)
+    status = Column(
+        SQLEnum(VectorIndexStatus), nullable=False, default=VectorIndexStatus.building, index=True
+    )
+    created_at = Column(DateTime(timezone=True), default=_now_utc, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=_now_utc, onupdate=_now_utc, nullable=False)
+
+    paper_links = relationship("PaperIndex", back_populates="vector_index")
+
+    @property
+    def identity(self) -> tuple[str, str, int]:
+        return (self.provider, self.model, self.dimension)
+
+
+class PaperIndex(Base):
+    """Whether one paper is actually usable inside one index.
+
+    Retrieval reads only ``ready`` rows. Without this, a partially written
+    ingestion was indistinguishable from a complete one: persist_pdf_provenance
+    set active_ingestion_id and committed before the vectors were written, and
+    the vector write swallowed its own errors, so a paper whose embedding call
+    ran out of quota halfway through was recorded as fully ingested with nothing
+    behind it in Chroma.
+    """
+
+    __tablename__ = "paper_indexes"
+    __table_args__ = (
+        UniqueConstraint("paper_id", "vector_index_id", name="uq_paper_index_membership"),
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    paper_id = Column(UUID(as_uuid=True), ForeignKey("papers.id"), nullable=False, index=True)
+    vector_index_id = Column(
+        UUID(as_uuid=True), ForeignKey("vector_indexes.id"), nullable=False, index=True
+    )
+    status = Column(
+        SQLEnum(PaperIndexStatus), nullable=False, default=PaperIndexStatus.pending, index=True
+    )
+    # The ingestion whose chunks were embedded, so a re-ingestion can be told
+    # apart from the version currently in the index.
+    ingestion_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    chunk_count = Column(Integer, nullable=False, default=0)
+    error_message = Column(Text, nullable=True)
+    indexed_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=_now_utc, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=_now_utc, onupdate=_now_utc, nullable=False)
+
+    vector_index = relationship("VectorIndex", back_populates="paper_links")

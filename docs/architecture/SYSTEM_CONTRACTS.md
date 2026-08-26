@@ -1735,6 +1735,11 @@ Phần lớn lấy được từ bảng đã có (`LLMCallLog`, `RetrievalLog`, 
 
 Thứ tự tối ưu theo *rủi ro giảm được trên mỗi đơn vị công sức*, không theo thứ tự kiến trúc.
 
+> **Trạng thái thi công (cập nhật 2026-08-26).** Giai đoạn 0, 1, 2, 3 đã được thực hiện trên nhánh
+> `docs/system-contracts-audit-and-plan`. Xem [TRANG_THAI_THI_CONG.md](./TRANG_THAI_THI_CONG.md)
+> để biết mục nào đã xong, mục nào cố ý hoãn và vì sao.
+> Giai đoạn 4 (LLM Router), 5 (API contract) và 6 (Synthesis) chưa bắt đầu.
+
 ### Giai đoạn 0 — Khẩn cấp, bảo mật (độc lập với mọi việc khác)
 
 | Việc | Vị trí |
