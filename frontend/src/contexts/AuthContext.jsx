@@ -38,14 +38,9 @@ export function AuthProvider({ children }) {
       throw new Error('Vui lòng nhập email hoặc tên đăng nhập.');
     }
 
-    // The backend is the only authority on identity. The previous version fell
-    // back to a demo list, a localStorage user list, and finally to inventing a
-    // session for any identifier typed in — signing in anyone without ever
-    // checking a password, and storing the literal string
-    // 'local_session_token' as the access token.
     let res;
     try {
-      res = await fetch(`${API_BASE}/auth/login`, {
+      res = await safeFetch('/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: cleanIdentifier, password }),
@@ -93,12 +88,9 @@ export function AuthProvider({ children }) {
 
     const initials = (name || username).split(' ').map(w => w[0]).join('').slice(-2).toUpperCase() || 'US';
 
-    // Registration must succeed on the backend to count. Previously the account
-    // was written to localStorage (including the plaintext password) and the
-    // user was signed in locally even when the backend call failed.
     let res;
     try {
-      res = await fetch(`${API_BASE}/auth/register`, {
+      res = await safeFetch('/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password, role }),
