@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   Search, Download, ExternalLink, Plus, PlusCircle, CheckCircle2, Key, Loader2, AlertCircle, 
   ChevronDown, ChevronUp, ShieldCheck, ShieldAlert, Activity, Check, X, HelpCircle,
-  BookOpen, Sparkles, Trash2, Target, GitFork, FileText
+  BookOpen, Sparkles, Trash2, Target, GitFork, FileText, ArrowRight
 } from 'lucide-react';
 import SearchHistoryPanel from './SearchHistoryPanel';
 import FilterSortBar from './FilterSortBar';
@@ -1406,32 +1406,47 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
             );
           })}
 
-          {/* Floating Bottom Action Bar */}
+          {/* Floating Bottom Action Bar (Fixed Sticky Dock) */}
           {selectedPaperIds.length > 0 && (
-            <div className="sticky bottom-6 bg-slate-900 text-white p-5 rounded-3xl border border-slate-800 shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4 z-40">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white font-extrabold flex items-center justify-center text-lg">
+            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[92%] max-w-4xl bg-slate-900/95 backdrop-blur-md text-white p-4 sm:p-5 rounded-3xl border border-slate-750 shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4 z-50 animate-slide-up ring-1 ring-white/10">
+              <div className="flex items-center gap-3 w-full sm:w-auto">
+                <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-extrabold flex items-center justify-center text-lg shadow-md shrink-0">
                   {selectedPaperIds.length}
                 </div>
                 <div>
-                  <p className="font-bold text-sm">Đã chọn {selectedPaperIds.length} bài báo</p>
-                  <p className="text-xs text-slate-400">Sẵn sàng xuất file báo cáo tổng hợp</p>
+                  <p className="font-bold text-sm text-slate-100">Đã chọn {selectedPaperIds.length} bài báo</p>
+                  <p className="text-xs text-slate-400">Sẵn sàng xuất file báo cáo hoặc đưa vào phân tích</p>
                 </div>
               </div>
 
-              <div className="flex gap-3 w-full sm:w-auto">
+              <div className="flex flex-wrap sm:flex-nowrap gap-2.5 w-full sm:w-auto items-center">
                 <button
                   onClick={clearSelectedPapers}
-                  className="flex-1 sm:flex-none px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-2xl text-sm transition-all shadow flex items-center justify-center"
+                  className="px-4 py-2.5 bg-slate-800/80 hover:bg-slate-800 text-slate-300 hover:text-white font-semibold rounded-xl text-xs transition-all border border-slate-700 cursor-pointer"
                 >
-                  Làm mới
+                  Bỏ chọn
                 </button>
                 <button
                   onClick={() => handleExportExcel(selectedPapers)}
-                  className="flex-1 sm:flex-none px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl text-sm transition-all shadow-lg flex items-center justify-center gap-2"
+                  className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer"
                 >
-                  <span>Tải file Excel ↓</span>
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Tải Excel ↓</span>
                 </button>
+                {setActiveTab && (
+                  <button
+                    onClick={() => {
+                      if (setWorkspacePapers) {
+                        setWorkspacePapers(selectedPapers);
+                      }
+                      setActiveTab('synthesis');
+                    }}
+                    className="flex-1 sm:flex-none px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-xl text-xs transition-all shadow-lg flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <span>Vào Phân tích (Workspace)</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
             </div>
           )}
