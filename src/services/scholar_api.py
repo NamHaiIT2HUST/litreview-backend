@@ -239,80 +239,13 @@ async def search_papers_openalex(query: str, limit: int = 10) -> list[Paper]:
     return papers
 
 
-async def search_papers_semanticscholar(query: str, api_key: str = None, limit: int = 10) -> list[Paper]:
-    """Search for papers using Semantic Scholar (S2) Graph API. Fallback to OpenAlex if 429 occurs."""
-    url = "https://api.semanticscholar.org/graph/v1/paper/search"
-    params = {
-        "query": query,
-        "limit": limit,
-        "fields": "paperId,title,authors,year,abstract,tldr,citationCount,openAccessPdf,externalIds,publicationVenue"
-    }
-
-    headers = {}
-    if api_key and api_key.strip():
-        headers["x-api-key"] = api_key.strip()
-
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.get(url, params=params, headers=headers, timeout=12.0)
-            response.raise_for_status()
-            data = response.json()
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 429:
-                return await search_papers_openalex(query, limit)
-            elif e.response.status_code in (401, 403):
-                raise HTTPException(status_code=401, detail="Invalid Semantic Scholar API Key")
-            raise HTTPException(status_code=500, detail=f"Semantic Scholar API error: {str(e)}")
-        except Exception:
-            return await search_papers_openalex(query, limit)
-
-    results = data.get("data", [])
-    papers = []
-
-    for res in results:
-        paper_id = str(res.get("paperId", ""))
-        title = res.get("title") or "Unknown Title"
-
-        raw_authors = res.get("authors", [])
-        author_names = [a.get("name", "") for a in raw_authors if isinstance(a, dict) and a.get("name")]
-
-        year = res.get("year") or datetime.datetime.now().year
-        abstract = res.get("abstract") or "No abstract provided."
-        citations = res.get("citationCount") or 0
-
-        tldr_obj = res.get("tldr")
-        tldr_str = tldr_obj.get("text") if isinstance(tldr_obj, dict) else None
-
-        pdf_info = res.get("openAccessPdf") or {}
-        url_link = pdf_info.get("url") if isinstance(pdf_info, dict) else None
-        if not url_link:
-            url_link = f"https://www.semanticscholar.org/paper/{paper_id}"
-
-        ext_ids = res.get("externalIds") or {}
-        raw_doi = ext_ids.get("DOI") if isinstance(ext_ids, dict) else None
-        doi = raw_doi if (raw_doi and isinstance(raw_doi, str)) else "N/A"
-
-        venue = res.get("publicationVenue") or {}
-        issn = venue.get("issn") if isinstance(venue, dict) else None
-        journal_name = (venue.get("name") if isinstance(venue, dict) else None) or "Semantic Scholar"
-
-        paper = Paper(
-            id=f"S2_{paper_id[:10]}",
-            title=title,
-            authors=author_names,
-            year=int(year),
-            abstract=abstract,
-            journal=journal_name,
-            doi=doi,
-            issn=issn,
-            url=str(url_link),
-            citations=int(citations),
-            litScore=calculate_litscore(int(citations), int(year)),
-            tldr=tldr_str
-        )
-        papers.append(paper)
-
-    return papers
+# A second definition of search_papers_semanticscholar used to sit here,
+# shadowed at import time by the one further down this file. It was dead
+# code, and its signature was (query, api_key=None, limit=10) while the
+# only call site passes limit positionally as the second argument -- so if
+# it had ever become the live one, the limit would have been received as an
+# API key. Its 429-to-OpenAlex fallback is already provided by
+# search_papers_auto, so nothing was lost by removing it.
 
 
 async def fetch_crossref_info(client: httpx.AsyncClient, title: str) -> tuple[str, Optional[str], Optional[str]]:
@@ -447,6 +380,18 @@ async def search_papers_serpapi(query: str, api_key: str, limit: int = 10) -> li
                     extracted_journal = candidate
 
         final_journal = cr_journal or extracted_journal or s2_journal or oa_journal or "Google Scholar"
+
+        # Check and filter out local unindexed university repositories / non-academic sources
+        check_str = f"{title} {final_journal} {url_link}".lower()
+        if any(bad in check_str for bad in [
+            "đại học mở", "open university", "ou.edu.vn", "vjol.info.vn", 
+            "tạp chí khoa học", "tap chi khoa hoc", "khoa học và công nghệ",
+            "luận văn", "luan van", "khóa luận", "khoa luan", "thạc sĩ", "tiến sĩ",
+            "repository.", "dspace.", "thuvien."
+        ]):
+            # If not backed by a verified international DOI or ISSN, skip
+            if not final_issn and (not final_doi or final_doi == "N/A" or "ou.edu.vn" in final_doi):
+                continue
 
         paper = Paper(
             id=f"GS_{paper_id}",

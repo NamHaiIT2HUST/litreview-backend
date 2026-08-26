@@ -4,18 +4,29 @@ Sử dụng SQLAlchemy async với SQLite (dev) / PostgreSQL (prod).
 """
 from __future__ import annotations
 
+import logging
 import os
 import socket
 from contextlib import asynccontextmanager
 from urllib.parse import urlparse, urlunparse
 
 from dotenv import load_dotenv
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
-load_dotenv()
-os.makedirs("data", exist_ok=True)
+from src.config import ENV_FILE, PROJECT_ROOT
+
+# Scoped to this project's root; see src/config.py for why a bare load_dotenv()
+# is unsafe here.
+load_dotenv(ENV_FILE)
+
+logger = logging.getLogger(__name__)
+
+# Relative to the project root, not the working directory: this runs at import
+# time, so a process started from another directory used to create its data
+# folder somewhere else entirely.
+os.makedirs(PROJECT_ROOT / "data", exist_ok=True)
 
 
 def _resolve_host_to_ipv4(url: str) -> str:
@@ -71,6 +82,14 @@ def _resolve_host_to_ipv4(url: str) -> str:
     return url
 
 
+def _redact_dsn(url: str) -> str:
+    """Strip credentials so a DSN can appear in an error message or a log."""
+    if "@" not in url or "://" not in url:
+        return url
+    scheme, rest = url.split("://", 1)
+    return f"{scheme}://***@{rest.rsplit('@', 1)[1]}"
+
+
 def _normalize_async_database_url(url: str) -> str:
     """Convert common sync-style URLs to SQLAlchemy async-driver URLs."""
     if url.startswith("postgresql://"):
@@ -119,7 +138,11 @@ class Base(DeclarativeBase):
 @asynccontextmanager
 async def session_scope():
     """Transaction-scoped async session for workers/LangGraph nodes."""
-    global engine, AsyncSessionLocal, DATABASE_URL
+    # No `global` declaration: engine, AsyncSessionLocal and DATABASE_URL are
+    # now fixed at import. They used to be reassigned by the SQLite fallback in
+    # create_all_tables(), which left modules that imported DATABASE_URL at
+    # module scope -- src/synthesis/graph.py and src/tasks/synthesis_tasks.py --
+    # holding the dead Postgres DSN while the rest of the app had moved on.
     async with AsyncSessionLocal() as session:
         try:
             yield session
@@ -135,9 +158,23 @@ async def get_db():
         yield session
 
 
+class DatabaseUnavailableError(RuntimeError):
+    """The configured database could not be reached."""
+
+
 async def create_all_tables():
-    """Tạo tất cả bảng khi app khởi động (nếu chưa có). Tự động fallback sang SQLite nếu PostgreSQL lỗi kết nối."""
-    global engine, AsyncSessionLocal, DATABASE_URL
+    """Tạo tất cả bảng khi app khởi động (nếu chưa có).
+
+    Fails rather than falling back. This used to switch to a local SQLite file
+    whenever PostgreSQL refused a connection, announcing it with a bare print().
+    Because .env.example points DATABASE_URL at a Postgres container, whoever
+    had that container running used Postgres and whoever did not silently used
+    SQLite -- same commit, same .env, two different databases, and nothing in
+    /health said which. Anything written during such a session was lost on the
+    next restart.
+
+    To develop against SQLite, say so: DATABASE_URL=sqlite:///./data/app.db
+    """
     from src.models import db_models  # noqa: F401 — register metadata
 
     try:
@@ -147,21 +184,25 @@ async def create_all_tables():
                 await conn.execute(text("PRAGMA busy_timeout=60000;"))
             await conn.run_sync(Base.metadata.create_all)
     except Exception as e:
-        if "postgresql" in DATABASE_URL or "postgres" in DATABASE_URL:
-            print(f"[Database Warning] Không thể kết nối PostgreSQL ({DATABASE_URL}): {e}")
-            print("[Database Fallback] Tự động chuyển sang sử dụng SQLite: sqlite+aiosqlite:///./data/app.db")
-            DATABASE_URL = "sqlite+aiosqlite:///./data/app.db"
-            engine, AsyncSessionLocal = _get_engine_and_session(DATABASE_URL)
-            async with engine.begin() as conn:
-                await conn.execute(text("PRAGMA journal_mode=WAL;"))
-                await conn.execute(text("PRAGMA busy_timeout=60000;"))
-                await conn.run_sync(Base.metadata.create_all)
-        else:
-            raise
+        raise DatabaseUnavailableError(
+            f"Could not connect to the configured database ({_redact_dsn(DATABASE_URL)}): {e}\n"
+            "Start it (for the default local setup: `docker compose up -d db`), "
+            "or point DATABASE_URL at a database you can reach. To use a local "
+            "SQLite file instead, set DATABASE_URL=sqlite:///./data/app.db "
+            "explicitly -- it is no longer selected for you."
+        ) from e
 
 
 async def ensure_local_schema_compatibility():
-    """Apply additive compatibility changes for legacy DBs (both SQLite and Postgres)."""
+    """Apply additive compatibility changes for legacy DBs (both SQLite and Postgres).
+
+    This is a hand-rolled patcher that runs alongside ``Base.metadata.create_all``.
+    Alembic exists in this repository but nothing invokes it, and
+    ``alembic upgrade head`` currently fails outright on SQLite because the
+    initial revision still creates ARRAY columns the models no longer use.
+    Consolidating on Alembic requires regenerating a baseline revision first;
+    see docs/architecture/SYSTEM_CONTRACTS.md section 12.3.
+    """
     from sqlalchemy import inspect
 
     def sync_compat(sync_conn):
@@ -173,8 +214,11 @@ async def ensure_local_schema_compatibility():
             try:
                 sync_conn.execute(text(stmt_str))
             except Exception as e:
-                # Ignore duplicate column or already existing errors
-                pass
+                # Intended to absorb "column already exists". It also absorbed
+                # permission, type and syntax errors, so each machine ended up
+                # with a different accumulated schema and no record of which
+                # statements had failed. Log instead of discarding.
+                logger.warning("Schema compatibility statement failed: %s -- %s", stmt_str, e)
 
         # Check projects columns
         if "projects" in existing_tables:

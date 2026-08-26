@@ -4,10 +4,10 @@ on:
   push:
     branches: [main, develop]
   pull_request:
-    branches: [main]
+    branches: [main, develop]
 
 jobs:
-  lint-and-test:
+  backend:
     runs-on: ubuntu-latest
 
     steps:
@@ -19,8 +19,13 @@ jobs:
           python-version: "3.11"
           cache: pip
 
+      # Installs from the lockfile, not from the >= ranges in requirements.txt.
+      # Unpinned installs meant two people on the same commit could get
+      # different libraries, and CI could turn red with no code change at all.
+      # Regenerate with:
+      #   pip-compile --strip-extras --output-file=requirements.lock requirements.txt
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: pip install -r requirements.lock
 
       - name: Lint with ruff
         run: ruff check src/ tests/
@@ -29,4 +34,37 @@ jobs:
         run: pytest tests/ -v --tb=short
         env:
           APP_ENV: test
-          OPENAI_API_KEY: test-key
+          # Deliberately no provider API keys. The suite must not depend on
+          # reaching a paid API, and code paths that need credentials must fail
+          # loudly rather than degrade to something that looks like it worked.
+          # tests/conftest.py selects EMBEDDING_PROVIDER=hash-debug explicitly.
+          SECRET_KEY: ci-secret-key-not-used-outside-this-job-0123456789abcdef
+
+  frontend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # npm ci, not npm install: it installs exactly the lockfile and fails if
+      # package.json and the lockfile disagree.
+      - name: Install dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Lint
+        run: npx oxlint src/
+        working-directory: frontend
+
+      # A frontend build break used to reach Vercel before anyone noticed,
+      # because CI never built the frontend at all.
+      - name: Build
+        run: npm run build
+        working-directory: frontend

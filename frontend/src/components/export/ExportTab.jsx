@@ -12,7 +12,7 @@ import {
   Download, Copy, Check, FileText, Database, 
   Code, BookOpen, Layers, History, Sparkles, CheckCircle2
 } from 'lucide-react';
-import { API_BASE } from '../../utils/apiConfig';
+import { API_BASE, safeFetch } from '../../utils/apiConfig';
 
 const DEFAULT_PROJECT_ID = '00000000-0000-0000-0000-000000000001';
 
@@ -80,7 +80,7 @@ export default function ExportTab({ papers = [], selectedPapers = [], workspaceP
   useEffect(() => {
     const fetchExportHistory = async () => {
       try {
-        const response = await fetch(`${API_BASE}/projects/${currentProjectId}/export/history`);
+        const response = await safeFetch(`${API_BASE}/projects/${currentProjectId}/export/history`);
         if (response.ok) {
           const data = await response.json();
           setExportHistory(prev => {
@@ -109,12 +109,12 @@ export default function ExportTab({ papers = [], selectedPapers = [], workspaceP
   useEffect(() => {
     const fetchLatestSynthesisDraft = async () => {
       try {
-        const response = await fetch(`${API_BASE}/projects/${currentProjectId}/synthesis-sessions`);
+        const response = await safeFetch(`${API_BASE}/projects/${currentProjectId}/synthesis-sessions`);
         if (response.ok) {
           const sessions = await response.json();
           const latestDone = sessions.find(s => s.status === 'done');
           if (latestDone) {
-            const resDetail = await fetch(`${API_BASE}/synthesis-sessions/${latestDone.id}`);
+            const resDetail = await safeFetch(`${API_BASE}/synthesis-sessions/${latestDone.id}`);
             if (resDetail.ok) {
               const detail = await resDetail.json();
               if (detail.review_markdown) {

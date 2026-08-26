@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
-import { API_BASE } from '../utils/apiConfig';
+import { API_BASE, safeFetch } from '../utils/apiConfig';
 
 const ProjectContext = createContext();
 
@@ -115,7 +115,7 @@ export function ProjectProvider({ children }) {
   useEffect(() => {
     const fetchBackendProjects = async () => {
       try {
-        const res = await fetch(`${API_BASE}/projects`, {
+        const res = await safeFetch(`${API_BASE}/projects`, {
           headers: {
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
             ...(userId ? { 'X-User-Id': userId } : {}),
@@ -191,7 +191,7 @@ export function ProjectProvider({ children }) {
 
     // Try backend sync
     try {
-      const res = await fetch(`${API_BASE}/projects`, {
+      const res = await safeFetch(`${API_BASE}/projects`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -259,7 +259,7 @@ export function ProjectProvider({ children }) {
 
     // Sync to backend if possible
     try {
-      await fetch(`${API_BASE}/projects/${projectId}`, {
+      await safeFetch(`${API_BASE}/projects/${projectId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -292,7 +292,7 @@ export function ProjectProvider({ children }) {
 
     // Sync to backend if possible
     try {
-      await fetch(`${API_BASE}/projects/${projectId}`, {
+      await safeFetch(`${API_BASE}/projects/${projectId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: trimmed }),
@@ -310,7 +310,7 @@ export function ProjectProvider({ children }) {
 
     // Sync to backend if possible
     try {
-      await fetch(`${API_BASE}/projects/${projectId}`, {
+      await safeFetch(`${API_BASE}/projects/${projectId}`, {
         method: 'DELETE',
       });
     } catch (e) {

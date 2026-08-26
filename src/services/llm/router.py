@@ -1,0 +1,204 @@
+"""Choosing which model serves a task, in one place.
+
+Eight files each carried their own provider cascade with a different order and a
+different set of hardcoded model names. The cascades disagreed, so the same
+``.env`` produced different behaviour depending on which feature was running,
+and a fix applied to one was invisible to the other seven.
+
+Two properties matter here beyond the consolidation:
+
+*Capability-gated fallback.* Moving to another provider is allowed only when
+that provider's model can actually do what the task requires. An unrestricted
+fallback answers the request with something that cannot honour the schema, which
+does not raise and is not right -- the same shape of bug as substituting random
+embeddings.
+
+*Ordered by the operator, not by the code.* ``LLM_PROVIDER_PRIORITY`` lives in
+each person's ``.env``, so everyone can prefer the keys they have without
+touching a shared file and without producing a merge conflict.
+"""
+from __future__ import annotations
+
+import logging
+import os
+from dataclasses import dataclass
+
+from src.config import get_settings
+from src.services.llm.capability import LLMCapability, get_capability
+from src.services.llm.credentials import Credential, get_store
+from src.services.llm.errors import NoCapableProviderError
+from src.services.llm.registry import ModelProfile, get_profile, known_providers
+
+logger = logging.getLogger(__name__)
+
+DEFAULT_PRIORITY = ("gemini", "openai", "groq", "deepseek", "openrouter", "xkiro")
+
+# Which env var names the model for each provider. Separate from the credential
+# on purpose: changing a key must never change which model runs.
+_PROVIDER_MODEL_ENV = {
+    "openai": "OPENAI_MODEL",
+    "gemini": "GEMINI_MODEL",
+    "groq": "GROQ_MODEL",
+    "deepseek": "DEEPSEEK_MODEL",
+    "openrouter": "OPENROUTER_MODEL",
+    "xkiro": "XKIRO_MODEL",
+}
+
+_PROVIDER_DEFAULT_MODEL = {
+    "openai": "gpt-4o-mini",
+    "gemini": "gemini-2.0-flash",
+    "groq": "llama-3.3-70b-versatile",
+    "deepseek": "deepseek-chat",
+    "openrouter": "openai/gpt-4o-mini",
+    "xkiro": "deepseek/deepseek-v3.2",
+}
+
+
+@dataclass(frozen=True)
+class Selection:
+    """The chosen model plus the reasoning, so a log line explains itself."""
+
+    profile: ModelProfile
+    credential: Credential
+    task: str
+    capability: LLMCapability
+    skipped: dict[str, str]
+
+    def describe(self) -> str:
+        parts = [f"task={self.task}"]
+        if self.capability.json_schema:
+            parts.append("needs=json_schema")
+        parts.append(f"ctx>={self.capability.min_context}")
+        for provider, reason in self.skipped.items():
+            parts.append(f"skipped={provider}({reason})")
+        parts.append(f"selected={self.profile.key} key={self.credential.alias}")
+        return "llm.select " + " ".join(parts)
+
+
+def provider_priority() -> list[str]:
+    raw = os.getenv("LLM_PROVIDER_PRIORITY", "").strip()
+    if not raw:
+        return list(DEFAULT_PRIORITY)
+    ordered = [p.strip().lower() for p in raw.split(",") if p.strip()]
+    unknown = [p for p in ordered if p not in known_providers()]
+    if unknown:
+        raise ValueError(
+            f"LLM_PROVIDER_PRIORITY names unknown provider(s): {unknown}. "
+            f"Known providers: {known_providers()}."
+        )
+    return ordered
+
+
+def model_for(provider: str) -> str:
+    env_var = _PROVIDER_MODEL_ENV.get(provider)
+    configured = os.getenv(env_var, "").strip() if env_var else ""
+    return configured or _PROVIDER_DEFAULT_MODEL.get(provider, "")
+
+
+def select(task: str) -> Selection:
+    """Pick the first provider that has a usable key and a capable model.
+
+    Records why each rejected provider was rejected. That list is the difference
+    between "the LLM call failed" and "gemini's key is cooling down, groq's model
+    has an 8k context and this step needs 32k, so nothing could serve it".
+    """
+    capability = get_capability(task)
+    store = get_store()
+    skipped: dict[str, str] = {}
+
+    for provider in provider_priority():
+        if not store.has_any(provider):
+            skipped[provider] = store.unavailable_reason(provider)
+            continue
+
+        model = model_for(provider)
+        if not model:
+            skipped[provider] = "no model configured"
+            continue
+
+        try:
+            profile = get_profile(provider, model)
+        except Exception as exc:
+            skipped[provider] = str(exc).split(".")[0]
+            continue
+
+        ok, reason = capability.satisfied_by(profile)
+        if not ok:
+            skipped[provider] = reason
+            continue
+
+        credential = store.next_for(provider)
+        if credential is None:
+            skipped[provider] = store.unavailable_reason(provider)
+            continue
+
+        selection = Selection(
+            profile=profile,
+            credential=credential,
+            task=task,
+            capability=capability,
+            skipped=skipped,
+        )
+        logger.info(selection.describe())
+        return selection
+
+    raise NoCapableProviderError(task, skipped)
+
+
+def build_client(selection: Selection, *, temperature: float = 0.0, max_tokens: int = 8192):
+    """Construct the chat model for a selection.
+
+    The only place a provider SDK is instantiated. Callers receive a client and
+    never learn which vendor produced it.
+    """
+    profile = selection.profile
+    key = selection.credential.key
+
+    if profile.provider == "gemini":
+        from langchain_google_genai import ChatGoogleGenerativeAI
+
+        return ChatGoogleGenerativeAI(
+            model=profile.model,
+            google_api_key=key,
+            temperature=temperature,
+            max_output_tokens=max_tokens,
+            timeout=60,
+        )
+
+    if profile.provider == "groq":
+        from langchain_groq import ChatGroq
+
+        return ChatGroq(
+            model=profile.model,
+            api_key=key,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+
+    # Everything else speaks the OpenAI chat-completions protocol. The base URL
+    # comes from the registry, not from inspecting the key's prefix.
+    from langchain_openai import ChatOpenAI
+
+    kwargs = {
+        "model": profile.model,
+        "api_key": key,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+        "max_retries": 0,  # retrying is the router's decision, not the SDK's
+        "timeout": 60,
+    }
+    if profile.base_url:
+        kwargs["base_url"] = profile.base_url
+    return ChatOpenAI(**kwargs)
+
+
+def get_llm(task: str, *, temperature: float | None = None, max_tokens: int = 8192):
+    """Return a chat model able to serve ``task``.
+
+    The single entry point. No caller should contain provider branching.
+    """
+    settings = get_settings()
+    if temperature is None:
+        temperature = settings.synthesis_temperature
+    selection = select(task)
+    return build_client(selection, temperature=temperature, max_tokens=max_tokens)

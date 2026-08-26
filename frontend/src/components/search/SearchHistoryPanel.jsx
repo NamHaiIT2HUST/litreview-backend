@@ -9,7 +9,7 @@ import React, { useState } from 'react';
 import { History, Copy, RotateCcw, ChevronDown, ChevronUp, Clock, Search, Trash2 } from 'lucide-react';
 import { useLanguage } from '../../contexts/LanguageContext';
 
-import { API_BASE } from '../../utils/apiConfig';
+import { API_BASE, safeFetch } from '../../utils/apiConfig';
 const DEFAULT_PROJECT_ID = '00000000-0000-0000-0000-000000000001';
 
 function formatTime(isoString) {
@@ -43,7 +43,7 @@ export default function SearchHistoryPanel({
   const handleDuplicate = async (queryId, queryString) => {
     setDuplicating(queryId);
     try {
-      const res = await fetch(`${API_BASE}/search-queries/${queryId}/duplicate`, {
+      const res = await safeFetch(`${API_BASE}/search-queries/${queryId}/duplicate`, {
         method: 'POST',
       });
       if (res.ok) {
@@ -72,7 +72,7 @@ export default function SearchHistoryPanel({
       onDeleteQuery(queryId);
     }
     try {
-      await fetch(`${API_BASE}/search-queries/${queryId}`, {
+      await safeFetch(`${API_BASE}/search-queries/${queryId}`, {
         method: 'DELETE',
       });
     } catch (err) {

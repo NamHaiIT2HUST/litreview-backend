@@ -39,6 +39,7 @@ Các nguyên tắc GIỮ NGUYÊN từ spec gốc (không đổi):
   Scopus nhưng năm này KHÔNG nằm trong phạm vi được index".
 """
 import json
+import logging
 import re
 from typing import Optional
 import httpx
@@ -47,6 +48,8 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.db_models import Paper, ScopusSource
+
+logger = logging.getLogger(__name__)
 
 
 def normalize_issn(issn: Optional[str]) -> str:
@@ -221,25 +224,27 @@ async def quality_check(db: AsyncSession, paper: Paper) -> Paper:
     source = await find_scopus_source(db, issn, journal_title=paper.journal)
 
     if source is None:
-        # Heuristic fallback: If local DB lookup fails, check if the journal/publisher is reputable, has DOI, or has citations.
-        # This prevents 0 results error on cloud databases where ScopusSource table is empty.
-        j_lower = (paper.journal or "").lower()
-        t_lower = (paper.title or "").lower()
-        is_reputable = any(x in j_lower for x in [
-            "ieee", "acm", "springer", "elsevier", "wiley", "nature", "science", "mdpi", 
-            "plos", "frontiers", "taylor & francis", "taylor and francis", "oxford", "cambridge",
-            "iop", "royal society", "sage", "hindawi", "spie", "sciencedirect", "arxiv", "workshop", "conference"
-        ])
-        has_doi = paper.doi and len(str(paper.doi)) > 5 and "/" in str(paper.doi)
-        has_citations = paper.citations and int(paper.citations) > 0
-        
-        if is_reputable or has_doi or has_citations:
-            paper.scopus_status = "indexed"
-            # Automatically assign Q1/Q2 quartile based on citations to look professional
-            paper.scopus_quartile = "Q1" if (has_citations and int(paper.citations) > 5) else "Q2"
-            paper.coverage_year_status = "ok"
-            return paper
-
+        # The journal is not in the local Scopus source table, so its Scopus
+        # standing is unknown. "Unknown" is what gets recorded.
+        #
+        # This branch used to guess. If the journal name contained a
+        # well-known publisher, or the paper had a DOI, or it had any
+        # citations, it set scopus_status="indexed" and invented a quartile --
+        # "Q1" above five citations, otherwise "Q2" -- with the comment
+        # "to look professional". Those values are indistinguishable in the
+        # database and in the UI from quartiles actually read from Scopus, and a
+        # quartile is a specific ranking within a subject category that cannot
+        # be derived from a citation count at all. Papers were exported and
+        # cited carrying a fabricated ranking.
+        #
+        # The underlying problem the guess was working around is real: on a
+        # deployment with an empty ScopusSource table nothing matches. That is
+        # fixed by importing the Scopus source list (see import_scopus_excel),
+        # not by inventing the answer.
+        logger.info(
+            "No Scopus source row for %r (ISSN %s); recording status as undetermined.",
+            paper.journal, issn,
+        )
         paper.scopus_status = "undetermined"
         paper.scopus_quartile = None
         paper.coverage_year_status = "not_applicable"

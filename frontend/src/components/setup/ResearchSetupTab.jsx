@@ -226,7 +226,7 @@ export default function ResearchSetupTab({ setActiveTab }) {
         localStorage.setItem(`slr_gate2_criteria_approved_${pId}`, g2Val ? 'true' : 'false');
 
         // 3. Sync to backend API
-        const res = await fetch(`${API_BASE}/projects/${pId}`, {
+        const res = await safeFetch(`${API_BASE}/projects/${pId}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',

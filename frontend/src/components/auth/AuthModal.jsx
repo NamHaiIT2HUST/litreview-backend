@@ -124,12 +124,11 @@ function GoogleIcon({ className = 'w-4 h-4' }) {
 }
 
 export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }) {
-  const { login, loginWithGoogle, loginDemo, resetPassword, register, demoUsers } = useAuth();
+  const { login, loginWithGoogle, loginDemo, demoAccounts, resetPassword, register } = useAuth();
   const { language } = useLanguage();
   const t = AUTH_TEXT[language] || AUTH_TEXT.vi;
 
   const [mode, setMode] = useState(defaultMode === 'demo' ? 'login' : defaultMode); // 'login' | 'register' | 'forgot'
-  const [showDemoDrawer, setShowDemoDrawer] = useState(defaultMode === 'demo');
 
   // Form Fields
   const [email, setEmail] = useState('');
@@ -169,6 +168,22 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }) {
       onClose();
     } catch (err) {
       setError(err?.message || 'Đăng nhập không thành công. Vui lòng kiểm tra lại thông tin.');
+      setLoading(false);
+    }
+  };
+
+  const handleDemoSelect = async (account) => {
+    setError('');
+    setLoading(true);
+    try {
+      // Performs a genuine login against a seeded account, so the session that
+      // results is authorised like any other. Failures surface: a demo profile
+      // that cannot sign in means the backend has not seeded it.
+      await loginDemo(account);
+      onClose();
+    } catch (err) {
+      setError(err?.message || 'Không đăng nhập được tài khoản mẫu.');
+    } finally {
       setLoading(false);
     }
   };
@@ -225,11 +240,6 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }) {
     setResetSent(true);
   };
 
-  const handleDemoSelect = (user) => {
-    loginDemo(user.id);
-    onClose();
-  };
-
   const switchMode = (newMode) => {
     setMode(newMode);
     setError('');
@@ -266,7 +276,7 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }) {
         </div>
 
         {/* ── 2. Primary 2-Tab Navigation Switcher ───────────────────────── */}
-        {mode !== 'forgot' && !showDemoDrawer && (
+        {mode !== 'forgot' && (
           <div className="flex border-b border-slate-100 dark:border-slate-800 p-1.5 bg-slate-50/80 dark:bg-slate-950/40">
             <button
               type="button"
@@ -304,56 +314,7 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }) {
             </div>
           )}
 
-          {/* ── DEMO DRAWER VIEW ── */}
-          {showDemoDrawer ? (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="font-display font-bold text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
-                  <User className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                  <span>{t.demoTitle}</span>
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => setShowDemoDrawer(false)}
-                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer font-medium"
-                >
-                  <ArrowLeft className="w-3.5 h-3.5" />
-                  <span>{t.backToSignIn}</span>
-                </button>
-              </div>
-
-              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                {t.demoDesc}
-              </p>
-              
-              <div className="space-y-2.5 pt-1">
-                {demoUsers.map(u => (
-                  <button
-                    key={u.id}
-                    type="button"
-                    onClick={() => handleDemoSelect(u)}
-                    className="w-full p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50/20 dark:hover:bg-blue-950/30 transition-all flex items-center justify-between text-left group cursor-pointer"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-bold flex items-center justify-center text-sm shadow-xs shrink-0">
-                        {u.avatar}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="font-bold text-xs text-slate-900 dark:text-white truncate">{u.name}</p>
-                          <span className="badge badge-primary text-[9px]">{u.plan}</span>
-                        </div>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
-                          {u.role} • {u.institution}
-                        </p>
-                      </div>
-                    </div>
-                    <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all shrink-0 ml-2" />
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : mode === 'forgot' ? (
+          {mode === 'forgot' ? (
             /* ── FORGOT PASSWORD VIEW ── */
             <div className="space-y-4">
               <div className="space-y-1">
@@ -423,7 +384,45 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }) {
           ) : mode === 'login' ? (
             /* ── SIGN IN VIEW ── */
             <div className="space-y-4">
-              
+
+              {/* Demo profiles. Rendered only when the backend offers them,
+                  which it does in development only. */}
+              {demoAccounts.length > 0 && (
+                <div className="space-y-2.5">
+                  <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    {t.demoTitle}
+                  </p>
+                  {demoAccounts.map(account => (
+                    <button
+                      key={account.username}
+                      type="button"
+                      onClick={() => handleDemoSelect(account)}
+                      disabled={loading}
+                      className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50/20 dark:hover:bg-blue-950/30 transition-all flex items-center justify-between text-left group cursor-pointer disabled:opacity-50"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-bold flex items-center justify-center text-xs shadow-xs shrink-0">
+                          {account.avatar}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-bold text-xs text-slate-900 dark:text-white truncate">{account.name}</p>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                            {account.role} • {account.institution}
+                          </p>
+                        </div>
+                      </div>
+                      <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all shrink-0 ml-2" />
+                    </button>
+                  ))}
+                  <div className="relative flex items-center justify-center pt-1">
+                    <div className="border-t border-slate-200 dark:border-slate-800 w-full" />
+                    <span className="bg-white dark:bg-slate-900 px-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider relative">
+                      {t.orEmail}
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {/* Google Sign-in Button */}
               <button
                 type="button"

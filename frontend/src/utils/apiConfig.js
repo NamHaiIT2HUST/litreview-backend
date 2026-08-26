@@ -1,20 +1,68 @@
+// Single source of truth for where the frontend talks to the backend.
+//
+// This file used to hardcode a specific backend address as its fallback, and
+// the address differed per branch: main carried an EC2 IP, develop and the
+// feature branches carried a Railway URL that main had already abandoned.
+// Since VITE_API_BASE was documented nowhere, nobody set it, so whichever
+// address happened to be in the checked-out branch decided which backend a
+// developer was reading and writing. Two people on two branches were using two
+// different databases without any indication.
+//
+// Now: VITE_API_BASE decides, and where it is absent the only assumption made
+// is the local development one, which is verifiable on the spot.
+// See frontend/.env.example.
+
+const LOCAL_HOSTNAMES = new Set(['localhost', '127.0.0.1', '0.0.0.0']);
+
 export const getApiBase = () => {
   const envBase = import.meta.env.VITE_API_BASE;
   if (envBase && typeof envBase === 'string' && envBase.trim() !== '') {
     return envBase.trim();
   }
-  if (typeof window !== 'undefined') {
-    const hostname = window.location.hostname;
-    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '0.0.0.0') {
-      return `http://${hostname}:8000/api/v1`;
-    }
-    // On production HTTPS domain, use relative /api/v1 which is proxied by Vercel directly to AWS EC2
-    return '/api/v1';
+
+  if (typeof window !== 'undefined' && LOCAL_HOSTNAMES.has(window.location.hostname)) {
+    return `http://${window.location.hostname}:8000/api/v1`;
   }
-  return 'http://13.212.121.28:8000/api/v1';
+
+  // Anywhere else, assume the deployment proxies /api/v1 to the backend on the
+  // same origin (vercel.json does this). Naming a specific host here is what
+  // caused the divergence described above.
+  if (import.meta.env.PROD && !import.meta.env.VITE_API_BASE) {
+    console.warn(
+      '[apiConfig] VITE_API_BASE is not set. Falling back to the same-origin ' +
+        '/api/v1 path, which only works if this deployment proxies it to the ' +
+        'backend. See frontend/.env.example.'
+    );
+  }
+  return '/api/v1';
 };
 
 export const API_BASE = getApiBase();
+
+export const AUTH_TOKEN_STORAGE_KEY = 'litreview_auth_token';
+
+export const getAuthToken = () => {
+  try {
+    return localStorage.getItem(AUTH_TOKEN_STORAGE_KEY) || null;
+  } catch {
+    return null;
+  }
+};
+
+// The API now authenticates every data route, so the stored token has to travel
+// with every request. Attaching it here keeps call sites from each having to
+// remember, and avoids a second source of truth for where the token lives.
+const withAuthHeaders = (options = {}) => {
+  const token = getAuthToken();
+  if (!token) return options;
+  return {
+    ...options,
+    headers: {
+      ...(options.headers || {}),
+      Authorization: `Bearer ${token}`,
+    },
+  };
+};
 
 export const safeFetch = async (urlOrEndpoint, options = {}) => {
   let primaryUrl = urlOrEndpoint;
@@ -23,35 +71,24 @@ export const safeFetch = async (urlOrEndpoint, options = {}) => {
     primaryUrl = `${base}${urlOrEndpoint.startsWith('/') ? '' : '/'}${urlOrEndpoint}`;
   }
 
+  const requestOptions = withAuthHeaders(options);
+
   try {
-    const res = await fetch(primaryUrl, options);
-    return res;
+    return await fetch(primaryUrl, requestOptions);
   } catch (err) {
-    // If localhost failed, try 127.0.0.1
+    // Local development only: some machines resolve exactly one of these two.
+    // This is a genuine retry of the same target, not a different backend.
     if (primaryUrl.includes('localhost:8000')) {
-      const altUrl = primaryUrl.replace('localhost:8000', '127.0.0.1:8000');
-      try {
-        return await fetch(altUrl, options);
-      } catch {}
-    } else if (primaryUrl.includes('127.0.0.1:8000')) {
-      const altUrl = primaryUrl.replace('127.0.0.1:8000', 'localhost:8000');
-      try {
-        return await fetch(altUrl, options);
-      } catch {}
+      return fetch(primaryUrl.replace('localhost:8000', '127.0.0.1:8000'), requestOptions);
+    }
+    if (primaryUrl.includes('127.0.0.1:8000')) {
+      return fetch(primaryUrl.replace('127.0.0.1:8000', 'localhost:8000'), requestOptions);
     }
 
-    // Remote fallback to direct AWS EC2
-    if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-      const path = primaryUrl.includes('/api/v1') ? primaryUrl.split('/api/v1')[1] : '';
-      if (path) {
-        const fallbackUrl = `http://13.212.121.28:8000/api/v1${path}`;
-        try {
-          return await fetch(fallbackUrl, options);
-        } catch (fallbackErr) {
-          throw fallbackErr;
-        }
-      }
-    }
+    // A cross-origin fallback to a hardcoded http:// address used to live here.
+    // It could never run: the deployed site is HTTPS, and browsers block mixed
+    // active content. It read as resilience while doing nothing, and it pointed
+    // at a backend the caller had not chosen. Removed rather than repaired.
     throw err;
   }
 };

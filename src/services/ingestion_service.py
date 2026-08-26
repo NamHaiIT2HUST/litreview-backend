@@ -6,7 +6,7 @@ import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.models.db_models import PDFChunk, PDFStatus, PageText, Paper
+from src.models.db_models import PageText, Paper, PDFChunk, PDFStatus
 
 
 def _sha256_text(value: str) -> str:
@@ -109,70 +109,123 @@ async def persist_pdf_provenance(
     return ingestion_id
 
 
+class PdfIngestionError(RuntimeError):
+    """A document that should have been read in full could not be parsed."""
+
+
+async def _index_chunks(
+    db: AsyncSession, *, paper: Paper, chunks, ingestion_id: uuid.UUID
+) -> None:
+    """Write chunks to the vector store, recording the outcome either way.
+
+    The order matters. The status is committed as INDEXING *before* the write,
+    so a process killed midway leaves the paper visibly stuck rather than
+    looking complete; it becomes READY only once the vectors are actually in.
+
+    Previously the DB was committed first and the vector write swallowed its own
+    errors, so an embedding call that hit a quota limit produced a paper marked
+    fully ingested with nothing behind it in Chroma -- and retrieval had no way
+    to tell it apart from a real one.
+    """
+    from src.services import index_registry
+    from src.services.vector_store import vector_store_service
+
+    index = await index_registry.get_or_create_index(db, vector_store_service.identity)
+    await index_registry.mark_indexing(
+        db, paper_id=paper.id, index=index, ingestion_id=ingestion_id
+    )
+    await db.commit()
+
+    try:
+        old_ids = await vector_store_service.stage_documents_for_paper(str(paper.id), chunks)
+    except Exception as exc:
+        await index_registry.mark_failed(db, paper_id=paper.id, index=index, error=str(exc))
+        await db.commit()
+        raise
+
+    await index_registry.mark_ready(
+        db, paper_id=paper.id, index=index, chunk_count=len(chunks)
+    )
+    await db.commit()
+
+    if old_ids:
+        await vector_store_service.delete_document_ids(old_ids)
+
+
 async def ensure_paper_ingested(db: AsyncSession, paper: Paper) -> uuid.UUID:
-    """Ensure a Paper has an active_ingestion_id.
-    If active_ingestion_id is already set, return it.
-    If paper.file_path exists and is readable, run PDF extractor and persist provenance.
-    Otherwise (e.g. metadata/search paper), construct a synthetic provenance page from
-    title + abstract text and persist provenance.
+    """Ensure a Paper has an active_ingestion_id and is present in the index.
+
+    If ``paper.file_path`` points at a readable PDF, that PDF is the evidence.
+    Otherwise the paper is metadata-only (a search result with no full text)
+    and its title/abstract stand in, recorded as such.
     """
     if paper.active_ingestion_id is not None:
-        try:
-            from src.models.db_models import PDFChunk
-            from src.services.vector_store import vector_store_service
-            from langchain_core.documents import Document
-            from sqlalchemy import select
-            existing_chunks = (await db.execute(select(PDFChunk).where(PDFChunk.paper_id == paper.id))).scalars().all()
-            if existing_chunks:
-                docs = [
-                    Document(
-                        page_content=c.chunk_text,
-                        metadata={
-                            "chunk_id": str(c.id),
-                            "paper_id": str(c.paper_id),
-                            "page": c.page,
-                            "chunk_index": c.chunk_index
-                        }
-                    )
-                    for c in existing_chunks
-                ]
-                await vector_store_service.add_documents(docs)
-        except Exception:
-            pass
+        # Nothing to do. This branch used to re-read every chunk from Postgres
+        # and push them all back into Chroma on each call. Chroma minted a new
+        # id per document, so an already-ingested paper gained one full copy of
+        # itself per synthesis run: storage grew linearly and top-k retrieval
+        # filled with duplicates of the same passage, quietly crowding out other
+        # evidence. Restoring genuinely missing vectors is
+        # VectorStoreService.recover_vectors_for_paper's job, and it now runs
+        # against the identity the vectors were built with.
         return paper.active_ingestion_id
 
     import os
-    from src.services.document_processor import DocumentProcessor
-    from src.services.vector_store import vector_store_service
+
     from langchain_core.documents import Document
+
+    from src.services.document_processor import DocumentProcessor
 
     processor = DocumentProcessor()
 
     if paper.file_path and os.path.exists(paper.file_path):
         try:
             pages, chunks = processor.extract_and_chunk(paper.file_path)
-            if chunks and any(c.page_content.strip() for c in chunks):
-                ingestion_id = await persist_pdf_provenance(
-                    db=db,
-                    paper=paper,
-                    pages=pages,
-                    chunks=chunks,
-                    parser_metadata=processor.parser_metadata()
-                )
-                await vector_store_service.stage_documents_for_paper(str(paper.id), chunks)
-                await db.commit()
-                return ingestion_id
-        except Exception as e:
-            print(f"Warning: Failed PDF re-ingestion for '{paper.title}': {e}")
+        except Exception as exc:
+            # Deliberately not falling through to the title/abstract path below.
+            # A 30-page PDF that fails to parse used to be silently replaced by
+            # a single chunk holding its title and abstract, recorded as a
+            # successful ingestion -- so synthesis went on to cite the paper as
+            # though it had been read in full. For a literature review tool that
+            # is a claim about evidence that is not true.
+            raise PdfIngestionError(
+                f"Could not extract text from the PDF for {paper.title!r} "
+                f"({paper.file_path}): {exc}. The document has not been "
+                "ingested; re-upload it or remove the file to ingest this "
+                "paper from its abstract instead."
+            ) from exc
 
-    # Fallback for metadata / search paper (or unparseable PDF)
+        if not chunks or not any(c.page_content.strip() for c in chunks):
+            raise PdfIngestionError(
+                f"The PDF for {paper.title!r} parsed but yielded no text. It is "
+                "most likely a scan and needs OCR before it can be used as "
+                "evidence."
+            )
+
+        ingestion_id = await persist_pdf_provenance(
+            db=db,
+            paper=paper,
+            pages=pages,
+            chunks=chunks,
+            parser_metadata=processor.parser_metadata()
+        )
+        await db.flush()
+        await _index_chunks(db, paper=paper, chunks=chunks, ingestion_id=ingestion_id)
+        return ingestion_id
+
+    # Metadata-only paper: there is no full text to read, so the abstract is
+    # genuinely all the evidence there is. parser_name records that, so
+    # downstream consumers can tell this apart from a parsed document.
     abstract_text = (paper.abstract or "").strip()
     if len(abstract_text) < 10:
-        abstract_text = f"Title: {paper.title}. No detailed abstract provided."
+        raise PdfIngestionError(
+            f"{paper.title!r} has neither a readable PDF nor an abstract, so "
+            "there is nothing to index. Upload the full text first."
+        )
 
     authors_str = paper.authors if isinstance(paper.authors, str) else ", ".join(paper.authors or [])
     full_page_content = f"Title: {paper.title}\nAuthors: {authors_str}\nJournal: {paper.journal or 'N/A'} ({paper.year or 'N/A'})\nAbstract: {abstract_text}"
-    
+
     page = Document(page_content=full_page_content, metadata={"page": 0})
     chunk = Document(
         page_content=full_page_content,
@@ -183,22 +236,19 @@ async def ensure_paper_ingested(db: AsyncSession, paper: Paper) -> uuid.UUID:
             "page_char_end": len(full_page_content)
         }
     )
-    
+
     ingestion_id = await persist_pdf_provenance(
         db=db,
         paper=paper,
         pages=[page],
         chunks=[chunk],
         parser_metadata={
-            "parser_name": "metadata_fallback",
+            "parser_name": "metadata_only",
             "parser_version": "1.0",
             "ingestion_version": "1.0"
         }
     )
-    try:
-        await vector_store_service.stage_documents_for_paper(str(paper.id), [chunk])
-    except Exception:
-        pass
-    await db.commit()
+    await db.flush()
+    await _index_chunks(db, paper=paper, chunks=[chunk], ingestion_id=ingestion_id)
     return ingestion_id
 
