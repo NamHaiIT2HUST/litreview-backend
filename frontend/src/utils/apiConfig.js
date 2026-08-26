@@ -20,20 +20,16 @@ export const getApiBase = () => {
     return envBase.trim();
   }
 
-  if (typeof window !== 'undefined' && LOCAL_HOSTNAMES.has(window.location.hostname)) {
-    return `http://${window.location.hostname}:8000/api/v1`;
+  if (typeof window !== 'undefined') {
+    if (LOCAL_HOSTNAMES.has(window.location.hostname)) {
+      return `http://${window.location.hostname}:8000/api/v1`;
+    }
+    if (window.location.hostname === 'c3-app-165.io.vn') {
+      return 'https://www.c3-app-165.io.vn/api/v1';
+    }
+    return `${window.location.origin}/api/v1`;
   }
 
-  // Anywhere else, assume the deployment proxies /api/v1 to the backend on the
-  // same origin (vercel.json does this). Naming a specific host here is what
-  // caused the divergence described above.
-  if (import.meta.env.PROD && !import.meta.env.VITE_API_BASE) {
-    console.warn(
-      '[apiConfig] VITE_API_BASE is not set. Falling back to the same-origin ' +
-        '/api/v1 path, which only works if this deployment proxies it to the ' +
-        'backend. See frontend/.env.example.'
-    );
-  }
   return '/api/v1';
 };
 
