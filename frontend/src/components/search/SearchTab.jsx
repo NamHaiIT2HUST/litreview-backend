@@ -7,7 +7,7 @@ import {
 import SearchHistoryPanel from './SearchHistoryPanel';
 import FilterSortBar from './FilterSortBar';
 import PaperTable from './PaperTable';
-import { exportPapersToExcel } from '../../utils/excelExport';
+import { exportPapersToExcel, exportPapersToCsv } from '../../utils/excelExport';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useProject } from '../../contexts/ProjectContext';
 import { API_BASE, safeFetch } from '../../utils/apiConfig';
@@ -837,6 +837,13 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
     exportPapersToExcel(dataToExport, `LitReview_Export_${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
+  const handleExportCsv = (selectedPapers = []) => {
+    const dataToExport = selectedPapers.length > 0
+      ? selectedPapers
+      : filteredAndSortedPapers;
+    exportPapersToCsv(dataToExport, `LitReview_Export_${new Date().toISOString().slice(0, 10)}.csv`);
+  };
+
   return (
     <div className="flex gap-0 min-h-screen">
       
@@ -1422,31 +1429,17 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
               <div className="flex flex-wrap sm:flex-nowrap gap-2.5 w-full sm:w-auto items-center">
                 <button
                   onClick={clearSelectedPapers}
-                  className="px-4 py-2.5 bg-slate-800/80 hover:bg-slate-800 text-slate-300 hover:text-white font-semibold rounded-xl text-xs transition-all border border-slate-700 cursor-pointer"
+                  className="px-4 py-2.5 bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white font-semibold rounded-xl text-xs transition-all border border-slate-700 cursor-pointer"
                 >
-                  Bỏ chọn
+                  Bỏ chọn tất cả
                 </button>
                 <button
-                  onClick={() => handleExportExcel(selectedPapers)}
-                  className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer"
+                  onClick={() => handleExportCsv(selectedPapers)}
+                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  <span>Tải Excel ↓</span>
+                  <span>Tải CSV ↓</span>
                 </button>
-                {setActiveTab && (
-                  <button
-                    onClick={() => {
-                      if (setWorkspacePapers) {
-                        setWorkspacePapers(selectedPapers);
-                      }
-                      setActiveTab('synthesis');
-                    }}
-                    className="flex-1 sm:flex-none px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-xl text-xs transition-all shadow-lg flex items-center justify-center gap-1.5 cursor-pointer"
-                  >
-                    <span>Vào Phân tích (Workspace)</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
-                )}
               </div>
             </div>
           )}
