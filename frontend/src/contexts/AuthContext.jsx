@@ -129,22 +129,7 @@ export function AuthProvider({ children }) {
   };
 
   const loginWithGoogle = async () => {
-    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-    if (!clientId) {
-      // Graceful fallback to demo researcher account
-      const mockUser = {
-        id: 'user_researcher_01',
-        email: 'researcher.demo@litreview.ai',
-        name: 'TS. Nguyễn Hoàng Nam',
-        institution: 'Viện Khoa học & Công nghệ',
-        role: 'researcher',
-        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-        bio: 'Nhà nghiên cứu Khoa học Dữ liệu & Y sinh.',
-      };
-      setCurrentUser(mockUser);
-      localStorage.setItem('litreview_user', JSON.stringify(mockUser));
-      return { success: true, user: mockUser };
-    }
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '447985190531-p2gko4a06q485g1mku819bno42qsifen.apps.googleusercontent.com';
 
     if (typeof window !== 'undefined' && window.google?.accounts?.oauth2) {
       return new Promise((resolve, reject) => {
@@ -159,11 +144,7 @@ export function AuthProvider({ children }) {
               }
 
               try {
-                // The backend re-verifies this token with Google and issues our
-                // own access token. Its response is the only accepted identity:
-                // deriving a session from the client-side Google profile would
-                // produce a "logged in" user the API cannot authorise.
-                const beRes = await fetch(`${API_BASE}/auth/google`, {
+                const beRes = await safeFetch('/auth/google', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ access_token: tokenResponse.access_token }),
@@ -196,7 +177,7 @@ export function AuthProvider({ children }) {
       });
     }
 
-    throw new Error('Không tải được Google Sign-In. Vui lòng kiểm tra kết nối mạng.');
+    throw new Error('Đang tải thư viện Google Sign-In, vui lòng thử lại sau giây lát.');
   };
 
   // Ready-made researcher profiles for trying the app without registering.
