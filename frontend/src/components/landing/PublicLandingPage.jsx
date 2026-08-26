@@ -1073,8 +1073,8 @@ export default function PublicLandingPage({ onOpenAuth }) {
       {/* ── 0. Minimalist Interactive Constellation Background with Parallax */}
       <AcademicConstellationCanvas darkMode={darkMode} scrollY={scrollY} />
 
-      {/* ── 1. Top Glassmorphic Navigation Bar ─────────────────────────── */}
-      <header className="sticky top-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-800/80 transition-colors shadow-2xs w-full">
+      {/* ── 1. Top Glassmorphic Navigation Bar (Always Fixed on Scroll) ─── */}
+      <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-800/80 transition-colors shadow-xs w-full">
         <div className="w-full max-w-[1680px] mx-auto px-3 sm:px-5 lg:px-6 h-18 sm:h-20 flex items-center justify-between gap-3 relative z-10">
           
           {/* Left: Brand + Desktop Nav Links (Dịch trọn bộ sang trái) */}
@@ -1150,7 +1150,7 @@ export default function PublicLandingPage({ onOpenAuth }) {
       </header>
 
       {/* ── 2. Full-Screen Majestic Two-Column Split Hero Section ─────── */}
-      <section id="hero" className="relative overflow-hidden min-h-[calc(100vh-4rem)] flex flex-col justify-between pt-8 pb-8 border-b border-surface-200/80 dark:border-surface-800/80 z-10">
+      <section id="hero" className="relative overflow-hidden min-h-[calc(100vh-4rem)] flex flex-col justify-between pt-24 sm:pt-28 pb-8 border-b border-surface-200/80 dark:border-surface-800/80 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 xl:pr-24 2xl:pr-28 w-full flex-1 flex items-center my-auto">
           
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center w-full py-6">
