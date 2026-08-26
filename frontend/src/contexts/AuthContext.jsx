@@ -31,7 +31,10 @@ export function AuthProvider({ children }) {
     }
   }, [token]);
 
-  // Unified login: tries backend API first, fallback to demo/local
+  // Unified login: authenticates against the backend only. A backend that is
+  // unreachable or that rejects the credentials must fail the login, not hand
+  // out a fabricated local session — a fake session cannot call a single
+  // authenticated API now that the backend actually verifies tokens.
   const login = async (usernameOrEmail, password) => {
     const cleanIdentifier = (usernameOrEmail || '').trim();
     if (!cleanIdentifier) {
@@ -48,24 +51,14 @@ export function AuthProvider({ children }) {
       });
       data = await res.json().catch(() => ({}));
     } catch (err) {
-      console.warn('Backend login unreachable, activating offline session:', err.message);
-      data = {
-        access_token: 'local_auth_token_' + Date.now(),
-        user: {
-          id: 'user_' + cleanIdentifier.replace(/[^a-zA-Z0-9]/g, '_'),
-          username: cleanIdentifier.split('@')[0],
-          name: cleanIdentifier.split('@')[0],
-          email: cleanIdentifier.includes('@') ? cleanIdentifier : `${cleanIdentifier}@university.edu.vn`,
-          role: 'Senior Researcher',
-        },
-      };
+      throw new Error('Không thể kết nối tới máy chủ. Vui lòng thử lại sau.');
     }
 
-    if (!data || (!data.access_token && !data.user)) {
+    if (!res.ok || !data.access_token) {
       throw new Error(data?.detail || 'Sai tên đăng nhập hoặc mật khẩu.');
     }
 
-    const tokenVal = data.access_token || ('local_token_' + Date.now());
+    const tokenVal = data.access_token;
     const userVal = data.user || {
       username: cleanIdentifier.split('@')[0],
       name: cleanIdentifier.split('@')[0],
@@ -114,21 +107,14 @@ export function AuthProvider({ children }) {
       });
       data = await res.json().catch(() => ({}));
     } catch (err) {
-      console.warn('Backend register unreachable, activating local account:', err.message);
-      data = {
-        access_token: 'local_reg_token_' + Date.now(),
-        user: {
-          id: 'user_' + username,
-          username,
-          name: name || username,
-          email,
-          role,
-          institution,
-        },
-      };
+      throw new Error('Không thể kết nối tới máy chủ. Vui lòng thử lại sau.');
     }
 
-    const tokenVal = data?.access_token || ('local_token_' + Date.now());
+    if (!res.ok || !data.access_token) {
+      throw new Error(data?.detail || 'Không thể tạo tài khoản. Vui lòng thử lại.');
+    }
+
+    const tokenVal = data.access_token;
     setToken(tokenVal);
     const newUserObj = {
       ...(data?.user || {}),
@@ -158,7 +144,12 @@ export function AuthProvider({ children }) {
                 return;
               }
 
-              // 1. Try backend authentication first
+              // The backend is the only party that verifies this token against
+              // Google and issues a real session. A frontend-only fallback
+              // (calling Google directly, or worse, a hardcoded default user)
+              // would let sign-in "succeed" without a token any authenticated
+              // API route accepts, and previously did so as a fixed identity
+              // regardless of who was actually signing in.
               try {
                 const beRes = await safeFetch('/auth/google', {
                   method: 'POST',
@@ -174,51 +165,11 @@ export function AuthProvider({ children }) {
                   resolve({ success: true, user: backendUser });
                   return;
                 }
+
+                reject(new Error(backendUser?.detail || 'Không thể xác thực đăng nhập Google. Vui lòng thử lại.'));
               } catch (fetchErr) {
-                console.warn('Backend /auth/google unreachable, fetching profile directly from Google:', fetchErr);
+                reject(new Error('Không thể kết nối tới máy chủ để xác thực Google. Vui lòng thử lại sau.'));
               }
-
-              // 2. Direct fallback: Fetch userinfo directly from Google API
-              try {
-                const gRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-                  headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
-                });
-                if (gRes.ok) {
-                  const gUser = await gRes.json();
-                  const fallbackUser = {
-                    id: gUser.sub || 'google_user',
-                    name: gUser.name || 'Nhà nghiên cứu Google',
-                    email: gUser.email,
-                    avatar: (gUser.name || 'US').slice(0, 2).toUpperCase(),
-                    picture: gUser.picture,
-                    role: 'Senior Researcher',
-                    institution: 'Viện Nghiên cứu Khoa học',
-                    plan: 'Scholar Pro',
-                    access_token: 'google_session_' + Date.now(),
-                  };
-                  setToken(fallbackUser.access_token);
-                  setCurrentUser(fallbackUser);
-                  resolve({ success: true, user: fallbackUser });
-                  return;
-                }
-              } catch (gErr) {
-                console.warn('Google userinfo fetch failed:', gErr);
-              }
-
-              // 3. Fallback to default active session
-              const defaultUser = {
-                id: 'google_user_default',
-                name: 'Nguyễn Đào Nam Hải',
-                email: 'namhai23092005@gmail.com',
-                avatar: 'NH',
-                role: 'Senior Researcher',
-                institution: 'Đại học Bách Khoa Hà Nội (HUST)',
-                plan: 'Scholar Pro',
-                access_token: 'google_session_' + Date.now(),
-              };
-              setToken(defaultUser.access_token);
-              setCurrentUser(defaultUser);
-              resolve({ success: true, user: defaultUser });
             },
           });
 
@@ -250,28 +201,13 @@ export function AuthProvider({ children }) {
   }, []);
 
   const loginDemo = async (account) => {
-    const target = account || {
-      username: 'dr_namhai',
-      name: 'TS. Nguyễn Đào Nam Hải',
-      email: 'namhai23092005@gmail.com',
-      role: 'Senior Researcher',
-      institution: 'Đại học Bách Khoa Hà Nội (HUST)',
-    };
-    try {
-      const result = await login(target.username || target.email, target.password || 'demo123');
-      return result;
-    } catch {
-      const offlineUser = {
-        ...target,
-        id: target.id || 'demo_dr_namhai',
-        avatar: (target.name || 'NH').slice(0, 2).toUpperCase(),
-        plan: 'Scholar Pro',
-        access_token: 'demo_session_' + Date.now(),
-      };
-      setToken(offlineUser.access_token);
-      setCurrentUser(offlineUser);
-      return { success: true, user: offlineUser };
+    if (!account) {
+      throw new Error('Không có tài khoản demo khả dụng lúc này.');
     }
+    // Demo accounts are ordinary user rows (see GET /auth/demo-accounts): this
+    // performs a real login and receives a real access token, so it is
+    // authorised exactly like any other account rather than only looking so.
+    return login(account.username || account.email, account.password || 'demo123');
   };
 
   const resetPassword = async (email) => {

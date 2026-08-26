@@ -47,7 +47,7 @@ const TEMPLATES = [
   },
 ];
 
-export default function NewProjectModal({ isOpen, onClose }) {
+export default function NewProjectModal({ isOpen, onClose, onCreated }) {
   const { createProject } = useProject();
 
   const [name, setName] = useState('');
@@ -89,6 +89,7 @@ export default function NewProjectModal({ isOpen, onClose }) {
 
     setLoading(false);
     onClose();
+    if (onCreated) onCreated();
   };
 
   return (

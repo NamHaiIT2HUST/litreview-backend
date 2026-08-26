@@ -170,6 +170,56 @@ export function ProjectProvider({ children }) {
 
   const activeProject = projects.find(p => p.id === activeProjectId) || projects[0] || null;
 
+  // Fire-and-forget backend sync for a project already shown in the UI.
+  // Reconciles the local id with the backend-assigned one so later reads
+  // (papers, chat, workspace state) find their data under the id everything
+  // else in the app now uses.
+  const syncProjectToBackend = async (localProject) => {
+    try {
+      const res = await safeFetch('/projects', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(userId ? { 'X-User-Id': userId } : {}),
+        },
+        body: JSON.stringify({
+          name: localProject.name,
+          research_question: localProject.research_question,
+          research_field: localProject.research_field,
+          year_from: localProject.year_from,
+          year_to: localProject.year_to,
+          criteria_include: localProject.criteria_include,
+          criteria_exclude: localProject.criteria_exclude,
+        }),
+      });
+      if (!res || !res.ok) return;
+      const created = await res.json();
+      const backendId = created?.id ? String(created.id) : null;
+      if (!backendId || backendId === localProject.id) return;
+
+      const keyPrefixes = [
+        'litreview_workspace_chat_', 'litreview_papers_', 'litreview_selected_ids_',
+        'litreview_selected_papers_', 'litreview_workspace_papers_', 'litreview_workspace_subtab_',
+      ];
+      keyPrefixes.forEach((prefix) => {
+        try {
+          const value = localStorage.getItem(`${prefix}${localProject.id}`);
+          if (value !== null) {
+            localStorage.setItem(`${prefix}${backendId}`, value);
+            localStorage.removeItem(`${prefix}${localProject.id}`);
+          }
+        } catch {}
+      });
+
+      setProjects(prev => prev.map(p => (p.id === localProject.id ? { ...p, id: backendId } : p)));
+      setActiveProjectId(prev => (prev === localProject.id ? backendId : prev));
+    } catch (e) {
+      // Offline or backend unreachable: the project stays local-only until
+      // the next successful sync (e.g. a rename/update call).
+    }
+  };
+
   const createProject = async (projectData = {}) => {
     const newId = `proj_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
     const newProject = {
@@ -189,36 +239,12 @@ export function ProjectProvider({ children }) {
       updated_at: new Date().toISOString(),
     };
 
-    // Fast backend sync (1.5s timeout) so user experiences instant 0.1s opening
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 1500);
-      const res = await safeFetch('/projects', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          ...(userId ? { 'X-User-Id': userId } : {}),
-        },
-        body: JSON.stringify({
-          name: newProject.name,
-          research_question: newProject.research_question,
-          research_field: newProject.research_field,
-          year_from: newProject.year_from,
-          year_to: newProject.year_to,
-          criteria_include: newProject.criteria_include,
-          criteria_exclude: newProject.criteria_exclude,
-        }),
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
-      if (res && res.ok) {
-        const created = await res.json();
-        if (created.id) newProject.id = String(created.id);
-      }
-    } catch (e) {
-      console.warn("Backend project sync timed out or offline, using instant local storage:", e);
-    }
+    // The UI must react instantly regardless of backend latency: the project
+    // is created locally first, and the backend sync below runs in the
+    // background without blocking navigation. Waiting on the network here
+    // (even with a short timeout) is exactly what made "create new notebook"
+    // feel stuck whenever the backend was slow to respond.
+    syncProjectToBackend(newProject);
 
     // Initialize 100% clean, fresh storage keys for this new project
     const defaultWelcome = [
@@ -269,7 +295,10 @@ export function ProjectProvider({ children }) {
     try {
       await safeFetch(`${API_BASE}/projects/${projectId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify(data),
       });
     } catch {}
@@ -289,6 +318,7 @@ export function ProjectProvider({ children }) {
   const renameProject = async (projectId, newName) => {
     if (!newName || !newName.trim()) return;
     const trimmed = newName.trim();
+    const current = projects.find(p => p.id === projectId);
     setProjects(prev =>
       prev.map(p => {
         if (p.id === projectId) {
@@ -298,12 +328,26 @@ export function ProjectProvider({ children }) {
       })
     );
 
-    // Sync to backend if possible
+    // The backend's PUT /projects/{id} validates a full project payload
+    // (name, research_question, research_field are required), so a
+    // name-only body always failed with a 422 that this call silently
+    // swallowed -- renaming a project never actually persisted.
     try {
       await safeFetch(`${API_BASE}/projects/${projectId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: trimmed }),
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          name: trimmed,
+          research_question: current?.research_question || '',
+          research_field: current?.research_field || '',
+          year_from: current?.year_from,
+          year_to: current?.year_to,
+          criteria_include: current?.criteria_include || [],
+          criteria_exclude: current?.criteria_exclude || [],
+        }),
       });
     } catch {}
   };
@@ -320,6 +364,9 @@ export function ProjectProvider({ children }) {
     try {
       await safeFetch(`${API_BASE}/projects/${projectId}`, {
         method: 'DELETE',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
       });
     } catch (e) {
       console.warn("Backend project deletion warning:", e);

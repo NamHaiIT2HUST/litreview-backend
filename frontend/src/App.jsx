@@ -388,6 +388,7 @@ function MainAppShell() {
       <NewProjectModal
         isOpen={newProjectModalOpen}
         onClose={() => setNewProjectModalOpen(false)}
+        onCreated={() => setActiveTab('setup')}
       />
 
       {/* Auth Modal for switching accounts */}

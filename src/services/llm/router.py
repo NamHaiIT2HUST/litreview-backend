@@ -33,6 +33,38 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_PRIORITY = ("gemini", "openai", "groq", "deepseek", "openrouter", "xkiro")
 
+# The three SLR-swarm agents in the Research Setup tab are meant to each spend
+# from their own Gemini key (GEMINI_KEY_SCOPE_OPTIMIZER / _CRITERIA_GENERATOR /
+# _PICO in .env.example) so one agent's quota exhaustion cannot take out the
+# other two. Before this, ``select()`` only ever pulled from the shared
+# GEMINI_API_KEYS pool for these tasks, so the three dedicated keys sat unused.
+# Falls back to the shared pool when a task has no dedicated key configured.
+_TASK_DEDICATED_GEMINI_ENV: dict[str, str] = {
+    "optimize_scope": "GEMINI_KEY_SCOPE_OPTIMIZER",
+    "generate_criteria": "GEMINI_KEY_CRITERIA_GENERATOR",
+    "find_gaps": "GEMINI_KEY_PICO",
+    "extract_pico": "GEMINI_KEY_PICO",
+}
+
+# Cached per task so a key disabled or cooled down by the invoker stays that
+# way across calls, the same guarantee the shared credential store gives.
+_dedicated_credentials: dict[str, Credential] = {}
+
+
+def _dedicated_credential_for(task: str) -> Credential | None:
+    env_var = _TASK_DEDICATED_GEMINI_ENV.get(task)
+    if not env_var:
+        return None
+    cached = _dedicated_credentials.get(task)
+    if cached is not None:
+        return cached
+    key = os.getenv(env_var, "").strip()
+    if not key:
+        return None
+    credential = Credential(provider="gemini", alias=env_var.lower(), key=key)
+    _dedicated_credentials[task] = credential
+    return credential
+
 # Which env var names the model for each provider. Separate from the credential
 # on purpose: changing a key must never change which model runs.
 _PROVIDER_MODEL_ENV = {
@@ -127,7 +159,13 @@ def select(task: str) -> Selection:
             skipped[provider] = reason
             continue
 
-        credential = store.next_for(provider)
+        credential = None
+        if provider == "gemini":
+            dedicated = _dedicated_credential_for(task)
+            if dedicated is not None and dedicated.is_available:
+                credential = dedicated
+        if credential is None:
+            credential = store.next_for(provider)
         if credential is None:
             skipped[provider] = store.unavailable_reason(provider)
             continue

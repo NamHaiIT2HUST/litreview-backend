@@ -121,10 +121,25 @@ def _resolve_project_id(pid_raw: str | UUID) -> UUID:
         return uuid.uuid5(uuid.NAMESPACE_DNS, str(pid_raw))
 
 
+def _authorize_project_access(project: Project, user: AuthenticatedUser) -> None:
+    """Refuse a caller who does not own this project.
+
+    ``project.user_id`` is ``None`` for rows created before ownership was
+    tracked; those are treated as accessible so existing data does not
+    suddenly 404 for everyone, matching how ``list_projects`` already handles
+    them for admins.
+    """
+    if user.is_admin:
+        return
+    if project.user_id is not None and project.user_id != user.id:
+        raise HTTPException(status_code=403, detail="This project belongs to another account.")
+
+
 @router.put("/projects/{project_id}", response_model=ProjectResponse)
 async def update_project(
     project_id: str,
     request: ProjectCreateRequest,
+    user: AuthenticatedUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """Module 1: Update research project details (scope, question, criteria)."""
@@ -135,6 +150,7 @@ async def update_project(
         # Create if not exists for seamless UX
         project = Project(
             id=p_uuid,
+            user_id=user.id,
             name=request.name,
             research_question=request.research_question,
             research_field=request.research_field,
@@ -147,6 +163,8 @@ async def update_project(
         await db.commit()
         await db.refresh(project)
         return project
+
+    _authorize_project_access(project, user)
 
     project.name = request.name
     project.research_question = request.research_question
@@ -162,13 +180,18 @@ async def update_project(
 
 
 @router.get("/projects/{project_id}", response_model=ProjectResponse)
-async def get_project(project_id: str, db: AsyncSession = Depends(get_db)):
+async def get_project(
+    project_id: str,
+    user: AuthenticatedUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     """Module 1: Get project details."""
     p_uuid = _resolve_project_id(project_id)
     result = await db.execute(select(Project).where(Project.id == p_uuid))
     project = result.scalar_one_or_none()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
+    _authorize_project_access(project, user)
     return project
 
 @router.get("/projects/{project_id}/papers", response_model=list[PaperRecord])
@@ -176,13 +199,17 @@ async def get_project_papers(
     project_id: str,
     decision: str = None,
     include_unverified: bool = False,
+    user: AuthenticatedUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """Get papers for a project."""
     from sqlalchemy import or_, func
     from src.models.db_models import Paper, PageText, PDFChunk
-    
+
     p_uuid = _resolve_project_id(project_id)
+    parent = (await db.execute(select(Project).where(Project.id == p_uuid))).scalar_one_or_none()
+    if parent:
+        _authorize_project_access(parent, user)
     stmt = select(Paper).where(Paper.project_id == p_uuid)
     if not include_unverified:
         # "undetermined" is included deliberately. It means the journal was not
@@ -226,10 +253,14 @@ async def get_project_papers(
 
 
 @router.delete("/projects/{project_id}", status_code=204)
-async def delete_project(project_id: str, db: AsyncSession = Depends(get_db)):
+async def delete_project(
+    project_id: str,
+    user: AuthenticatedUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     """Module 1: Delete a research project and all its associated child data cleanly."""
     from src.models.db_models import (
-        Paper, PageText, PDFChunk, SearchQuery, SearchQueryPaper, 
+        Paper, PageText, PDFChunk, SearchQuery, SearchQueryPaper,
         SynthesisSession, Citation, SynthesisClaim, SynthesisSection,
         EvidenceRecord, EvidenceExtractionAttempt, Extraction, ScreeningHistory,
         VectorCleanupJob
@@ -241,6 +272,7 @@ async def delete_project(project_id: str, db: AsyncSession = Depends(get_db)):
     project = result.scalar_one_or_none()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
+    _authorize_project_access(project, user)
 
     # 1. Get all paper IDs
     papers_res = await db.execute(select(Paper.id).where(Paper.project_id == p_uuid))
@@ -285,15 +317,21 @@ async def delete_project(project_id: str, db: AsyncSession = Depends(get_db)):
     return None
 
 @router.patch("/projects/{project_id}/criteria", response_model=ProjectResponse)
-async def update_criteria(project_id: str, request: CriteriaUpdateRequest, db: AsyncSession = Depends(get_db)):
+async def update_criteria(
+    project_id: str,
+    request: CriteriaUpdateRequest,
+    user: AuthenticatedUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     """Module 1: Update Inclusion/Exclusion Criteria."""
     p_uuid = _resolve_project_id(project_id)
     result = await db.execute(select(Project).where(Project.id == p_uuid))
     project = result.scalar_one_or_none()
-    
+
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-        
+    _authorize_project_access(project, user)
+
     project.criteria_include = request.criteria_include
     project.criteria_exclude = request.criteria_exclude
     
