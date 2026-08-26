@@ -436,11 +436,12 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }) {
               </button>
 
               {/* Divider */}
-              <div className="relative flex items-center justify-center">
-                <div className="border-t border-slate-200 dark:border-slate-800 w-full" />
-                <span className="bg-white dark:bg-slate-900 px-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider relative">
+              <div className="flex items-center gap-3 my-2.5">
+                <div className="flex-1 h-px bg-slate-200 dark:bg-slate-800" />
+                <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider whitespace-nowrap">
                   {t.orEmail}
                 </span>
+                <div className="flex-1 h-px bg-slate-200 dark:bg-slate-800" />
               </div>
 
               {/* Email & Password Form */}
@@ -558,11 +559,12 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }) {
               </button>
 
               {/* Divider */}
-              <div className="relative flex items-center justify-center">
-                <div className="border-t border-slate-200 dark:border-slate-800 w-full" />
-                <span className="bg-white dark:bg-slate-900 px-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider relative">
+              <div className="flex items-center gap-3 my-2.5">
+                <div className="flex-1 h-px bg-slate-200 dark:bg-slate-800" />
+                <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider whitespace-nowrap">
                   {t.orEmail}
                 </span>
+                <div className="flex-1 h-px bg-slate-200 dark:bg-slate-800" />
               </div>
 
               <form onSubmit={handleRegisterSubmit} className="space-y-3">
