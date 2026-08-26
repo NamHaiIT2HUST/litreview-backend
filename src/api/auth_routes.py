@@ -393,3 +393,59 @@ async def get_auth_config():
         "google_redirect_uri": settings.google_redirect_uri,
         "enabled_providers": ["google", "local"],
     }
+
+
+# ── Demo accounts (development only) ─────────────────────────────────────────
+#
+# Two ready-made researcher profiles so the app can be tried without filling in
+# a signup form. They are ordinary user rows: picking one performs a real
+# POST /auth/login and receives a real access token, so everything afterwards is
+# authorised exactly like any other account.
+#
+# The earlier version of this feature only looked like that. Choosing a profile
+# set React state from a hardcoded list and never contacted the backend, storing
+# the literal string 'local_session_token' as the token. That was harmless while
+# no endpoint checked anything; now that they do, such a session could not call
+# a single API. Keeping the convenience therefore meant making the accounts real.
+DEMO_ACCOUNTS = [
+    {
+        "username": "hai.nguyen@vinuni.edu.vn",
+        "name": "TS. Nguyễn Hải",
+        "role": "Senior AI Researcher",
+        "institution": "VinUniversity & VinAI Research",
+        "plan": "Academic Enterprise",
+        "bio": "Nghiên cứu thị giác máy tính & mô hình chẩn đoán y sinh học.",
+        "avatar": "NH",
+    },
+    {
+        "username": "minh.pham@hust.edu.vn",
+        "name": "Minh Phạm",
+        "role": "Graduate Researcher",
+        "institution": "HUST - Đại học Bách Khoa Hà Nội",
+        "plan": "Scholar Pro",
+        "bio": "Học viên cao học chuyên ngành Khoa học Dữ liệu & Xử lý Ngôn ngữ Tự nhiên.",
+        "avatar": "MP",
+    },
+]
+
+
+@router.get("/demo-accounts")
+async def list_demo_accounts():
+    """Profiles the sign-in screen can offer as one-click logins.
+
+    Returns an empty list unless demo seeding is switched on, which
+    validate_security_settings restricts to development. The password travels
+    with each profile because the client has to perform a genuine login with it,
+    and it is a development-only shared credential by construction -- but that is
+    also precisely why this endpoint must stay dark outside development.
+    """
+    settings = get_settings()
+    if not settings.seed_demo_accounts or settings.app_env != "development":
+        return {"accounts": []}
+
+    return {
+        "accounts": [
+            {**account, "password": settings.seed_demo_password}
+            for account in DEMO_ACCOUNTS
+        ]
+    }

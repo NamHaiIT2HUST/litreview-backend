@@ -189,6 +189,41 @@ export function AuthProvider({ children }) {
     throw new Error('Không tải được Google Sign-In. Vui lòng kiểm tra kết nối mạng.');
   };
 
+  // Ready-made researcher profiles for trying the app without registering.
+  // The backend serves these only in development and returns an empty list
+  // otherwise, so the picker simply does not appear anywhere else.
+  const [demoAccounts, setDemoAccounts] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/auth/demo-accounts`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled) setDemoAccounts(data.accounts || []);
+      } catch {
+        // No demo accounts offered. Not an error worth surfacing: the sign-in
+        // form works regardless.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const loginDemo = async (account) => {
+    // A real login against a real account, not a client-side session. The
+    // previous version set React state from a hardcoded profile and stored the
+    // string 'local_session_token', which produced a "signed in" user that no
+    // authenticated endpoint would accept.
+    const result = await login(account.username, account.password);
+    return {
+      ...result,
+      user: { ...result.user, ...account, password: undefined },
+    };
+  };
+
   const resetPassword = async (email) => {
     return new Promise((resolve) => {
       setTimeout(() => {
@@ -215,6 +250,8 @@ export function AuthProvider({ children }) {
         isAuthenticated: Boolean(currentUser),
         login,
         loginWithGoogle,
+        loginDemo,
+        demoAccounts,
         resetPassword,
         register,
         logout,

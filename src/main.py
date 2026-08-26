@@ -45,6 +45,7 @@ async def lifespan(app: FastAPI):
     await _ensure_default_project()
     print("Default project seeded.")
     await _ensure_default_admin()
+    await _ensure_demo_accounts()
     import asyncio
     # Fast v2 (EXPERIMENTAL): warm local evidence models in background task
     # to allow the HTTP port to bind immediately and avoid startup timeouts
@@ -187,6 +188,48 @@ async def _ensure_default_admin():
         except Exception as e:
             await session.rollback()
             print(f"Warning: could not seed default admin: {e}")
+
+
+async def _ensure_demo_accounts():
+    """Create the demo researcher profiles offered on the sign-in screen.
+
+    These are ordinary user rows. Picking one in the UI performs a real login
+    and receives a real token, so the shortcut skips the signup form and nothing
+    else. validate_security_settings keeps this to development, because the
+    password is shared and served to the client.
+    """
+    settings = get_settings()
+    if not settings.seed_demo_accounts:
+        return
+
+    from sqlalchemy import func as _func
+    from sqlalchemy import select as _select
+
+    from src.api.auth_routes import DEMO_ACCOUNTS, hash_password
+    from src.database import AsyncSessionLocal
+    from src.models.db_models import Role, User
+
+    async with AsyncSessionLocal() as session:
+        try:
+            created = 0
+            for account in DEMO_ACCOUNTS:
+                username = account["username"]
+                exists = await session.execute(
+                    _select(User).where(_func.lower(User.username) == username.lower())
+                )
+                if exists.scalars().first() is None:
+                    session.add(User(
+                        username=username,
+                        hashed_password=hash_password(settings.seed_demo_password),
+                        role=Role.user,
+                    ))
+                    created += 1
+            if created:
+                await session.commit()
+                print(f"Demo accounts seeded ({created}).")
+        except Exception as e:
+            await session.rollback()
+            print(f"Warning: could not seed demo accounts: {e}")
 
 
 app = FastAPI(

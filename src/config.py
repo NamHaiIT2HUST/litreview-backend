@@ -51,6 +51,13 @@ class Settings(BaseSettings):
     seed_admin_username: str = "admin"
     seed_admin_password: str = ""
 
+    # Demo researcher accounts for trying the app without registering. These are
+    # real rows with real passwords that log in through the normal endpoint and
+    # receive normal tokens -- they are a shortcut past the signup form, not past
+    # authentication. Development only, and the password is never in source.
+    seed_demo_accounts: bool = False
+    seed_demo_password: str = ""
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
@@ -261,6 +268,17 @@ def validate_security_settings(settings: "Settings") -> None:
         if not settings.seed_admin_password.strip():
             problems.append(
                 "SEED_DEFAULT_ADMIN=true requires SEED_ADMIN_PASSWORD."
+            )
+
+    if settings.seed_demo_accounts:
+        if settings.app_env != "development":
+            problems.append(
+                "SEED_DEMO_ACCOUNTS is only allowed when APP_ENV=development. "
+                "Demo accounts have a shared, discoverable password."
+            )
+        if not settings.seed_demo_password.strip():
+            problems.append(
+                "SEED_DEMO_ACCOUNTS=true requires SEED_DEMO_PASSWORD."
             )
 
     if problems:

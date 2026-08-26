@@ -124,7 +124,7 @@ function GoogleIcon({ className = 'w-4 h-4' }) {
 }
 
 export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }) {
-  const { login, loginWithGoogle, resetPassword, register } = useAuth();
+  const { login, loginWithGoogle, loginDemo, demoAccounts, resetPassword, register } = useAuth();
   const { language } = useLanguage();
   const t = AUTH_TEXT[language] || AUTH_TEXT.vi;
 
@@ -168,6 +168,22 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }) {
       onClose();
     } catch (err) {
       setError(err?.message || 'Đăng nhập không thành công. Vui lòng kiểm tra lại thông tin.');
+      setLoading(false);
+    }
+  };
+
+  const handleDemoSelect = async (account) => {
+    setError('');
+    setLoading(true);
+    try {
+      // Performs a genuine login against a seeded account, so the session that
+      // results is authorised like any other. Failures surface: a demo profile
+      // that cannot sign in means the backend has not seeded it.
+      await loginDemo(account);
+      onClose();
+    } catch (err) {
+      setError(err?.message || 'Không đăng nhập được tài khoản mẫu.');
+    } finally {
       setLoading(false);
     }
   };
@@ -368,7 +384,45 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }) {
           ) : mode === 'login' ? (
             /* ── SIGN IN VIEW ── */
             <div className="space-y-4">
-              
+
+              {/* Demo profiles. Rendered only when the backend offers them,
+                  which it does in development only. */}
+              {demoAccounts.length > 0 && (
+                <div className="space-y-2.5">
+                  <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    {t.demoTitle}
+                  </p>
+                  {demoAccounts.map(account => (
+                    <button
+                      key={account.username}
+                      type="button"
+                      onClick={() => handleDemoSelect(account)}
+                      disabled={loading}
+                      className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50/20 dark:hover:bg-blue-950/30 transition-all flex items-center justify-between text-left group cursor-pointer disabled:opacity-50"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-bold flex items-center justify-center text-xs shadow-xs shrink-0">
+                          {account.avatar}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-bold text-xs text-slate-900 dark:text-white truncate">{account.name}</p>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                            {account.role} • {account.institution}
+                          </p>
+                        </div>
+                      </div>
+                      <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all shrink-0 ml-2" />
+                    </button>
+                  ))}
+                  <div className="relative flex items-center justify-center pt-1">
+                    <div className="border-t border-slate-200 dark:border-slate-800 w-full" />
+                    <span className="bg-white dark:bg-slate-900 px-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider relative">
+                      {t.orEmail}
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {/* Google Sign-in Button */}
               <button
                 type="button"
