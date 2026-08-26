@@ -1032,7 +1032,7 @@ export default function PublicLandingPage({ onOpenAuth }) {
   const [openFaq, setOpenFaq] = useState(0);
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#080E1A] text-surface-900 dark:text-surface-100 font-sans selection:bg-primary-500 selection:text-white transition-colors relative overflow-hidden">
+    <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#080E1A] text-surface-900 dark:text-surface-100 font-sans selection:bg-primary-500 selection:text-white transition-colors relative">
 
       {/* ── 0. Floating Scrollytelling Side Indicator (Desktop Only) ───── */}
       <div className="hidden xl:flex fixed right-2 2xl:right-4 top-1/2 -translate-y-1/2 z-40 flex-col items-end gap-2.5 pointer-events-auto">
