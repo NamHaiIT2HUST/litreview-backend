@@ -451,6 +451,16 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
   };
 
   const handleAddGenealogyPaper = (newPaper) => {
+    const titleLower = newPaper.title.toLowerCase();
+    // The button reads "Đã trong danh sách" (already in the list) once added,
+    // but this only ever added -- clicking again did nothing, so there was no
+    // way to undo adding a paper from the genealogy tree. Toggling here makes
+    // the button's own displayed state (added vs not) match what clicking it
+    // actually does.
+    if (papers.some(p => p.title.toLowerCase() === titleLower)) {
+      setPapers(prev => prev.filter(p => p.title.toLowerCase() !== titleLower));
+      return;
+    }
     const formatted = {
       id: newPaper.doi || `gen_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
       title: newPaper.title,
@@ -466,9 +476,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
       scopus_status: 'indexed',
       oa_status: 'gold'
     };
-    if (!papers.some(p => p.title.toLowerCase() === formatted.title.toLowerCase())) {
-      setPapers(prev => [formatted, ...prev]);
-    }
+    setPapers(prev => [formatted, ...prev]);
   };
 
   const toggleExpandAbstract = (key) => {
@@ -2437,9 +2445,10 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                               onClick={() => handleAddGenealogyPaper(p)}
                               className={`px-3 py-1.5 rounded-xl text-[11px] font-bold shadow-xs transition-all flex items-center gap-1.5 ${
                                 papers.some(item => item.title.toLowerCase() === p.title.toLowerCase())
-                                  ? 'bg-emerald-600 text-white cursor-default'
+                                  ? 'bg-emerald-600 hover:bg-rose-600 text-white cursor-pointer group/toggle'
                                   : 'bg-amber-600 hover:bg-amber-700 text-white hover:scale-105 active:scale-95'
                               }`}
+                              title={papers.some(item => item.title.toLowerCase() === p.title.toLowerCase()) ? 'Bấm để bỏ khỏi danh sách' : 'Thêm bài này vào danh sách'}
                             >
                               {papers.some(item => item.title.toLowerCase() === p.title.toLowerCase()) ? (
                                 <>
@@ -2533,9 +2542,10 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                               onClick={() => handleAddGenealogyPaper(p)}
                               className={`px-3 py-1.5 rounded-xl text-[11px] font-bold shadow-xs transition-all flex items-center gap-1.5 ${
                                 papers.some(item => item.title.toLowerCase() === p.title.toLowerCase())
-                                  ? 'bg-emerald-600 text-white cursor-default'
+                                  ? 'bg-emerald-600 hover:bg-rose-600 text-white cursor-pointer group/toggle'
                                   : 'bg-sky-600 hover:bg-sky-700 text-white hover:scale-105 active:scale-95'
                               }`}
+                              title={papers.some(item => item.title.toLowerCase() === p.title.toLowerCase()) ? 'Bấm để bỏ khỏi danh sách' : 'Thêm bài này vào danh sách'}
                             >
                               {papers.some(item => item.title.toLowerCase() === p.title.toLowerCase()) ? (
                                 <>
