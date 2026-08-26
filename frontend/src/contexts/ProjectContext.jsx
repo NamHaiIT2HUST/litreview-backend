@@ -65,7 +65,9 @@ export function ProjectProvider({ children }) {
       const saved = localStorage.getItem(`litreview_projects_${userId}`);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
+        if (Array.isArray(parsed)) {
+          return parsed.filter(p => String(p.id) !== '00000000-0000-0000-0000-000000000001' && p.name !== 'Default Project');
+        }
       }
     } catch {}
     return isDemoUser ? INITIAL_DEMO_PROJECTS : [];
@@ -74,11 +76,12 @@ export function ProjectProvider({ children }) {
   const [activeProjectId, setActiveProjectId] = useState(() => {
     try {
       const savedActiveId = localStorage.getItem(`litreview_active_project_id_${userId}`);
-      if (savedActiveId) return savedActiveId;
+      if (savedActiveId && savedActiveId !== '00000000-0000-0000-0000-000000000001') return savedActiveId;
       const saved = localStorage.getItem(`litreview_projects_${userId}`);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed[0]?.id) return parsed[0].id;
+        const valid = Array.isArray(parsed) ? parsed.filter(p => String(p.id) !== '00000000-0000-0000-0000-000000000001' && p.name !== 'Default Project') : [];
+        if (valid.length > 0 && valid[0]?.id) return valid[0].id;
       }
     } catch {}
     return isDemoUser ? INITIAL_DEMO_PROJECTS[0].id : null;
@@ -91,9 +94,10 @@ export function ProjectProvider({ children }) {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          setProjects(parsed);
+          const filtered = parsed.filter(p => String(p.id) !== '00000000-0000-0000-0000-000000000001' && p.name !== 'Default Project');
+          setProjects(filtered);
           const savedActiveId = localStorage.getItem(`litreview_active_project_id_${userId}`);
-          setActiveProjectId(savedActiveId && parsed.some(p => p.id === savedActiveId) ? savedActiveId : (parsed[0]?.id || null));
+          setActiveProjectId(savedActiveId && filtered.some(p => p.id === savedActiveId) ? savedActiveId : (filtered[0]?.id || null));
           return;
         }
       }
@@ -119,11 +123,16 @@ export function ProjectProvider({ children }) {
         });
         if (res.ok) {
           const backendProjects = await res.json();
-          if (Array.isArray(backendProjects) && backendProjects.length > 0) {
+          if (Array.isArray(backendProjects)) {
+            const validBackend = backendProjects.filter(bp => String(bp.id) !== '00000000-0000-0000-0000-000000000001' && bp.name !== 'Default Project');
             setProjects(prev => {
               const map = new Map();
-              prev.forEach(p => map.set(p.id, p));
-              backendProjects.forEach(bp => {
+              prev.forEach(p => {
+                if (String(p.id) !== '00000000-0000-0000-0000-000000000001' && p.name !== 'Default Project') {
+                  map.set(p.id, p);
+                }
+              });
+              validBackend.forEach(bp => {
                 if (!bp.user_id || bp.user_id === userId || currentUser?.role === 'admin') {
                   map.set(bp.id, {
                     ...map.get(bp.id),

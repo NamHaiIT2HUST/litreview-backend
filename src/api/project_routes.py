@@ -104,7 +104,8 @@ async def list_projects(
 
     result = await db.execute(stmt)
     projects = result.scalars().all()
-    return projects
+    # Hide internal system placeholder project from user dashboard (NotebookLM style)
+    return [p for p in projects if str(p.id) != "00000000-0000-0000-0000-000000000001" and p.name != "Default Project"]
 
 
 @router.post("/projects", response_model=ProjectResponse, status_code=201)
