@@ -51,7 +51,7 @@ import {
 import { reviewScrollClass, sectionEvidenceLabel } from '../../utils/reviewPresentation';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useProject } from '../../contexts/ProjectContext';
-import { safeFetch } from '../../utils/apiConfig';
+import { safeFetch, formatApiErrorDetail } from '../../utils/apiConfig';
 
 const formatSessionTime = (isoString) => {
   if (!isoString) return '';
@@ -243,7 +243,7 @@ export default function SynthesisPanel({
 
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.detail || t('synthesis.start_failed'));
+        throw new Error(formatApiErrorDetail(errData.detail, t('synthesis.start_failed')));
       }
 
       const data = await response.json();

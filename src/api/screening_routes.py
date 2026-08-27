@@ -22,6 +22,13 @@ class PaperScreenPayload(BaseModel):
     year: Optional[int] = None
     doi: Optional[str] = None
     authors: Optional[Any] = None
+    # A fresh search result isn't written to `papers` until the researcher
+    # explicitly keeps it, so `paper_id` here is routinely a client-side-only
+    # ID that matches no DB row. Without this, the project lookup below fell
+    # back to a hardcoded default project -- meaning "AI Screening" silently
+    # judged the paper against whatever criteria that unrelated default
+    # project happened to hold, not the project actually open on screen.
+    project_id: Optional[str] = None
 
 @router.post("/papers/{paper_id}/screen", response_model=ScreenResponse)
 async def screen_paper(paper_id: str, payload: Optional[PaperScreenPayload] = None, db: AsyncSession = Depends(get_db)):
@@ -42,9 +49,25 @@ async def screen_paper(paper_id: str, payload: Optional[PaperScreenPayload] = No
         result = await db.execute(select(Paper).where(Paper.title.ilike(f"%{paper_id}%")))
         paper = result.scalars().first()
 
-    # Always fetch project setup
     DEFAULT_PROJECT_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
-    project_result = await db.execute(select(Project).where(Project.id == (paper.project_id if paper else DEFAULT_PROJECT_ID)))
+    request_project_id = None
+    if payload and payload.project_id:
+        try:
+            request_project_id = uuid.UUID(str(payload.project_id))
+        except Exception:
+            request_project_id = None
+
+    # Prefer the project the paper is actually attached to in the DB; for a
+    # not-yet-persisted paper, use the project the request says it belongs
+    # to; only fall back to the shared default project when neither is known.
+    if paper:
+        effective_project_id = paper.project_id
+    elif request_project_id:
+        effective_project_id = request_project_id
+    else:
+        effective_project_id = DEFAULT_PROJECT_ID
+
+    project_result = await db.execute(select(Project).where(Project.id == effective_project_id))
     project = project_result.scalar_one_or_none()
 
     if not paper:
@@ -52,7 +75,7 @@ async def screen_paper(paper_id: str, payload: Optional[PaperScreenPayload] = No
             authors_str = str(payload.authors) if payload.authors else "Unknown Authors"
             paper = Paper(
                 id=uuid.uuid4(),
-                project_id=DEFAULT_PROJECT_ID,
+                project_id=effective_project_id,
                 title=payload.title,
                 abstract=payload.abstract or "",
                 journal=payload.journal or "Academic Journal",

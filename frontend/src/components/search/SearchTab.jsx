@@ -530,7 +530,8 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
           journal: paper.journal,
           year: paper.year,
           doi: paper.doi,
-          authors: paper.authors
+          authors: paper.authors,
+          project_id: currentProjectId
         })
       });
       if (res.ok) {
@@ -744,7 +745,11 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
     setScreeningLoading(prev => ({ ...prev, [paperId]: true }));
     setScreeningError(null);
     try {
-      const res = await safeFetch(`/papers/${paperId}/screen`, { method: 'POST' });
+      const res = await safeFetch(`/papers/${paperId}/screen`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ project_id: currentProjectId }),
+      });
       if (res.ok) {
         const data = await res.json();
         setPapers(prev => prev.map(p => p.id === paperId ? { ...p, screening_data: data } : p));

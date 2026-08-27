@@ -81,11 +81,17 @@ async def run_scope_optimizer(idea: str, research_field: str = "") -> ScopeAnaly
     prompt = SCOPE_PROMPT.format(idea=idea.strip(), research_field=research_field.strip() or "Khoa học máy tính / AI")
 
     try:
+        # temperature=0 (not the earlier 0.3): this is a classification
+        # (too_broad/optimal/too_narrow), not creative writing. At 0.3 the
+        # same topic could flip verdicts between identical requests, which
+        # reads as the tool being unreliable rather than the topic genuinely
+        # sitting on a boundary. 0 doesn't guarantee identical output on
+        # every call, but removes the deliberately-injected randomness.
         result, outcome = await ainvoke_with_failover(
             "optimize_scope",
             lambda client: client.with_structured_output(ScopeAnalysisResult),
             [("human", prompt)],
-            temperature=0.3,
+            temperature=0.0,
         )
         logger.info(
             "Scope analysed by %s (key %s) in %d attempt(s).",
@@ -93,15 +99,17 @@ async def run_scope_optimizer(idea: str, research_field: str = "") -> ScopeAnaly
         )
         return result
     except Exception as exc:
-        logger.warning("LLM call failed in run_scope_optimizer, using academic heuristic fallback: %s", exc)
-        field_str = research_field.strip() or "Y sinh & Chẩn đoán Y tế / AI"
+        # This used to fabricate a fixed status="optimal", score=88 verdict
+        # with feedback templated straight from `idea` -- indistinguishable
+        # from a real judgment, so a transient provider failure silently told
+        # the researcher their scope was fine without ever being evaluated.
+        # The frontend already renders a distinct "error" badge (⚠️ Tạm thời
+        # gián đoạn); it just never received this status. Report the failure
+        # honestly instead of guessing a verdict.
+        logger.warning("LLM call failed in run_scope_optimizer: %s", exc)
         return ScopeAnalysisResult(
-            status="optimal",
-            score=88,
-            feedback=f"Ý tưởng '{idea}' có phạm vi nghiên cứu phù hợp, tính khả thi cao trong lĩnh vực {field_str}. Đề tài có thể triển khai tổng quan hệ thống (Systematic Review) với các bộ từ khóa chuyên ngành và bộ lọc Scopus.",
-            suggested_topics=[
-                f"Đánh giá và so sánh các kiến trúc 1D-CNN và Transformer cho {idea}",
-                f"Ứng dụng học sâu trong bài toán {idea} trên dữ liệu thời gian thực",
-                f"Tối ưu hóa độ trễ tính toán và độ chính xác phân loại tín hiệu"
-            ]
+            status="error",
+            score=0,
+            feedback="Hệ thống AI tạm thời không đánh giá được phạm vi đề tài (lỗi kết nối hoặc quá tải model). Vui lòng thử lại sau ít phút.",
+            suggested_topics=[]
         )

@@ -65,6 +65,14 @@ _TASK_PREFERRED_PROVIDER: dict[str, str] = {
     "find_gaps": "openai",
     "extract_pico": "openai",
     "screen_paper": "openai",
+    # Tab Tìm kiếm's remaining two Gemini-first tasks -- confirmed broken in
+    # production testing (2026-08-27) by the exact quota wall documented
+    # above: RESOURCE_EXHAUSTED, "GenerateRequestsPerDayPerProjectPerModel-
+    # FreeTier", limit 20. paper_summary needs a 128k-context model; gpt-4o-mini
+    # already satisfies that (see registry.py), so this is not a capability
+    # downgrade, only a provider-order change.
+    "generate_keywords": "openai",
+    "paper_summary": "openai",
 }
 
 
