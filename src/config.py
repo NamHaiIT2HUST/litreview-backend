@@ -71,6 +71,7 @@ class Settings(BaseSettings):
     llm_api_key: str = ""
     llm_model: str = ""
     llm_provider: str = ""
+    llm_api_base: str = ""
     deepseek_api_key: str = ""
     openrouter_api_key: str = ""
     llm_temperature: float = Field(default=0.7, ge=0.0, le=2.0)

@@ -50,6 +50,32 @@ _TASK_DEDICATED_GEMINI_ENV: dict[str, str] = {
 # way across calls, the same guarantee the shared credential store gives.
 _dedicated_credentials: dict[str, Credential] = {}
 
+# The Research Setup tab's 3 agents and AI Screening (Tìm kiếm tab) were moved
+# from Gemini to OpenAI as their primary provider: Gemini's free tier caps at
+# 20 requests/day/model, which this app's real usage exhausts within minutes,
+# while the paid OpenAI key has no such wall. Pinned here at the code level
+# (not left to LLM_PROVIDER_PRIORITY alone) so it holds regardless of what an
+# operator's .env sets that variable to. Gemini's per-task dedicated keys
+# remain the fallback if OPENAI_API_KEY is ever unset or rejected -- this only
+# reorders provider_priority()'s list for these tasks, it does not remove
+# providers from it.
+_TASK_PREFERRED_PROVIDER: dict[str, str] = {
+    "optimize_scope": "openai",
+    "generate_criteria": "openai",
+    "find_gaps": "openai",
+    "extract_pico": "openai",
+    "screen_paper": "openai",
+}
+
+
+def _provider_order_for(task: str) -> list[str]:
+    order = list(provider_priority())
+    preferred = _TASK_PREFERRED_PROVIDER.get(task)
+    if preferred and preferred in order:
+        order.remove(preferred)
+        order.insert(0, preferred)
+    return order
+
 
 def _dedicated_credential_for(task: str) -> Credential | None:
     env_var = _TASK_DEDICATED_GEMINI_ENV.get(task)
@@ -138,7 +164,7 @@ def select(task: str) -> Selection:
     store = get_store()
     skipped: dict[str, str] = {}
 
-    for provider in provider_priority():
+    for provider in _provider_order_for(task):
         if not store.has_any(provider):
             skipped[provider] = store.unavailable_reason(provider)
             continue

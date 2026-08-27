@@ -1290,7 +1290,7 @@ async def workspace_analyze_data(request: DataAnalysisRequest) -> DataAnalysisRe
     import os, io, re, json, logging
     import pandas as pd
     import numpy as np
-    from src.services.synthesis_llm_service import synthesis_llm_service
+    from src.services.eda_llm_client import build_eda_llm
     from src.services.eda_profiling_service import eda_profiling_service, ComprehensiveProfile
 
     logger = logging.getLogger(__name__)
@@ -1456,7 +1456,7 @@ async def workspace_analyze_data(request: DataAnalysisRequest) -> DataAnalysisRe
 
     # 3. Thực thi LLM với cơ chế đa mô hình chống lỗi
     try:
-        llm = synthesis_llm_service._get_llm()
+        llm = build_eda_llm(get_settings())
         msg = await llm.ainvoke([("human", full_prompt)])
         content = msg.content if hasattr(msg, "content") else str(msg)
         if isinstance(content, list):

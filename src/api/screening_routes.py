@@ -69,7 +69,7 @@ async def screen_paper(paper_id: str, payload: Optional[PaperScreenPayload] = No
     # Cập nhật thông tin vào DB nếu paper đã tồn tại trong DB
     try:
         paper.relevance_bucket = RelevanceBucket(screen_result.relevance_bucket)
-        paper.relevance_reason = screen_result.reason
+        paper.relevance_reason = screen_result.reason.model_dump()
         await db.commit()
         await recompute_priority(str(paper.id), db)
     except Exception:
