@@ -12,7 +12,9 @@ import asyncio
 import json
 import logging
 import os
+import sys
 import time
+import types
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
@@ -21,6 +23,40 @@ from src.services.rag_service import rag_service
 from src.services.vector_store import vector_store_service
 
 logger = logging.getLogger(__name__)
+
+
+def _patch_ragas_vertexai_import() -> None:
+    """ragas==0.4.3's ``ragas.llms.base`` unconditionally does
+    ``from langchain_community.chat_models.vertexai import ChatVertexAI``
+    at module import time, purely to list it in an ``isinstance()`` lookup
+    table (``MULTIPLE_COMPLETION_SUPPORTED`` -- never instantiated). That
+    submodule was removed from langchain-community 0.4.x (Vertex AI moved
+    to the standalone ``langchain-google-vertexai`` package), so importing
+    ragas at all raises ModuleNotFoundError on a clean install of this
+    project's pinned versions -- this project never uses Vertex AI (OpenAI/
+    hosted-API only), so a stub class is a safe, contained shim rather than
+    pinning an older/conflicting langchain-community. Must run before the
+    first ``import ragas`` anywhere in the process.
+    """
+    module_name = "langchain_community.chat_models.vertexai"
+    if module_name in sys.modules:
+        return
+    try:
+        import langchain_community.chat_models.vertexai  # noqa: F401
+        return  # already resolvable (e.g. a future langchain-community restores it)
+    except ModuleNotFoundError:
+        pass
+
+    stub = types.ModuleType(module_name)
+
+    class ChatVertexAI:  # pragma: no cover - never instantiated, isinstance-only
+        pass
+
+    stub.ChatVertexAI = ChatVertexAI
+    sys.modules[module_name] = stub
+
+
+_patch_ragas_vertexai_import()
 
 # Target Thresholds
 RAGAS_FAITHFULNESS_THRESHOLD = 0.80
@@ -85,8 +121,14 @@ class RAGASEvaluationService:
         if self._embeddings_wrapper is None:
             try:
                 from ragas.embeddings import LangchainEmbeddingsWrapper
-                if hasattr(vector_store_service, "_embedding_function") and vector_store_service._embedding_function:
-                    self._embeddings_wrapper = LangchainEmbeddingsWrapper(vector_store_service._embedding_function)
+                # VectorStoreService exposes its embedding model as `.embeddings`
+                # (see src/services/vector_store.py __init__) -- the previous
+                # `_embedding_function` attribute name never existed on this
+                # class, so this lookup always failed and ResponseRelevancy
+                # silently fell back to its hardcoded 0.90 default for every
+                # sample, never actually computing a real score.
+                if getattr(vector_store_service, "embeddings", None):
+                    self._embeddings_wrapper = LangchainEmbeddingsWrapper(vector_store_service.embeddings)
             except Exception as e:
                 logger.warning(f"Could not wrap Embeddings in LangchainEmbeddingsWrapper: {e}")
         return self._embeddings_wrapper
@@ -132,37 +174,48 @@ class RAGASEvaluationService:
                 reference=ground_truth or answer,
             )
 
-            # Run metrics in parallel with strict timeouts to prevent hanging
+            # Run metrics in parallel. Timeout is generous (45s) rather than a
+            # tight "prevent hanging" guard: Faithfulness/ResponseRelevancy do
+            # 2+ sequential LLM calls internally (extract claims, then verify
+            # each), which routinely takes >6s for a real (non-trivial)
+            # generated answer under any concurrent load -- the previous 6s
+            # timeout was found to make EVERY faithfulness/relevancy score
+            # silently fall back to the hardcoded constants below on a real
+            # benchmark run (19/20 and 15/20 samples respectively), which is
+            # indistinguishable from a genuine 0.88/0.90 result unless you
+            # diff every sample against these exact literals. Logged at
+            # WARNING (not DEBUG) so a fallback is visible by default instead
+            # of silently blending into the reported average.
             async def _calc_faithfulness():
                 try:
                     f_metric = Faithfulness(llm=ragas_llm)
-                    return await asyncio.wait_for(f_metric.single_turn_ascore(sample), timeout=6.0)
+                    return await asyncio.wait_for(f_metric.single_turn_ascore(sample), timeout=45.0)
                 except Exception as e:
-                    logger.debug(f"Faithfulness fallback: {e}")
+                    logger.warning(f"Faithfulness FALLBACK (not a real score) for sample: {e}")
                     return 0.88 if len(clean_contexts) > 0 and len(answer) > 20 else 0.50
 
             async def _calc_relevancy():
                 try:
                     r_metric = ResponseRelevancy(llm=ragas_llm, embeddings=ragas_emb)
-                    return await asyncio.wait_for(r_metric.single_turn_ascore(sample), timeout=6.0)
+                    return await asyncio.wait_for(r_metric.single_turn_ascore(sample), timeout=45.0)
                 except Exception as e:
-                    logger.debug(f"Relevancy fallback: {e}")
+                    logger.warning(f"Relevancy FALLBACK (not a real score) for sample: {e}")
                     return 0.90 if len(answer) > 20 else 0.50
 
             async def _calc_precision():
                 try:
                     cp_metric = LLMContextPrecisionWithReference(llm=ragas_llm)
-                    return await asyncio.wait_for(cp_metric.single_turn_ascore(sample), timeout=6.0)
+                    return await asyncio.wait_for(cp_metric.single_turn_ascore(sample), timeout=45.0)
                 except Exception as e:
-                    logger.debug(f"Precision fallback: {e}")
+                    logger.warning(f"Precision FALLBACK (not a real score) for sample: {e}")
                     return 0.85
 
             async def _calc_recall():
                 try:
                     cr_metric = LLMContextRecall(llm=ragas_llm)
-                    return await asyncio.wait_for(cr_metric.single_turn_ascore(sample), timeout=6.0)
+                    return await asyncio.wait_for(cr_metric.single_turn_ascore(sample), timeout=45.0)
                 except Exception as e:
-                    logger.debug(f"Recall fallback: {e}")
+                    logger.warning(f"Recall FALLBACK (not a real score) for sample: {e}")
                     return 0.86
 
             results = await asyncio.gather(
