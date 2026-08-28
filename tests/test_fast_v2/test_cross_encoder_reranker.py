@@ -326,16 +326,16 @@ def test_identity_reranker_preserves_retrieval_ordering_through_apply():
 # ---------------------------------------------------------------------------
 # Test 6 -- selection via config / dependency injection
 # ---------------------------------------------------------------------------
-def test_default_config_selects_the_deterministic_identity_reranker():
+def test_default_config_selects_gte_the_chosen_production_reranker():
     from src.config import Settings
 
-    assert Settings(_env_file=None).fast_v2_reranker == "identity"
+    assert Settings(_env_file=None).fast_v2_reranker == "gte"
 
 
-def test_factory_returns_identity_by_default():
+def test_identity_reranker_still_selectable_via_explicit_mode():
     from src.synthesis.fast_v2.selection.factory import build_reranker
 
-    assert isinstance(build_reranker(), IdentityReranker)
+    assert isinstance(build_reranker(mode="identity"), IdentityReranker)
 
 
 def test_factory_returns_the_cross_encoder_when_explicitly_configured():

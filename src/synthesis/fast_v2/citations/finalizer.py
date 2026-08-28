@@ -253,8 +253,18 @@ def finalize_structured_draft(
         seen_claim_signatures.add(signature)
         claims_by_facet.setdefault(claim.facet, []).append(claim)
 
+    # Retrieval dimensions set a useful stable order, but writer-approved
+    # thematic titles are not necessarily identical to those query labels.
+    # Render those additional titles too; otherwise finalization silently
+    # collapses a multi-section review into one retrieval facet.
+    ordered_facets = [
+        facet for facet in evidence_bank.dimensions if facet in claims_by_facet
+    ]
+    ordered_facets.extend(
+        facet for facet in claims_by_facet if facet not in ordered_facets
+    )
     rendered_facets = 0
-    for facet in evidence_bank.dimensions:
+    for facet in ordered_facets:
         facet_claims = claims_by_facet.get(facet, ())
         if not facet_claims:
             continue
@@ -271,8 +281,19 @@ def finalize_structured_draft(
                     append(" ")
                 append(statement.claim_text.strip())
                 append(" ")
+                seen_statement_evidence: set[str] = set()
+                seen_statement_papers: set[UUID] = set()
                 for support in statement.supports:
+                    if support.evidence_id in seen_statement_evidence:
+                        continue
+                    seen_statement_evidence.add(support.evidence_id)
                     unit = evidence_by_id[support.evidence_id]
+                    # Citation markers identify papers, not chunks. Several
+                    # chunks from one paper support one statement, but should
+                    # render as one readable marker such as [2], never [2]x4.
+                    if unit.paper_id in seen_statement_papers:
+                        continue
+                    seen_statement_papers.add(unit.paper_id)
                     marker = f"[{paper_order[unit.paper_id]}]"
                     marker_start = cursor
                     append(marker)
@@ -305,5 +326,63 @@ def finalize_structured_draft(
             "evidence_available": len(evidence_bank.evidence),
             "validated_claims": len(grounded.validated_claims),
             "dropped_claims": len(grounded.dropped_claims),
+        },
+    )
+
+
+_HANDLE_CITATION_REGEX = re.compile(r"\[(E\d{3}(?:,\s*E\d{3})*)\]")
+
+
+def finalize_natural_markdown(
+    *,
+    markdown_text: str,
+    evidence_bank: GroundedEvidenceBank,
+    handle_mapping: dict[str, str],
+) -> FinalizedSynthesis:
+    """Deterministically parse handles [E001] from Markdown and bind to FinalCitation objects."""
+    evidence_by_id = {unit.evidence_id: unit for unit in evidence_bank.evidence}
+    
+    citations: list[FinalCitation] = []
+    
+    # Paper display order
+    paper_order: dict[UUID, int] = {}
+    for unit in evidence_bank.evidence:
+        if unit.paper_id not in paper_order:
+            paper_order[unit.paper_id] = len(paper_order) + 1
+
+    # Find all citation matches
+    for match in _HANDLE_CITATION_REGEX.finditer(markdown_text):
+        raw_handles = match.group(1)
+        start_idx = match.start()
+        end_idx = match.end()
+        
+        handles = [h.strip() for h in raw_handles.split(",") if h.strip()]
+        for h in handles:
+            ev_id = handle_mapping.get(h)
+            if ev_id and ev_id in evidence_by_id:
+                unit = evidence_by_id[ev_id]
+                citations.append(
+                    FinalCitation(
+                        evidence_id=unit.evidence_id,
+                        paper_id=unit.paper_id,
+                        paper_title=unit.title,
+                        citation_marker=f"[{h}]",
+                        review_char_start=start_idx,
+                        review_char_end=end_idx,
+                        source_page=unit.page,
+                        source_char_start=unit.page_char_start,
+                        source_char_end=unit.page_char_end,
+                        quoted_snippet=unit.text[:150] + "...",
+                    )
+                )
+
+    return FinalizedSynthesis(
+        text=markdown_text.strip(),
+        citations=tuple(citations),
+        citation_authority=CITATION_AUTHORITY,
+        diagnostics={
+            "papers_cited": len({citation.paper_id for citation in citations}),
+            "total_citations": len(citations),
+            "evidence_available": len(evidence_bank.evidence),
         },
     )

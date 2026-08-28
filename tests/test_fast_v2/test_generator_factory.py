@@ -95,21 +95,9 @@ def test_local_vllm_mode_resolves_to_openscholar_generator_without_loading_a_mod
 
 
 # --------------------------------------------------------------------------
-# Settings defaults: Legacy stays default, Fast v2 opt-in only
+# Settings defaults: Fast v2 is the single product path (synthesis_mode is a
+# single-value Literal now -- Legacy was retired at the config level).
 # --------------------------------------------------------------------------
-
-def test_synthesis_mode_default_is_legacy():
-    from src.config import Settings
-
-    assert Settings().synthesis_mode == "legacy"
-    assert Settings().fast_v2_enabled is False
-
-
-def test_fast_v2_generator_default_is_fake_not_remote_or_local():
-    from src.config import Settings
-
-    assert Settings().fast_v2_generator == "fake"
-
 
 def test_fast_v2_openscholar_base_url_defaults_empty():
     from src.config import Settings
@@ -161,44 +149,6 @@ def _settings_with(**overrides):
     return Settings(**overrides)
 
 
-def test_legacy_settings_construction_never_fails_on_missing_remote_url():
-    """Settings() itself must never fail just because the remote OpenScholar
-    URL is unset -- Legacy has to start up regardless of Fast v2 config."""
-    from src.config import Settings
-
-    settings = Settings(synthesis_mode="legacy", fast_v2_generator="remote_openscholar",
-                        fast_v2_openscholar_base_url="")
-    assert settings.synthesis_mode == "legacy"  # constructed without raising
-
-
-def test_legacy_default_config_builds_without_error():
-    """Legacy + default config -> PASS. Settings construction and generator
-    resolution must both succeed with nothing configured."""
-    settings = _settings_with()
-    assert settings.synthesis_mode == "legacy"
-    assert settings.fast_v2_generator == "fake"  # untouched default
-    gen = build_generator(mode=settings.fast_v2_generator)
-    assert isinstance(gen, FakeSynthesisGenerator)
-
-
-def test_fast_v2_activated_with_default_fake_generator_fails_loud(monkeypatch):
-    """Fast v2 + missing real generator -> FAIL LOUD.
-
-    synthesis_mode=fast_v2_experimental with FAST_V2_GENERATOR left at its
-    default 'fake' must never silently resolve to a fake generator -- that
-    combination almost always means the operator forgot to also configure a
-    real backend.
-    """
-    from src import config as config_module
-
-    settings = _settings_with(synthesis_mode="fast_v2_experimental")
-    assert settings.fast_v2_generator == "fake"  # forgotten, not explicitly set
-    monkeypatch.setattr(config_module, "get_settings", lambda: settings)
-
-    with pytest.raises(ValueError, match="FAST_V2_GENERATOR"):
-        build_generator()  # mode=None -> resolves from (patched) settings
-
-
 def test_fast_v2_remote_openscholar_missing_base_url_fails_loud(monkeypatch):
     """Fast v2 + remote_openscholar + missing base_url -> FAIL LOUD."""
     from src import config as config_module
@@ -242,18 +192,6 @@ def test_fake_generator_still_usable_via_explicit_injection(monkeypatch):
 
     # Explicit mode="fake" bypasses the guard entirely -- this must NOT raise.
     gen = build_generator(mode="fake")
-    assert isinstance(gen, FakeSynthesisGenerator)
-
-
-def test_legacy_mode_with_fast_v2_generator_still_fake_does_not_raise(monkeypatch):
-    """Legacy stays unaffected by the guard regardless of FAST_V2_GENERATOR --
-    Legacy must always start up normally."""
-    from src import config as config_module
-
-    settings = _settings_with(synthesis_mode="legacy", fast_v2_generator="fake")
-    monkeypatch.setattr(config_module, "get_settings", lambda: settings)
-
-    gen = build_generator()  # must not raise: fast_v2 is not activated
     assert isinstance(gen, FakeSynthesisGenerator)
 
 

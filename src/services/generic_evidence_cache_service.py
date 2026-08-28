@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 from collections.abc import Iterable
 import uuid
 
@@ -24,6 +25,8 @@ from src.services.synthesis_coverage_policy import (
     dimension_retrieval_hint,
 )
 from src.services.grounding_service import normalize_for_matching
+
+logger = logging.getLogger(__name__)
 
 
 GENERIC_EXTRACTION_PROMPT = (
@@ -323,12 +326,19 @@ async def precompute_generic_evidence(db, *, paper) -> GenericEvidenceCache | No
             if indexed:
                 contexts[dimension] = indexed
                 allowed[dimension] = allowed_ids
-        output = await synthesis_llm_service.extract_paper_evidence_batch(
-            research_question="General literature review across the selected papers.",
-            contexts_by_dimension=contexts,
-            strict_dimension_ids=True,
-            enforce_dimension_membership=False,
-        )
+        try:
+            output = await synthesis_llm_service.extract_paper_evidence_batch(
+                research_question="General literature review across the selected papers.",
+                contexts_by_dimension=contexts,
+                strict_dimension_ids=True,
+                enforce_dimension_membership=False,
+            )
+        except Exception as e:
+            # One paper's extraction failing (provider hiccup, malformed
+            # response) used to raise and abort the whole cache precompute
+            # batch. Skip just this paper's contribution instead.
+            logger.warning(f"Failed to extract evidence from generic cache for paper {paper.id}: {e}")
+            output = PaperEvidenceExtractionOutput(items=[])
         grounded_items = []
         for item in output.items:
             dimension = EvidenceDimension(item.dimension)

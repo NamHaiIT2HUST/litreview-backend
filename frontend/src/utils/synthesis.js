@@ -1,5 +1,46 @@
 export const DEFAULT_PROJECT_ID = '00000000-0000-0000-0000-000000000001';
 
+export function getDirectSynthesisError(payload) {
+  if (!payload || (payload.synthesis_mode !== 'fast_v2_experimental' && payload.synthesis_mode !== 'fast_v2_section_scoped')) return null;
+  if (payload.outcome === 'no_evidence') {
+    return payload.detail || 'Không tìm thấy evidence trong các tài liệu đã chọn. Hãy ingest hoặc tải lại PDF.';
+  }
+  if (payload.grounded !== true || !Array.isArray(payload.citations) || payload.citations.length === 0) {
+    return payload.grounding_warning || 'Synthesis không tạo được review có evidence và citation hợp lệ.';
+  }
+  return null;
+}
+
+/**
+ * Fast v2 returns a completed review directly, whereas Legacy returns an
+ * asynchronous session id. Convert only the direct Fast v2 shape to the
+ * workspace's existing review presentation contract.
+ */
+export function normalizeSynthesisResponse(payload) {
+  if (
+    !payload ||
+    (payload.synthesis_mode !== 'fast_v2_experimental' && payload.synthesis_mode !== 'fast_v2_section_scoped') ||
+    typeof payload.text !== 'string' ||
+    getDirectSynthesisError(payload)
+  ) {
+    return null;
+  }
+
+  return {
+    ...payload,
+    review_markdown: payload.text,
+    citations: (payload.citations || []).map((citation, index) => ({
+      ...citation,
+      id: `${citation.evidence_id || index}:${citation.review_char_start ?? index}`,
+      title: citation.paper_title || citation.title || '',
+      marker_display: citation.citation_marker || citation.marker_display || '',
+      source_page_display: citation.source_page == null ? null : citation.source_page + 1,
+    })),
+    sections: [],
+    evidence_profile: [],
+  };
+}
+
 export function buildSynthesisRequest(workspacePapers, projectId = DEFAULT_PROJECT_ID, researchQuestion = null) {
   return {
     project_id: projectId,
@@ -30,7 +71,7 @@ export function buildReviewSections(result, workspacePapers) {
     ]),
   );
 
-  return (result?.sections || []).map((section) => ({
+  const storedSections = (result?.sections || []).map((section) => ({
     ...section,
     sentences: (section.sentences || []).map((sentence) => ({
       ...sentence,
@@ -39,12 +80,55 @@ export function buildReviewSections(result, workspacePapers) {
         .filter(Boolean),
     })),
   }));
+  if (storedSections.length || !result?.review_markdown) return storedSections;
+
+  // Fast synthesis persists narrative markdown, not Legacy SynthesisSection
+  // rows. Convert headings/paragraphs into the same presentation contract.
+  const markdown = result.review_markdown;
+  
+  // Match markdown headers: "## 1. Title" or "**Title**"
+  let headingRegex = /(?:^|\n)##\s+([^\n]+)/g;
+  let matches = [...markdown.matchAll(headingRegex)];
+  
+  if (!matches.length) {
+    headingRegex = /\*\*([^*\n]+)\*\*/g;
+    matches = [...markdown.matchAll(headingRegex)];
+  }
+
+  const blocks = matches.length ? matches.map((match, index) => ({
+    title: match[1].trim(),
+    start: match.index + match[0].length,
+    end: index + 1 < matches.length ? matches[index + 1].index : markdown.length,
+  })) : [{ title: 'Literature Review', start: 0, end: markdown.length }];
+
+  return blocks.map((block, index) => {
+    const rawBody = markdown.slice(block.start, block.end).trim();
+    // Split into paragraphs to preserve structure
+    const paragraphs = rawBody.split(/\n\s*\n/).filter(p => p.trim().length > 0);
+    
+    const citations = (result.citations || [])
+      .filter((citation) => citation.review_char_start >= block.start && citation.review_char_start < block.end)
+      .map((citation) => enrichCitation(citation, workspacePapers));
+      
+    const sentences = (paragraphs.length ? paragraphs : [rawBody]).map((paraText, pIdx) => ({
+      text: paraText.trim(),
+      sentence_type: 'claim',
+      citations: (pIdx === 0 && citations.length > 0) ? citations : [],
+    }));
+
+    return {
+      id: `fast-section-${index}`,
+      title: block.title,
+      coverage: { status: citations.length ? 'sufficient' : 'partial', reasons: [] },
+      sentences,
+    };
+  });
 }
 
 /**
  * Builds comparison matrix rows with interactive evidence grounding for every cell.
  */
-export function buildComparisonRows(evidenceProfile, workspacePapers, citations = []) {
+export function buildComparisonRows(evidenceProfile, workspacePapers, citations = [], reviewSections = []) {
   const citationByPaperId = new Map();
   (citations || []).forEach((cite) => {
     if (cite.paper_id && !citationByPaperId.has(cite.paper_id)) {
@@ -99,7 +183,34 @@ export function buildComparisonRows(evidenceProfile, workspacePapers, citations 
     }
   }
 
-  return Array.from(buckets.values());
+  // Fast path stores verified narrative/citations rather than Legacy evidence
+  // records. Populate matrix cells from the grounded section that cites paper.
+  if (!evidenceProfile?.length) {
+    for (const section of reviewSections || []) {
+      const label = (section.title || '').toLowerCase();
+      const field = label.includes('method') || label.includes('algorithm') || label.includes('phương pháp')
+        ? 'method'
+        : label.includes('limit') || label.includes('constraint') || label.includes('hạn chế')
+          ? 'limitations'
+          : label.includes('data') || label.includes('dataset') || label.includes('experiment') || label.includes('ứng dụng')
+            ? 'dataset'
+            : 'findings';
+      for (const citation of section.sentences?.flatMap((sentence) => sentence.citations || []) || []) {
+        const row = buckets.get(citation.paper_id);
+        // Do not repeat writer prose for every cited paper. A matrix cell must
+        // show source-derived text tied to that particular paper.
+        const value = (citation.quoted_snippet || '').replace(/\s+/g, ' ').trim().slice(0, 280);
+        if (row && value && !row.cells[field].value) {
+          row.cells[field] = { value, quote: citation.quoted_snippet || value, citation };
+          row[field] = value;
+        }
+      }
+    }
+  }
+
+  return Array.from(buckets.values()).filter((row) =>
+    Object.values(row.cells).some((cell) => cell.value)
+  );
 }
 
 /**
@@ -422,7 +533,7 @@ export function generateFollowUpQuestions(result, researchTopic = '') {
 export function tokenizeReviewCitations(review, citations) {
   const text = review || '';
   const tokens = [];
-  const regex = /\[\d+\]/g;
+  const regex = /\[(?:E\d{3}|\d+)(?:,\s*(?:E\d{3}|\d+))*\]/g;
   const orderedCitations = [...(citations || [])].sort(
     (a, b) => (a.review_char_start ?? Number.MAX_SAFE_INTEGER) - (b.review_char_start ?? Number.MAX_SAFE_INTEGER),
   );

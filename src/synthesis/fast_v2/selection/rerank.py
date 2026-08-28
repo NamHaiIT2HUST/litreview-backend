@@ -106,6 +106,29 @@ def apply_reranker_many(
     return results
 
 
+class CrossEncoderReranker:
+    """Production cross-encoder reranker wrapping RerankerService
+    (Alibaba-NLP/gte-reranker-modernbert-base -- BGE is retired, see
+    src/services/reranker_service.py for the model actually loaded)."""
+
+    def __init__(self, service: Any | None = None) -> None:
+        if service is None:
+            from src.services.reranker_service import reranker_service
+            self._service = reranker_service
+        else:
+            self._service = service
+
+    def rerank(self, query: str, texts: Sequence[str]) -> list[tuple[int, float]]:
+        if not texts:
+            return []
+        model = self._service._get_model()
+        pairs = [[query, text] for text in texts]
+        scores = model.predict(pairs, batch_size=32)
+        indexed_scores = [(i, float(score)) for i, score in enumerate(scores)]
+        indexed_scores.sort(key=lambda x: x[1], reverse=True)
+        return indexed_scores
+
+
 class IdentityReranker:
     """Debug/test-only passthrough that preserves the retrieval score.
 

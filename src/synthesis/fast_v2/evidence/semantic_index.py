@@ -53,11 +53,28 @@ from typing import Any, Callable, Sequence
 
 from src.synthesis.fast_v2.evidence.models import EvidenceUnit
 
-FAST_V2_EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
-FAST_V2_EMBED_DIMENSION = 384
+#: Chosen production embedding model -- see docs/superpowers plan (2026-08-25
+#: single-grounded-synthesis) for the reasoning: embedding only runs once per
+#: chunk at ingest time (cached), so the larger/stronger model costs nothing
+#: on the hot query path, unlike a reranker that scores many pairs per call.
+#: BAAI/BGE is retired; MiniLM stays available only as the frozen RQ1/RQ2
+#: benchmark reference (see selection/cross_encoder.py), never as the default.
+FAST_V2_EMBED_MODEL = "Alibaba-NLP/gte-modernbert-base"
+FAST_V2_EMBED_DIMENSION = 768
+#: Model default is 8192 (its full trained context window). Our PDF chunks
+#: are far shorter (measured average ~300-400 tokens); capping this avoids
+#: pathological CPU/RAM cost from padding short chunks toward 8192 tokens.
+#: See _default_model_factory for the incident this fixes.
+FAST_V2_EMBED_MAX_SEQ_LENGTH = 512
+#: Pre-quantized int8 ONNX export the model repo already ships (no local
+#: export step needed). See _default_model_factory for the measured speedup.
+FAST_V2_EMBED_ONNX_FILE = "onnx/model_int8.onnx"
 #: Versioned so an embedding-model change never silently mixes dimensions
-#: into an existing collection -- see module docstring.
-FAST_V2_COLLECTION_NAME = "fast_v2_evidence_minilm_v1"
+#: into an existing collection -- see module docstring. Bumped from
+#: fast_v2_evidence_minilm_v1 (384-dim) when the embedding model changed to
+#: gte-modernbert-base (768-dim); the old collection is left untouched and
+#: simply orphaned, never queried by this version.
+FAST_V2_COLLECTION_NAME = "fast_v2_evidence_gte_v1"
 
 DEFAULT_CHROMA_HOST = "localhost"
 DEFAULT_CHROMA_PORT = 8001
@@ -73,6 +90,12 @@ class IndexStats:
     chunks_seen: int
     chunks_indexed: int
     chunks_skipped_empty: int
+    chunks_reused: int = 0
+    stale_chunks_found: int = 0
+    action: str = "REUSED"
+    model_loaded: bool = False
+    encode_latency_ms: float = 0.0
+    total_latency_ms: float = 0.0
 
 
 def _default_chroma_client_factory(host: str = DEFAULT_CHROMA_HOST, port: int = DEFAULT_CHROMA_PORT) -> Any:
@@ -124,7 +147,46 @@ class FastV2SemanticIndex:
     def _default_model_factory(self, model_name: str) -> Any:
         from sentence_transformers import SentenceTransformer
 
-        return SentenceTransformer(model_name)
+        # ONNX Runtime (int8) backend instead of raw PyTorch: measured
+        # 8.46s/chunk (PyTorch, CPU) -> 0.31s/chunk (ONNX int8) on this
+        # corpus's chunks -- ~27x faster, same model/weights/quality, only
+        # the inference engine changes. Requires optimum[onnxruntime] (see
+        # requirements.txt) and the pre-quantized onnx/model_int8.onnx file
+        # the model repo already ships (no local export/quantization step).
+        # gte-modernbert-base ships custom modeling code (ModernBERT arch),
+        # so it needs trust_remote_code=True to load at all.
+        #
+        # Falls back to the plain PyTorch backend (same weights, no int8
+        # requantization) if the ONNX path can't load -- e.g. an
+        # optimum/onnxruntime version whose int4 dtype support outpaces the
+        # pinned torch version (`AttributeError: module 'torch' has no
+        # attribute 'int4'`, seen with torch==2.5.1 + onnxruntime==1.28),
+        # or the ONNX export simply isn't cached yet. Slower, not broken --
+        # keeps requests correct while the fast path stays opportunistic.
+        try:
+            model = SentenceTransformer(
+                model_name,
+                local_files_only=True,
+                trust_remote_code=True,
+                backend="onnx",
+                model_kwargs={"file_name": FAST_V2_EMBED_ONNX_FILE},
+            )
+        except Exception:
+            model = SentenceTransformer(
+                model_name,
+                local_files_only=True,
+                trust_remote_code=True,
+            )
+        # ModernBERT's default max_seq_length is 8192 (its trained context
+        # window). Left uncapped, encoding even short PDF chunks (our chunks
+        # average ~300-400 tokens) triggered catastrophic CPU/RAM blowup --
+        # observed as a 20-chunk batch taking 25+ minutes and driving a
+        # 16GB machine down to <1GB free (quadratic attention cost scales
+        # with the padded sequence length, not the real content length).
+        # Our chunks never need anywhere near 8192 tokens; capping this is a
+        # pure performance fix with no quality loss for this corpus.
+        model.max_seq_length = FAST_V2_EMBED_MAX_SEQ_LENGTH
+        return model
 
     def _load_model(self) -> Any:
         if self._model is None:
@@ -151,21 +213,22 @@ class FastV2SemanticIndex:
         return self._collection
 
     def _validate_dimension(self, collection: Any) -> None:
-        """Fail loudly if the collection already holds vectors of a different
-        dimension. Never silently query/insert into an incompatible collection."""
-        peeked = collection.get(limit=1, include=["embeddings"])
-        embeddings = peeked.get("embeddings")
-        if embeddings is None or len(embeddings) == 0:
-            return  # empty collection: nothing to validate against yet
-        actual_dim = len(embeddings[0])
-        if actual_dim != self.expected_dimension:
-            raise SemanticIndexDimensionError(
-                f"Collection {self.collection_name!r} holds {actual_dim}-dimension vectors, "
-                f"but Fast v2 expects {self.expected_dimension} ({self.model_name}). "
-                "Refusing to query/insert -- this is exactly the stale-128d-hash-embedding "
-                "failure mode the dedicated Fast v2 collection exists to prevent. "
-                "Use a differently-named/versioned collection or rebuild this one."
-            )
+        """Fail loudly if the collection already holds vectors of a different dimension."""
+        count = collection.count()
+        if count == 0:
+            return
+        sample = collection.get(limit=1, include=["embeddings"])
+        raw_embs = sample.get("embeddings")
+        if raw_embs is None:
+            return
+        if hasattr(raw_embs, "__len__") and len(raw_embs) > 0:
+            actual_dim = len(raw_embs[0])
+            if actual_dim != self.expected_dimension:
+                raise SemanticIndexDimensionError(
+                    f"Collection {self.collection_name} contains {actual_dim}-dim "
+                    f"embeddings, but {self.__class__.__name__} is configured for "
+                    f"{self.expected_dimension}-dim ({self.model_name})."
+                )
 
     def collection_info(self) -> dict[str, Any]:
         collection = self._get_collection()
@@ -180,41 +243,118 @@ class FastV2SemanticIndex:
             "dimension_ok": actual_dim is None or actual_dim == self.expected_dimension,
         }
 
+    def get_indexed_chunk_metadata(self, paper_id: uuid.UUID) -> dict[str, dict[str, Any]]:
+        """Fetch the map of existing chunk IDs and their metadatas (including text_hash) for this paper."""
+        collection = self._get_collection()
+        res = collection.get(where={"paper_id": str(paper_id)}, include=["metadatas"])
+        if res and "ids" in res and "metadatas" in res:
+            return {cid: meta for cid, meta in zip(res["ids"], res["metadatas"] or [])}
+        return {}
+
+    def get_indexed_chunk_ids(self, paper_id: uuid.UUID) -> set[str]:
+        """Fetch the set of existing chunk IDs in Chroma for this paper without loading model or embeddings."""
+        return set(self.get_indexed_chunk_metadata(paper_id).keys())
+
     # -- Ingestion -----------------------------------------------------------
 
     def index_units(self, units: Sequence[EvidenceUnit]) -> IndexStats:
-        """Upsert a batch of canonical EvidenceUnits into the collection.
+        """Exact-ID and Content-Hash cached ingestion of canonical EvidenceUnits.
 
-        Upsert (not add) makes this idempotent: re-indexing a paper overwrites
-        existing rows for the same chunk id rather than duplicating them --
-        this is what "reindex one paper" and "avoid duplicate chunk records"
-        reduce to.
+        1. Inspects existing Chroma chunk IDs and their text hashes for the target paper.
+        2. If all expected chunk IDs exist AND their content hashes match:
+           - Returns REUSED immediately (model is NOT loaded, encode is skipped).
+        3. If chunk IDs are missing OR chunk text was modified:
+           - Encodes and upserts ONLY the missing/modified chunks.
+        4. If stale chunk IDs exist in Chroma (no longer in current units), deletes them.
         """
+        import hashlib
+        import time
+        t0_total = time.perf_counter()
+
         collection = self._get_collection()
         self._validate_dimension(collection)
 
-        # EvidenceUnit.from_chunk already refuses empty/whitespace-only text
-        # at construction time, so the only way `usable` can shrink here is a
-        # missing source_chunk_id (a unit not backed by a canonical chunk row,
-        # which cannot be cited and must not be indexed).
         chunks_seen = len(units)
         usable = [u for u in units if u.source_chunk_id is not None]
         chunks_skipped_empty = chunks_seen - len(usable)
 
         if not usable:
             paper_id = units[0].paper_id if units else None
-            return IndexStats(paper_id=paper_id, chunks_seen=chunks_seen, chunks_indexed=0, chunks_skipped_empty=chunks_skipped_empty)
+            return IndexStats(
+                paper_id=paper_id,
+                chunks_seen=chunks_seen,
+                chunks_indexed=0,
+                chunks_skipped_empty=chunks_skipped_empty,
+                chunks_reused=0,
+                stale_chunks_found=0,
+                action="REUSED",
+                model_loaded=self.is_model_loaded,
+                encode_latency_ms=0.0,
+                total_latency_ms=round((time.perf_counter() - t0_total) * 1000.0, 2),
+            )
 
+        paper_id = usable[0].paper_id
+        paper_title = usable[0].title
+        expected_units = {str(u.source_chunk_id): u for u in usable}
+        expected_hashes = {
+            str(u.source_chunk_id): hashlib.md5(u.text.encode("utf-8")).hexdigest()
+            for u in usable
+        }
+
+        existing_meta_map = self.get_indexed_chunk_metadata(paper_id)
+        existing_chroma_ids = set(existing_meta_map.keys())
+
+        # Check for missing IDs or modified content (hash mismatch)
+        missing_ids = set()
+        for cid, exp_hash in expected_hashes.items():
+            if cid not in existing_chroma_ids:
+                missing_ids.add(cid)
+            else:
+                existing_hash = existing_meta_map[cid].get("text_hash", "")
+                if existing_hash and existing_hash != exp_hash:
+                    missing_ids.add(cid)  # Text modified: re-encode needed
+
+        stale_ids = existing_chroma_ids - set(expected_units.keys())
+
+        # Cleanup stale chunks if any
+        if stale_ids:
+            collection.delete(ids=list(stale_ids))
+
+        # A. Full cache hit
+        if not missing_ids and existing_chroma_ids:
+            t_total = round((time.perf_counter() - t0_total) * 1000.0, 2)
+            print(f"[Index] {paper_title}: {len(usable)}/{len(usable)} exact chunks + hashes matched -> REUSED (model_loaded={self.is_model_loaded}, latency={t_total}ms)")
+            return IndexStats(
+                paper_id=paper_id,
+                chunks_seen=chunks_seen,
+                chunks_indexed=0,
+                chunks_skipped_empty=chunks_skipped_empty,
+                chunks_reused=len(usable),
+                stale_chunks_found=len(stale_ids),
+                action="REUSED",
+                model_loaded=self.is_model_loaded,
+                encode_latency_ms=0.0,
+                total_latency_ms=t_total,
+            )
+
+        # B. Missing chunks to encode
+        units_to_encode = [expected_units[cid] for cid in missing_ids]
+        action = "FULL_INDEX" if len(units_to_encode) == len(usable) else "PARTIAL_INDEX"
+        print(f"[Index] {paper_title}: {len(existing_chroma_ids)}/{len(usable)} found, indexing {len(units_to_encode)} missing chunks (action={action})")
+
+        t0_encode = time.perf_counter()
         model = self._load_model()
-        embeddings = model.encode([u.text for u in usable], convert_to_numpy=True, show_progress_bar=False)
+        embeddings = model.encode([u.text for u in units_to_encode], convert_to_numpy=True, show_progress_bar=False)
+        encode_latency_ms = round((time.perf_counter() - t0_encode) * 1000.0, 2)
+
         if embeddings.shape[1] != self.expected_dimension:
             raise SemanticIndexDimensionError(
                 f"{self.model_name} produced {embeddings.shape[1]}-dim embeddings, "
                 f"expected {self.expected_dimension}. Refusing to index."
             )
 
-        ids = [str(u.source_chunk_id) for u in usable]
-        documents = [u.text for u in usable]
+        ids = [str(u.source_chunk_id) for u in units_to_encode]
+        documents = [u.text for u in units_to_encode]
         metadatas = [
             {
                 "paper_id": str(u.paper_id),
@@ -223,8 +363,9 @@ class FastV2SemanticIndex:
                 "page_text_id": str(u.page_text_id) if u.page_text_id else "",
                 "page_char_start": u.page_char_start if u.page_char_start is not None else -1,
                 "page_char_end": u.page_char_end if u.page_char_end is not None else -1,
+                "text_hash": hashlib.md5(u.text.encode("utf-8")).hexdigest(),
             }
-            for u in usable
+            for u in units_to_encode
         ]
 
         collection.upsert(
@@ -234,11 +375,18 @@ class FastV2SemanticIndex:
             metadatas=metadatas,
         )
 
+        t_total = round((time.perf_counter() - t0_total) * 1000.0, 2)
         return IndexStats(
-            paper_id=usable[0].paper_id,
+            paper_id=paper_id,
             chunks_seen=chunks_seen,
-            chunks_indexed=len(usable),
+            chunks_indexed=len(units_to_encode),
             chunks_skipped_empty=chunks_skipped_empty,
+            chunks_reused=len(usable) - len(units_to_encode),
+            stale_chunks_found=len(stale_ids),
+            action=action,
+            model_loaded=True,
+            encode_latency_ms=encode_latency_ms,
+            total_latency_ms=t_total,
         )
 
     def delete_paper(self, paper_id: uuid.UUID) -> None:
@@ -296,6 +444,61 @@ class FastV2SemanticIndex:
                     page_char_start=None if char_start in (None, -1) else int(char_start),
                     page_char_end=None if char_end in (None, -1) else int(char_end),
                     retrieval_score=similarity,
+                )
+            )
+        return units
+
+    def keyword_query(
+        self, query_text: str, *, limit: int, paper_ids: Sequence[uuid.UUID]
+    ) -> list[EvidenceUnit]:
+        """BM25 lexical scoring over the same paper-scoped document set.
+
+        Fetches the scoped chunks once and scores in-process (see
+        ``evidence/bm25.py``) -- fine for a selected-corpus workload, not a
+        full-corpus search engine. No embedding model touched here, so this
+        works even before the embedding model has loaded.
+        """
+        from src.synthesis.fast_v2.evidence.bm25 import bm25_scores
+
+        collection = self._get_collection()
+
+        paper_id_strs = [str(pid) for pid in paper_ids]
+        if not paper_id_strs:
+            return []
+        where = {"paper_id": paper_id_strs[0]} if len(paper_id_strs) == 1 else {"paper_id": {"$in": paper_id_strs}}
+
+        fetched = collection.get(where=where, include=["documents", "metadatas"])
+        ids = fetched.get("ids", [])
+        documents = fetched.get("documents", [])
+        metadatas = fetched.get("metadatas", [])
+        if not documents:
+            return []
+
+        scores = bm25_scores(query_text, documents)
+        ranked_indices = sorted(
+            range(len(documents)), key=lambda i: scores[i], reverse=True
+        )[:limit]
+
+        units: list[EvidenceUnit] = []
+        for i in ranked_indices:
+            if scores[i] <= 0.0:
+                continue  # no lexical overlap at all -- not a candidate
+            chunk_id, text, metadata = ids[i], documents[i], metadatas[i]
+            page = metadata.get("page")
+            page_text_id = metadata.get("page_text_id") or None
+            char_start = metadata.get("page_char_start")
+            char_end = metadata.get("page_char_end")
+            units.append(
+                EvidenceUnit.from_chunk(
+                    paper_id=uuid.UUID(metadata["paper_id"]),
+                    title=metadata.get("paper_title", "Unknown Title"),
+                    page=None if page in (None, -1) else int(page),
+                    text=text,
+                    source_chunk_id=uuid.UUID(chunk_id),
+                    page_text_id=uuid.UUID(page_text_id) if page_text_id else None,
+                    page_char_start=None if char_start in (None, -1) else int(char_start),
+                    page_char_end=None if char_end in (None, -1) else int(char_end),
+                    retrieval_score=scores[i],
                 )
             )
         return units
