@@ -1,79 +1,68 @@
 # Kế hoạch Triển khai: MODULE 1 - EVIDENCE QUANTIFICATION ENGINE
+*(Bản chiến dịch "Làm chủ công nghệ" - HACKATHON 48 GIỜ)*
 
-Theo yêu cầu của hệ thống, module này đóng vai trò lõi trong việc lượng hóa và kiểm chứng bằng chứng, đảm bảo nội dung tổng quan do AI sinh ra hoàn toàn trung thực với tài liệu gốc.
+Nhận định: Yêu cầu **hoàn thành gấp trong 2 ngày** (48 giờ) đòi hỏi một chiến lược thực thi kiểu "Hackathon" - cực kỳ tập trung, loại bỏ rườm rà nhưng **vẫn giữ nguyên bản chất cốt lõi của việc "Làm chủ công nghệ"**. 
 
-## User Review Required
-> [!IMPORTANT]
-> **Quyết định về Hạ tầng (Infrastructure)**: Việc sử dụng các mô hình NLI (Natural Language Inference) nội bộ yêu cầu tài nguyên tính toán (CPU/GPU). Xin hãy xác nhận backend hiện tại trên AWS EC2 có đủ RAM/VRAM để chạy các mô hình kích thước `base` (khoảng 400MB-1GB bộ nhớ) hay `large` (khoảng 1.5GB-3GB bộ nhớ), hoặc chúng ta sẽ sử dụng inference qua API/Serverless.
-
-> [!CAUTION]
-> **Không sửa đổi kiến trúc lõi**: Theo `PROJECT_STANDARDS.md`, LLM gọi để phân rã claim sẽ sử dụng nghiêm ngặt router tập trung `src/services/llm/router.py`. Việc kết hợp NLI sẽ được cô lập ở service mới để không làm vỡ các module có sẵn.
-
-## Open Questions
-> [!WARNING]
-> 1. **Dataset Đánh giá (Golden Dataset)**: Để benchmark các mô hình NLI một cách công bằng, chúng ta có thể dùng dataset chuẩn như `SciTail` (khoa học), `SNLI`, hay sẽ tự trích xuất thủ công một tập 100-200 câu từ các PDF trong hệ thống của dự án để gán nhãn? (Khuyến nghị tự build một tập nhỏ từ dữ liệu thật của dự án).
-> 2. **Ngôn ngữ**: NLI engine chỉ tập trung vào tiếng Anh cho các bài báo (Paper), hay cần xử lý đa ngôn ngữ?
-
-## Đề xuất Các Mô hình NLU/NLI (Candidates)
-
-Để phục vụ cho phần Tầng 2 (NLI Cross-Check), dưới đây là các mô hình được đề xuất để đưa vào quá trình Benchmark:
-
-1. **`MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli`** 🌟 *(Khuyến nghị cao nhất)*: Model được train trên nhiều task (NLI, Fact-checking), cân bằng tuyệt vời giữa độ chính xác và tài nguyên, đặc biệt hiệu quả trong việc phát hiện "Hallucination" (ảo giác).
-2. **`cross-encoder/nli-deberta-v3-base`**: Rất phổ biến cho bài toán Entailment, điểm benchmark thường cao hơn RoBERTa.
-3. **`cross-encoder/nli-deberta-v3-large`**: Chính xác nhất nhưng tương đối nặng. Chỉ nên chọn nếu server có GPU tốt.
-4. **`roberta-large-mnli`**: Mô hình tiêu chuẩn, chạy ổn định, độ tin cậy cao.
-5. **`typeform/distilbert-base-uncased-mnli`**: Phiên bản thu gọn cực nhẹ, inference cực nhanh. Phù hợp nếu tài nguyên CPU quá hạn hẹp.
-
-## Kế hoạch Benchmark & Đánh giá Model
-
-Để chọn ra mô hình tối ưu, chúng ta sẽ thực hiện 1 vòng Benchmark trước khi tích hợp cứng vào logic hệ thống.
-
-### 1. Chuẩn bị Dữ liệu (Golden Dataset)
-- Trích xuất ngẫu nhiên khoảng 100-200 đoạn văn (Paragraphs) từ cơ sở dữ liệu (các bài báo đã parse).
-- Dùng LLM sinh ra các Claims với 3 nhãn thủ công (Human-annotated): `Entailment` (Supported), `Neutral` (Weak), `Contradiction` (Hallucinated).
-
-### 2. Các Tiêu chí Đánh giá (Metrics)
-- **Độ chính xác phân loại**: Accuracy, F1-Score cho từng class.
-- **Tốc độ (Inference Latency)**: Đo thời gian trung bình (ms) để xử lý 1 cặp (Paragraph, Claim).
-- **Tài nguyên (Memory Footprint)**: Mức tiêu thụ RAM khi load mô hình.
-
-### 3. Thực thi
-- Xây dựng một file script riêng (`benchmark/benchmark_nli_models.py`).
-- Chạy inference hàng loạt.
-- Tự động xuất kết quả báo cáo (Scorecard) lưu vào file `BENCHMARK_SCORECARD.md` để team xem xét và quyết định model cuối.
+Thay vì chu trình R&D kéo dài 4 tuần, chúng ta sẽ áp dụng **Rapid Prototyping & LoRA Fine-Tuning** để có ngay một Kiến trúc 3 tầng (Tri-Layer Hybrid Engine) của riêng dự án với mô hình NLI tự train trong chưa đầy 48 tiếng.
 
 ---
 
-## Proposed Changes
+## TÍNH KHẢ THI KHI DEPLOY LÊN AWS EC2 HIỆN TẠI
 
-Mã nguồn mới sẽ tuân thủ tuyệt đối chuẩn kiến trúc hiện tại, gom gọn vào module mới, không sửa đổi code hiện tại.
+Dựa trên tài liệu `PROJECT_STANDARDS.md` (hệ thống chạy uvicorn trực tiếp, không có worker Celery), việc đưa mô hình AI lên EC2 cần đặc biệt lưu ý:
 
-### Evidence Quantification Engine Component
+1. **Về RAM (Memory)**: 
+   - Mô hình `deberta-v3-small` (141 triệu tham số) khi load vào PyTorch/HuggingFace sẽ ngốn thêm khoảng **700MB - 1GB RAM**. 
+   - Nếu EC2 của bạn là loại **`t3.small` (2GB RAM) hoặc `t3.medium` (4GB RAM)**, hệ thống chạy **thoải mái**. 
+   - ⚠️ *Cảnh báo*: Nếu EC2 đang dùng là `t2.micro` (1GB RAM - Free tier), server chắc chắn sẽ bị sập (Out of Memory) vì OS + FastAPI + ChromaDB + Model sẽ vượt quá 1GB. Giải pháp lúc đó là phải ép kiểu (Quantize) mô hình sang định dạng ONNX INT8 (chỉ còn ~200MB).
 
-#### [NEW] `src/services/evidence_engine/claims_decomposer.py`
-Sử dụng hàm `ainvoke_with_failover` từ `src/services/llm/` để gọi mô hình (ví dụ `gemini-3.6-flash`), sử dụng cấu trúc `Structured Output` (Pydantic Schema) để bóc tách câu tổng quan thành danh sách các "Atomic Claims" độc lập.
+2. **Về CPU (Nghẽn cổ chai Event Loop)**:
+   - Chạy inference `deberta-v3-small` trên CPU mất khoảng 0.1 - 0.2 giây/câu. Tốc độ này hoàn toàn chấp nhận được.
+   - Tuy nhiên, do dự án không có Celery Worker mà dùng `BackgroundTasks` trong FastAPI, việc tính toán CPU nặng sẽ chặn (block) toàn bộ server, khiến các user khác bị lag. 
+   - **Cách giải quyết bắt buộc khi code**: Phải đưa hàm chạy model vào một luồng riêng bằng `asyncio.to_thread(...)` để không làm "đóng băng" uvicorn.
 
-#### [NEW] `src/services/evidence_engine/offset_matcher.py`
-Xử lý tầng 1: Đối soát chuỗi tọa độ (Character-offset/Page mapping). Tìm và bóc tách nội dung thô (chunk) từ database (`papers` hoặc bảng tương ứng) để chuẩn bị cho quá trình NLI.
+---
 
-#### [NEW] `src/services/evidence_engine/nli_checker.py`
-Xử lý tầng 2: Tích hợp thư viện `transformers` (hỗ trợ load mô hình đã chọn từ Benchmark). Chạy logic suy diễn và quy đổi điểm Entailment/Contradiction thành nhãn `Supported`, `Weak/Neutral`, hoặc `Hallucinated/Contradiction` theo đúng ngưỡng xác suất đề ra.
+## KIẾN TRÚC ĐỘNG CƠ LƯỢNG HÓA 3 TẦNG (TRI-LAYER HYBRID ENGINE)
 
-#### [NEW] `src/services/evidence_engine/metrics_calculator.py`
-Thực thi các công thức toán học:
-- Tính Faithfulness Score ($F$) = Tỷ lệ % claim đạt `Supported`.
-- Tính Citation Precision ($CP$).
-- Tính Hallucination Rate ($H$) = $100\% - F$.
+### Bước 1: Phân rã Luận điểm (Claims Decomposition)
+- Dùng Pydantic Schema + hàm `ainvoke_with_failover` (Gemini-3.6-flash có sẵn) để trích xuất nhanh 1 đoạn văn thành mảng JSON `[{"claim": "..."}]`. (Code: 2 giờ).
 
-#### [NEW] `benchmark/benchmark_nli_models.py`
-Script tự động download các model HuggingFace từ list, chạy đánh giá chéo trên tập dữ liệu mẫu và tính toán F1, Latency để ra quyết định chọn model.
+### Bước 2: Kênh Kiểm chứng 3 Tầng (Tri-Layer Verification)
+#### 📍 Tầng 1: Exact/Fuzzy Matching (Code trong 2 giờ)
+- Viết hàm so khớp chuỗi nhanh. Nếu Claim xuất hiện nguyên vẹn $>90\%$ từ vựng trong bản gốc -> `Supported`. Không cần gọi AI.
 
-## Verification Plan
+#### 📍 Tầng 2: Custom Cross-Encoder NLI (Trái tim của dự án)
+Đây là phần làm chủ công nghệ, chúng ta tự Fine-tune model của mình.
+- **Model Base**: `microsoft/deberta-v3-small` (Rất nhẹ, tối ưu RAM cho EC2).
+- **Cách làm nhanh**: Dùng phương pháp **Transfer Learning** trên 1 dataset nhỏ tự sinh thay vì train hàng vạn mẫu. (Lưu ý code chạy bằng `asyncio.to_thread` khi xử lý model trên EC2).
 
-### Automated Tests
-- Viết các unit tests trong `tests/test_evidence_engine/` để kiểm tra độ chính xác của các công thức trong `metrics_calculator.py` với dữ liệu mock.
-- Test hàm `claims_decomposer.py` với Mock LLM Client để đảm bảo logic trích xuất hoạt động bình thường, không phụ thuộc vào LLM endpoint thật.
+#### 📍 Tầng 3: LLM-as-a-Judge (Dự phòng)
+- Đối với các câu điểm Tầng 2 nằm ở mức lửng lơ (0.4 - 0.8), đẩy qua Gemini đánh giá lại và đưa ra lý do (Explainability).
 
-### Manual Verification
-- Chạy script `benchmark_nli_models.py` trực tiếp, kiểm tra bảng phân tích kết quả, dung lượng model và tốc độ.
-- Kích hoạt quy trình toàn vẹn: sinh thử 1 bài tổng hợp nhỏ (Synthesis), kiểm tra output logs của Engine xem các luồng Decomposition -> Offset Match -> NLI Score -> Metrics hiển thị có chuẩn xác và hợp lý theo luồng đã thiết kế hay không.
+### Bước 3: Toán học lượng hóa (Mathematical Metrics Engine)
+Code các công thức:
+1. **Faithfulness Score ($F$)**: $\frac{\sum_{i=1}^n I(Status(c_i) == Supported)}{n} \times 100\%$
+2. **Citation Precision ($CP$)**: Tỷ lệ trích dẫn trúng đích / Tổng trích dẫn.
+3. **Hallucination Rate ($H$)**: $100\% - F$
+
+---
+
+## CHIẾN DỊCH THỰC THI CHỚP NHOÁNG (48-HOUR ROADMAP)
+
+### NGÀY 1: Xây hạ tầng & Chuẩn bị Data
+- **Sáng (4h)**: 
+  - Hoàn thiện Code Bước 1 (Tách Claim) và Tầng 1 (Fuzzy Matching).
+  - Hoàn thiện Code Tầng 3 (LLM-as-a-Judge). Engine chạy thông luồng.
+- **Chiều (4h)**: **Xây dựng Dataset độc quyền thần tốc**.
+  - Dùng Gemini API chạy song song sinh ra **2,000 cặp câu** `(Đoạn văn, Claim, Label)`.
+  - Định dạng thành file `train.jsonl`.
+
+### NGÀY 2: Train Model & Lắp ráp hoàn thiện
+- **Sáng (4h)**: **Rapid Fine-Tuning**.
+  - Tải `train.jsonl` lên Google Colab (GPU T4 miễn phí).
+  - Train model `deberta-v3-small` (mất ~30-45 phút).
+  - Export weights (`pytorch_model.bin`) và đưa file này lên server EC2.
+- **Chiều (4h)**: **Tích hợp & Tối ưu luồng EC2**.
+  - Cài đặt `nli_checker.py`. Áp dụng `asyncio.to_thread` để load model, tránh chết FastAPI.
+  - Test End-to-End trên website. Hoàn thành!
