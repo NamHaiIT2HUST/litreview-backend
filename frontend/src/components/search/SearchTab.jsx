@@ -520,6 +520,27 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
     setAiScreeningResult(null);
     setAiScreeningLoading(true);
 
+    // `currentProjectId` (line 41) falls back to the hardcoded demo/default
+    // project id whenever ProjectContext hasn't resolved an active project
+    // yet -- sending THAT id here is indistinguishable from the researcher
+    // genuinely having that project open, so screening would silently judge
+    // the paper against an unrelated project's criteria (confirmed live:
+    // a Robotics paper got screened against an ECG project's inclusion
+    // criteria). Use the unmasked signal so a not-yet-resolved project fails
+    // loudly instead of guessing.
+    const resolvedProjectId = activeProjectId || activeProject?.id || null;
+    if (!resolvedProjectId) {
+      setAiScreeningLoading(false);
+      setAiScreeningResult({
+        relevance_bucket: 'insufficient_info',
+        reason: {
+          matches: [],
+          mismatches: ['Chưa xác định được sổ ghi chú (project) đang mở. Vui lòng tải lại trang và thử lại.']
+        }
+      });
+      return;
+    }
+
     try {
       const res = await safeFetch(`/papers/${encodeURIComponent(paper.id)}/screen`, {
         method: 'POST',
@@ -531,7 +552,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
           year: paper.year,
           doi: paper.doi,
           authors: paper.authors,
-          project_id: currentProjectId
+          project_id: resolvedProjectId
         })
       });
       if (res.ok) {
@@ -2371,9 +2392,18 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
               {genealogyLoading ? (
                 <div className="py-20 flex flex-col items-center justify-center gap-4 text-slate-400">
                   <Loader2 className="w-10 h-10 animate-spin text-sky-500" />
-                  <p className="text-sm font-bold">Đang quét đồ thị trích dẫn học thuật 2 chiều từ Semantic Scholar & Crossref...</p>
+                  <p className="text-sm font-bold">Đang tìm nguồn tiền đề & kế thừa liên quan đến bài báo này...</p>
                 </div>
               ) : genealogyData ? (
+                <div className="space-y-4">
+                {genealogyData.has_unverified_ai_entries && (
+                  <div className="p-3.5 rounded-2xl border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-900/60 flex items-start gap-2.5">
+                    <span className="text-base leading-none mt-0.5">⚠️</span>
+                    <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
+                      <span className="font-bold">Chưa xác minh:</span> Hệ thống chưa có kết nối tới cơ sở dữ liệu trích dẫn thật (Semantic Scholar/Crossref). Các bài báo đánh dấu <span className="font-bold">"AI gợi ý"</span> dưới đây do AI tự suy đoán dựa trên chủ đề — có thể KHÔNG tồn tại thật, DOI/link PDF có thể không mở được. Vui lòng tự tra cứu để xác nhận trước khi thêm vào project.
+                    </p>
+                  </div>
+                )}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   
                   {/* Column 1: Backward Ancestors */}
@@ -2402,9 +2432,16 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                             <h5 className="font-bold text-xs text-slate-900 dark:text-slate-100 leading-snug">
                               {p.title}
                             </h5>
-                            <span className="shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300">
-                              {p.year}
-                            </span>
+                            <div className="shrink-0 flex flex-col items-end gap-1">
+                              {p.source === 'ai_generated' && (
+                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-amber-500/20 text-amber-700 dark:text-amber-400" title="AI tự suy đoán, chưa xác minh có tồn tại thật hay không">
+                                  ⚠️ AI gợi ý
+                                </span>
+                              )}
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300">
+                                {p.year}
+                              </span>
+                            </div>
                           </div>
                           <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
                             {p.authors} • {p.venue || 'Journal/Conference'} • {p.citations ? p.citations.toLocaleString() : 0} citations
@@ -2416,16 +2453,16 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                           )}
                           <div className="pt-3 flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 dark:border-slate-700/60 mt-3">
                             <a
-                              href={p.doi ? (p.doi.startsWith('http') ? p.doi : `https://doi.org/${p.doi}`) : `https://scholar.google.com/scholar?q=${encodeURIComponent(p.title)}`}
+                              href={(p.source !== 'ai_generated' && p.doi) ? (p.doi.startsWith('http') ? p.doi : `https://doi.org/${p.doi}`) : `https://scholar.google.com/scholar?q=${encodeURIComponent(p.title)}`}
                               target="_blank"
                               rel="noreferrer"
                               className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition-all border flex items-center gap-1.5 ${
                                 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700 shadow-xs dark:bg-slate-700/80 dark:hover:bg-slate-700 dark:border-slate-600 dark:text-slate-200'
                               }`}
-                              title="Xem bài gốc / Tải PDF"
+                              title={p.source === 'ai_generated' ? 'DOI do AI suy đoán, chưa xác minh -- tìm trên Google Scholar' : 'Xem bài gốc / Tải PDF'}
                             >
                               <Download className="w-3.5 h-3.5 text-blue-500" />
-                              <span>PDF</span>
+                              <span>{p.source === 'ai_generated' ? 'Tìm trên Scholar' : 'PDF'}</span>
                               <ExternalLink className="w-3 h-3 text-slate-400" />
                             </a>
 
@@ -2499,9 +2536,16 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                             <h5 className="font-bold text-xs text-slate-900 dark:text-slate-100 leading-snug">
                               {p.title}
                             </h5>
-                            <span className="shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-md bg-sky-100 dark:bg-sky-950 text-sky-800 dark:text-sky-300">
-                              {p.year}
-                            </span>
+                            <div className="shrink-0 flex flex-col items-end gap-1">
+                              {p.source === 'ai_generated' && (
+                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-amber-500/20 text-amber-700 dark:text-amber-400" title="AI tự suy đoán, chưa xác minh có tồn tại thật hay không">
+                                  ⚠️ AI gợi ý
+                                </span>
+                              )}
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-sky-100 dark:bg-sky-950 text-sky-800 dark:text-sky-300">
+                                {p.year}
+                              </span>
+                            </div>
                           </div>
                           <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
                             {p.authors} • {p.venue || 'Journal/Conference'} • {p.citations ? p.citations.toLocaleString() : 0} citations
@@ -2513,16 +2557,16 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                           )}
                           <div className="pt-3 flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 dark:border-slate-700/60 mt-3">
                             <a
-                              href={p.doi ? (p.doi.startsWith('http') ? p.doi : `https://doi.org/${p.doi}`) : `https://scholar.google.com/scholar?q=${encodeURIComponent(p.title)}`}
+                              href={(p.source !== 'ai_generated' && p.doi) ? (p.doi.startsWith('http') ? p.doi : `https://doi.org/${p.doi}`) : `https://scholar.google.com/scholar?q=${encodeURIComponent(p.title)}`}
                               target="_blank"
                               rel="noreferrer"
                               className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition-all border flex items-center gap-1.5 ${
                                 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700 shadow-xs dark:bg-slate-700/80 dark:hover:bg-slate-700 dark:border-slate-600 dark:text-slate-200'
                               }`}
-                              title="Xem bài gốc / Tải PDF"
+                              title={p.source === 'ai_generated' ? 'DOI do AI suy đoán, chưa xác minh -- tìm trên Google Scholar' : 'Xem bài gốc / Tải PDF'}
                             >
                               <Download className="w-3.5 h-3.5 text-blue-500" />
-                              <span>PDF</span>
+                              <span>{p.source === 'ai_generated' ? 'Tìm trên Scholar' : 'PDF'}</span>
                               <ExternalLink className="w-3 h-3 text-slate-400" />
                             </a>
 
@@ -2570,6 +2614,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                     </div>
                   </div>
 
+                </div>
                 </div>
               ) : null}
             </div>

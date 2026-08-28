@@ -41,14 +41,6 @@ async def screen_paper(paper_id: str, payload: Optional[PaperScreenPayload] = No
     except Exception:
         pass
 
-    if not paper and payload and payload.title:
-        result = await db.execute(select(Paper).where(Paper.title.ilike(f"%{payload.title.strip()}%")))
-        paper = result.scalars().first()
-
-    if not paper and paper_id and len(paper_id) > 3:
-        result = await db.execute(select(Paper).where(Paper.title.ilike(f"%{paper_id}%")))
-        paper = result.scalars().first()
-
     DEFAULT_PROJECT_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
     request_project_id = None
     if payload and payload.project_id:
@@ -57,13 +49,38 @@ async def screen_paper(paper_id: str, payload: Optional[PaperScreenPayload] = No
         except Exception:
             request_project_id = None
 
-    # Prefer the project the paper is actually attached to in the DB; for a
-    # not-yet-persisted paper, use the project the request says it belongs
-    # to; only fall back to the shared default project when neither is known.
-    if paper:
-        effective_project_id = paper.project_id
-    elif request_project_id:
+    # The title-based fallback lookups below used to search the ENTIRE
+    # `papers` table with no project filter -- a title that happens to
+    # fuzzy-match a paper in a completely unrelated project would win, and
+    # everything downstream (which criteria to screen against, and which
+    # row's relevance_bucket gets overwritten at the end of this function)
+    # would silently apply to that unrelated project instead of the one
+    # actually open on screen. Scope the lookup to the requesting project
+    # whenever we know it, so a same-titled paper elsewhere is never mistaken
+    # for this one.
+    title_query_filters = []
+    if request_project_id:
+        title_query_filters.append(Paper.project_id == request_project_id)
+
+    if not paper and payload and payload.title:
+        query = select(Paper).where(Paper.title.ilike(f"%{payload.title.strip()}%"), *title_query_filters)
+        result = await db.execute(query)
+        paper = result.scalars().first()
+
+    if not paper and paper_id and len(paper_id) > 3:
+        query = select(Paper).where(Paper.title.ilike(f"%{paper_id}%"), *title_query_filters)
+        result = await db.execute(query)
+        paper = result.scalars().first()
+
+    # Which project's criteria to screen against: always prefer the project
+    # explicitly open on screen (what the frontend just sent) over whatever
+    # project the matched DB row happens to belong to -- the researcher is
+    # judging this paper against the SLR they're currently working in, not
+    # whichever project a stray title match landed in.
+    if request_project_id:
         effective_project_id = request_project_id
+    elif paper:
+        effective_project_id = paper.project_id
     else:
         effective_project_id = DEFAULT_PROJECT_ID
 

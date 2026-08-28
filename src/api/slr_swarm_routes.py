@@ -243,12 +243,21 @@ async def get_paper_genealogy(payload: GenealogyRequest) -> dict:
         b_records = await deps.citations.references(payload.paper_id or payload.doi)
         f_records = await deps.citations.citations(payload.paper_id or payload.doi)
         if b_records:
-            backward_refs = [_dump(r) for r in b_records[:5]]
+            backward_refs = [{**_dump(r), "source": "citation_graph"} for r in b_records[:5]]
         if f_records:
-            forward_cits = [_dump(r) for r in f_records[:5]]
+            forward_cits = [{**_dump(r), "source": "citation_graph"} for r in f_records[:5]]
     except Exception:
         pass
-        
+
+    # `deps.citations` (InMemoryCitations, see deps_provider.py) is a fixed
+    # in-memory stub with a single demo edge -- there is no real citation-
+    # graph integration wired in yet, so this branch fires for every real
+    # paper. The LLM below is asked to *invent* plausible-sounding ancestor/
+    # descendant papers (titles, DOIs, citation counts included) when no real
+    # data is found; those are speculative suggestions, not verified
+    # citations, so every entry it produces is tagged "ai_generated" and the
+    # frontend must show that distinction rather than presenting them as
+    # real search results.
     if not backward_refs or not forward_cits:
         llm = deps.router.pick("planning")
         prompt = f"""You are an expert in academic citation network analysis and systematic literature review.
@@ -277,16 +286,19 @@ Return ONLY a valid JSON object:
             from src.agents.slr_swarm.json_utils import parse_object
             data = parse_object(raw)
             if not backward_refs and data.get("backward_ancestors"):
-                backward_refs = data["backward_ancestors"]
+                backward_refs = [{**item, "source": "ai_generated"} for item in data["backward_ancestors"]]
             if not forward_cits and data.get("forward_descendants"):
-                forward_cits = data["forward_descendants"]
+                forward_cits = [{**item, "source": "ai_generated"} for item in data["forward_descendants"]]
         except Exception:
             pass
 
     return {
         "seed_paper": payload.model_dump(),
         "backward_ancestors": backward_refs or [],
-        "forward_descendants": forward_cits or []
+        "forward_descendants": forward_cits or [],
+        "has_unverified_ai_entries": any(
+            item.get("source") == "ai_generated" for item in (backward_refs or []) + (forward_cits or [])
+        ),
     }
 
 from typing import Optional, Any
