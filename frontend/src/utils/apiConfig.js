@@ -57,6 +57,26 @@ const withAuthHeaders = (options = {}) => {
   };
 };
 
+// FastAPI sends `detail` as a plain string for a hand-raised HTTPException, but
+// as an array of {loc, msg, type} objects for its own automatic 422 request
+// validation. `new Error(detail)` on that array coerces to the literal string
+// "[object Object]" -- three call sites independently hit this. Centralized
+// here instead of fixed three times.
+export const formatApiErrorDetail = (detail, fallback = 'Đã có lỗi xảy ra.') => {
+  if (!detail) return fallback;
+  if (typeof detail === 'string') return detail;
+  if (Array.isArray(detail)) {
+    const messages = detail
+      .map((item) => (item && typeof item === 'object' ? item.msg : String(item)))
+      .filter(Boolean);
+    return messages.length ? messages.join('; ') : fallback;
+  }
+  if (typeof detail === 'object') {
+    return detail.msg || detail.message || fallback;
+  }
+  return fallback;
+};
+
 export const safeFetch = async (urlOrEndpoint, options = {}) => {
   let primaryUrl = urlOrEndpoint;
   if (!primaryUrl.startsWith('http://') && !primaryUrl.startsWith('https://')) {

@@ -47,11 +47,13 @@ import {
   extractNoveltyAndGaps,
   generateFollowUpQuestions,
   tokenizeReviewCitations,
+  normalizeSynthesisResponse,
+  getDirectSynthesisError,
 } from '../../utils/synthesis';
 import { reviewScrollClass, sectionEvidenceLabel } from '../../utils/reviewPresentation';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useProject } from '../../contexts/ProjectContext';
-import { safeFetch } from '../../utils/apiConfig';
+import { safeFetch, formatApiErrorDetail } from '../../utils/apiConfig';
 
 const formatSessionTime = (isoString) => {
   if (!isoString) return '';
@@ -104,6 +106,13 @@ export default function SynthesisPanel({
   const { t, language } = useLanguage();
   const { activeProject, activeProjectId } = useProject();
   const currentProjectId = activeProjectId || DEFAULT_PROJECT_ID;
+  // Unlike currentProjectId above (used for read-only history/cache lookups,
+  // safe to default), this unmasked value is for /synthesis/plan and
+  // /synthesis/execute -- those endpoints WRITE and must never silently run
+  // against the wrong project because ProjectContext hadn't resolved yet.
+  // See SearchTab.jsx's handleOpenAiScreening for the live incident that
+  // motivated this same guard.
+  const resolvedProjectId = activeProjectId || activeProject?.id || null;
   const isEn = language === 'en';
 
   const [sessionId, setSessionId] = useState(null);
@@ -227,15 +236,63 @@ export default function SynthesisPanel({
     return () => clearTimeout(timer);
   }, [sessionId, t]);
 
-  const handleStartSynthesis = async () => {
+  const [outlinePlan, setOutlinePlan] = useState(null);
+  const [isPlanning, setIsPlanning] = useState(false);
+
+  // Step 1: plan-only call -- turns the selected papers into a structured
+  // outline the researcher can review/edit before any writing happens. The
+  // pipeline stops here; nothing is synthesized yet.
+  const handlePlanOutline = async () => {
     if (!canRun) return;
+    if (!resolvedProjectId) {
+      setError(isEn ? 'Project not resolved yet. Please reload the page and try again.' : 'Chưa xác định được sổ ghi chú (project) đang mở. Vui lòng tải lại trang và thử lại.');
+      return;
+    }
+    setIsPlanning(true);
+    setError('');
+    try {
+      const payload = {
+        project_id: resolvedProjectId,
+        paper_ids: workspacePapers.map(p => p.id || p.paper_id || p.title || ''),
+        research_question: researchTopic || activeProject?.research_question || '',
+      };
+      const response = await safeFetch('/synthesis/plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(formatApiErrorDetail(errData.detail, 'Lỗi khi lập dàn ý'));
+      }
+      const planData = await response.json();
+      setOutlinePlan(planData);
+    } catch (err) {
+      console.error(err);
+      setError(err.message || 'Không thể lập dàn ý');
+    } finally {
+      setIsPlanning(false);
+    }
+  };
+
+  // Step 2: execute the (possibly researcher-edited) approved outline.
+  const handleExecuteApprovedOutline = async () => {
+    if (!outlinePlan || !canRun) return;
+    if (!resolvedProjectId) {
+      setError(isEn ? 'Project not resolved yet. Please reload the page and try again.' : 'Chưa xác định được sổ ghi chú (project) đang mở. Vui lòng tải lại trang và thử lại.');
+      return;
+    }
     setStatus('starting');
     setError('');
     setResult(null);
 
     try {
-      const payload = buildSynthesisRequest(workspacePapers, currentProjectId, researchTopic || activeProject?.research_question || '');
-      const response = await safeFetch('/synthesis-sessions', {
+      const payload = {
+        project_id: resolvedProjectId,
+        paper_ids: workspacePapers.map(p => p.id || p.paper_id || p.title || ''),
+        approved_outline: outlinePlan,
+      };
+      const response = await safeFetch('/synthesis/execute', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -243,21 +300,35 @@ export default function SynthesisPanel({
 
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.detail || t('synthesis.start_failed'));
+        throw new Error(formatApiErrorDetail(errData.detail, 'Lỗi khi thực thi tổng quan'));
       }
 
       const data = await response.json();
-      setSessionId(data.session_id);
-      localStorage.setItem(`litreview_active_synthesis_id_${currentProjectId}`, data.session_id);
-      setStatus('queued');
-      fetchHistory(false);
+      const directResult = normalizeSynthesisResponse(data);
+      if (directResult) {
+        setResult(directResult);
+        setSessionId(data.session_id || null);
+        setStatus('done');
+        setOutlinePlan(null);
+        if (data.session_id) {
+          localStorage.setItem(`litreview_active_synthesis_id_${currentProjectId}`, data.session_id);
+          fetchHistory(false);
+        }
+      } else {
+        // The pipeline ran but honestly couldn't ground a review (0 bound
+        // citations, or no evidence found) -- surface that instead of
+        // leaving the UI stuck on 'starting' forever with no explanation.
+        setError(getDirectSynthesisError(data) || 'Không tạo được review có evidence và citation hợp lệ. Vui lòng thử lại hoặc chỉnh outline.');
+        setStatus('idle');
+      }
     } catch (err) {
       console.error(err);
-      setError(err.message || t('synthesis.start_failed'));
+      setError(err.message || 'Lỗi thực thi tổng quan');
       setStatus('idle');
     }
   };
 
+  const handleStartSynthesis = handlePlanOutline;
   const startSynthesis = handleStartSynthesis;
 
   const handleReset = () => {
@@ -265,6 +336,7 @@ export default function SynthesisPanel({
     setStatus('idle');
     setResult(null);
     setError('');
+    setOutlinePlan(null);
     localStorage.removeItem('litreview_active_synthesis_id');
   };
 
@@ -298,8 +370,8 @@ export default function SynthesisPanel({
   );
 
   const comparisonRows = useMemo(
-    () => buildComparisonRows(result?.evidence_profile || [], workspacePapers, result?.citations || []),
-    [result, workspacePapers],
+    () => buildComparisonRows(result?.evidence_profile || [], workspacePapers, result?.citations || [], reviewSections),
+    [result, workspacePapers, reviewSections],
   );
 
   const bibtexContent = useMemo(() => {
@@ -608,15 +680,139 @@ export default function SynthesisPanel({
               }`}
             />
             <button
-              onClick={startSynthesis}
-              disabled={!canRun || isRunning}
+              onClick={handlePlanOutline}
+              disabled={!canRun || isRunning || isPlanning}
               className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold shadow-md shadow-blue-600/20 active:scale-95 transition-all shrink-0 cursor-pointer"
             >
-              {isRunning ? <Loader2 className="w-4 h-4 animate-spin" /> : result ? <RefreshCw className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-              <span>{isRunning ? t('synthesis.btn_running') : result ? t('synthesis.btn_rerun') : t('synthesis.btn_start')}</span>
+              {isPlanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+              <span>{isPlanning ? 'Đang lập dàn ý...' : '1. Lập Dàn ý Nghiên cứu'}</span>
             </button>
           </div>
         </div>
+
+        {/* Outline Approval & Editor Card */}
+        {outlinePlan && (
+          <div className="mt-4 p-5 rounded-2xl border border-blue-200 bg-blue-50/40 dark:border-blue-800/60 dark:bg-blue-950/20 space-y-4 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-blue-100 dark:border-blue-900/40 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="w-6 h-6 rounded-lg bg-blue-600 text-white text-xs flex items-center justify-center font-bold">
+                  2
+                </span>
+                <h4 className="font-bold text-sm text-slate-800 dark:text-slate-100">
+                  {isEn ? 'Review & Refine Outline (Approval Gate)' : 'Phê duyệt & Tinh chỉnh Dàn ý Tổng quan (Approval Gate)'}
+                </h4>
+              </div>
+              <span className="text-[11px] font-semibold text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-900/60 px-2.5 py-0.5 rounded-full">
+                {outlinePlan.sections?.length || 0} {isEn ? 'Sections' : 'Chương mục'}
+              </span>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase">
+                {isEn ? 'Research Question / Topic:' : 'Chủ đề / Câu hỏi nghiên cứu:'}
+              </label>
+              <input
+                type="text"
+                value={outlinePlan.research_question || ''}
+                disabled={isRunning}
+                onChange={(e) => setOutlinePlan({ ...outlinePlan, research_question: e.target.value })}
+                className="w-full px-3.5 py-2 rounded-xl text-xs border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-700 text-slate-800 dark:text-slate-100 font-medium disabled:opacity-60"
+              />
+            </div>
+
+            <div className="space-y-3">
+              <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase">
+                {isEn ? 'Section Details (Editable Title, Purpose, Target Words):' : 'Chi tiết từng Chương mục (Có thể chỉnh sửa tiêu đề, mục tiêu, độ dài):'}
+              </label>
+              {outlinePlan.sections?.map((sec, sIdx) => (
+                <div
+                  key={sIdx}
+                  className="p-3.5 rounded-xl border border-slate-200/80 bg-white dark:bg-slate-900/90 dark:border-slate-800 space-y-2.5 shadow-2xs"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-xs font-bold text-slate-400">#{sIdx + 1}</span>
+                    <input
+                      type="text"
+                      value={sec.title}
+                      disabled={isRunning}
+                      onChange={(e) => {
+                        const nextSections = [...outlinePlan.sections];
+                        nextSections[sIdx] = { ...nextSections[sIdx], title: e.target.value };
+                        setOutlinePlan({ ...outlinePlan, sections: nextSections });
+                      }}
+                      className="flex-1 px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 bg-slate-50 dark:bg-slate-800 dark:border-slate-700 text-slate-800 dark:text-slate-100 disabled:opacity-60"
+                      placeholder="Tiêu đề chương..."
+                    />
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        value={sec.target_words || 1000}
+                        disabled={isRunning}
+                        onChange={(e) => {
+                          const nextSections = [...outlinePlan.sections];
+                          nextSections[sIdx] = { ...nextSections[sIdx], target_words: parseInt(e.target.value, 10) || 1000 };
+                          setOutlinePlan({ ...outlinePlan, sections: nextSections });
+                        }}
+                        className="w-20 px-2 py-1.5 rounded-lg text-xs font-mono text-center border border-slate-200 bg-slate-50 dark:bg-slate-800 dark:border-slate-700 text-slate-700 dark:text-slate-200 disabled:opacity-60"
+                      />
+                      <span className="text-[10px] text-slate-400 font-semibold">{isEn ? 'words' : 'từ'}</span>
+                    </div>
+                  </div>
+
+                  <input
+                    type="text"
+                    value={sec.purpose}
+                    disabled={isRunning}
+                    onChange={(e) => {
+                      const nextSections = [...outlinePlan.sections];
+                      nextSections[sIdx] = { ...nextSections[sIdx], purpose: e.target.value };
+                      setOutlinePlan({ ...outlinePlan, sections: nextSections });
+                    }}
+                    className="w-full px-3 py-1.5 rounded-lg text-[11px] border border-slate-100 bg-slate-50/60 dark:bg-slate-800/40 dark:border-slate-800 text-slate-600 dark:text-slate-300 disabled:opacity-60"
+                    placeholder={isEn ? 'Analytical purpose of this section...' : 'Mục tiêu phân tích của chương này...'}
+                  />
+
+                  {sec.retrieval_queries?.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                      <span className="text-[10px] font-semibold text-slate-400">Queries:</span>
+                      {sec.retrieval_queries.map((q, qIdx) => (
+                        <span key={qIdx} className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded-md border border-slate-200/60 dark:border-slate-700">
+                          {q}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                onClick={() => setOutlinePlan(null)}
+                disabled={isRunning}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors disabled:opacity-50"
+              >
+                {isEn ? 'Cancel' : 'Hủy bỏ'}
+              </button>
+              <button
+                onClick={handlePlanOutline}
+                disabled={isRunning || isPlanning}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 hover:bg-blue-100/60 dark:hover:bg-blue-900/40 text-xs font-semibold transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isPlanning ? 'animate-spin' : ''}`} />
+                <span>{isEn ? 'Regenerate Outline' : 'Lập lại Dàn ý'}</span>
+              </button>
+              <button
+                onClick={handleExecuteApprovedOutline}
+                disabled={isRunning}
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+              >
+                <Check className="w-4 h-4" />
+                <span>{isEn ? 'Approve & Generate Review' : 'Phê duyệt Dàn ý & Bắt đầu Viết Báo cáo'}</span>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {!canRun && (
@@ -628,15 +824,33 @@ export default function SynthesisPanel({
 
       {/* Progress & Status Indicator */}
       {isRunning && (
-        <div className="p-8 rounded-2xl border border-blue-100 dark:border-blue-900/40 bg-blue-50/50 dark:bg-blue-950/20 flex flex-col items-center justify-center text-center space-y-3 shadow-sm">
+        <div className="p-8 rounded-2xl border border-blue-100 dark:border-blue-900/40 bg-blue-50/50 dark:bg-blue-950/20 flex flex-col items-center justify-center text-center space-y-4 shadow-sm">
           <Loader2 className="w-8 h-8 text-blue-600 dark:text-blue-400 animate-spin" />
-          <div>
+          <div className="space-y-1">
             <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">
-              {t('synthesis.status_running_title')}
+              {isEn ? 'Generating Literature Review...' : 'Đang tổng hợp Báo cáo Tổng quan...'}
             </h4>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-md">
-              {t('synthesis.status_running_desc', { count: workspacePapers.length })}
+            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md">
+              {isEn
+                ? 'Executing the approved outline across selected papers. This may take a few minutes.'
+                : 'Đang thực thi dàn ý đã phê duyệt trên các tài liệu đã chọn. Quá trình này có thể mất vài phút.'}
             </p>
+          </div>
+          <div className="w-full max-w-md pt-2">
+            <div className="grid grid-cols-4 gap-2 text-[10px] font-semibold text-slate-500 dark:text-slate-400 text-center">
+              <div className="p-2 rounded-lg bg-white/80 dark:bg-slate-900/80 border border-slate-200/60 dark:border-slate-800 shadow-2xs">
+                1. Retrieval
+              </div>
+              <div className="p-2 rounded-lg bg-white/80 dark:bg-slate-900/80 border border-slate-200/60 dark:border-slate-800 shadow-2xs">
+                2. Reranking
+              </div>
+              <div className="p-2 rounded-lg bg-white/80 dark:bg-slate-900/80 border border-slate-200/60 dark:border-slate-800 shadow-2xs">
+                3. Synthesis
+              </div>
+              <div className="p-2 rounded-lg bg-white/80 dark:bg-slate-900/80 border border-slate-200/60 dark:border-slate-800 shadow-2xs">
+                4. Citations
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -730,6 +944,18 @@ export default function SynthesisPanel({
                 </button>
               )}
             </div>
+          </div>
+
+          {/* Beta Trust Banner */}
+          <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-700/60 text-xs text-slate-500 dark:text-slate-400">
+            <span className="px-2 py-0.5 rounded-md bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 font-bold text-[10px] uppercase tracking-wider shrink-0">
+              Beta
+            </span>
+            <span className="text-[11px] leading-tight">
+              {isEn
+                ? 'AI-generated literature synthesis. Verify important claims against cited sources.'
+                : 'Tổng hợp học thuật tự động bằng AI. Vui lòng đối chiếu các luận điểm quan trọng với tài liệu gốc được trích dẫn.'}
+            </span>
           </div>
 
           {/* Executive Takeaways Card (Điểm nhấn Cốt lõi) */}

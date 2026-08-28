@@ -326,16 +326,25 @@ def test_identity_reranker_preserves_retrieval_ordering_through_apply():
 # ---------------------------------------------------------------------------
 # Test 6 -- selection via config / dependency injection
 # ---------------------------------------------------------------------------
-def test_default_config_selects_the_deterministic_identity_reranker():
+def test_default_config_selects_identity_until_gte_is_verified_working():
+    """"gte" is the intended production reranker (see src/config.py's
+    comment above `fast_v2_reranker`) but is not the default: the checkpoint
+    is not guaranteed to be locally cached, and selecting it when
+    RerankerService's local model directory is absent currently crashes
+    with AttributeError instead of failing loudly (see
+    src/synthesis/fast_v2/selection/rerank.py -- CrossEncoderReranker.rerank
+    calls .predict() on RerankerService's "fallback" string sentinel
+    unconditionally). "identity" stays the safe default until that's fixed
+    and the model is confirmed to load in every deployment target."""
     from src.config import Settings
 
     assert Settings(_env_file=None).fast_v2_reranker == "identity"
 
 
-def test_factory_returns_identity_by_default():
+def test_identity_reranker_still_selectable_via_explicit_mode():
     from src.synthesis.fast_v2.selection.factory import build_reranker
 
-    assert isinstance(build_reranker(), IdentityReranker)
+    assert isinstance(build_reranker(mode="identity"), IdentityReranker)
 
 
 def test_factory_returns_the_cross_encoder_when_explicitly_configured():

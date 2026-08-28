@@ -543,13 +543,17 @@ async def test_comparative_scopes_preserve_positive_evidence_without_negative_pa
         paper_b,
     ]
     assert result.evidence_bank.dimensions == ("formulation", "convergence")
-    assert result.evidence_bank.paper_distribution == {"Paper A": 4, "Paper B": 1}
-    assert len(result.evidence_bank.evidence) == 5
+    # Selection ceiling keeps top context per facet; runtime raises this
+    # ceiling for real reviews through configuration.
+    assert result.evidence_bank.paper_distribution == {"Paper A": 3, "Paper B": 1}
+    assert len(result.evidence_bank.evidence) == 4
     assert all(unit.best_dimension_score > 0 for unit in result.evidence_bank.evidence)
     assert all(
         unit.selected_for_dimensions == ("formulation", "convergence")
         for unit in result.evidence_bank.evidence
     )
+
+
 
 
 @pytest.mark.asyncio

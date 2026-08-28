@@ -32,7 +32,11 @@ from src.synthesis.fast_v2.grounding.semantic import (
 WRITER_PROMPT_PATH = (
     Path(__file__).resolve().parents[1] / "prompts" / "grounded_literature_writer.txt"
 )
-WRITER_MAX_TOKENS = 6000
+# 6000 truncated a real 4,000-6,000 word review mid-sentence (~3,192 words /
+# ~6,844 completion tokens observed in one production run). Raised so the
+# writer's single call has enough budget for the full structured JSON output.
+# Overridable per-instance; see src/config.py::fast_v2_writer_max_tokens.
+WRITER_MAX_TOKENS = 12000
 NEUTRAL_SECTION_TITLES = {
     "literature synthesis",
     "thematic synthesis",
@@ -116,6 +120,7 @@ class WriterClaim:
     claim_text: str
     paper_id: UUID
     paper_title: str
+    evidence_snippets: tuple[dict[str, Any], ...] = ()
 
     def to_prompt_dict(self) -> dict[str, Any]:
         return {
@@ -124,6 +129,7 @@ class WriterClaim:
             "claim_text": self.claim_text,
             "paper_id": str(self.paper_id),
             "paper_title": self.paper_title,
+            "evidence_snippets": [dict(item) for item in self.evidence_snippets],
         }
 
 
@@ -138,7 +144,12 @@ class WriterGeneration:
 
 @runtime_checkable
 class GroundedLiteratureWriter(Protocol):
-    def write(self, claims: tuple[WriterClaim, ...]) -> WriterGeneration:
+    def write(
+        self,
+        claims: tuple[WriterClaim, ...],
+        *,
+        outline: Any | None = None,
+    ) -> WriterGeneration:
         ...
 
 
@@ -189,7 +200,9 @@ class DeterministicFakeLiteratureWriter:
         self.calls = 0
         self.last_claims: tuple[WriterClaim, ...] = ()
 
-    def write(self, claims: tuple[WriterClaim, ...]) -> WriterGeneration:
+    def write(
+        self, claims: tuple[WriterClaim, ...], *, outline: Any | None = None
+    ) -> WriterGeneration:
         self.calls += 1
         self.last_claims = claims
         if self.error is not None:
@@ -212,6 +225,7 @@ class HostedGroundedLiteratureWriter:
         base_url: str,
         api_key: str,
         model: str,
+        max_tokens: int = WRITER_MAX_TOKENS,
         connect_timeout_s: float = 10.0,
         generation_timeout_s: float = 120.0,
         http_client_factory: Callable[[], Any] | None = None,
@@ -232,6 +246,7 @@ class HostedGroundedLiteratureWriter:
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
         self.model = model
+        self.max_tokens = max_tokens
         self.connect_timeout_s = connect_timeout_s
         self.generation_timeout_s = generation_timeout_s
         self.http_client_factory = http_client_factory
@@ -251,13 +266,35 @@ class HostedGroundedLiteratureWriter:
             )
         )
 
-    def write(self, claims: tuple[WriterClaim, ...]) -> WriterGeneration:
+    def write(
+        self, claims: tuple[WriterClaim, ...], *, outline: Any | None = None
+    ) -> WriterGeneration:
         self.calls += 1
         system_prompt = WRITER_PROMPT_PATH.read_text(encoding="utf-8")
+        min_sections = 3 if len(claims) >= 4 else 1
+
+        outline_context = ""
+        if outline is not None and getattr(outline, "sections", None):
+            outline_lines = "\n".join(
+                f"- \"{section.title}\": {section.purpose} (target ~{section.target_words} words)"
+                for section in outline.sections
+            )
+            outline_context = (
+                "RESEARCH LEAD OUTLINE -- follow this section structure and use "
+                "these exact section titles (one per section, in this order where "
+                "the supplied claims allow it):\n" + outline_lines + "\n\n"
+            )
+
         user_prompt = (
-            "Use every supplied claim_id exactly once. Section titles must be "
-            "derived from supplied facets or use a neutral label. Return only "
-            "the required JSON object.\n\nVERIFIED CLAIMS:\n"
+            "NON-NEGOTIABLE OUTPUT LANGUAGE: Vietnamese. Every section title and "
+            "every prose sentence must be Vietnamese. Do not answer in English. "
+            "Retain only necessary technical terms or formulae in their original notation. "
+            "Use every supplied claim_id exactly once. Create at least "
+            f"{min_sections} thematic sections. A paragraph may cite at most two "
+            "claim_ids, and must not become a list of every claim. Section titles "
+            "must describe their supplied facets. Return only required JSON.\n\n"
+            + outline_context
+            + "VERIFIED CLAIMS:\n"
             + json.dumps(
                 [claim.to_prompt_dict() for claim in claims],
                 ensure_ascii=False,
@@ -271,7 +308,7 @@ class HostedGroundedLiteratureWriter:
                 {"role": "user", "content": user_prompt},
             ],
             "temperature": 0.0,
-            "max_tokens": WRITER_MAX_TOKENS,
+            "max_tokens": self.max_tokens,
             "response_format": {"type": "json_object"},
         }
         started = time.perf_counter()
@@ -287,8 +324,9 @@ class HostedGroundedLiteratureWriter:
             ) from exc
         latency_ms = (time.perf_counter() - started) * 1000.0
         if response.status_code != 200:
+            detail = response.text.strip().replace("\n", " ")[:240]
             raise LiteratureWriterError(
-                f"writer returned HTTP {response.status_code}"
+                f"writer returned HTTP {response.status_code}: {detail}"
             )
         try:
             data = response.json()
@@ -314,6 +352,9 @@ def _writer_claim_sources(
     titles_by_paper = {
         unit.paper_id: unit.title for unit in evidence_bank.evidence
     }
+    units_by_evidence_id = {
+        unit.evidence_id: unit for unit in evidence_bank.evidence
+    }
     results = {
         (item.claim_index, item.statement_index): item
         for item in semantic.verification_results
@@ -326,6 +367,15 @@ def _writer_claim_sources(
             if result is None or result.verdict is not SemanticVerdict.supported:
                 continue
             claim_id = f"claim_{claim_index}_{statement_index}"
+            snippets: list[dict[str, Any]] = []
+            for support in statement.supports:
+                unit = units_by_evidence_id.get(support.evidence_id)
+                if unit is not None:
+                    snippets.append({
+                        "evidence_id": unit.evidence_id,
+                        "page": unit.page,
+                        "text": unit.text,
+                    })
             claims.append(
                 WriterClaim(
                     claim_id=claim_id,
@@ -333,6 +383,7 @@ def _writer_claim_sources(
                     claim_text=statement.claim_text,
                     paper_id=statement.paper_id,
                     paper_title=titles_by_paper.get(statement.paper_id, "Selected paper"),
+                    evidence_snippets=tuple(snippets),
                 )
             )
             sources[claim_id] = statement
@@ -363,11 +414,19 @@ def _coverage(expected_ids: Sequence[str], referenced_ids: Sequence[str]) -> dic
 def _is_neutral_academic_section_title(normalized_title: str) -> bool:
     if normalized_title in NEUTRAL_SECTION_TITLES:
         return True
-    words = re.findall(r"[a-z0-9]+", normalized_title)
-    if not words or len(words) > 6:
+    words = re.findall(r"[\w\d]+", normalized_title, re.UNICODE)
+    if not words or len(words) > 20:
         return False
+    # Any word from the historical/evaluative/hype blocklist is a hard
+    # reject, regardless of what else is in the title -- these are exactly
+    # the claim types this pipeline has no evidence to ground (see
+    # UNSUPPORTED_SECTION_TITLE_TERMS' own comment).
     if any(word in UNSUPPORTED_SECTION_TITLE_TERMS for word in words):
         return False
+    # Otherwise require at least one word from the neutral academic-category
+    # allowlist, so an arbitrary/creative title (no evidence it's a genuine
+    # structural section like "Methods" or "Limitations") doesn't pass just
+    # by avoiding the blocklist.
     return any(word in NEUTRAL_SECTION_CATEGORY_TERMS for word in words)
 
 
@@ -442,12 +501,14 @@ def _parse_and_validate(
                 or not all(isinstance(claim_id, str) for claim_id in claim_ids)
             ):
                 raise WriterValidationError("invalid_schema")
+            if len(claim_ids) > 2:
+                raise WriterValidationError("paragraph_claims_too_many")
             unknown = [claim_id for claim_id in claim_ids if claim_id not in claims_by_id]
             if unknown:
                 coverage = _coverage(tuple(claims_by_id), (*referenced, *claim_ids))
                 raise WriterValidationError("unknown_claim_id", coverage=coverage)
             paragraph_facets = {claims_by_id[claim_id].facet for claim_id in claim_ids}
-            if len(paragraph_facets) != 1:
+            if len(paragraph_facets) > 1:
                 raise WriterValidationError("mixed_facet_paragraph")
             section_facets.update(paragraph_facets)
             referenced.extend(claim_ids)
@@ -457,11 +518,6 @@ def _parse_and_validate(
                     supporting_claim_ids=tuple(claim_ids),
                 )
             )
-        if is_facet_title:
-            if {_canonical_facet_label(facet) for facet in section_facets} != {
-                canonical_title
-            }:
-                raise WriterValidationError("section_facet_mismatch")
         sections.append(WriterSection(title=title.strip(), paragraphs=tuple(paragraphs)))
 
     coverage = _coverage(tuple(claims_by_id), referenced)
@@ -469,6 +525,9 @@ def _parse_and_validate(
         raise WriterValidationError("duplicate_claim_id", coverage=coverage)
     if coverage["missing"]:
         raise WriterValidationError("missing_claim_coverage", coverage=coverage)
+    min_sections = 3 if len(claims) >= 4 else 1
+    if len(sections) < min_sections:
+        raise WriterValidationError("insufficient_thematic_sections", coverage=coverage)
     return WriterDocument(sections=tuple(sections)), coverage
 
 
@@ -492,14 +551,13 @@ def _project_document(
                         continue
                     seen_evidence_ids.add(support.evidence_id)
                     supports.append(support)
-            facets = {
-                claims_by_id[claim_id].facet
-                for claim_id in paragraph.supporting_claim_ids
-            }
             paper_ids = {statement.paper_id for statement in source_statements}
             projected.append(
                 ValidatedClaim(
-                    facet=next(iter(facets)),
+                    # Finalizer uses facet as display grouping. Preserve writer's
+                    # approved thematic title instead of collapsing every section
+                    # back into its retrieval facet.
+                    facet=section.title,
                     is_comparative=len(paper_ids) > 1,
                     statements=(
                         ValidatedStatement(
@@ -518,6 +576,7 @@ def apply_grounded_literature_writer(
     semantic: SemanticVerificationOutcome,
     evidence_bank: GroundedEvidenceBank,
     writer: GroundedLiteratureWriter | None,
+    outline: Any | None = None,
 ) -> LiteratureWriterOutcome:
     """Run at most one writer call; every failure preserves current output."""
     fallback_draft = build_finalizer_draft(semantic)
@@ -546,7 +605,7 @@ def apply_grounded_literature_writer(
 
     generation: WriterGeneration | None = None
     try:
-        generation = writer.write(claims)
+        generation = writer.write(claims, outline=outline)
         if generation.calls != 1:
             raise LiteratureWriterError(
                 f"writer_call_count_mismatch:{generation.calls}"

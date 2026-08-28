@@ -31,7 +31,7 @@ import {
   X
 } from 'lucide-react';
 
-import { API_BASE, safeFetch } from '../../utils/apiConfig';
+import { API_BASE, safeFetch, formatApiErrorDetail } from '../../utils/apiConfig';
 const MAX_FILE_SIZE_MB = 20;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
@@ -518,7 +518,7 @@ export default function WorkspaceTab({
         }
 
         const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || t('workspace.error'));
+        if (!res.ok) throw new Error(formatApiErrorDetail(data.detail, t('workspace.error')));
         items[i] = { ...item, status: 'done' };
         setUploadQueue([...items]);
 

@@ -159,6 +159,34 @@ def test_valid_writer_json_is_accepted_and_projected_for_existing_finalizer():
     }
 
 
+def test_writer_claim_includes_only_its_verified_evidence_snippet():
+    bank, semantic = _semantic_fixture()
+    writer = DeterministicFakeLiteratureWriter(
+        content=_response(
+            {
+                "text": "Paper A defines a convex feasibility model.",
+                "supporting_claim_ids": ["claim_0_0"],
+            },
+            {
+                "text": "Paper B defines a non-convex optimization model.",
+                "supporting_claim_ids": ["claim_0_1"],
+            },
+        )
+    )
+
+    apply_grounded_literature_writer(
+        semantic=semantic, evidence_bank=bank, writer=writer
+    )
+
+    payload = [claim.to_prompt_dict() for claim in writer.last_claims]
+    assert payload[0]["evidence_snippets"] == [
+        {"evidence_id": bank.evidence[0].evidence_id, "page": 1, "text": bank.evidence[0].text}
+    ]
+    assert payload[1]["evidence_snippets"] == [
+        {"evidence_id": bank.evidence[1].evidence_id, "page": 1, "text": bank.evidence[1].text}
+    ]
+
+
 def test_section_title_alias_normalizes_before_strict_validation():
     bank, semantic = _semantic_fixture()
     writer = DeterministicFakeLiteratureWriter(

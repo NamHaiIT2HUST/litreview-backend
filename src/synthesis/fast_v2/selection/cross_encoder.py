@@ -96,7 +96,7 @@ class CrossEncoderReranker:
         # Imported here, never at module scope -- see the module docstring.
         from sentence_transformers import CrossEncoder
 
-        return CrossEncoder(model_name)
+        return CrossEncoder(model_name, local_files_only=True)
 
     def load(self) -> Any:
         """Materialise the cross-encoder. Downloads/loads the checkpoint."""

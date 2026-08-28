@@ -148,10 +148,10 @@ def _make_index(*, dimension=FAST_V2_EMBED_DIMENSION, client=None, embedder=None
 # Embedding provider / dimension identity
 # --------------------------------------------------------------------------
 
-def test_fast_v2_semantic_embedding_provider_is_minilm_384():
+def test_fast_v2_semantic_embedding_provider_is_gte_modernbert_768():
     index, _ = _make_index()
     assert index.model_name == FAST_V2_EMBED_MODEL
-    assert index.expected_dimension == 384 == FAST_V2_EMBED_DIMENSION
+    assert index.expected_dimension == 768 == FAST_V2_EMBED_DIMENSION
 
 
 def test_lazy_model_loading():
