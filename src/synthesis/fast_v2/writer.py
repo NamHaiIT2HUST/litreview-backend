@@ -417,7 +417,17 @@ def _is_neutral_academic_section_title(normalized_title: str) -> bool:
     words = re.findall(r"[\w\d]+", normalized_title, re.UNICODE)
     if not words or len(words) > 20:
         return False
-    return True
+    # Any word from the historical/evaluative/hype blocklist is a hard
+    # reject, regardless of what else is in the title -- these are exactly
+    # the claim types this pipeline has no evidence to ground (see
+    # UNSUPPORTED_SECTION_TITLE_TERMS' own comment).
+    if any(word in UNSUPPORTED_SECTION_TITLE_TERMS for word in words):
+        return False
+    # Otherwise require at least one word from the neutral academic-category
+    # allowlist, so an arbitrary/creative title (no evidence it's a genuine
+    # structural section like "Methods" or "Limitations") doesn't pass just
+    # by avoiding the blocklist.
+    return any(word in NEUTRAL_SECTION_CATEGORY_TERMS for word in words)
 
 
 def _canonical_facet_label(value: str) -> str:
@@ -498,6 +508,8 @@ def _parse_and_validate(
                 coverage = _coverage(tuple(claims_by_id), (*referenced, *claim_ids))
                 raise WriterValidationError("unknown_claim_id", coverage=coverage)
             paragraph_facets = {claims_by_id[claim_id].facet for claim_id in claim_ids}
+            if len(paragraph_facets) > 1:
+                raise WriterValidationError("mixed_facet_paragraph")
             section_facets.update(paragraph_facets)
             referenced.extend(claim_ids)
             paragraphs.append(

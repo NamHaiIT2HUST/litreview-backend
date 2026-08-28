@@ -1888,11 +1888,11 @@ async def plan_synthesis_outline(
     if not raw_paper_ids:
         raise HTTPException(status_code=422, detail="At least 1 paper is required to plan outline.")
 
-    paper_uuids = []
+    candidate_uuids = []
     for pid_raw in raw_paper_ids:
         pid_str = str(pid_raw).strip()
         try:
-            paper_uuids.append(uuid.UUID(pid_str))
+            candidate_uuids.append(uuid.UUID(pid_str))
         except Exception:
             stmt = select(Paper).where(
                 Paper.project_id == request.project_id,
@@ -1900,10 +1900,18 @@ async def plan_synthesis_outline(
             )
             found = (await db.execute(stmt)).scalars().first()
             if found:
-                paper_uuids.append(found.id)
+                candidate_uuids.append(found.id)
 
-    paper_result = await db.execute(select(Paper).where(Paper.id.in_(paper_uuids)))
+    # A UUID accepted above is NOT yet proven to belong to this project -- it
+    # was only checked for being syntactically a UUID. Re-scope the actual
+    # DB fetch to (id IN candidates) AND (project_id == request.project_id)
+    # so a stale/cross-project paper_id can never pull another project's
+    # paper into this outline plan.
+    paper_result = await db.execute(
+        select(Paper).where(Paper.id.in_(candidate_uuids), Paper.project_id == request.project_id)
+    )
     papers = list(paper_result.scalars().all())
+    paper_uuids = [p.id for p in papers]
 
     from src.synthesis.fast_v2.runtime import (
         build_general_review_question,
@@ -1952,11 +1960,11 @@ async def execute_approved_synthesis(
         raise HTTPException(status_code=404, detail=f"Project '{request.project_id}' not found")
 
     raw_paper_ids = list(dict.fromkeys(request.paper_ids))
-    paper_uuids = []
+    candidate_uuids = []
     for pid_raw in raw_paper_ids:
         pid_str = str(pid_raw).strip()
         try:
-            paper_uuids.append(uuid.UUID(pid_str))
+            candidate_uuids.append(uuid.UUID(pid_str))
         except Exception:
             stmt = select(Paper).where(
                 Paper.project_id == request.project_id,
@@ -1964,7 +1972,15 @@ async def execute_approved_synthesis(
             )
             found = (await db.execute(stmt)).scalars().first()
             if found:
-                paper_uuids.append(found.id)
+                candidate_uuids.append(found.id)
+
+    # Same re-scoping as /synthesis/plan: a syntactically-valid UUID is not
+    # proof of project ownership. Only papers confirmed to belong to
+    # request.project_id are allowed through to the writer/citation stages.
+    owned_result = await db.execute(
+        select(Paper.id).where(Paper.id.in_(candidate_uuids), Paper.project_id == request.project_id)
+    )
+    paper_uuids = [row[0] for row in owned_result.all()]
 
     from src.synthesis.fast_v2.planning.research_lead import LongformOutlinePlan, SectionPlan
     from src.synthesis.fast_v2.runtime import run_section_scoped_synthesis

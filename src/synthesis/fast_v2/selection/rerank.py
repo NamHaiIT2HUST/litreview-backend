@@ -122,6 +122,21 @@ class CrossEncoderReranker:
         if not texts:
             return []
         model = self._service._get_model()
+        # RerankerService returns the literal string "fallback" (not raising)
+        # when its local model directory is missing or fails to load --
+        # calling .predict() on that would crash with an opaque
+        # AttributeError. Fail loudly with a clear message instead, per this
+        # pipeline's own "never silently reach for the wrong evidence"
+        # principle (see selection/factory.py's reranker-selection comment).
+        if not hasattr(model, "predict"):
+            raise RuntimeError(
+                "fast_v2_reranker='gte' selected but the underlying reranker "
+                "model is not loaded (RerankerService fell back to a "
+                "placeholder -- its local model directory './models/temp_bge-base' "
+                "is missing or failed to load). Refusing to silently use an "
+                "unrelated/no-op fallback here; either provide the model "
+                "locally or select fast_v2_reranker='identity'/'cross_encoder'."
+            )
         pairs = [[query, text] for text in texts]
         scores = model.predict(pairs, batch_size=32)
         indexed_scores = [(i, float(score)) for i, score in enumerate(scores)]

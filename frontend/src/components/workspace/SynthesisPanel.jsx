@@ -48,6 +48,7 @@ import {
   generateFollowUpQuestions,
   tokenizeReviewCitations,
   normalizeSynthesisResponse,
+  getDirectSynthesisError,
 } from '../../utils/synthesis';
 import { reviewScrollClass, sectionEvidenceLabel } from '../../utils/reviewPresentation';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -105,6 +106,13 @@ export default function SynthesisPanel({
   const { t, language } = useLanguage();
   const { activeProject, activeProjectId } = useProject();
   const currentProjectId = activeProjectId || DEFAULT_PROJECT_ID;
+  // Unlike currentProjectId above (used for read-only history/cache lookups,
+  // safe to default), this unmasked value is for /synthesis/plan and
+  // /synthesis/execute -- those endpoints WRITE and must never silently run
+  // against the wrong project because ProjectContext hadn't resolved yet.
+  // See SearchTab.jsx's handleOpenAiScreening for the live incident that
+  // motivated this same guard.
+  const resolvedProjectId = activeProjectId || activeProject?.id || null;
   const isEn = language === 'en';
 
   const [sessionId, setSessionId] = useState(null);
@@ -236,11 +244,15 @@ export default function SynthesisPanel({
   // pipeline stops here; nothing is synthesized yet.
   const handlePlanOutline = async () => {
     if (!canRun) return;
+    if (!resolvedProjectId) {
+      setError(isEn ? 'Project not resolved yet. Please reload the page and try again.' : 'Chưa xác định được sổ ghi chú (project) đang mở. Vui lòng tải lại trang và thử lại.');
+      return;
+    }
     setIsPlanning(true);
     setError('');
     try {
       const payload = {
-        project_id: currentProjectId,
+        project_id: resolvedProjectId,
         paper_ids: workspacePapers.map(p => p.id || p.paper_id || p.title || ''),
         research_question: researchTopic || activeProject?.research_question || '',
       };
@@ -266,13 +278,17 @@ export default function SynthesisPanel({
   // Step 2: execute the (possibly researcher-edited) approved outline.
   const handleExecuteApprovedOutline = async () => {
     if (!outlinePlan || !canRun) return;
+    if (!resolvedProjectId) {
+      setError(isEn ? 'Project not resolved yet. Please reload the page and try again.' : 'Chưa xác định được sổ ghi chú (project) đang mở. Vui lòng tải lại trang và thử lại.');
+      return;
+    }
     setStatus('starting');
     setError('');
     setResult(null);
 
     try {
       const payload = {
-        project_id: currentProjectId,
+        project_id: resolvedProjectId,
         paper_ids: workspacePapers.map(p => p.id || p.paper_id || p.title || ''),
         approved_outline: outlinePlan,
       };
@@ -298,6 +314,12 @@ export default function SynthesisPanel({
           localStorage.setItem(`litreview_active_synthesis_id_${currentProjectId}`, data.session_id);
           fetchHistory(false);
         }
+      } else {
+        // The pipeline ran but honestly couldn't ground a review (0 bound
+        // citations, or no evidence found) -- surface that instead of
+        // leaving the UI stuck on 'starting' forever with no explanation.
+        setError(getDirectSynthesisError(data) || 'Không tạo được review có evidence và citation hợp lệ. Vui lòng thử lại hoặc chỉnh outline.');
+        setStatus('idle');
       }
     } catch (err) {
       console.error(err);
@@ -348,8 +370,8 @@ export default function SynthesisPanel({
   );
 
   const comparisonRows = useMemo(
-    () => buildComparisonRows(result?.evidence_profile || [], workspacePapers, result?.citations || []),
-    [result, workspacePapers],
+    () => buildComparisonRows(result?.evidence_profile || [], workspacePapers, result?.citations || [], reviewSections),
+    [result, workspacePapers, reviewSections],
   );
 
   const bibtexContent = useMemo(() => {

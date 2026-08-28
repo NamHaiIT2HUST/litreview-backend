@@ -228,9 +228,18 @@ def build_fast_v2_pipeline(
     settings = get_settings()
     retriever = FastV2HybridEvidenceRetriever(get_fast_v2_index(), paper_ids=paper_ids)
     reranker = get_fast_v2_reranker()
-    hosted_base_url = settings.fast_v2_hosted_api_base_url or settings.get_api_base
-    hosted_api_key = settings.fast_v2_hosted_api_key or settings.effective_openai_api_key
-    hosted_model = settings.fast_v2_hosted_api_model or settings.synthesis_model or settings.effective_model_name
+    # Pass the raw FAST_V2_HOSTED_API_* settings through UNRESOLVED (no
+    # generic-credential fallback) so build_generator()'s own "fast_v2 does
+    # not guess a hosted-API provider/model/key" validation can actually
+    # fire when they're unset -- falling back to settings.get_api_base /
+    # effective_openai_api_key here made that check unreachable in practice,
+    # since any deployment with OPENAI_API_KEY set (the norm, per the
+    # Cấu hình/Tìm kiếm tabs routing) would silently reuse it instead of
+    # raising. build_generator() only needs these when
+    # fast_v2_generator == "hosted_api"; other modes ignore them.
+    hosted_base_url = settings.fast_v2_hosted_api_base_url or None
+    hosted_api_key = settings.fast_v2_hosted_api_key or None
+    hosted_model = settings.fast_v2_hosted_api_model or None
     generator = build_generator(
         hosted_api_base_url=hosted_base_url,
         hosted_api_key=hosted_api_key,

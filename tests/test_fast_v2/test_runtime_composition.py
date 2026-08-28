@@ -227,13 +227,18 @@ def test_local_embedding_and_reranker_loaders_do_not_probe_huggingface_network(m
     ]
 
 
-def test_default_settings_use_the_single_evidence_first_synthesis_flow():
-    """The product has one synthesis path; no legacy mode selection remains."""
+def test_default_settings_keep_legacy_as_the_supported_production_flow():
+    """"legacy" is the only supported production path (see src/config.py's
+    own comment above `synthesis_mode`) and must stay the default until the
+    promotion criteria documented there are actually met -- fast_v2 still
+    has open correctness gaps (e.g. the "gte" reranker mode crashes on a
+    fresh checkout with no local model cache, see test_cross_encoder_reranker.py)
+    that make flipping this default premature."""
     from src.config import Settings
 
     settings = Settings()
-    assert settings.synthesis_mode == "fast_v2_experimental"
-    assert settings.fast_v2_enabled is True
+    assert settings.synthesis_mode == "legacy"
+    assert settings.fast_v2_enabled is False
 
 
 def test_missing_hosted_config_fails_loud(monkeypatch):
