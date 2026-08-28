@@ -272,6 +272,16 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     synthesis_max_papers: int = Field(default=15, ge=1, le=100)
 
+    # Module 1 — Evidence Quantification Engine (Tier 2: custom NLI
+    # cross-encoder). Disabled by default -- see MODULE_1_PLAN.md. There is
+    # no shipped checkpoint until scripts/finetune_nli/'s 3-model Colab
+    # comparison produces one and it's placed at nli_evidence_model_path;
+    # NLIChecker.check() raises loudly rather than silently no-op'ing when
+    # this is on but the directory is missing, so flipping this on ahead of
+    # having a model fails fast instead of pretending to verify claims.
+    nli_evidence_enabled: bool = False
+    nli_evidence_model_path: str = "./models/nli_evidence_v1"
+
 
 class SecurityConfigurationError(RuntimeError):
     """Raised at startup when a security-critical setting is missing.

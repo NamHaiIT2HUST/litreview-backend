@@ -73,6 +73,12 @@ _TASK_PREFERRED_PROVIDER: dict[str, str] = {
     # downgrade, only a provider-order change.
     "generate_keywords": "openai",
     "paper_summary": "openai",
+    # One-off bulk dataset generation (scripts/finetune_nli/01_generate_dataset.py)
+    # runs hundreds of calls in a single script invocation -- the exact shape
+    # that blows through Gemini's 20-requests/day/model free-tier wall in
+    # minutes, same as the tasks above. Pinned here rather than left to hit
+    # that wall on request ~20 of a 200-premise run.
+    "generate_nli_training_triplet": "openai",
 }
 
 

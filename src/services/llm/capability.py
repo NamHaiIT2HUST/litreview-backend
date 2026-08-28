@@ -70,6 +70,14 @@ TASK_REGISTRY: dict[str, LLMCapability] = {
     "generate_keywords": LLMCapability(json_schema=True, min_context=8_000),
     "generate_search_strategy": LLMCapability(json_schema=True, min_context=8_000),
 
+    # ---- Offline tooling (not called from any live request path) ----
+    # One-off dataset generation for Module 1's NLI cross-encoder fine-tuning
+    # (scripts/finetune_nli/01_generate_dataset.py). Still goes through the
+    # router rather than a hand-rolled client, per this file's own reason for
+    # existing -- an offline script is not exempt from the "5 different
+    # cascades" failure mode this registry was built to prevent.
+    "generate_nli_training_triplet": LLMCapability(json_schema=True, min_context=8_000),
+
     # ---- Free-form ----
     "rag_chat": LLMCapability(json_schema=False, min_context=32_000),
     "eval_judge": LLMCapability(json_schema=False, min_context=32_000),
