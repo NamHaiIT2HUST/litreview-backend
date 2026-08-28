@@ -53,28 +53,36 @@ from typing import Any, Callable, Sequence
 
 from src.synthesis.fast_v2.evidence.models import EvidenceUnit
 
-#: Chosen production embedding model -- see docs/superpowers plan (2026-08-25
-#: single-grounded-synthesis) for the reasoning: embedding only runs once per
-#: chunk at ingest time (cached), so the larger/stronger model costs nothing
-#: on the hot query path, unlike a reranker that scores many pairs per call.
-#: BAAI/BGE is retired; MiniLM stays available only as the frozen RQ1/RQ2
-#: benchmark reference (see selection/cross_encoder.py), never as the default.
-FAST_V2_EMBED_MODEL = "Alibaba-NLP/gte-modernbert-base"
-FAST_V2_EMBED_DIMENSION = 768
-#: Model default is 8192 (its full trained context window). Our PDF chunks
-#: are far shorter (measured average ~300-400 tokens); capping this avoids
-#: pathological CPU/RAM cost from padding short chunks toward 8192 tokens.
-#: See _default_model_factory for the incident this fixes.
-FAST_V2_EMBED_MAX_SEQ_LENGTH = 512
-#: Pre-quantized int8 ONNX export the model repo already ships (no local
-#: export step needed). See _default_model_factory for the measured speedup.
+#: gte-modernbert-base (768-dim) is the intended production embedding model
+#: (see docs/superpowers plan, 2026-08-25 single-grounded-synthesis) but it
+#: needs the ONNX int8 export (see FAST_V2_EMBED_ONNX_FILE below) to run at a
+#: usable CPU speed, and that export requires optimum[onnxruntime] -- which
+#: currently cannot be installed alongside this project's sentence-transformers
+#: pin (optimum-onnx 0.1.0 caps transformers<4.58, sentence-transformers 6.0.0
+#: needs transformers>=5.0.0). Without ONNX, plain-PyTorch CPU inference on a
+#: small instance (e.g. t3.small) is slow enough to blow past the frontend's
+#: request timeout on a real paper's chunk count (confirmed live: a 63-chunk
+#: paper still hadn't finished after 20+ CPU-minutes). MiniLM is ~30x smaller,
+#: fast enough on plain CPU with no ONNX/optimum dependency at all, at some
+#: cost to retrieval quality. Swap back to gte-modernbert-base once the
+#: optimum/transformers conflict is resolved upstream or the deployment target
+#: has enough CPU to run it un-accelerated within request-timeout budget.
+FAST_V2_EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+FAST_V2_EMBED_DIMENSION = 384
+#: MiniLM's own trained max is 256 tokens; capping here is just documenting
+#: that (not a workaround the way it was for ModernBERT's 8192 context -- see
+#: git history for that incident, not applicable to this model).
+FAST_V2_EMBED_MAX_SEQ_LENGTH = 256
+#: Only meaningful if/when FAST_V2_EMBED_MODEL is swapped back to a model that
+#: ships a pre-quantized ONNX export (see FAST_V2_EMBED_MODEL's comment).
 FAST_V2_EMBED_ONNX_FILE = "onnx/model_int8.onnx"
 #: Versioned so an embedding-model change never silently mixes dimensions
-#: into an existing collection -- see module docstring. Bumped from
-#: fast_v2_evidence_minilm_v1 (384-dim) when the embedding model changed to
-#: gte-modernbert-base (768-dim); the old collection is left untouched and
-#: simply orphaned, never queried by this version.
-FAST_V2_COLLECTION_NAME = "fast_v2_evidence_gte_v1"
+#: into an existing collection -- see module docstring. Reverted from
+#: fast_v2_evidence_gte_v1 (768-dim, gte-modernbert-base) back to a
+#: MiniLM-dimensioned name -- see FAST_V2_EMBED_MODEL's comment for why. The
+#: gte_v1 collection is left untouched and simply orphaned, never queried by
+#: this version; re-bump this name again if gte-modernbert-base comes back.
+FAST_V2_COLLECTION_NAME = "fast_v2_evidence_minilm_v2"
 
 DEFAULT_CHROMA_HOST = "localhost"
 DEFAULT_CHROMA_PORT = 8001
