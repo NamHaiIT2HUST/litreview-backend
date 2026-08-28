@@ -71,6 +71,7 @@ class Settings(BaseSettings):
     llm_api_key: str = ""
     llm_model: str = ""
     llm_provider: str = ""
+    llm_api_base: str = ""
     deepseek_api_key: str = ""
     openrouter_api_key: str = ""
     llm_temperature: float = Field(default=0.7, ge=0.0, le=2.0)
@@ -185,11 +186,31 @@ class Settings(BaseSettings):
 
     # Fast v2 experimental knobs (inert while synthesis_mode="legacy").
     fast_v2_generator_model: str = "NeuML/Llama-3.1_OpenScholar-8B-AWQ"
-    fast_v2_max_evidence_per_dimension: int = Field(default=3, ge=1, le=20)
+    # Ported from the outline-first pipeline's own calibration (feat/synthesis-fast-v2-ui):
+    # 3->8 evidence/dimension and 40->80 candidates/dimension reflect that
+    # pipeline's per-section retrieval needing a wider pool before rerank.
+    # Only takes effect when synthesis_mode="fast_v2_experimental" is opted into.
+    fast_v2_max_evidence_per_dimension: int = Field(default=8, ge=1, le=40)
     # NOT a calibrated production threshold -- frozen experimental default only.
-    # See docs/architecture/FAST_SYNTHESIS_V2.md section L.
-    fast_v2_relevance_threshold: float = 0.0
-    fast_v2_candidates_per_dimension: int = Field(default=40, ge=1, le=200)
+    # See docs/architecture/FAST_SYNTHESIS_V2.md section L. -100.0 (was 0.0):
+    # cross-encoder scores are ranking signals, not calibrated truth scores --
+    # grounding is the actual output gate, so this no longer discards context
+    # by an uncalibrated absolute score.
+    fast_v2_relevance_threshold: float = -100.0
+    fast_v2_candidates_per_dimension: int = Field(default=80, ge=1, le=200)
+    fast_v2_evidence_budget: int = Field(default=36, ge=4, le=80)
+
+    # Section-scoped retrieval compute budget (outline-first planning, see
+    # src/synthesis/fast_v2/section_pipeline.py). A section's retrieval_queries
+    # are unioned/deduped/capped to this many candidates BEFORE the single
+    # per-section rerank call -- keeps rerank latency bounded regardless of how
+    # many queries a section has. See pipeline.py::_prepare_dimension_pool.
+    fast_v2_section_candidate_cap: int = Field(default=32, ge=1, le=200)
+    # Fail loudly BEFORE calling the reranker if the total pairs across every
+    # section would exceed this -- never let a user silently wait minutes for
+    # an unbounded rerank call. Raise fast_v2_section_candidate_cap and/or cut
+    # sections/queries instead of raising this blindly.
+    fast_v2_max_total_rerank_pairs: int = Field(default=320, ge=1, le=2000)
 
     # Reranker selection. "identity" performs NO reranking -- it is the safe,
     # deterministic default so importing/running fast_v2 (and CI) never
@@ -197,9 +218,14 @@ class Settings(BaseSettings):
     # Evidence-First / Dimension-Aware v1 experiments actually used
     # (cross-encoder/ms-marco-MiniLM-L-6-v2, see
     # src/synthesis/fast_v2/selection/cross_encoder.py for the provenance
-    # citations). It must be opted into explicitly; a typo fails loudly rather
-    # than silently changing which evidence reaches the bank.
-    fast_v2_reranker: Literal["identity", "cross_encoder"] = "identity"
+    # citations) -- frozen for that benchmark, do not repoint it at a
+    # different model. "gte" (Alibaba-NLP/gte-reranker-modernbert-base) is
+    # the outline-first pipeline's intended production reranker, ported from
+    # feat/synthesis-fast-v2-ui -- NOT the default here since the checkpoint
+    # isn't guaranteed to be locally cached; opt in explicitly once it is.
+    # It must be opted into explicitly; a typo fails loudly rather than
+    # silently changing which evidence reaches the bank.
+    fast_v2_reranker: Literal["identity", "cross_encoder", "gte"] = "identity"
     fast_v2_reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 
     # Generator selection. "fake" loads nothing and calls nothing -- the safe,
@@ -219,6 +245,17 @@ class Settings(BaseSettings):
     fast_v2_hosted_api_base_url: str = ""
     fast_v2_hosted_api_key: str = ""
     fast_v2_hosted_api_model: str = ""
+    # Keep cheap structural calls (outline planning, citation attribution) on
+    # a smaller/cheaper model; reserve the (potentially different) writer
+    # model for final prose generation. Both fall back to synthesis_model /
+    # effective_model_name when unset -- see runtime.py.
+    fast_v2_verifier_model: str = ""
+    fast_v2_writer_model: str = ""
+    # 6000 (the old default) truncated a real 4,000-6,000 word review
+    # mid-sentence (~3,192 words / ~6,844 completion tokens observed on
+    # feat/synthesis-fast-v2-ui). Raised so the writer's single call has
+    # enough budget for a full-length structured JSON output.
+    fast_v2_writer_max_tokens: int = Field(default=12000, ge=1000, le=32000)
 
     # Database
     database_url: str = "sqlite:///./data/app.db"

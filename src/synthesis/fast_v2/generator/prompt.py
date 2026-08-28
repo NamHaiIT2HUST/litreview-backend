@@ -120,7 +120,7 @@ def build_prompt(
     references = build_references_block(evidence)
     requested_facets = json.dumps(list(dimensions), ensure_ascii=False)
 
-    return f"""You are an AI research assistant. Use only the provided EvidenceUnits.
+    return f"""You are an elite scientific research synthesis assistant. Use only the provided EvidenceUnits.
 
 EvidenceUnits:
 {references}
@@ -130,6 +130,11 @@ Question:
 
 Requested facets:
 {requested_facets}
+
+Synthesis Guidance:
+- Analyze the user question and the collection of EvidenceUnits.
+- Capture dialectical relationships (how later models resolve earlier bottlenecks, relax assumptions, generalize formulations, or trade off efficiency) whenever supported by the evidence.
+- Prioritize comparative and multi-perspective claims across papers where evidence allows.
 
 Return exactly one JSON object with this shape and no extra fields:
 {{"claims":[{{"facet":"<requested facet>","is_comparative":false,"statements":[{{"claim_text":"<one factual statement>","paper_id":"<selected paper UUID>","supports":[{{"evidence_id":"<exact E### handle>"}}]}}]}}]}}
@@ -191,3 +196,62 @@ def extract_native_citation_indices(text: str) -> tuple[int, ...]:
             if part.isdigit() and int(part) not in found:
                 found.append(int(part))
     return tuple(found)
+
+
+NATURAL_WRITER_SYSTEM_PROMPT = """You are a rigorous academic scholar writing a comparative literature review section.
+Your task is to write a comprehensive, well-structured literature review answering the research question based strictly on the provided evidence passages.
+
+Writing & Grounding Invariants:
+1. Strict Attribution & Separation of Contributions:
+   - Attribute every paper-specific claim (formulation, theorem, algorithmic step, operator property, optimization framing, or interpretation) strictly to the paper whose supplied evidence directly supports it.
+   - Do NOT transfer or back-project a formulation, theorem, property, or theoretical interpretation from one paper to another (e.g., Xu (2010) identified CQ as a special case of gradient-projection, not Byrne (2002)).
+   - Keep the mathematical formulation of each paper faithful to its own evidence passage.
+   - Use exact source terminology (e.g., "largest eigenvalue of A^T A", not "spectral radius").
+2. No Extrapolations or Unstated Mechanisms:
+   - Do NOT invent explanations, mechanisms, or consequences not explicitly present in the evidence passages.
+   - Do NOT claim that "gamma ensures nonexpansiveness" (state only that gamma is chosen in (0, 2/L) where L is the largest eigenvalue of A^T A, and the algorithm converges).
+   - Do NOT claim that "regularization provides stronger convergence" or "addresses multiple solutions" (state only that regularization and iterative algorithms are introduced to find the minimum-norm solution of the SFP, exactly as written).
+   - Do NOT claim that "strong convergence requires additional assumptions" (state only that CQ has weak convergence in general in infinite-dimensional settings).
+   - Do NOT invent trade-offs such as "flexibility at the cost of computational complexity".
+   - SYNTHESIS may only combine, compare, contrast, or organize facts already supported by the supplied evidence. It must NOT introduce unevidenced implications or domain assumptions.
+   - If a statement requires outside mathematical/domain knowledge to justify it, OMIT it.
+3. STRICTLY CITATION-FREE PROSE: Write the literature review in fluent academic prose. Do NOT include evidence IDs, citation handles, [E###] markers, provenance IDs, bracketed numbers, or internal source identifiers in the text. Citation attribution will be performed by a separate post-hoc stage. Refer to papers naturally by author names and publication years (e.g. "Censor and Elfving (1994) introduced...", "Byrne (2002) proposed...", "Xu (2010) extended...").
+4. Format: Write continuous academic Markdown with clear paragraph structure and headers where appropriate."""
+
+
+def format_evidence_context(evidence: Sequence[EvidenceUnit]) -> tuple[str, dict[str, str]]:
+    """Format top evidence units into handled context and return handle mapping."""
+    handle_mapping = build_evidence_handle_mapping(evidence)
+    
+    parts: list[str] = []
+    for handle, unit in zip(handle_mapping.keys(), evidence):
+        parts.append(
+            f"--- [{handle}] (Source: {unit.title}, Page {unit.page}) ---\n"
+            f"{unit.text.strip()}"
+        )
+    return "\n\n".join(parts), handle_mapping
+
+
+def format_evidence_context_for_writer(evidence: Sequence[EvidenceUnit]) -> str:
+    """Format evidence context for the Writer without [E###] handles to enforce citation-free prose."""
+    parts: list[str] = []
+    for idx, unit in enumerate(evidence, start=1):
+        parts.append(
+            f"--- Document Source {idx}: {unit.title} (Page {unit.page}) ---\n"
+            f"{unit.text.strip()}"
+        )
+    return "\n\n".join(parts)
+
+
+def build_natural_cited_writer_prompt(question: str, evidence: Sequence[EvidenceUnit]) -> tuple[str, str, dict[str, str]]:
+    """Build system and human prompts for natural citation-free literature review writing."""
+    writer_context = format_evidence_context_for_writer(evidence)
+    handle_mapping = build_evidence_handle_mapping(evidence)
+    human_prompt = f"""Research Question:
+{question}
+
+Supplied Evidence Pack:
+{writer_context}
+
+Write a thorough comparative literature review answering the research question. Adhere strictly to the academic writing, grounding, and citation-free rules."""
+    return NATURAL_WRITER_SYSTEM_PROMPT, human_prompt, handle_mapping

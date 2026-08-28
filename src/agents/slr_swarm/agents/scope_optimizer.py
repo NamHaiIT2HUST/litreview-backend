@@ -26,26 +26,34 @@ Hãy phân tích phạm vi của đề tài nghiên cứu sau:
 - Đề tài / Câu hỏi nghiên cứu: "{idea}"
 - Lĩnh vực: "{research_field}"
 
-Nhiệm vụ của bạn:
-1. Đánh giá phạm vi đề tài:
-   - "too_broad": Đề tài quá rộng, chung chung, khó bao quát trong một nghiên cứu SLR cụ thể (ví dụ: "AI trong Y tế", "Ứng dụng LLM").
-   - "too_narrow": Đề tài quá hẹp, quá chi tiết vào một ngữ cảnh cá biệt, khó tìm đủ bài báo quốc tế (ví dụ: "Dùng YOLOv8 nhận diện nứt xương đùi trái ở bệnh nhân 65 tuổi tại Bệnh viện X").
-   - "optimal": Đề tài có phạm vi vừa vặn, đủ rõ ràng về đối tượng, phương pháp và mục tiêu.
-2. Cho điểm độ tối ưu `score` từ 0 đến 100 (Điểm tối ưu là 75-95, nếu quá rộng điểm < 50, nếu quá hẹp điểm 50-65).
-3. Đưa ra `feedback` (1-2 câu ngắn gọn, súc tích bằng tiếng Việt) chỉ rõ ưu điểm hoặc điểm cần thu hẹp/mở rộng.
-4. Đề xuất `suggested_topics`: Đúng 2-3 câu hỏi nghiên cứu tinh chỉnh HOÀN TOÀN BẰNG TIẾNG VIỆT chuẩn học thuật, rõ ràng, sắc bén (ví dụ: "Đánh giá hiệu năng của các mô hình LLM trong...").
+So sánh đề tài với 3 ví dụ mẫu dưới đây (thuộc 3 lĩnh vực khác, chỉ để bạn thấy MỨC ĐỘ cụ thể cần có ở mỗi loại, KHÔNG liên quan nội dung đề tài thực tế):
 
-TRẢ VỀ DUY NHẤT MỘT JSON HỢP LỆ (KHÔNG THÊM MARKDOWN):
+- too_broad -- "Ứng dụng công nghệ số trong giáo dục": chỉ nêu 1 công nghệ chung + 1 lĩnh vực chung, KHÔNG có bài toán cụ thể nào, KHÔNG có mục tiêu khảo sát nào (không rõ đang so sánh gì, đánh giá gì).
+- optimal -- "So sánh hiệu quả học tập của mô hình lớp học đảo ngược (flipped classroom) so với giảng dạy truyền thống ở bậc đại học": có kỹ thuật/mô hình cụ thể (flipped classroom), có đối tượng cụ thể (bậc đại học, không giới hạn 1 trường/1 lớp), có mục tiêu rõ ràng (so sánh hiệu quả học tập). Đủ cụ thể để thu hẹp phạm vi tìm tài liệu, nhưng vẫn đủ tổng quát để có nhiều bài báo quốc tế.
+- too_narrow -- "So sánh hiệu quả học tập giữa lớp 10A1 và 10A2 trường THPT Y trong học kỳ 1 năm 2024 khi áp dụng flipped classroom": có đủ kỹ thuật, đối tượng, mục tiêu như ví dụ optimal, NHƯNG khoá cứng vào 1 trường, 1 học kỳ, 1 năm cụ thể -- không thể tìm đủ bài báo quốc tế về đúng bối cảnh này.
+
+Nhiệm vụ của bạn:
+1. Đánh giá phạm vi đề tài theo ĐÚNG mức độ cụ thể như 3 ví dụ trên:
+   - "too_broad": giống ví dụ too_broad -- chỉ nêu công nghệ/lĩnh vực chung, không có bài toán cụ thể, không có mục tiêu khảo sát rõ ràng. Một đề tài chỉ hỏi "X được dùng/ứng dụng như thế nào trong Y" (liệt kê, không có mục tiêu so sánh/đánh giá/tối ưu) luôn là too_broad, kể cả khi X, Y nghe có vẻ chuyên ngành.
+   - "too_narrow": giống ví dụ too_narrow -- đã đủ cụ thể về kỹ thuật/đối tượng/mục tiêu NHƯNG khoá cứng thêm vào một ngữ cảnh cá biệt không thể tổng quát hoá (1 tổ chức/trường/bệnh viện cụ thể, 1 mốc thời gian hẹp cụ thể, 1 cá nhân/ca cụ thể, 1 địa phương cụ thể).
+   - "optimal": giống ví dụ optimal -- có kỹ thuật/mô hình cụ thể, có bài toán/hệ thống/đối tượng cụ thể (không cần thêm ngữ cảnh cá biệt hoá), và có mục tiêu khảo sát rõ ràng (so sánh/tối ưu/đánh giá một khía cạnh cụ thể).
+2. Cho điểm độ tối ưu `score` từ 0 đến 100 (Điểm tối ưu là 75-95, nếu quá rộng điểm < 50, nếu quá hẹp điểm 50-65).
+3. Đưa ra `feedback` (1-2 câu ngắn gọn, súc tích bằng tiếng Việt) giải thích đề tài đang thiếu gì (nếu too_broad), đang bị khoá cứng vào đâu (nếu too_narrow), hoặc ưu điểm gì (nếu optimal) -- so với mức độ cụ thể của ví dụ optimal ở trên.
+4. Đề xuất `suggested_topics`: Đúng 2-3 câu hỏi nghiên cứu tinh chỉnh HOÀN TOÀN BẰNG TIẾNG VIỆT chuẩn học thuật, rõ ràng, sắc bén, và PHẢI bám sát trực tiếp vào đề tài "{idea}" ở trên (thu hẹp/mở rộng đúng hướng của chính đề tài đó, không lái sang chủ đề khác).
+
+Ví dụ định dạng JSON dưới đây thuộc một đề tài Y sinh HOÀN TOÀN KHÁC, chỉ để minh hoạ CẤU TRÚC trả về — feedback và suggested_topics của bạn phải viết mới, dựa 100% vào đề tài thực tế "{idea}", KHÔNG được sao chép nội dung ví dụ này dưới bất kỳ hình thức nào, kể cả khi đề tài thực tế trùng lĩnh vực với một lần phân tích trước đó:
 {{
   "status": "too_broad",
   "score": 40,
-  "feedback": "Đề tài hiện tại còn khá rộng vì chưa chỉ định rõ loại robot cụ thể và bài toán ứng dụng chính (điều hướng hay thao tác).",
+  "feedback": "Đề tài hiện tại còn khá rộng vì chưa chỉ định rõ nhóm bệnh nhân và phương pháp chẩn đoán chính.",
   "suggested_topics": [
-    "Đánh giá hiệu năng của các mô hình LLM mã nguồn mở trong bài toán lập kế hoạch cho Robot di động",
-    "Ứng dụng Vision-Language-Action (VLA) Models trong điều khiển cánh tay robot thao tác vật thể",
-    "Khảo sát các giải pháp tối ưu độ trễ thời gian thực khi triển khai LLM trên hệ thống Robot nhúng"
+    "Đánh giá độ chính xác của mô hình học sâu trong tầm soát ung thư vú qua ảnh nhũ ảnh",
+    "So sánh hiệu quả các thuật toán phân loại tín hiệu ECG trong phát hiện rối loạn nhịp tim",
+    "Ứng dụng học chuyển giao trong chẩn đoán bệnh võng mạc tiểu đường từ ảnh đáy mắt"
   ]
 }}
+
+TRẢ VỀ DUY NHẤT MỘT JSON HỢP LỆ (KHÔNG THÊM MARKDOWN), nội dung dựa hoàn toàn vào đề tài thực tế "{idea}":
 """
 
 async def run_scope_optimizer(idea: str, research_field: str = "") -> ScopeAnalysisResult:
@@ -81,11 +89,17 @@ async def run_scope_optimizer(idea: str, research_field: str = "") -> ScopeAnaly
     prompt = SCOPE_PROMPT.format(idea=idea.strip(), research_field=research_field.strip() or "Khoa học máy tính / AI")
 
     try:
+        # temperature=0 (not the earlier 0.3): this is a classification
+        # (too_broad/optimal/too_narrow), not creative writing. At 0.3 the
+        # same topic could flip verdicts between identical requests, which
+        # reads as the tool being unreliable rather than the topic genuinely
+        # sitting on a boundary. 0 doesn't guarantee identical output on
+        # every call, but removes the deliberately-injected randomness.
         result, outcome = await ainvoke_with_failover(
             "optimize_scope",
             lambda client: client.with_structured_output(ScopeAnalysisResult),
             [("human", prompt)],
-            temperature=0.3,
+            temperature=0.0,
         )
         logger.info(
             "Scope analysed by %s (key %s) in %d attempt(s).",
@@ -93,15 +107,17 @@ async def run_scope_optimizer(idea: str, research_field: str = "") -> ScopeAnaly
         )
         return result
     except Exception as exc:
-        logger.warning("LLM call failed in run_scope_optimizer, using academic heuristic fallback: %s", exc)
-        field_str = research_field.strip() or "Y sinh & Chẩn đoán Y tế / AI"
+        # This used to fabricate a fixed status="optimal", score=88 verdict
+        # with feedback templated straight from `idea` -- indistinguishable
+        # from a real judgment, so a transient provider failure silently told
+        # the researcher their scope was fine without ever being evaluated.
+        # The frontend already renders a distinct "error" badge (⚠️ Tạm thời
+        # gián đoạn); it just never received this status. Report the failure
+        # honestly instead of guessing a verdict.
+        logger.warning("LLM call failed in run_scope_optimizer: %s", exc)
         return ScopeAnalysisResult(
-            status="optimal",
-            score=88,
-            feedback=f"Ý tưởng '{idea}' có phạm vi nghiên cứu phù hợp, tính khả thi cao trong lĩnh vực {field_str}. Đề tài có thể triển khai tổng quan hệ thống (Systematic Review) với các bộ từ khóa chuyên ngành và bộ lọc Scopus.",
-            suggested_topics=[
-                f"Đánh giá và so sánh các kiến trúc 1D-CNN và Transformer cho {idea}",
-                f"Ứng dụng học sâu trong bài toán {idea} trên dữ liệu thời gian thực",
-                f"Tối ưu hóa độ trễ tính toán và độ chính xác phân loại tín hiệu"
-            ]
+            status="error",
+            score=0,
+            feedback="Hệ thống AI tạm thời không đánh giá được phạm vi đề tài (lỗi kết nối hoặc quá tải model). Vui lòng thử lại sau ít phút.",
+            suggested_topics=[]
         )

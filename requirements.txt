@@ -17,6 +17,11 @@ langchain-huggingface>=0.1.0
 langgraph>=0.2.0
 langgraph-checkpoint-postgres>=2.0.0
 sentence-transformers>=3.0.0
+# ONNX Runtime backend for fast_v2's embedding model (see
+# src/synthesis/fast_v2/evidence/semantic_index.py::_default_model_factory --
+# gte-modernbert-base loads via backend="onnx" for ~27x faster CPU inference).
+# Was missing from this file even though the code already required it.
+optimum[onnxruntime]>=2.0.0
 
 # Document Ingestion
 pypdf>=5.1.0

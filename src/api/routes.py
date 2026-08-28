@@ -1290,7 +1290,7 @@ async def workspace_analyze_data(request: DataAnalysisRequest) -> DataAnalysisRe
     import os, io, re, json, logging
     import pandas as pd
     import numpy as np
-    from src.services.synthesis_llm_service import synthesis_llm_service
+    from src.services.eda_llm_client import build_eda_llm
     from src.services.eda_profiling_service import eda_profiling_service, ComprehensiveProfile
 
     logger = logging.getLogger(__name__)
@@ -1456,7 +1456,7 @@ async def workspace_analyze_data(request: DataAnalysisRequest) -> DataAnalysisRe
 
     # 3. Thực thi LLM với cơ chế đa mô hình chống lỗi
     try:
-        llm = synthesis_llm_service._get_llm()
+        llm = build_eda_llm(get_settings())
         msg = await llm.ainvoke([("human", full_prompt)])
         content = msg.content if hasattr(msg, "content") else str(msg)
         if isinstance(content, list):
@@ -1834,6 +1834,208 @@ async def get_evidence_coords(
     except Exception as e:
         logging.getLogger(__name__).error("Error finding coords: %s", e)
         return EvidenceCoordsResponse(rects=[])
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Interactive Outline-First Synthesis (Plan -> User Approval -> Execute)
+#
+# Ported from feat/synthesis-fast-v2-ui. This is a SEPARATE opt-in path from
+# the Legacy /synthesis-sessions endpoint below -- it only produces a usable
+# result when SYNTHESIS_MODE=fast_v2_experimental (see config.py), since
+# plan_outline()/run_section_scoped_synthesis() call into src/synthesis/fast_v2/
+# regardless of synthesis_mode. Legacy stays the default; this is additive.
+# ──────────────────────────────────────────────────────────────────────────────
+
+class SectionPlanDto(BaseModel):
+    id: str = ""
+    title: str
+    purpose: str = ""
+    target_words: int = 1000
+    papers_to_compare: list[str] = Field(default_factory=list)
+    retrieval_queries: list[str] = Field(default_factory=list)
+
+
+class OutlinePlanDto(BaseModel):
+    research_question: str
+    sections: list[SectionPlanDto]
+
+
+class SynthesisPlanRequest(BaseModel):
+    project_id: uuid.UUID
+    paper_ids: list[str]
+    research_question: str | None = None
+
+
+class SynthesisExecuteRequest(BaseModel):
+    project_id: uuid.UUID
+    paper_ids: list[str]
+    approved_outline: OutlinePlanDto
+
+
+@router.post("/synthesis/plan")
+async def plan_synthesis_outline(
+    request: SynthesisPlanRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Step 1: Planning only. Turns selected PDFs into a structured outline.
+    The pipeline STOPS here. User reviews and edits before approving.
+    """
+    project_result = await db.execute(select(Project).where(Project.id == request.project_id))
+    project = project_result.scalar_one_or_none()
+    if project is None:
+        raise HTTPException(status_code=404, detail=f"Project '{request.project_id}' not found")
+
+    raw_paper_ids = list(dict.fromkeys(request.paper_ids))
+    if not raw_paper_ids:
+        raise HTTPException(status_code=422, detail="At least 1 paper is required to plan outline.")
+
+    candidate_uuids = []
+    for pid_raw in raw_paper_ids:
+        pid_str = str(pid_raw).strip()
+        try:
+            candidate_uuids.append(uuid.UUID(pid_str))
+        except Exception:
+            stmt = select(Paper).where(
+                Paper.project_id == request.project_id,
+                (Paper.title.ilike(f"%{pid_str}%") | Paper.dedup_key.ilike(f"%{pid_str}%"))
+            )
+            found = (await db.execute(stmt)).scalars().first()
+            if found:
+                candidate_uuids.append(found.id)
+
+    # A UUID accepted above is NOT yet proven to belong to this project -- it
+    # was only checked for being syntactically a UUID. Re-scope the actual
+    # DB fetch to (id IN candidates) AND (project_id == request.project_id)
+    # so a stale/cross-project paper_id can never pull another project's
+    # paper into this outline plan.
+    paper_result = await db.execute(
+        select(Paper).where(Paper.id.in_(candidate_uuids), Paper.project_id == request.project_id)
+    )
+    papers = list(paper_result.scalars().all())
+    paper_uuids = [p.id for p in papers]
+
+    from src.synthesis.fast_v2.runtime import (
+        build_general_review_question,
+        ensure_fast_v2_indexed,
+        plan_outline,
+    )
+
+    await ensure_fast_v2_indexed(paper_uuids)
+
+    rq = build_general_review_question(request.research_question)
+    metadata = [{"title": p.title or "", "abstract": p.abstract or ""} for p in papers]
+
+    outline_plan = await plan_outline(paper_metadata=metadata, research_question=rq)
+
+    return JSONResponse(
+        status_code=200,
+        content={
+            "research_question": outline_plan.research_question,
+            "sections": [
+                {
+                    "id": s.id,
+                    "title": s.title,
+                    "purpose": s.purpose,
+                    "target_words": s.target_words,
+                    "papers_to_compare": list(s.papers_to_compare),
+                    "retrieval_queries": list(s.retrieval_queries),
+                }
+                for s in outline_plan.sections
+            ]
+        },
+    )
+
+
+@router.post("/synthesis/execute")
+async def execute_approved_synthesis(
+    request: SynthesisExecuteRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Step 2: Execution.
+    Executes the approved outline with section-specific contexts, 1-call Writer,
+    Batched Citation Agent, and deterministic provenance.
+    """
+    project_result = await db.execute(select(Project).where(Project.id == request.project_id))
+    project = project_result.scalar_one_or_none()
+    if project is None:
+        raise HTTPException(status_code=404, detail=f"Project '{request.project_id}' not found")
+
+    raw_paper_ids = list(dict.fromkeys(request.paper_ids))
+    candidate_uuids = []
+    for pid_raw in raw_paper_ids:
+        pid_str = str(pid_raw).strip()
+        try:
+            candidate_uuids.append(uuid.UUID(pid_str))
+        except Exception:
+            stmt = select(Paper).where(
+                Paper.project_id == request.project_id,
+                (Paper.title.ilike(f"%{pid_str}%") | Paper.dedup_key.ilike(f"%{pid_str}%"))
+            )
+            found = (await db.execute(stmt)).scalars().first()
+            if found:
+                candidate_uuids.append(found.id)
+
+    # Same re-scoping as /synthesis/plan: a syntactically-valid UUID is not
+    # proof of project ownership. Only papers confirmed to belong to
+    # request.project_id are allowed through to the writer/citation stages.
+    owned_result = await db.execute(
+        select(Paper.id).where(Paper.id.in_(candidate_uuids), Paper.project_id == request.project_id)
+    )
+    paper_uuids = [row[0] for row in owned_result.all()]
+
+    from src.synthesis.fast_v2.planning.research_lead import LongformOutlinePlan, SectionPlan
+    from src.synthesis.fast_v2.runtime import run_section_scoped_synthesis
+
+    approved_sections = tuple(
+        SectionPlan(
+            id=s.id or f"sec_{idx}",
+            title=s.title,
+            purpose=s.purpose,
+            target_words=s.target_words,
+            papers_to_compare=tuple(s.papers_to_compare),
+            retrieval_queries=tuple(s.retrieval_queries),
+        )
+        for idx, s in enumerate(request.approved_outline.sections, 1)
+    )
+    outline_obj = LongformOutlinePlan(
+        research_question=request.approved_outline.research_question,
+        sections=approved_sections,
+    )
+
+    fast_v2_result = await run_section_scoped_synthesis(
+        paper_ids=paper_uuids,
+        approved_outline=outline_obj,
+    )
+
+    persisted = SynthesisSession(
+        id=uuid.uuid4(),
+        project_id=request.project_id,
+        paper_ids=json_paper_ids(paper_uuids),
+        research_question=outline_obj.research_question,
+        status=(SynthesisStatus.done if fast_v2_result.grounded else SynthesisStatus.failed),
+        review_markdown=fast_v2_result.text,
+        error_message=(None if fast_v2_result.grounded else fast_v2_result.grounding_warning),
+    )
+    db.add(persisted)
+
+    for item in fast_v2_result.citations:
+        db.add(Citation(
+            id=uuid.uuid4(),
+            synthesis_session_id=persisted.id,
+            paper_id=item.paper_id,
+            citation_marker=item.citation_marker,
+            review_char_start=item.review_char_start,
+            review_char_end=item.review_char_end,
+            source_page=item.source_page,
+            source_char_start=item.source_char_start,
+            source_char_end=item.source_char_end,
+            quoted_snippet=item.quoted_snippet,
+        ))
+    await db.commit()
+
+    payload = fast_v2_result.to_dict()
+    payload["session_id"] = str(persisted.id)
+    return JSONResponse(status_code=200, content=payload)
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Synthesis endpoints (evidence-first, async job)

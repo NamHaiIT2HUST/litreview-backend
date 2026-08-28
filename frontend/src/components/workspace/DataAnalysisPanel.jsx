@@ -47,7 +47,7 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import * as XLSX from 'xlsx';
 import { useLanguage } from '../../contexts/LanguageContext';
-import { safeFetch } from '../../utils/apiConfig';
+import { safeFetch, formatApiErrorDetail } from '../../utils/apiConfig';
 import { formatMathAndMarkdown } from '../../utils/mathUtils';
 import DynamicDataChart, { KPICardsGrid, DatasetHealthCard } from './DataCharts';
 import { 
@@ -1481,7 +1481,7 @@ export default function DataAnalysisPanel({
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.detail || `Lỗi máy chủ (${res.status})`);
+        throw new Error(formatApiErrorDetail(errData.detail, `Lỗi máy chủ (${res.status})`));
       }
       
       const data = await res.json();

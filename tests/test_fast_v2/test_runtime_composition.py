@@ -79,9 +79,50 @@ def test_run_fast_v2_synthesis_uses_facet_planner_not_legacy_taxonomy(monkeypatc
     assert captured["dimensions"] == ["formulation", "algorithms", "assumptions", "convergence"]
 
 
+def test_general_review_question_keeps_topic_optional():
+    """Removing the topic must not block synthesis or trigger an LLM call just
+    to invent a question; a deterministic general-review prompt is enough."""
+    from src.synthesis.fast_v2.runtime import build_general_review_question
+
+    assert build_general_review_question("") == (
+        "Provide a general literature review of the selected studies, comparing "
+        "methods, findings, datasets, and limitations."
+    )
+    assert build_general_review_question("  Compare retrieval methods.  ") == "Compare retrieval methods."
+
+
+def test_ensure_fast_v2_indexed_rebuilds_selected_papers(monkeypatch):
+    """A previously-ingested PDF must become retrievable on its first review,
+    even when it predates the dedicated Fast V2 collection."""
+    import asyncio
+    from src.synthesis.fast_v2 import runtime as runtime_module
+
+    paper_ids = [uuid.uuid4(), uuid.uuid4()]
+    indexed: list[uuid.UUID] = []
+
+    class _IndexingService:
+        def __init__(self, session_factory, index):
+            assert session_factory is not None
+            assert index == "fast-index"
+
+        async def index_paper(self, paper_id):
+            indexed.append(paper_id)
+            return object()
+
+    monkeypatch.setattr(runtime_module, "get_fast_v2_index", lambda: "fast-index")
+    monkeypatch.setattr(
+        "src.synthesis.fast_v2.evidence.indexing_service.FastV2IndexingService",
+        _IndexingService,
+    )
+
+    asyncio.run(runtime_module.ensure_fast_v2_indexed(paper_ids))
+
+    assert indexed == paper_ids
+
+
 def test_composition_root_selects_hosted_api_generator_from_settings(monkeypatch):
     from src import config as config_module
-    from src.synthesis.fast_v2.evidence.chroma_retriever import FastV2ChromaEvidenceRetriever
+    from src.synthesis.fast_v2.evidence.hybrid_retriever import FastV2HybridEvidenceRetriever
     from src.synthesis.fast_v2.generator.hosted_api import HostedApiGenerator
     from src.synthesis.fast_v2.grounding.semantic import HostedBatchSemanticVerifier
     from src.synthesis.fast_v2.runtime import build_fast_v2_pipeline
@@ -97,7 +138,7 @@ def test_composition_root_selects_hosted_api_generator_from_settings(monkeypatch
     assert isinstance(pipeline.semantic_verifier, HostedBatchSemanticVerifier)
     assert pipeline.semantic_verifier.model == "openai/gpt-oss-120b"
     assert isinstance(pipeline.literature_writer, HostedGroundedLiteratureWriter)
-    assert isinstance(pipeline.retriever, FastV2ChromaEvidenceRetriever)
+    assert isinstance(pipeline.retriever, FastV2HybridEvidenceRetriever)
     # fast_v2_reranker defaults to "identity" unless FAST_V2_RERANKER=cross_encoder.
     assert isinstance(pipeline.reranker, IdentityReranker)
 
@@ -142,9 +183,57 @@ def test_composition_root_selects_cross_encoder_reranker_when_configured(monkeyp
     assert pipeline.reranker.is_loaded is False  # construction must not load the model
 
 
-def test_legacy_default_settings_never_touch_fast_v2_composition():
-    """Settings() with no overrides -- the Legacy default -- must not raise
-    just because fast_v2 knobs are unconfigured; fast_v2_enabled stays False."""
+def test_local_embedding_and_reranker_loaders_do_not_probe_huggingface_network(monkeypatch):
+    """Local development must use cached checkpoints immediately."""
+    import sys
+    import types
+
+    calls = []
+
+    class _SentenceTransformer:
+        def __init__(self, name, **kwargs):
+            calls.append(("embed", name, kwargs))
+
+    class _CrossEncoder:
+        def __init__(self, name, **kwargs):
+            calls.append(("rerank", name, kwargs))
+
+    monkeypatch.setitem(
+        sys.modules,
+        "sentence_transformers",
+        types.SimpleNamespace(
+            SentenceTransformer=_SentenceTransformer,
+            CrossEncoder=_CrossEncoder,
+        ),
+    )
+    from src.synthesis.fast_v2.evidence.semantic_index import FastV2SemanticIndex
+    from src.synthesis.fast_v2.selection.cross_encoder import CrossEncoderReranker
+
+    FastV2SemanticIndex(chroma_client_factory=object)._default_model_factory("embed-model")
+    CrossEncoderReranker()._default_model_factory("rerank-model")
+
+    assert calls == [
+        (
+            "embed",
+            "embed-model",
+            {
+                "local_files_only": True,
+                "trust_remote_code": True,
+                "backend": "onnx",
+                "model_kwargs": {"file_name": "onnx/model_int8.onnx"},
+            },
+        ),
+        ("rerank", "rerank-model", {"local_files_only": True}),
+    ]
+
+
+def test_default_settings_keep_legacy_as_the_supported_production_flow():
+    """"legacy" is the only supported production path (see src/config.py's
+    own comment above `synthesis_mode`) and must stay the default until the
+    promotion criteria documented there are actually met -- fast_v2 still
+    has open correctness gaps (e.g. the "gte" reranker mode crashes on a
+    fresh checkout with no local model cache, see test_cross_encoder_reranker.py)
+    that make flipping this default premature."""
     from src.config import Settings
 
     settings = Settings()

@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from src.synthesis.fast_v2.selection.rerank import EvidenceReranker, IdentityReranker
 
-RERANKER_MODES = ("identity", "cross_encoder")
+RERANKER_MODES = ("identity", "cross_encoder", "gte")
 
 
 def build_reranker(mode: str | None = None) -> EvidenceReranker:
@@ -36,6 +36,18 @@ def build_reranker(mode: str | None = None) -> EvidenceReranker:
 
         model_name = getattr(get_settings(), "fast_v2_reranker_model", CROSS_ENCODER_MODEL)
         return CrossEncoderReranker(model_name=model_name)
+
+    if mode == "gte":
+        # Chosen production reranker (Alibaba-NLP/gte-reranker-modernbert-base)
+        # for the outline-first long-form pipeline. Wraps
+        # src/services/reranker_service.py's singleton, NOT the MiniLM
+        # adapter in selection/cross_encoder.py -- the "cross_encoder" mode
+        # above stays pinned to MiniLM for the frozen RQ1/RQ2 benchmark.
+        from src.synthesis.fast_v2.selection.rerank import (
+            CrossEncoderReranker as GTECrossEncoderReranker,
+        )
+
+        return GTECrossEncoderReranker()
 
     raise ValueError(
         f"unknown fast_v2 reranker {mode!r}; expected one of {RERANKER_MODES}. "
