@@ -1,15 +1,39 @@
-"""Anthropic-style post-hoc citation attribution over all substantive prose paragraphs.
+"""Structured, span-level post-hoc citation attribution over all
+substantive prose paragraphs.
 
-Adapted directly from:
+Adapted from:
 anthropics/claude-cookbooks/patterns/agents/prompts/citations_agent.md
+-- but the LLM never sees or reproduces prose (see "Why structured, not
+prose-regeneration" below).
 
 Central Invariant:
-The synthesized prose must remain identical; the citation stage may ONLY insert citations.
-A diff check verifies that prose text without citation markers is byte-identical to the original prose.
+The synthesized prose must remain identical; the citation stage may ONLY
+insert citations. This is now a STRUCTURAL guarantee, not a diff check the
+model can fail: the LLM is given pre-segmented sentence/claim spans (never
+the reconstructible paragraph text) and returns ONLY a JSON handle
+assignment per span. Citation markers are then inserted deterministically
+by this module at the spans' stored character offsets -- the model has no
+opportunity to alter a single character of prose, so byte-exact
+preservation holds by construction.
+
+Why structured, not prose-regeneration
+---------------------------------------
+The earlier design asked the LLM to copy the whole paragraph back out with
+citation tags inserted, verified byte-exactness with a diff check, and
+retried/fell back to uncited-original on mismatch. Real-run diagnosis
+(2026-08-28, air-pollution validation corpus) captured a concrete failure:
+the model added a stray space after an em-dash ("disease--whereas" ->
+"disease-- whereas") while otherwise correctly attributing the paragraph,
+tripping the diff check and discarding a fully-correct citation via
+fail-closed. Asking a model to verbatim-reproduce hundreds of words of
+scientific prose (LaTeX, unicode punctuation, numbers) is an unnecessary
+task with a real failure rate; deciding which evidence supports a given
+short span is the only task that actually needs the model.
 """
 from __future__ import annotations
 
 import asyncio
+import json
 import re
 import time
 from dataclasses import dataclass, field
@@ -18,15 +42,24 @@ from langchain_openai import ChatOpenAI
 from src.synthesis.fast_v2.evidence.models import EvidenceUnit
 from src.synthesis.fast_v2.generator.prompt import format_evidence_context
 
-CITATIONS_AGENT_SYSTEM_PROMPT = """You are a meticulous scientific citation agent.
-Your task is to take a finalized literature review paragraph and insert inline citation handles [E001], [E002] to attribute factual statements to the provided evidence passages.
+STRUCTURED_CITATION_SYSTEM_PROMPT = """You are a meticulous scientific citation agent.
+You are given a batch of finalized literature review paragraphs, plus an evidence pack. For each paragraph you are shown its FULL, immutable text as CONTEXT ONLY, and a list of claim/sentence spans within it as your actual attribution targets. You must NEVER reproduce, rewrite, paraphrase, normalize, or output any part of the paragraph prose -- your only job is to decide which evidence handle(s), if any, support each claim span.
 
-CRITICAL INVARIANTS:
-1. BYTE-EXACT PROSE COPY: You must preserve the input text byte-for-byte. DO NOT change, rewrite, rephrase, add, or delete ANY words, letters, punctuation, numbers, line breaks, whitespace, or LaTeX formulas.
-2. ABSOLUTELY NO LATEX REWRITING: Do NOT normalize, reformat, or alter ANY LaTeX math formulas, commands (e.g. \\nabla, \\frac, \\|, \\top, \\gamma), delimiters ($...$, $$...$$, \\[...\\]), backslashes, superscripts, subscripts, or equations. Copy every single mathematical symbol and formula EXACTLY as written.
-3. CITATION-ONLY INSERTIONS: ONLY insert bracketed citation handles (e.g. [E001] or [E001, E002]) immediately after the factual claims or equations they support.
-4. VALID HANDLES ONLY: Every inserted citation must strictly correspond to an evidence handle present in the supplied evidence pack. If a statement has no supporting evidence, DO NOT insert a citation handle.
-5. Output ONLY the exact paragraph text with inserted citation handles. No commentary, explanations, or extra markdown fences."""
+Use the full paragraph to understand what an isolated span alone might not make clear: pronoun antecedents, comparison structure, what a "this" or "it" refers to, and how a claim continues or synthesizes a preceding statement. Evidence ownership is still assigned per claim_id, never to the paragraph as a whole.
+
+RULES:
+1. FACTUAL/TECHNICAL CLAIM: assign only evidence that directly supports that specific claim -- not merely the same topic, same paper, or a nearby result.
+2. MULTI-PAPER COMPARISON: a claim comparing multiple papers (e.g. "Study A uses X whereas Study B uses Y") needs support for BOTH/ALL sides -- include relevant evidence handles from each paper being compared.
+3. SYNTHESIS/INFERENCE: a synthesis claim may cite multiple handles when its conclusion is reasonably grounded in them together. Do not invent an empirical fact during synthesis.
+4. DISCOURSE/TRANSITION: a claim with no independently factual content (e.g. "This connection enabled...", "Taken together, these results show...") gets an empty list.
+5. UNSUPPORTED CLAIM: if no supplied evidence sufficiently supports a factual claim -- including evidence that is only topically related without supporting the specific claim -- return an empty list for it. An empty list is preferable to a topical citation.
+6. NEIGHBORING CLAIMS: a citation assigned to one claim is never support for a different claim unless that other claim independently receives the same handle. Do not let an unsupported claim borrow a neighbor's citation.
+7. Deduplicate: never list the same handle twice for one claim.
+8. NEVER invent a handle that is not present in the supplied evidence pack.
+
+Return ONLY a JSON object of the exact form:
+{"assignments": {"<claim_id>": ["E001", ...], "<claim_id>": [], ...}}
+Include exactly one entry per claim_id you were given, across all paragraphs in the batch, in any order. No prose, no commentary, no markdown fences, no other keys."""
 
 _CITATION_TAG_REGEX = re.compile(r"\s*\[E\d{3}(?:,\s*E\d{3})*\]")
 
@@ -70,6 +103,64 @@ def is_substantive_prose(paragraph: str) -> bool:
     if len(p.split()) < 5:
         return False
     return True
+
+
+#: Deterministic sentence/claim boundary: a run of whitespace preceded by
+#: sentence-ending punctuation and followed by a capital letter, a LaTeX
+#: escape, or a `$` (so we don't split mid-formula on the period inside
+#: "e.g." followed by a lowercase continuation, though "et al." followed by
+#: a capitalized next sentence is not distinguishable by this heuristic --
+#: acceptable: a missed split only means two claims share one span, which
+#: is the ALLOWED "same evidence supports adjacent claims" case, never a
+#: prose-mutation risk).
+_SENTENCE_BOUNDARY = re.compile(r"(?<=[.!?])\s+(?=[A-Z\\$])")
+
+
+def split_paragraph_into_spans(paragraph: str) -> list[tuple[int, int, str]]:
+    """Deterministically split into (start, end, text) sentence/claim spans
+    covering the paragraph in left-to-right, non-overlapping order. This is
+    a lightweight heuristic splitter, not an NLP sentence tokenizer -- it
+    exists to give the citation model claim-sized units, never to be shown
+    to or reconstructed by the model itself. Whitespace between spans is
+    deliberately left unassigned to either span; ``insert_citations_at_spans``
+    copies straight from the original string, so any splitter imprecision
+    can only affect claim GRANULARITY, never prose byte-exactness."""
+    if not paragraph:
+        return []
+    boundaries = [0]
+    for m in _SENTENCE_BOUNDARY.finditer(paragraph):
+        boundaries.append(m.start())
+        boundaries.append(m.end())
+    boundaries.append(len(paragraph))
+
+    spans: list[tuple[int, int, str]] = []
+    for i in range(0, len(boundaries) - 1, 2):
+        start, end = boundaries[i], boundaries[i + 1]
+        text = paragraph[start:end]
+        if text.strip():
+            spans.append((start, end, text))
+    return spans
+
+
+def insert_citations_at_spans(
+    paragraph: str,
+    spans: Sequence[tuple[int, int, str]],
+    span_handles: Sequence[Sequence[str]],
+) -> str:
+    """Deterministically construct the cited paragraph by copying
+    ``paragraph`` verbatim and inserting `` [E001, ...]`` only right after
+    each span's end offset when it has handles. Structurally guarantees the
+    prose-invariant: with all-empty handle lists this returns ``paragraph``
+    unchanged, character for character."""
+    out: list[str] = []
+    cursor = 0
+    for (start, end, _text), handles in zip(spans, span_handles):
+        out.append(paragraph[cursor:end])
+        if handles:
+            out.append(f" [{', '.join(handles)}]")
+        cursor = end
+    out.append(paragraph[cursor:])
+    return "".join(out)
 
 
 def build_paragraph_section_map(
@@ -145,11 +236,26 @@ MAX_SECTIONS_PER_SCOPED_BATCH = 3
 def resolve_batch_evidence_scope(
     batch_section_ids: Sequence[str | None],
     section_evidence: Mapping[str, Sequence[EvidenceUnit]] | None,
+    section_papers_to_compare: Mapping[str, Sequence[str]] | None = None,
 ) -> set[str] | None:
     """Decide which evidence_ids a batch may cite from, given the sections
     its paragraphs belong to. Returns None (full pack) when scoping isn't
     available or safe to apply -- never returns an empty/under-scoped set
-    that would starve a paragraph of evidence it needs."""
+    that would starve a paragraph of evidence it needs.
+
+    Local retrieval, global provenance (see claim_034/Chu audit): a passage
+    about a paper that IS listed in this section's own papers_to_compare,
+    but that retrieval happened to select for a DIFFERENT section instead,
+    is still legitimate evidence for a claim about that paper here -- the
+    paper is relevant to this section by the Planner's own outline, the
+    passage genuinely exists in the corpus, and Citation Agent's own
+    semantic-support check (attribute_paragraph_batch) still has to decide
+    per-claim whether it actually supports the specific sentence. This does
+    NOT open the full evidence pool: only evidence already selected for
+    SOME section (never re-retrieved), and only for papers this section's
+    own outline already names as relevant -- an unrelated paper's evidence
+    from another section is still excluded exactly as before.
+    """
     if not section_evidence:
         return None
     distinct = {sid for sid in batch_section_ids if sid is not None}
@@ -160,19 +266,26 @@ def resolve_batch_evidence_scope(
     scope: set[str] = set()
     for sid in distinct:
         scope.update(u.evidence_id for u in section_evidence[sid])
+
+    if section_papers_to_compare:
+        allowed_papers: set[str] = set()
+        for sid in distinct:
+            allowed_papers.update(section_papers_to_compare.get(sid) or ())
+        if allowed_papers:
+            for other_sid, units in section_evidence.items():
+                if other_sid in distinct:
+                    continue  # already fully included above
+                for u in units:
+                    if u.title in allowed_papers:
+                        scope.add(u.evidence_id)
+
     return scope
 
 
-BATCHED_CITATIONS_AGENT_SYSTEM_PROMPT = """You are a meticulous scientific citation agent.
-Your task is to take a batch of finalized literature review paragraphs and insert inline citation handles [E001], [E002] to attribute factual statements to the provided evidence passages.
-
-CRITICAL INVARIANTS:
-1. BYTE-EXACT PROSE COPY: You must preserve the input text byte-for-byte. DO NOT change, rewrite, rephrase, add, or delete ANY words, letters, punctuation, numbers, line breaks, whitespace, or LaTeX formulas.
-2. ABSOLUTELY NO LATEX REWRITING: Do NOT normalize, reformat, or alter ANY LaTeX math formulas, commands (e.g. \\nabla, \\frac, \\|, \\top, \\gamma), delimiters ($...$, $$...$$, \\[...\\]), backslashes, superscripts, subscripts, or equations. Copy every single mathematical symbol and formula EXACTLY as written.
-3. CITATION-ONLY INSERTIONS: ONLY insert bracketed citation handles (e.g. [E001] or [E001, E002]) immediately after the factual claims or equations they support.
-4. VALID HANDLES ONLY: Every inserted citation must strictly correspond to an evidence handle present in the supplied evidence pack. If a statement has no supporting evidence, DO NOT insert a citation handle.
-5. Output each paragraph wrapped in exact xml tags: <paragraph id="X">attributed paragraph text</paragraph> matching the input id.
-6. Do NOT output any preamble, commentary, or markdown fences outside the <paragraph> tags."""
+#: How many times a whole batch's structured-assignment call may be retried
+#: on a JSON-format failure (NOT a prose-mutation retry -- there is no
+#: prose for the model to mutate anymore).
+STRUCTURED_CALL_MAX_ATTEMPTS = 2
 
 
 @dataclass
@@ -188,6 +301,7 @@ class CitationCoverageTelemetry:
     citation_markers_emitted: int = 0
     valid_handles: int = 0
     invalid_handles_rejected: int = 0
+    out_of_scope_handles_rejected: int = 0
     final_bound_citations: int = 0
     uncited_substantive_paragraphs: int = 0
     stage_latency_seconds: float = 0.0
@@ -197,7 +311,27 @@ class CitationCoverageTelemetry:
     number_of_batches: int = 0
     paragraph_details: list[dict] = field(default_factory=list)
 
+    # Failure-TYPE telemetry (section IX): a transport failure must never be
+    # indistinguishable from an honest "the model looked and found no
+    # support" outcome -- they are counted separately here.
+    successful_batches: int = 0
+    transport_timeout_batches: int = 0
+    transport_http_error_batches: int = 0
+    parse_failed_batches: int = 0
+    invalid_assignment_entries_rejected: int = 0
+    unknown_claim_ids_rejected: int = 0
+    semantic_empty_assignments: int = 0
+    batch_records: list[dict] = field(default_factory=list)
+
     def to_dict(self) -> dict:
+        latencies = sorted(r["provider_latency_seconds"] for r in self.batch_records if r.get("provider_latency_seconds") is not None)
+
+        def _pct(p: float) -> float | None:
+            if not latencies:
+                return None
+            idx = min(len(latencies) - 1, int(round(p * (len(latencies) - 1))))
+            return round(latencies[idx], 2)
+
         return {
             "total_paragraphs": self.total_paragraphs,
             "substantive_paragraphs": self.substantive_paragraphs,
@@ -210,6 +344,7 @@ class CitationCoverageTelemetry:
             "citation_markers_emitted": self.citation_markers_emitted,
             "valid_handles": self.valid_handles,
             "invalid_handles_rejected": self.invalid_handles_rejected,
+            "out_of_scope_handles_rejected": self.out_of_scope_handles_rejected,
             "final_bound_citations": self.final_bound_citations,
             "uncited_substantive_paragraphs": self.uncited_substantive_paragraphs,
             "stage_latency_seconds": round(self.stage_latency_seconds, 2),
@@ -218,6 +353,17 @@ class CitationCoverageTelemetry:
             "total_input_tokens_used": self.total_input_tokens_used,
             "number_of_batches": self.number_of_batches,
             "paragraph_details": self.paragraph_details,
+            "successful_batches": self.successful_batches,
+            "transport_timeout_batches": self.transport_timeout_batches,
+            "transport_http_error_batches": self.transport_http_error_batches,
+            "parse_failed_batches": self.parse_failed_batches,
+            "invalid_assignment_entries_rejected": self.invalid_assignment_entries_rejected,
+            "unknown_claim_ids_rejected": self.unknown_claim_ids_rejected,
+            "semantic_empty_assignments": self.semantic_empty_assignments,
+            "batch_latency_p50_seconds": _pct(0.50),
+            "batch_latency_p95_seconds": _pct(0.95),
+            "batch_latency_max_seconds": round(latencies[-1], 2) if latencies else None,
+            "batch_records": self.batch_records,
         }
 
 
@@ -228,96 +374,48 @@ class FullCitationAttributionResult:
     telemetry: CitationCoverageTelemetry
 
 
-async def attribute_single_paragraph(
-    llm: ChatOpenAI,
-    paragraph: str,
-    context_text: str,
-    available_handles: set[str],
-    sem: asyncio.Semaphore,
-) -> tuple[str, bool, bool, int, int, int, list[str]]:
-    """Attribute one paragraph with semaphore concurrency, 60s timeout, 1 diff retry and fail-closed protection."""
-    prompt = f"""Supplied Evidence Pack:
-{context_text}
-
-Paragraph:
-{paragraph}
-
-Insert inline citation handles [E###] into the exact paragraph above without altering any words:"""
-
-    attempts = 1
-    output_tokens = 0
-    input_tokens = 0
-
-    async with sem:
-        # First attempt with 60s timeout
-        resp = None
-        try:
-            resp = await asyncio.wait_for(
-                llm.ainvoke([
-                    ("system", CITATIONS_AGENT_SYSTEM_PROMPT),
-                    ("human", prompt)
-                ]),
-                timeout=60.0
-            )
-        except Exception:
-            await asyncio.sleep(1.0)
-            attempts += 1
-            try:
-                resp = await asyncio.wait_for(
-                    llm.ainvoke([
-                        ("system", CITATIONS_AGENT_SYSTEM_PROMPT),
-                        ("human", prompt)
-                    ]),
-                    timeout=60.0
-                )
-            except Exception:
-                return paragraph, False, False, attempts, 0, 0, []
-
-        usage = getattr(resp, "usage_metadata", {}) or {}
-        attr_text = str(resp.content).strip()
-        output_tokens += usage.get("output_tokens", 0)
-        input_tokens += usage.get("input_tokens", 0)
-
-        # Check diff invariant
-        if strip_citations(paragraph) == strip_citations(attr_text):
-            emitted = _CITATION_TAG_REGEX.findall(attr_text)
-            return attr_text, True, False, attempts, output_tokens, input_tokens, emitted
-
-        # Second attempt (targeted retry) with 60s timeout
-        attempts += 1
-        try:
-            resp2 = await asyncio.wait_for(
-                llm.ainvoke([
-                    ("system", CITATIONS_AGENT_SYSTEM_PROMPT + "\n\nCRITICAL DIFF WARNING (RETRY): Your previous attempt modified protected text, punctuation, or LaTeX formulas! You must perform an EXACT verbatim copy of the input text, preserving every character, symbol, delimiter, and formula byte-for-byte, inserting ONLY [E###] citation tags."),
-                    ("human", prompt)
-                ]),
-                timeout=60.0
-            )
-            attr_text2 = str(resp2.content).strip()
-            usage2 = getattr(resp2, "usage_metadata", {}) or {}
-            output_tokens += usage2.get("output_tokens", 0)
-            input_tokens += usage2.get("input_tokens", 0)
-            if strip_citations(paragraph) == strip_citations(attr_text2):
-                emitted = _CITATION_TAG_REGEX.findall(attr_text2)
-                return attr_text2, False, True, attempts, output_tokens, input_tokens, emitted
-        except Exception:
-            pass
-
-    # Fail closed: return exact original prose
-    return paragraph, False, False, attempts, output_tokens, input_tokens, []
-
-
-def _parse_xml_paragraphs(text: str) -> dict[int, str]:
-    """Extract <paragraph id="X">text</paragraph> from model response robustly."""
+def _parse_structured_assignments(text: str) -> tuple[dict[str, list[str]], int] | tuple[None, int]:
+    """Parse {"assignments": {claim_id: [handles...], ...}} from a model
+    response. Returns (None, 0) on a top-level malformed shape (PARSE_FAILED
+    -- caller retries/fails the whole batch closed). A per-entry malformed
+    shape (e.g. handles not a list) is dropped individually and counted as
+    the second return value (invalid_assignment_entries), NOT a batch-level
+    failure. Never touches/returns prose."""
     clean_text = re.sub(r"^```[a-zA-Z]*\n?", "", text.strip())
     clean_text = re.sub(r"\n?```$", "", clean_text)
-    pattern = re.compile(r'<paragraph\s+id=["\']?(\d+)["\']?>([\s\S]*?)</paragraph>', re.IGNORECASE)
-    results = {}
-    for match in pattern.finditer(clean_text):
-        idx = int(match.group(1))
-        content = match.group(2).strip()
-        results[idx] = content
-    return results
+    try:
+        parsed = json.loads(clean_text)
+        assignments = parsed["assignments"]
+        if not isinstance(assignments, dict):
+            return None, 0
+    except (json.JSONDecodeError, KeyError, TypeError):
+        return None, 0
+
+    cleaned: dict[str, list[str]] = {}
+    invalid_entries = 0
+    for claim_id, handles in assignments.items():
+        if not isinstance(handles, list):
+            invalid_entries += 1
+            continue
+        # Dedupe while preserving order (rule 7: never list a handle twice).
+        cleaned[str(claim_id)] = list(dict.fromkeys(str(h).strip() for h in handles if str(h).strip()))
+    return cleaned, invalid_entries
+
+
+#: Fixed response/read timeout for one Citation batch call. NOT adaptive.
+#: Real-run evidence (2026-08-28, air-pollution corpus, 35s timeout): every
+#: one of 11 failures was TimeoutError, and GoRouter's own usage log showed
+#: those exact requests completing (and being billed) at 34-48s -- the
+#: provider finished the work after the client had already given up and
+#: discarded/paid for it. 120s gives ~2.5x margin over the worst observed
+#: completion (48s) while staying bounded; adaptive per-span timeout is
+#: deliberately deferred (no evidence yet that latency scales predictably
+#: with span count).
+CITATION_BATCH_TIMEOUT_SECONDS = 120.0
+
+TRANSPORT_TIMEOUT = "transport_timeout"
+TRANSPORT_HTTP_ERROR = "transport_http_error"
+PARSE_FAILED = "parse_failed"
 
 
 async def attribute_paragraph_batch(
@@ -326,121 +424,166 @@ async def attribute_paragraph_batch(
     context_text: str,
     available_handles: set[str],
     sem: asyncio.Semaphore,
-) -> tuple[dict[int, tuple[str, str, list[str]]], int, int, int]:
-    """Attribute a batch of paragraphs concurrently.
+    section_id: str | None = None,
+    batch_id: int = 0,
+) -> tuple[dict[int, tuple[str, str, list[str]]], int, int, int, dict]:
+    """Structured claim-level citation assignment for a batch of paragraphs.
+
+    The LLM never sees or reproduces paragraph prose. Each paragraph is sent
+    as FULL_PARAGRAPH (reasoning context only -- pronouns, comparison
+    structure, cross-sentence synthesis) plus its deterministically split
+    claim spans (the actual attribution targets, see
+    ``split_paragraph_into_spans``). The model returns ONLY
+    ``{"assignments": {claim_id: [handles...]}}``; citation markers are then
+    inserted at the spans' stored character offsets
+    (``insert_citations_at_spans``) -- prose byte-exactness is therefore a
+    structural property of this function, not a check the model can fail.
 
     Returns:
         results_map: {block_idx: (attributed_text, status, emitted_handles)}
         provider_attempts: int
         output_tokens_used: int
         input_tokens_used: int
+        batch_record: dict (section IX/XVIII telemetry -- failure type,
+            latency, counts; see keys below)
     """
     attempts = 1
     output_tokens = 0
     input_tokens = 0
-    results_map: dict[int, tuple[str, str, list[str]]] = {}
+    invalid_entries_total = 0
 
-    def _wrap(local_id: int, text: str) -> str:
-        return f'<paragraph id="{local_id}">\n{text}\n</paragraph>'
+    paragraph_spans: dict[int, list[tuple[int, int, str]]] = {}
+    paragraph_payload: list[dict] = []
+    total_claim_count = 0
+    for local_id, (b_idx, p_text) in enumerate(batch_items):
+        spans = split_paragraph_into_spans(p_text)
+        paragraph_spans[b_idx] = spans
+        total_claim_count += len(spans)
+        paragraph_payload.append({
+            "paragraph_id": f"p{local_id}",
+            "full_paragraph": p_text,
+            "claim_spans": [
+                {"claim_id": f"p{local_id}_s{i}", "text": text.strip(), "char_start": start, "char_end": end}
+                for i, (start, end, text) in enumerate(spans)
+            ],
+        })
 
-    def _build_human_prompt(items: list[tuple[int, tuple[int, str]]]) -> str:
-        wrapped = [_wrap(local_id, p_text) for local_id, (_, p_text) in items]
+    def _build_human_prompt(payload: list[dict]) -> str:
         return f"""Supplied Evidence Pack:
 {context_text}
 
-Paragraphs to attribute:
-{chr(10).join(wrapped)}
+Paragraphs (JSON array of {{paragraph_id, full_paragraph (CONTEXT ONLY, never to be reproduced), claim_spans}}):
+{json.dumps(payload, ensure_ascii=False)}
 
-Insert inline citation handles [E###] into each paragraph above and wrap each in its respective <paragraph id="X">...</paragraph> tag. Keep all words, formulas, and characters byte-identical:"""
+Return ONLY the JSON assignments object described in your instructions, with exactly one entry per claim_id across all paragraphs above."""
 
-    indexed_items = list(enumerate(batch_items))  # (local_id, (b_idx, p_text))
-    human_prompt = _build_human_prompt(indexed_items)
-
-    async with sem:
-        resp = None
+    async def _call(payload: list[dict], extra_system: str = "") -> tuple[dict[str, list[str]] | None, int, int, str | None]:
+        started = time.perf_counter()
         try:
             resp = await asyncio.wait_for(
                 llm.ainvoke([
-                    ("system", BATCHED_CITATIONS_AGENT_SYSTEM_PROMPT),
-                    ("human", human_prompt)
+                    ("system", STRUCTURED_CITATION_SYSTEM_PROMPT + extra_system),
+                    ("human", _build_human_prompt(payload)),
                 ]),
-                timeout=35.0
+                timeout=CITATION_BATCH_TIMEOUT_SECONDS,
             )
-        except Exception:
-            resp = None
+        except (asyncio.TimeoutError, TimeoutError):
+            elapsed = time.perf_counter() - started
+            print(f"[Citation Agent] batch {batch_id} call TIMEOUT after {elapsed:.1f}s (limit={CITATION_BATCH_TIMEOUT_SECONDS}s)", flush=True)
+            return None, 0, 0, TRANSPORT_TIMEOUT
+        except Exception as exc:
+            status_code = getattr(getattr(exc, "response", None), "status_code", None)
+            print(
+                f"[Citation Agent] batch {batch_id} call failed: {type(exc).__name__}"
+                f"{f' (HTTP {status_code})' if status_code else ''}: {exc}",
+                flush=True,
+            )
+            return None, 0, 0, TRANSPORT_HTTP_ERROR
+        usage = getattr(resp, "usage_metadata", {}) or {}
+        content = str(resp.content)
+        assignments, n_invalid = _parse_structured_assignments(content)
+        nonlocal invalid_entries_total
+        invalid_entries_total += n_invalid
+        if assignments is None:
+            print(
+                f"[Citation Agent] batch {batch_id} call returned HTTP 200 but content did not "
+                f"parse as {{'assignments': {{...}}}} JSON (len={len(content)}): {content[:300]!r}",
+                flush=True,
+            )
+            return None, usage.get("output_tokens", 0), usage.get("input_tokens", 0), PARSE_FAILED
+        return assignments, usage.get("output_tokens", 0), usage.get("input_tokens", 0), None
 
-        if resp is not None:
-            usage = getattr(resp, "usage_metadata", {}) or {}
-            output_tokens += usage.get("output_tokens", 0)
-            input_tokens += usage.get("input_tokens", 0)
-            parsed = _parse_xml_paragraphs(str(resp.content).strip())
+    t0_batch = time.perf_counter()
+    async with sem:
+        assignments, out_tok, in_tok, failure_type = await _call(paragraph_payload)
+        output_tokens += out_tok
+        input_tokens += in_tok
 
-            all_passed = True
-            for local_id, (b_idx, p_text) in indexed_items:
-                if local_id in parsed and strip_citations(p_text) == strip_citations(parsed[local_id]):
-                    emitted = _CITATION_TAG_REGEX.findall(parsed[local_id])
-                    results_map[b_idx] = (parsed[local_id], "passed_first_attempt", emitted)
-                else:
-                    all_passed = False
-
-            if all_passed:
-                return results_map, attempts, output_tokens, input_tokens
-
-            # TARGETED RETRY: only paragraphs that failed the diff-invariant
-            # check on the first attempt are resent. Paragraphs that already
-            # passed are frozen in results_map and never resent -- this is
-            # the dominant lever on provider_attempts/tokens for batches with
-            # one bad paragraph out of N.
-            failed_items = [(local_id, item) for local_id, item in indexed_items if item[0] not in results_map]
+        if assignments is None and STRUCTURED_CALL_MAX_ATTEMPTS > 1:
             attempts += 1
-            retry_prompt = _build_human_prompt(failed_items)
-            try:
-                resp2 = await asyncio.wait_for(
-                    llm.ainvoke([
-                        ("system", BATCHED_CITATIONS_AGENT_SYSTEM_PROMPT + "\n\nCRITICAL DIFF WARNING (RETRY): Your previous attempt modified protected text, punctuation, or LaTeX formulas! Ensure ALL paragraphs are wrapped in <paragraph id=\"X\"> tags, preserving every character, symbol, delimiter, and formula byte-for-byte, inserting ONLY [E###] tags."),
-                        ("human", retry_prompt)
-                    ]),
-                    timeout=35.0
-                )
-                usage2 = getattr(resp2, "usage_metadata", {}) or {}
-                output_tokens += usage2.get("output_tokens", 0)
-                input_tokens += usage2.get("input_tokens", 0)
-                parsed2 = _parse_xml_paragraphs(str(resp2.content).strip())
-                for local_id, (b_idx, p_text) in failed_items:
-                    if b_idx not in results_map:
-                        if local_id in parsed2 and strip_citations(p_text) == strip_citations(parsed2[local_id]):
-                            emitted = _CITATION_TAG_REGEX.findall(parsed2[local_id])
-                            results_map[b_idx] = (parsed2[local_id], "passed_after_retry", emitted)
-            except Exception:
-                pass
-
-    # Concurrent fallback for any unresolved paragraphs in this batch
-    unresolved_items = [(b_idx, p_text) for local_id, (b_idx, p_text) in enumerate(batch_items) if b_idx not in results_map]
-    if unresolved_items:
-        fallback_tasks = [
-            attribute_single_paragraph(
-                llm=llm,
-                paragraph=p_text,
-                context_text=context_text,
-                available_handles=available_handles,
-                sem=sem,
+            assignments, out_tok, in_tok, failure_type = await _call(
+                paragraph_payload,
+                "\n\nYour previous response was not valid JSON in the required "
+                "{\"assignments\": {...}} shape. Return ONLY that JSON object, nothing else.",
             )
-            for _, p_text in unresolved_items
-        ]
-        fallback_results = await asyncio.gather(*fallback_tasks)
-        for (b_idx, p_text), (p_attr, p_first, p_retry, p_att, p_out_tok, p_in_tok, emitted) in zip(unresolved_items, fallback_results):
-            attempts += p_att
-            output_tokens += p_out_tok
-            input_tokens += p_in_tok
-            if p_first:
-                status = "passed_first_attempt"
-            elif p_retry:
-                status = "passed_after_retry"
-            else:
-                status = "failed_closed_kept_uncited"
-            results_map[b_idx] = (p_attr, status, emitted)
+            output_tokens += out_tok
+            input_tokens += in_tok
+    batch_latency = time.perf_counter() - t0_batch
 
-    return results_map, attempts, output_tokens, input_tokens
+    # A batch-level failure (transport or parse) after retries fails CLOSED
+    # for every paragraph in the batch: every claim gets zero handles, which
+    # insert_citations_at_spans renders as the original paragraph text
+    # completely unchanged -- safe (uncited, never mutated), never hidden
+    # behind a stray citation, and never silently counted as "the model
+    # judged this unsupported" (that is semantic_empty_assignment, a
+    # different, non-failure outcome -- see batch_record below).
+    status = "passed_first_attempt" if assignments is not None and attempts == 1 else (
+        "passed_after_retry" if assignments is not None else "failed_closed_kept_uncited"
+    )
+    batch_succeeded = assignments is not None
+    if assignments is None:
+        assignments = {}
+
+    known_claim_ids = {c["claim_id"] for p in paragraph_payload for c in p["claim_spans"]}
+    unknown_claim_ids = [cid for cid in assignments if cid not in known_claim_ids]
+
+    empty_assignment_count = 0
+    results_map: dict[int, tuple[str, str, list[str]]] = {}
+    for local_id, (b_idx, p_text) in enumerate(batch_items):
+        spans = paragraph_spans[b_idx]
+        handle_lists: list[list[str]] = []
+        emitted_tags: list[str] = []
+        for span_index in range(len(spans)):
+            claim_id = f"p{local_id}_s{span_index}"
+            handles = assignments.get(claim_id, [])  # missing claim_id defaults explicitly to []
+            handle_lists.append(handles)
+            if handles:
+                emitted_tags.append(f"[{', '.join(handles)}]")
+            elif batch_succeeded:
+                empty_assignment_count += 1  # a genuine model judgment of "no support", not a failure
+        attr_text = insert_citations_at_spans(p_text, spans, handle_lists)
+        results_map[b_idx] = (attr_text, status, emitted_tags)
+
+    batch_record = {
+        "batch_id": batch_id,
+        "section_id": section_id,
+        "paragraph_ids": [b_idx for b_idx, _ in batch_items],
+        "paragraph_count": len(batch_items),
+        "claim_count": total_claim_count,
+        "evidence_count": len(available_handles),
+        "input_tokens": input_tokens,
+        "output_tokens": output_tokens,
+        "attempt_number": attempts,
+        "provider_latency_seconds": round(batch_latency, 2),
+        "result_status": status,
+        "failure_type": failure_type if not batch_succeeded else None,
+        "timeout_flag": failure_type == TRANSPORT_TIMEOUT,
+        "invalid_assignment_entries": invalid_entries_total,
+        "unknown_claim_ids_rejected": len(unknown_claim_ids),
+        "semantic_empty_assignments": empty_assignment_count,
+    }
+
+    return results_map, attempts, output_tokens, input_tokens, batch_record
 
 
 async def attribute_all_prose_paragraphs(
@@ -451,6 +594,7 @@ async def attribute_all_prose_paragraphs(
     concurrency: int = 5,
     section_evidence: Mapping[str, Sequence[EvidenceUnit]] | None = None,
     sections: Sequence[tuple[str, str]] | None = None,
+    section_papers_to_compare: Mapping[str, Sequence[str]] | None = None,
 ) -> FullCitationAttributionResult:
     """Attribute all substantive prose paragraphs using concurrent batched mode with concurrent single-paragraph fallback.
 
@@ -483,10 +627,35 @@ async def attribute_all_prose_paragraphs(
         else:
             telemetry.skipped_non_substantive += 1
 
-    # Chunk substantive paragraphs into batches
+    # Chunk substantive paragraphs into batches. When section scoping is
+    # active, group by section FIRST so a batch never straddles a section
+    # boundary -- a plain contiguous chunker would routinely mix 2+ sections
+    # into one batch once batch_size approaches a section's paragraph count,
+    # which forces resolve_batch_evidence_scope to fall back to the full
+    # pack and defeats the whole point of scoping. Without section info this
+    # degrades to the original single contiguous-chunk behavior exactly.
     batches: list[list[tuple[int, str]]] = []
-    for i in range(0, len(substantive_items), batch_size):
-        batches.append(substantive_items[i : i + batch_size])
+    if paragraph_section_ids:
+        groups: list[list[tuple[int, str]]] = []
+        current_group: list[tuple[int, str]] = []
+        current_section: str | None | object = object()  # sentinel, never equal to a real section id
+        for item in substantive_items:
+            b_idx, _ = item
+            sid = paragraph_section_ids.get(b_idx)
+            if sid != current_section:
+                if current_group:
+                    groups.append(current_group)
+                current_group = []
+                current_section = sid
+            current_group.append(item)
+        if current_group:
+            groups.append(current_group)
+        for group in groups:
+            for i in range(0, len(group), batch_size):
+                batches.append(group[i : i + batch_size])
+    else:
+        for i in range(0, len(substantive_items), batch_size):
+            batches.append(substantive_items[i : i + batch_size])
 
     telemetry.number_of_batches = len(batches)
     print(f"  Dispatching {len(substantive_items)} substantive paragraphs in {len(batches)} batches (BatchSize={batch_size}, Concurrency={concurrency})...", flush=True)
@@ -498,7 +667,7 @@ async def attribute_all_prose_paragraphs(
     batch_contexts: list[str] = []
     for batch in batches:
         batch_section_ids = [paragraph_section_ids.get(b_idx) for b_idx, _ in batch]
-        scope_ids = resolve_batch_evidence_scope(batch_section_ids, section_evidence)
+        scope_ids = resolve_batch_evidence_scope(batch_section_ids, section_evidence, section_papers_to_compare)
         if scope_ids is None:
             batch_context_text, batch_handles = full_context_text, global_available_handles
         else:
@@ -514,8 +683,10 @@ async def attribute_all_prose_paragraphs(
             context_text=ctx,
             available_handles=paragraph_scope_handles[b[0][0]],
             sem=sem,
+            section_id=paragraph_section_ids.get(b[0][0]) if paragraph_section_ids else None,
+            batch_id=batch_idx,
         )
-        for b, ctx in zip(batches, batch_contexts)
+        for batch_idx, (b, ctx) in enumerate(zip(batches, batch_contexts))
     ]
 
     batch_results = await asyncio.gather(*batch_tasks)
@@ -523,10 +694,22 @@ async def attribute_all_prose_paragraphs(
     attributed_blocks = list(raw_blocks)
     merged_results: dict[int, tuple[str, str, list[str]]] = {}
 
-    for b_res, attempts, out_tok, in_tok in batch_results:
+    for b_res, attempts, out_tok, in_tok, batch_record in batch_results:
         telemetry.provider_attempts += attempts
         telemetry.total_tokens_used += out_tok
         telemetry.total_input_tokens_used += in_tok
+        telemetry.batch_records.append(batch_record)
+        telemetry.invalid_assignment_entries_rejected += batch_record["invalid_assignment_entries"]
+        telemetry.unknown_claim_ids_rejected += batch_record["unknown_claim_ids_rejected"]
+        telemetry.semantic_empty_assignments += batch_record["semantic_empty_assignments"]
+        if batch_record["failure_type"] is None:
+            telemetry.successful_batches += 1
+        elif batch_record["failure_type"] == TRANSPORT_TIMEOUT:
+            telemetry.transport_timeout_batches += 1
+        elif batch_record["failure_type"] == TRANSPORT_HTTP_ERROR:
+            telemetry.transport_http_error_batches += 1
+        elif batch_record["failure_type"] == PARSE_FAILED:
+            telemetry.parse_failed_batches += 1
         merged_results.update(b_res)
 
     for idx, block in enumerate(raw_blocks):
@@ -555,6 +738,13 @@ async def attribute_all_prose_paragraphs(
                 p_emitted_handles.append(h)
                 if h in allowed_handles:
                     telemetry.valid_handles += 1
+                elif h in global_available_handles:
+                    # Genuinely exists in the evidence pool, but wasn't in
+                    # THIS paragraph's scoped context -- the model was never
+                    # shown it. Tracked separately from a truly-invalid
+                    # (nonexistent) handle so telemetry doesn't silently
+                    # conflate "hallucinated handle" with "scope leak".
+                    telemetry.out_of_scope_handles_rejected += 1
                 else:
                     telemetry.invalid_handles_rejected += 1
 

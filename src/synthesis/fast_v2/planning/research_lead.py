@@ -50,6 +50,7 @@ REQUIREMENTS:
 4. RETRIEVAL QUERIES GROUNDED IN CORPUS: Each section needs 2-3 `retrieval_queries` derived directly from the research question, section theme, and terminology present or supported in the supplied corpus skims. Do NOT generate speculative queries searching for concepts that the corpus skims give no evidence of.
 5. Each section needs: a clear purpose (what intellectual question it answers), a target_words count, and total target_words across all sections must sum to between {min_words} and {max_words}.
 6. Do not hardcode or assume paper identities beyond what is given below.
+7. USER EMPHASIS GUIDANCE (when supplied below): a free-text instruction from the user describing what they want the review to focus on or keep brief. Reflect it in HOW YOU ALLOCATE target_words across sections -- give more words to sections the guidance emphasizes, fewer to ones it says to keep brief -- and in section framing/purpose where relevant. Never let it override rule 2 (STRICT CORPUS GROUNDING): if the guidance asks for something the corpus skims do not support, keep the outline grounded and simply do not add the unsupported material, rather than inventing content to satisfy the request.
 
 Return ONLY a valid JSON object exactly matching this schema:
 {{
@@ -242,9 +243,24 @@ def _parse_outline(data: dict[str, Any], research_question: str) -> LongformOutl
     if not sections:
         raise ValueError("Research Lead response had no usable sections")
 
+    user_question = research_question.strip()
+    if user_question:
+        # A user-supplied research question is authoritative and must never
+        # be silently replaced by whatever the LLM echoed/reworded in its
+        # own "research_question" JSON field.
+        final_question = user_question
+    else:
+        planner_question = str(data.get("research_question") or "").strip()
+        if not planner_question:
+            raise ValueError(
+                "Research Lead response had no usable research_question and "
+                "none was supplied by the caller -- refusing to invent a "
+                "generic fallback topic."
+            )
+        final_question = planner_question
+
     return LongformOutlinePlan(
-        research_question=str(data.get("research_question") or research_question).strip()
-        or research_question,
+        research_question=final_question,
         sections=tuple(sections),
     )
 
@@ -252,16 +268,31 @@ def _parse_outline(data: dict[str, Any], research_question: str) -> LongformOutl
 async def plan_longform_outline(
     llm: ChatOpenAI,
     *,
-    research_question: str,
+    research_question: str | None,
     paper_metadata: Sequence[dict[str, str]] = (),
+    guidance: str | None = None,
     timeout_seconds: float = 75.0,
     max_retries: int = 1,
 ) -> LongformOutlinePlan:
     """One LLM call: research question -> thematic outline + section retrieval plan.
 
+    ``research_question`` may be empty/None, in which case the Planner
+    derives one from the corpus skim in this same call (no second LLM call).
+    A non-empty ``research_question`` is authoritative and is never replaced
+    by whatever the Planner echoes back in its own JSON response -- see
+    :func:`_parse_outline`.
+
+    ``guidance`` is an optional free-text instruction from the user (e.g.
+    "focus on the statistical methodology, keep the intro brief") that
+    steers section word-budget allocation -- see rule 7 of
+    RESEARCH_LEAD_SYSTEM_PROMPT. This is the ONLY lever for section length;
+    there is deliberately no per-section numeric word-count input anywhere
+    upstream of this function.
+
     If planning fails or times out after retries, raises ResearchLeadPlanningError
     to halt pipeline execution cleanly.
     """
+    research_question = (research_question or "").strip()
     papers = [
         {"title": item.get("title", "")[:500], "abstract": item.get("abstract", "")[:3000]}
         for item in paper_metadata
@@ -273,15 +304,77 @@ async def plan_longform_outline(
         min_words=MIN_TOTAL_TARGET_WORDS,
         max_words=MAX_TOTAL_TARGET_WORDS,
     )
+    if research_question:
+        question_block = f"Research Question:\n{research_question}"
+    else:
+        question_block = (
+            "Research Question: none supplied. Derive a specific, comparative "
+            "research question yourself, strictly grounded in the supplied "
+            "papers' corpus skims, and return it as \"research_question\" in "
+            "your JSON response."
+        )
+    guidance = (guidance or "").strip()
+    guidance_block = (
+        f"\n\nUser Emphasis Guidance (see rule 7):\n{guidance}" if guidance else ""
+    )
     user_prompt = (
-        f"Research Question:\n{research_question}\n\n"
+        f"{question_block}\n\n"
         f"Selected papers (title/abstract only):\n{json.dumps(papers, ensure_ascii=False)}"
+        f"{guidance_block}"
     )
-    resp = await ainvoke_with_retry(
-        llm,
-        [("system", system_prompt), ("human", user_prompt)],
-        max_retries=max_retries,
-        timeout_seconds=timeout_seconds,
-    )
-    data = _extract_json_object(str(resp.content))
-    return _parse_outline(data, research_question)
+    messages = [("system", system_prompt), ("human", user_prompt)]
+    total_attempts = 1 + max_retries
+    last_error: Exception | None = None
+
+    for attempt in range(1, total_attempts + 1):
+        # Each call to ainvoke_with_retry(max_retries=0) is a single transport
+        # attempt with its own timeout/logging; this outer loop provides the
+        # actual retry budget (shared across BOTH transport failures and a
+        # malformed/non-JSON response -- previously only transport failures
+        # were retried at all: a response that came back successfully but
+        # wasn't valid JSON propagated a raw ValueError straight to the
+        # caller with no retry and no typed error, surfacing as a bare 500
+        # on /synthesis/plan).
+        try:
+            resp = await ainvoke_with_retry(
+                llm, messages, max_retries=0, timeout_seconds=timeout_seconds,
+            )
+        except ResearchLeadPlanningError as exc:
+            # Transport failure (timeout or provider error) on this attempt.
+            # Must be retried at THIS loop's budget, not swallowed after a
+            # single try -- ainvoke_with_retry(max_retries=0) always raises
+            # after exactly one attempt, so without catching this here the
+            # outer total_attempts budget was silently cut to 1 regardless
+            # of what the caller asked for.
+            last_error = exc
+            if attempt < total_attempts:
+                print(f"[Research Lead] Retrying planning request in 2.0s (transport failure)...", flush=True)
+                await asyncio.sleep(2.0)
+            continue
+
+        try:
+            data = _extract_json_object(str(resp.content))
+        except ValueError as exc:
+            # Malformed/no-JSON response -- a transient LLM formatting slip,
+            # worth retrying (the request itself was fine).
+            last_error = exc
+            print(
+                f"[Research Lead] Attempt {attempt}/{total_attempts} returned an unparsable "
+                f"response ({type(exc).__name__}: {exc}); response preview: {str(resp.content)[:300]!r}",
+                flush=True,
+            )
+            if attempt < total_attempts:
+                print(f"[Research Lead] Retrying planning request in 2.0s (parse failure)...", flush=True)
+                await asyncio.sleep(2.0)
+            continue
+
+        # A ValueError here (e.g. "no research_question available from
+        # either source") is a deterministic input problem, not a transient
+        # LLM formatting glitch -- retrying the same request cannot fix it,
+        # so it propagates immediately, unwrapped, exactly as before this
+        # retry loop existed.
+        return _parse_outline(data, research_question)
+
+    raise ResearchLeadPlanningError(
+        f"Research Lead planning failed after {total_attempts} attempts. Last error: {last_error}"
+    ) from last_error

@@ -1863,6 +1863,11 @@ class SynthesisPlanRequest(BaseModel):
     project_id: uuid.UUID
     paper_ids: list[str]
     research_question: str | None = None
+    # Free-text emphasis instruction (e.g. "focus on the methodology, keep
+    # the intro brief"). The Planner reflects this in target_words
+    # allocation per section -- deliberately the ONLY way to steer section
+    # length; there is no numeric per-section word-count input anywhere.
+    guidance: str | None = None
 
 
 class SynthesisExecuteRequest(BaseModel):
@@ -1924,7 +1929,7 @@ async def plan_synthesis_outline(
     rq = build_general_review_question(request.research_question)
     metadata = [{"title": p.title or "", "abstract": p.abstract or ""} for p in papers]
 
-    outline_plan = await plan_outline(paper_metadata=metadata, research_question=rq)
+    outline_plan = await plan_outline(paper_metadata=metadata, research_question=rq, guidance=request.guidance)
 
     return JSONResponse(
         status_code=200,

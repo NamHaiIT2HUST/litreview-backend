@@ -22,8 +22,11 @@ from dataclasses import dataclass
 from typing import Any, Sequence
 from uuid import UUID
 
-from src.synthesis.fast_v2.citations.anthropic_citations import attribute_all_prose_paragraphs
+from src.synthesis.fast_v2.citations.anthropic_citations import attribute_all_prose_paragraphs, build_paragraph_section_map
 from src.synthesis.fast_v2.citations.finalizer import FinalCitation
+from src.synthesis.fast_v2.citations.unsupported_gate import evaluate_unsupported_claims
+from src.synthesis.fast_v2.citations.verbatim_gate import VERBATIM_RISK, detect_verbatim_risk
+from src.synthesis.fast_v2.citations.verbatim_repair import repair_verbatim_claims
 from src.synthesis.fast_v2.evidence.bank import GroundedEvidenceBank
 from src.synthesis.fast_v2.evidence.models import EvidenceUnit
 from src.synthesis.fast_v2.evidence.retrieval import EvidenceRetriever
@@ -47,6 +50,8 @@ CRITICAL ARCHITECTURAL & GROUNDING RULES:
 3. ADHERE TO THE APPROVED OUTLINE: Follow every section header and purpose exactly in the specified order. Satisfy the target word count per section with dense mathematical explanation, comparative analysis, and comprehensive coverage.
 4. CROSS-PAPER SYNTHESIS: In each section, synthesize and compare the methods across the listed papers. Do NOT write isolated paper-by-paper summaries; contrast formulations, assumptions (convex vs non-convex), stepsize strategies, and convergence properties.
 5. MATHEMATICAL RIGOR: Render all mathematical equations and set definitions clearly using LaTeX syntax ($...$ for inline and $$...$$ for display blocks).
+6. STRICT PER-SECTION EVIDENCE SCOPE: You will see evidence passages for ALL sections in this single prompt, but each section's claims must be supportable ONLY by the specific evidence passages listed under THAT section's own "Evidence Passages" block. This applies even when the SAME paper also has different evidence passages listed under another section -- a paper appearing in another section's evidence block does NOT make that paper's findings from that block available here. Do NOT pull a paper's findings, methodology, limitations, or author claims into a section's prose because you saw them earlier in this prompt under a DIFFERENT section's passages, even if that same paper is also compared in this section. Only the passages physically listed under this section's own block may ground a claim here.
+7. NO VERBATIM OR NEAR-VERBATIM COPYING: Never reproduce a run of 7 or more consecutive words from an evidence passage in your own prose, especially when explaining a paper's methodology, design, or definitions -- express the idea in your own sentence structure and word choice instead of mirroring the source's phrasing. This restriction does NOT apply to exact numbers, statistics, confidence intervals, units, formulas, or technical terms/variable names, which must always be reproduced exactly as given.
 
 Output ONLY the complete Markdown literature review starting directly with the document title (# Title). No preamble, commentary, or conversational filler."""
 
@@ -99,6 +104,7 @@ class SectionScopedSynthesisPipeline:
         selection_policy: EvidenceSelectionPolicy | None = None,
         candidates_per_dimension: int = 30,
         section_candidate_cap: int = 25,
+        per_query_candidate_guarantee: int = 12,
         max_evidence_per_section: int = 8,
         writer_max_tokens: int = 8192,
         artifact_dir: str | None = None,
@@ -112,6 +118,17 @@ class SectionScopedSynthesisPipeline:
         self.selection_policy = selection_policy or EvidenceSelectionPolicy()
         self.candidates_per_dimension = candidates_per_dimension
         self.section_candidate_cap = section_candidate_cap
+        #: Coverage-preserving cross-query fusion -- see
+        #: scratch/audit_claim034_benchmark.py for the benchmark that picked
+        #: 12. A chunk that ranks strongly on only ONE of several section
+        #: subqueries used to get diluted out of the candidate pool by pure
+        #: global RRF (root cause of claim_034's Chu/Liu evidence gap: both
+        #: gold chunks ranked well per-query -- rank 12 and rank 8 -- but
+        #: were pushed to cross-query rank 34/29, past section_candidate_cap,
+        #: before ever reaching the reranker). Guaranteeing each subquery's
+        #: own top-N a slot (independent of global RRF re-sort) fixes this
+        #: without raising section_candidate_cap for every section blindly.
+        self.per_query_candidate_guarantee = per_query_candidate_guarantee
         self.max_evidence_per_section = max_evidence_per_section
         self.writer_max_tokens = writer_max_tokens
         self.artifact_dir = artifact_dir
@@ -157,9 +174,30 @@ class SectionScopedSynthesisPipeline:
                     rrf_scores[unit.evidence_id] = rrf_scores.get(unit.evidence_id, 0.0) + 1.0 / (60 + rank + 1)
                     unit_by_id.setdefault(unit.evidence_id, unit)
 
+            # Coverage-preserving fusion: a candidate that ranks strongly on
+            # only ONE subquery can still be diluted below section_candidate_cap
+            # by pure global RRF once other subqueries contribute zero score
+            # for it. Guarantee each subquery's own top-N a slot regardless of
+            # global RRF order, then fill the remaining budget toward
+            # section_candidate_cap with the next-best globally fused
+            # candidates. Guaranteed slots are never re-cut by the cap, so the
+            # realized pool can exceed section_candidate_cap slightly when
+            # coverage requires it -- see per_query_candidate_guarantee above.
+            guaranteed_ids: set[str] = set()
+            for rank_list in subquery_results:
+                for unit in rank_list[: self.per_query_candidate_guarantee]:
+                    guaranteed_ids.add(unit.evidence_id)
+
+            guaranteed_sorted = sorted(guaranteed_ids, key=lambda eid: rrf_scores[eid], reverse=True)
+            remaining_budget = max(self.section_candidate_cap - len(guaranteed_sorted), 0)
+            fillers = [
+                eid for eid in sorted(rrf_scores, key=lambda eid: rrf_scores[eid], reverse=True)
+                if eid not in guaranteed_ids
+            ][:remaining_budget]
+
             sorted_section_candidates = [
                 unit_by_id[eid].with_scores(retrieval_score=rrf_scores[eid])
-                for eid in sorted(rrf_scores, key=lambda eid: rrf_scores[eid], reverse=True)[:self.section_candidate_cap]
+                for eid in guaranteed_sorted + fillers
             ]
 
             section_raw_pools[sec.id] = sorted_section_candidates
@@ -181,6 +219,17 @@ class SectionScopedSynthesisPipeline:
             requests=rerank_requests,
         )
         timings["rerank_ms"] = round((time.perf_counter() - t0_rerank) * 1000.0, 3)
+
+        # GTE model lifecycle telemetry (duck-typed: only the GTE
+        # CrossEncoderReranker exposes these; IdentityReranker/others don't).
+        service = getattr(self.reranker, "_service", None)
+        rerank_telemetry = {
+            "gte_model_load_ms": getattr(service, "last_load_ms", None),
+            "gte_model_loaded_this_run": getattr(service, "last_call_triggered_load", None),
+            "gte_inference_ms": getattr(self.reranker, "last_inference_ms", None),
+            "gte_forward_call_count": getattr(self.reranker, "last_forward_call_count", None),
+            "gte_batch_size": getattr(self.reranker, "batch_size", None),
+        }
 
         section_contexts: dict[str, list[EvidenceUnit]] = {}
         selected_evidence_set: dict[str, EvidenceUnit] = {}
@@ -378,10 +427,68 @@ class SectionScopedSynthesisPipeline:
             concurrency=self.citation_concurrency,
             section_evidence=section_contexts,
             sections=tuple((sec.id, sec.title) for sec in approved_outline.sections),
+            # Local retrieval, global provenance (claim_034/Chu fix): a
+            # section may cite evidence another section's retrieval
+            # selected, as long as that evidence's paper is in THIS
+            # section's own papers_to_compare -- see resolve_batch_evidence_scope.
+            section_papers_to_compare={sec.id: sec.papers_to_compare for sec in approved_outline.sections},
         )
         cited_text = attribution_result.attributed_markdown
         timings["citation_ms"] = round((time.perf_counter() - t0_cit) * 1000.0, 3)
         print(f"[Citation Agent] Attribution completed in {timings['citation_ms']/1000.0:.2f}s.", flush=True)
+
+        # ── 4b. Finalization: deterministic quality guards ────────────────────
+        # Plain Python functions, not a new pipeline stage or agent -- both
+        # guards are read-only checks over the Writer/Citation output, run
+        # inline here before provenance binding. Neither call an LLM.
+        gate_section_ids = build_paragraph_section_map(
+            draft_markdown.split("\n\n"),
+            tuple((sec.id, sec.title) for sec in approved_outline.sections),
+        )
+
+        # Unsupported-claim check: diagnostic only, non-blocking. Surfaces
+        # claim-level "factual claim with zero evidence handles" telemetry
+        # (the claim_034/Chu pattern -- a paragraph-level citation marker
+        # elsewhere in the same paragraph used to hide this). Not wired to
+        # claim_grounding_status or any pass/fail decision: the
+        # discourse/factual classifier is a simple heuristic with a known
+        # false-positive rate on synthesis sentences, not yet reliable
+        # enough to gate output on.
+        try:
+            unsupported_gate_result = evaluate_unsupported_claims(
+                draft_markdown, cited_text, paragraph_section_ids=gate_section_ids
+            )
+        except Exception as ge:
+            print(f"[Unsupported-Claim Gate] Skipped due to error (diagnostic only, non-fatal): {ge}", flush=True)
+            unsupported_gate_result = None
+
+        # Verbatim-overlap check: same deterministic shape, but conditionally
+        # triggers ONE targeted repair call (never a Writer/Citation rerun)
+        # only when it actually finds near-verbatim prose copying. No risk
+        # found -> no extra LLM call, no extra latency.
+        handle_to_evidence_text = {f"E{idx:03d}": (u.text or "") for idx, u in enumerate(selected_evidence_list, 1)}
+        verbatim_gate_result = None
+        verbatim_repair_result = None
+        try:
+            verbatim_gate_result = detect_verbatim_risk(
+                draft_markdown, cited_text, handle_to_evidence_text, paragraph_section_ids=gate_section_ids
+            )
+            flagged = [r for r in verbatim_gate_result.records if r.status == VERBATIM_RISK]
+            if flagged:
+                t0_repair = time.perf_counter()
+                verbatim_repair_result = await repair_verbatim_claims(
+                    self.citation_llm, draft_markdown, cited_text, flagged, handle_to_evidence_text
+                )
+                cited_text = verbatim_repair_result.repaired_markdown
+                timings["verbatim_repair_ms"] = round((time.perf_counter() - t0_repair) * 1000.0, 3)
+                print(
+                    f"[Verbatim Repair] {verbatim_repair_result.repaired_count}/{len(flagged)} "
+                    f"near-verbatim claims repaired in {timings['verbatim_repair_ms']/1000.0:.2f}s "
+                    f"(unresolved: {verbatim_repair_result.unresolved_claim_ids or 'none'}).",
+                    flush=True,
+                )
+        except Exception as ve:
+            print(f"[Verbatim Gate] Skipped due to error (diagnostic only, non-fatal, no repair applied): {ve}", flush=True)
 
         # ── 5. Deterministic Provenance Binding ──────────────────────────────
         t0_prov = time.perf_counter()
@@ -434,6 +541,15 @@ class SectionScopedSynthesisPipeline:
                         ensure_ascii=False,
                         default=str,
                     )
+                if unsupported_gate_result is not None:
+                    with open(os.path.join(self.artifact_dir, "unsupported_claim_gate.json"), "w", encoding="utf-8") as f:
+                        json.dump(unsupported_gate_result.to_dict(), f, indent=2, ensure_ascii=False)
+                if verbatim_gate_result is not None:
+                    with open(os.path.join(self.artifact_dir, "verbatim_gate.json"), "w", encoding="utf-8") as f:
+                        json.dump(verbatim_gate_result.to_dict(), f, indent=2, ensure_ascii=False)
+                if verbatim_repair_result is not None:
+                    with open(os.path.join(self.artifact_dir, "verbatim_repair.json"), "w", encoding="utf-8") as f:
+                        json.dump(verbatim_repair_result.to_dict(), f, indent=2, ensure_ascii=False)
             except Exception as pe:
                 print(f"[Warning] Failed to persist Citation intermediate artifacts: {pe}", flush=True)
 
@@ -482,5 +598,15 @@ class SectionScopedSynthesisPipeline:
                 "section_contexts_count": {s_id: len(units) for s_id, units in section_contexts.items()},
                 "citation_coverage_telemetry": attribution_result.telemetry.to_dict(),
                 "prose_invariant_passed": attribution_result.overall_diff_passed,
+                "rerank_telemetry": rerank_telemetry,
+                "unsupported_claim_gate_telemetry": (
+                    unsupported_gate_result.to_dict() if unsupported_gate_result is not None else None
+                ),
+                "verbatim_gate_telemetry": (
+                    verbatim_gate_result.to_dict() if verbatim_gate_result is not None else None
+                ),
+                "verbatim_repair_telemetry": (
+                    verbatim_repair_result.to_dict() if verbatim_repair_result is not None else None
+                ),
             },
         )

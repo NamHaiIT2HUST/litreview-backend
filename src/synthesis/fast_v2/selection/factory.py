@@ -43,11 +43,13 @@ def build_reranker(mode: str | None = None) -> EvidenceReranker:
         # src/services/reranker_service.py's singleton, NOT the MiniLM
         # adapter in selection/cross_encoder.py -- the "cross_encoder" mode
         # above stays pinned to MiniLM for the frozen RQ1/RQ2 benchmark.
+        from src.config import get_settings
         from src.synthesis.fast_v2.selection.rerank import (
             CrossEncoderReranker as GTECrossEncoderReranker,
         )
 
-        return GTECrossEncoderReranker()
+        batch_size = getattr(get_settings(), "fast_v2_gte_reranker_batch_size", 32)
+        return GTECrossEncoderReranker(batch_size=batch_size)
 
     raise ValueError(
         f"unknown fast_v2 reranker {mode!r}; expected one of {RERANKER_MODES}. "

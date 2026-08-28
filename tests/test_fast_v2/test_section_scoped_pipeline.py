@@ -88,10 +88,9 @@ async def test_section_scoped_pipeline_run():
 
     mock_citation_llm = MagicMock()
     mock_citation_response = MagicMock()
-    mock_citation_response.content = (
-        '<paragraph id="0">The CQ algorithm is a prominent projection method for split feasibility problems.</paragraph>\n'
-        '<paragraph id="1">Convergence of CQ method is proved for any non-empty solution set. [E001]</paragraph>'
-    )
+    # Structured span-assignment contract: the mock never sees/returns
+    # prose, only a JSON handle assignment per pre-segmented span.
+    mock_citation_response.content = '{"assignments": {"p0_s0": [], "p1_s0": ["E001"]}}'
     mock_citation_llm.ainvoke = AsyncMock(return_value=mock_citation_response)
 
     pipeline = SectionScopedSynthesisPipeline(
