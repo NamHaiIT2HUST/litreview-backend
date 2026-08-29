@@ -149,10 +149,18 @@ export function buildReviewSections(result, workspacePapers) {
         ),
       }));
 
+    const uniqueEvidenceCount = new Set(citations.map((c) => c.evidence_id || c.id)).size;
+    const uniquePaperCount = new Set(citations.map((c) => c.paper_id).filter(Boolean)).size;
+
     return {
       id: `fast-section-${index}`,
       title: block.title,
-      coverage: { status: citations.length ? 'sufficient' : 'partial', reasons: [] },
+      coverage: {
+        status: citations.length ? 'sufficient' : 'partial',
+        reasons: [],
+        evidence_count: uniqueEvidenceCount,
+        paper_count: uniquePaperCount,
+      },
       sentences,
     };
   });
