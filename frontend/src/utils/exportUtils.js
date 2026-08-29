@@ -206,6 +206,72 @@ export const generateClientJSON = (papers, projectInfo = {}, draftText = '') => 
   return JSON.stringify(payload, null, 2);
 };
 
+// Client-side Setup Framework Markdown generator
+export const generateSetupFrameworkMarkdown = (projectData = {}, picoData = null) => {
+  const projName = projectData.name || 'Khung Đề tài Nghiên cứu';
+  const timestamp = new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+
+  const lines = [
+    `# Khung Đề tài Nghiên cứu: ${projName}`,
+    ``,
+    `**Thời gian xuất:** ${timestamp}  `,
+    `**Lĩnh vực nghiên cứu:** ${projectData.research_field || 'Liên ngành / Tổng quát'}  `,
+    `**Khung năm xuất bản:** ${projectData.year_from || 2020} – ${projectData.year_to || 2026}  `,
+    ``,
+    `---`,
+    ``,
+    `## 1. Bài toán / Câu hỏi Nghiên cứu Cốt lõi`,
+    ``,
+    `> ${projectData.research_question || 'Chưa thiết lập câu hỏi cụ thể.'}`,
+    ``,
+    `---`,
+    ``,
+    `## 2. Tiêu chí Sàng lọc PRISMA (Eligibility Criteria)`,
+    ``,
+    `### Tiêu chí Thu nạp (Inclusion Criteria)`,
+  ];
+
+  const includes = Array.isArray(projectData.criteria_include) ? projectData.criteria_include : (projectData.criteria_include ? [projectData.criteria_include] : []);
+  if (includes.length === 0) {
+    lines.push(`- *(Chưa có tiêu chí thu nạp)*`);
+  } else {
+    includes.forEach((item, idx) => lines.push(`${idx + 1}. ✅ ${item}`));
+  }
+
+  lines.push(``, `### Tiêu chí Loại trừ (Exclusion Criteria)`);
+  const excludes = Array.isArray(projectData.criteria_exclude) ? projectData.criteria_exclude : (projectData.criteria_exclude ? [projectData.criteria_exclude] : []);
+  if (excludes.length === 0) {
+    lines.push(`- *(Chưa có tiêu chí loại trừ)*`);
+  } else {
+    excludes.forEach((item, idx) => lines.push(`${idx + 1}. ❌ ${item}`));
+  }
+
+  if (picoData) {
+    lines.push(
+      ``,
+      `---`,
+      ``,
+      `## 3. Khung Phân tích PICO`,
+      ``,
+      `- **[P] Population / Problem (Đối tượng / Bối cảnh):** ${picoData.population || picoData.p || 'N/A'}`,
+      `- **[I] Intervention / Method (Phương pháp / Giải pháp):** ${picoData.intervention || picoData.i || 'N/A'}`,
+      `- **[C] Comparison / Baseline (Đối chứng / So sánh):** ${picoData.comparison || picoData.c || 'N/A'}`,
+      `- **[O] Outcome / Metrics (Kết quả / Tiêu chí đánh giá):** ${picoData.outcome || picoData.o || 'N/A'}`,
+      ``,
+      `### Bộ Từ khóa Học thuật (Search Keywords)`,
+      ``
+    );
+
+    const keywords = picoData.search_keywords || picoData.keywords || [];
+    if (keywords.length > 0) {
+      keywords.forEach(kw => lines.push(`- \`${kw}\``));
+      lines.push(``, `**Chuỗi truy vấn gợi ý (Search Query String):**`, `\`\`\``, keywords.join(' AND '), `\`\`\``);
+    }
+  }
+
+  return lines.join('\n');
+};
+
 // Browser File Downloader
 export const downloadFile = (content, filename, contentType = 'text/plain;charset=utf-8') => {
   const blob = new Blob([content], { type: contentType });
@@ -217,4 +283,30 @@ export const downloadFile = (content, filename, contentType = 'text/plain;charse
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
+};
+
+// Direct Download Helpers
+export const downloadClientBibTeX = (papers, filename = 'citations.bib') => {
+  const content = generateClientBibTeX(papers);
+  downloadFile(content, filename, 'application/x-bibtex;charset=utf-8');
+};
+
+export const downloadClientCSV = (papers, includeAbstract = true, filename = 'literature_papers.csv') => {
+  const content = generateClientCSV(papers, includeAbstract);
+  downloadFile(content, filename, 'text/csv;charset=utf-8');
+};
+
+export const downloadClientMarkdown = (papers, projectInfo = {}, draftText = '', filename = 'literature_review_report.md') => {
+  const content = generateClientMarkdown(papers, projectInfo, draftText);
+  downloadFile(content, filename, 'text/markdown;charset=utf-8');
+};
+
+export const downloadClientJSON = (papers, projectInfo = {}, draftText = '', filename = 'project_dataset.json') => {
+  const content = generateClientJSON(papers, projectInfo, draftText);
+  downloadFile(content, filename, 'application/json;charset=utf-8');
+};
+
+export const downloadSetupFrameworkMarkdown = (projectData = {}, picoData = null, filename = 'research_framework.md') => {
+  const content = generateSetupFrameworkMarkdown(projectData, picoData);
+  downloadFile(content, filename, 'text/markdown;charset=utf-8');
 };

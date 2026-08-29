@@ -260,6 +260,8 @@ function AnalysisHistorySidebar({
 
 // ─── Main Workspace Tab ───────────────────────────────────────────────────────
 export default function WorkspaceTab({
+  activeTab = 'chat',
+  setActiveTab,
   papers = [],
   setPapers,
   selectedPapers = [],
@@ -279,6 +281,15 @@ export default function WorkspaceTab({
   const [selectedPaperIds, setSelectedPaperIds] = useState([]);
   const [deletedPaperIds, setDeletedPaperIds] = useState(new Set());
   const [activeWorkspaceTab, setActiveWorkspaceTab] = useState('chat');
+  const effectiveTab = (activeTab === 'data_analysis' ? 'analyze' : activeTab) || activeWorkspaceTab || 'chat';
+  
+  const handleTabChange = (newTab) => {
+    setActiveWorkspaceTab(newTab);
+    if (setActiveTab) {
+      setActiveTab(newTab === 'analyze' ? 'data_analysis' : newTab);
+    }
+  };
+
   const [isSourcesOpen, setIsSourcesOpen] = useState(true);
   const [isHarnessOpen, setIsHarnessOpen] = useState(false);
   
@@ -647,7 +658,7 @@ export default function WorkspaceTab({
         
         {isSourcesOpen ? (
           <>
-            {activeWorkspaceTab === 'analyze' ? (
+            {effectiveTab === 'analyze' ? (
               <AnalysisHistorySidebar 
                 history={analysisHistory}
                 activeId={activeAnalysisSessionId}
@@ -747,7 +758,7 @@ export default function WorkspaceTab({
               <PanelLeft className="w-4 h-4" />
             </button>
             <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col items-center gap-2">
-              {activeWorkspaceTab === 'analyze' ? (
+              {effectiveTab === 'analyze' ? (
                 <div 
                   className="w-10 h-10 rounded-xl bg-primary-50 dark:bg-primary-900/30 border border-primary-200 dark:border-primary-800 flex flex-col items-center justify-center shrink-0 cursor-pointer hover:bg-primary-100 dark:hover:bg-primary-900/50 transition-colors"
                   title={isVietnamese ? 'Mở Lịch sử phân tích' : 'Open Analysis History'}
@@ -794,49 +805,28 @@ export default function WorkspaceTab({
             {/* ── Workspace Header ── */}
             <div className="flex items-center justify-between px-5 h-14 border-b border-surface-100 dark:border-surface-800 shrink-0 gap-3">
               
-              {/* Left: Brand / Title */}
+              {/* Left: Current Active Mode Indicator */}
               <div className="flex items-center gap-2.5 shrink-0">
                 <div className="w-8 h-8 rounded-xl overflow-hidden shrink-0 shadow-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center justify-center p-0.5">
                   <img src="/AI.png" alt="AI Assistant" className="w-full h-full object-cover rounded-[10px]" />
                 </div>
-                <div className="hidden sm:block">
-                  <span className="font-display font-semibold text-xs text-surface-900 dark:text-white block leading-none">
-                    {t('workspace.ai_assistant')}
+                <div>
+                  <span className="font-display font-bold text-xs text-surface-900 dark:text-white block leading-none">
+                    {effectiveTab === 'chat' && (isVietnamese ? 'Chat & Hỏi đáp Tài liệu' : 'Chat & Document Q&A')}
+                    {effectiveTab === 'synthesis' && (isVietnamese ? 'Tổng quan Tài liệu Học thuật (SLR)' : 'Academic Literature Review (SLR)')}
+                    {effectiveTab === 'analyze' && (isVietnamese ? 'Phân tích Dữ liệu & Ma trận Bằng chứng' : 'Data Analysis & Evidence Matrix')}
                   </span>
-                  <span className="section-label mt-0.5 block">
-                    Workspace Mode
+                  <span className="section-label mt-0.5 block text-[10px] text-surface-400">
+                    {effectiveTab === 'chat' && (isVietnamese ? 'Hỏi đáp tương tác RAG dựa trên các bài báo đã chọn' : 'Interactive RAG Q&A on selected papers')}
+                    {effectiveTab === 'synthesis' && (isVietnamese ? 'Tự động tổng hợp và sinh bài báo cáo nghiên cứu' : 'Automated synthesis and academic report generation')}
+                    {effectiveTab === 'analyze' && (isVietnamese ? 'Phân tích số liệu thống kê và biểu đồ meta-analysis' : 'Statistical dataset exploration and meta-analysis charts')}
                   </span>
                 </div>
               </div>
 
-              {/* Center / Right: The 3 Main Workspace Navigation Tabs */}
+              {/* Right: Mode Actions (Clear chat if in chat mode) */}
               <div className="flex items-center gap-2">
-                <div id="tour-workspace-tabs" className="flex items-center bg-surface-100 dark:bg-surface-800 p-1 rounded-xl border border-surface-200 dark:border-surface-700">
-                  {[
-                    { id: 'chat', label: t('workspace.tab_chat'), Icon: MessageSquare },
-                    { id: 'synthesis', label: t('workspace.tab_synthesis'), Icon: FileText },
-                    { id: 'analyze', label: t('workspace.tab_analyze'), Icon: BarChart2 },
-                  ].map(({ id, label, Icon }) => {
-                    const isActive = activeWorkspaceTab === id;
-                    return (
-                      <button
-                        key={id}
-                        type="button"
-                        onClick={() => setActiveWorkspaceTab(id)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all select-none cursor-pointer ${
-                          isActive
-                            ? 'bg-white dark:bg-surface-700 text-primary-600 dark:text-primary-400 shadow-xs'
-                            : 'text-surface-500 hover:text-surface-800 dark:hover:text-surface-200'
-                        }`}
-                      >
-                        <Icon className="w-3.5 h-3.5" />
-                        <span className="hidden lg:inline">{label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {activeWorkspaceTab === 'chat' && chatMessages && chatMessages.length > 1 && (
+                {effectiveTab === 'chat' && chatMessages && chatMessages.length > 1 && (
                   <button
                     onClick={() => {
                       if (window.confirm(t('workspace.clear_chat_confirm'))) {
@@ -849,47 +839,54 @@ export default function WorkspaceTab({
                         ]);
                       }
                     }}
-                    className="p-2 rounded-xl btn-ghost text-surface-400 hover:text-danger hover:bg-danger-light dark:hover:bg-danger-dark"
+                    className="px-3 py-1.5 rounded-xl btn-ghost text-surface-400 hover:text-danger hover:bg-danger-light dark:hover:bg-danger-dark flex items-center gap-1.5 text-xs font-semibold cursor-pointer"
                     title={t('workspace.clear_chat')}
                   >
                     <Trash2 className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">{isVietnamese ? 'Xóa đoạn chat' : 'Clear Chat'}</span>
                   </button>
                 )}
               </div>
             </div>
             
             <div className="flex-1 min-h-0 flex flex-col relative z-0">
-              {activeWorkspaceTab === 'chat' && (
-                <ChatPanel
-                  workspacePapers={scopedPapers}
-                  selectedSourceIds={selectedPaperIds}
-                  chatMessages={chatMessages}
-                  setChatMessages={setChatMessages}
-                  activeCitation={activeCitation}
-                  setActiveCitation={setActiveCitation}
-                  darkMode={darkMode}
-                />
+              {effectiveTab === 'chat' && (
+                <div id="tour-chat-panel" className="h-full flex flex-col min-h-0">
+                  <ChatPanel
+                    workspacePapers={scopedPapers}
+                    selectedSourceIds={selectedPaperIds}
+                    chatMessages={chatMessages}
+                    setChatMessages={setChatMessages}
+                    activeCitation={activeCitation}
+                    setActiveCitation={setActiveCitation}
+                    darkMode={darkMode}
+                  />
+                </div>
               )}
 
-              {activeWorkspaceTab === 'synthesis' && (
-                <SynthesisPanel
-                  workspacePapers={scopedPapers}
-                  setActiveCitation={setActiveCitation}
-                  darkMode={darkMode}
-                  onSendToChat={handleSendToChat}
-                />
+              {effectiveTab === 'synthesis' && (
+                <div id="tour-synthesis-action" className="h-full flex flex-col min-h-0">
+                  <SynthesisPanel
+                    workspacePapers={scopedPapers}
+                    setActiveCitation={setActiveCitation}
+                    darkMode={darkMode}
+                    onSendToChat={handleSendToChat}
+                  />
+                </div>
               )}
-              {activeWorkspaceTab === 'analyze' && (
-                <DataAnalysisPanel 
-                  workspacePapers={scopedPapers}
-                  darkMode={darkMode}
-                  onSendToChat={handleSendToChat}
-                  activeProject={activeProject}
-                  analysisHistory={analysisHistory}
-                  setAnalysisHistory={setAnalysisHistory}
-                  activeSessionId={activeAnalysisSessionId}
-                  setActiveSessionId={setActiveAnalysisSessionId}
-                />
+              {effectiveTab === 'analyze' && (
+                <div id="tour-data-analysis-panel" className="h-full flex flex-col min-h-0">
+                  <DataAnalysisPanel 
+                    workspacePapers={scopedPapers}
+                    darkMode={darkMode}
+                    onSendToChat={handleSendToChat}
+                    activeProject={activeProject}
+                    analysisHistory={analysisHistory}
+                    setAnalysisHistory={setAnalysisHistory}
+                    activeSessionId={activeAnalysisSessionId}
+                    setActiveSessionId={setActiveAnalysisSessionId}
+                  />
+                </div>
               )}
             </div>
           </div>

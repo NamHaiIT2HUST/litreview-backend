@@ -7,6 +7,7 @@ import {
 import { useLanguage } from '../contexts/LanguageContext';
 import { useDarkMode } from '../contexts/DarkModeContext';
 import { useAuth } from '../contexts/AuthContext';
+import BrandLogo from './common/BrandLogo';
 
 export default function Navbar({ activeTab, setActiveTab }) {
   const { language, setLanguage, t } = useLanguage();
@@ -34,7 +35,6 @@ export default function Navbar({ activeTab, setActiveTab }) {
   }, []);
 
   const userNavItems = [
-    { id: 'overview', label: t('nav.overview'), icon: Home },
     { id: 'setup', label: t('nav.setup'), icon: Settings },
     { id: 'search', label: t('nav.search'), icon: Search },
     { id: 'synthesis', label: t('nav.workspace'), icon: Library },
@@ -62,23 +62,15 @@ export default function Navbar({ activeTab, setActiveTab }) {
         <div className="max-w-[1920px] mx-auto px-4 md:px-6 lg:px-8 h-16 md:h-20 flex items-center justify-between">
           
           {/* Brand */}
-          <div 
-            onClick={() => setActiveTab('overview')}
-            className="flex items-center gap-3 cursor-pointer group select-none relative z-10"
-          >
-            <div className="w-9 h-9 md:w-11 md:h-11 rounded-xl md:rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white font-display font-black text-base md:text-xl flex items-center justify-center shadow-lg shadow-blue-500/30 group-hover:shadow-blue-500/50 group-hover:scale-105 transition-all duration-300">
-              LR
-            </div>
-            <div className="hidden sm:block">
-              <div className="flex items-center gap-2">
-                <h1 className="font-display font-black text-base md:text-lg tracking-tight leading-none text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                  LITREVIEW
-                </h1>
-              </div>
-              <span className="text-[10px] md:text-[11px] font-medium text-slate-500 dark:text-slate-400 tracking-wide whitespace-nowrap">
-                {isEn ? 'Academic Literature Platform' : 'Nền tảng Nghiên cứu & Tổng quan Tài liệu'}
-              </span>
-            </div>
+          <div className="relative z-10">
+            <BrandLogo
+              size="md"
+              withText
+              withTagline
+              isEn={isEn}
+              badgeStyle
+              onClick={() => setActiveTab('overview')}
+            />
           </div>
 
           {/* Center Navigation */}

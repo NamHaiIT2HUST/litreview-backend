@@ -49,15 +49,39 @@ body {
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  width: 100%;
+  min-height: 100vh;
   max-width: 100vw;
   overflow-x: hidden;
-  width: 100%;
+}
+
+.font-brand {
+  font-family: 'Outfit', 'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif;
+}
+
+/* Origami Brand Logo Unified Vibrant Palette & Interactive Hover Glow */
+.logo-origami {
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.06));
+  transition: filter 300ms cubic-bezier(0.34, 1.56, 0.64, 1), transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.group:hover .logo-origami {
+  filter: drop-shadow(0 4px 12px rgba(16, 185, 129, 0.35)) saturate(1.15);
+}
+
+.dark .logo-origami {
+  filter: drop-shadow(0 0 8px rgba(52, 211, 153, 0.42));
+}
+
+.dark .group:hover .logo-origami {
+  filter: drop-shadow(0 0 16px rgba(52, 211, 153, 0.7)) brightness(1.1) saturate(1.2);
 }
 
 #root {
+  width: 100%;
+  min-height: 100vh;
   max-width: 100vw;
   overflow-x: hidden;
-  width: 100%;
 }
 
 /* ─── Custom Scrollbar ───────────────────────────────────────────────────── */

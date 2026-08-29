@@ -201,6 +201,11 @@ export function ProjectProvider({ children }) {
       const keyPrefixes = [
         'litreview_workspace_chat_', 'litreview_papers_', 'litreview_selected_ids_',
         'litreview_selected_papers_', 'litreview_workspace_papers_', 'litreview_workspace_subtab_',
+        // Added for HorizontalNavbar.jsx's "Export Full Package" button, which
+        // reads these 3 keys by the CURRENT project id -- without migrating
+        // them here too, that export silently returns empty papers/setup/PICO
+        // data for any project that gets synced to the backend (id changes).
+        'litreview_search_papers_', 'research_setup_data_', 'slr_pico_data_',
       ];
       keyPrefixes.forEach((prefix) => {
         try {

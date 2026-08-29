@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useDarkMode } from '../../contexts/DarkModeContext';
+import BrandLogo from '../common/BrandLogo';
 
 import member1Img from '../../assets/member1.jpeg';
 import member2Img from '../../assets/member2.jpg';
@@ -468,7 +469,6 @@ const DICTIONARY = {
       agents: 'Quy trình 4 Bước',
       matrix: 'So sánh Bài báo',
       prisma: 'Chuẩn PRISMA',
-      demoProfiles: 'Tài khoản Mẫu',
       faq: 'Hỏi đáp',
       team: 'Đội ngũ',
       acknowledgments: 'Lời cảm ơn',
@@ -480,7 +480,7 @@ const DICTIONARY = {
       title1: 'Tự động hóa Tổng quan Tài liệu',
       titleHighlight: 'Chuẩn Scopus & PRISMA',
       desc: 'Khai phóng hàng trăm giờ đọc thủ công: Tự động định hình PICO, sàng lọc Scopus, trích xuất PDF và dựng ma trận so sánh phương pháp 100% neo trên DOI thực tế.',
-      btnDemo: 'Trải nghiệm Không gian Mẫu',
+      btnStart: 'Bắt đầu Miễn phí',
       btnSimulate: 'Xem Mô phỏng SLR',
       trust1: '100% DOI Thật',
       trust2: 'Chuẩn mực PRISMA',
@@ -543,21 +543,6 @@ const DICTIONARY = {
       s2Num: '02', s2Title: 'Đối chiếu Scopus (Verification)', s2Desc: 'Lọc trùng lặp tự động và xác minh trạng thái chỉ mục Scopus (Q1–Q4).',
       s3Num: '03', s3Title: 'Sàng lọc Tiêu chí (Screening)', s3Desc: 'Chấm điểm độ phù hợp theo tiêu chí Inclusion & Exclusion đã thiết lập.',
       s4Num: '04', s4Title: 'Đưa vào Tổng hợp (Included)', s4Desc: 'Trích xuất toàn văn PDF, nạp vào Ma trận So sánh và Không gian Chat tra cứu.',
-    },
-    demoAccounts: {
-      badge: 'TRẢI NGHIỆM TỨC THÌ',
-      title: 'Đăng nhập Nhanh với Hồ sơ Nghiên cứu Mẫu',
-      desc: 'Không cần tạo tài khoản — chọn 1 trong các hồ sơ có sẵn dữ liệu đề tài thực tế để trải nghiệm ngay:',
-      u1Name: 'TS. Nguyễn Hải',
-      u1Role: 'Senior AI Researcher',
-      u1Inst: 'VinUniversity & VinAI Research',
-      u1Project: '📂 Đề tài: Ứng dụng Deep Learning trong Phân loại Tín hiệu Điện tim ECG (14 bài báo Scopus, 4 khoảng trống đề tài).',
-      u1Btn: 'Đăng nhập với vai trò TS. Nguyễn Hải',
-      u2Name: 'Minh Phạm',
-      u2Role: 'Graduate Student',
-      u2Inst: 'Đại học Bách Khoa Hà Nội (HUST)',
-      u2Project: '📂 Đề tài: Khảo sát Chuỗi Tư duy (Chain-of-Thought) trong LLMs (9 bài báo NeurIPS/ICML, 2 bài tổng hợp).',
-      u2Btn: 'Đăng nhập với vai trò Minh Phạm',
     },
     faq: {
       badge: 'HỎI ĐÁP THƯỜNG GẶP',
@@ -644,7 +629,6 @@ const DICTIONARY = {
       agents: '4-Step Workflow',
       matrix: 'Literature Matrix',
       prisma: 'PRISMA Standard',
-      demoProfiles: 'Demo Profiles',
       faq: 'FAQ',
       team: 'Team',
       acknowledgments: 'Special Thanks',
@@ -656,7 +640,7 @@ const DICTIONARY = {
       title1: 'Automate Literature Reviews',
       titleHighlight: 'PRISMA & Scopus Grounded',
       desc: 'Eliminate hundreds of hours of manual reading: Automate PICO scoping, Scopus screening, PDF extraction, and methodology synthesis matrices — 100% grounded on real DOIs.',
-      btnDemo: 'Explore Demo Workspace',
+      btnStart: 'Start Free',
       btnSimulate: 'Watch Live Simulator',
       trust1: '100% Real DOIs',
       trust2: 'PRISMA Protocol',
@@ -719,21 +703,6 @@ const DICTIONARY = {
       s2Num: '02', s2Title: 'Scopus Verification', s2Desc: 'Automatically filter duplicates and verify Scopus indexing status (Q1–Q4).',
       s3Num: '03', s3Title: 'Criteria Screening', s3Desc: 'Score relevance against established Inclusion & Exclusion criteria.',
       s4Num: '04', s4Title: 'Included in Synthesis', s4Desc: 'Extract full text, populate synthesis matrix, and feed analysis workspace.',
-    },
-    demoAccounts: {
-      badge: 'INSTANT ONBOARDING',
-      title: 'Quick Sign-In with Academic Demo Profiles',
-      desc: 'No registration needed — pick an account pre-populated with real systematic review projects:',
-      u1Name: 'Dr. Nguyen Hai',
-      u1Role: 'Senior AI Researcher',
-      u1Inst: 'VinUniversity & VinAI Research',
-      u1Project: '📂 Active Project: Deep Learning in Cardiac Arrhythmia ECG (14 Scopus papers, 4 research gaps).',
-      u1Btn: 'Sign In as Dr. Nguyen Hai',
-      u2Name: 'Minh Pham',
-      u2Role: 'Graduate Student',
-      u2Inst: 'Hanoi University of Science & Technology (HUST)',
-      u2Project: '📂 Active Project: Chain-of-Thought in LLMs (9 NeurIPS/ICML papers, 2 synthesis drafts).',
-      u2Btn: 'Sign In as Minh Pham',
     },
     faq: {
       badge: 'FREQUENTLY ASKED QUESTIONS',
@@ -825,6 +794,7 @@ export default function PublicLandingPage({ onOpenAuth }) {
   // ── Scroll Tracking ────────────────────────────────────────────────────
   const [scrollY, setScrollY] = useState(0);
   const [activeSection, setActiveSection] = useState('hero');
+  const [navDropdownOpen, setNavDropdownOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -838,7 +808,7 @@ export default function PublicLandingPage({ onOpenAuth }) {
       }
 
       // Determine active section for scrollytelling navigator
-      const sections = ['hero', 'simulator', 'agents', 'matrix', 'prisma', 'demo-accounts', 'faq', 'team', 'acknowledgments'];
+      const sections = ['hero', 'simulator', 'agents', 'matrix', 'prisma', 'faq', 'team', 'acknowledgments'];
       let current = 'hero';
       for (const sId of sections) {
         const el = document.getElementById(sId);
@@ -863,6 +833,7 @@ export default function PublicLandingPage({ onOpenAuth }) {
 
   // ── Autonomous Live Demo Engine ──────────────────────────────────────────
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
+  const [cycleKey, setCycleKey] = useState(0);
   const [cockpitTab, setCockpitTab] = useState('pico');
   const [copiedQuery, setCopiedQuery] = useState(false);
   const [copiedBib, setCopiedBib] = useState(false);
@@ -878,124 +849,38 @@ export default function PublicLandingPage({ onOpenAuth }) {
   const [ragSimActive, setRagSimActive] = useState(false);
   const [autoStatusText, setAutoStatusText] = useState('');
 
-  // Autonomous Cycle Runner
-  const runAutonomousCycle = (topicKey = activeTopicKey) => {
-    const topic = TOPIC_PRESETS[topicKey] || TOPIC_PRESETS.ecg;
+  // Active timers tracker ref to guarantee zero leakage on pause
+  const timersRef = useRef([]);
 
-    // Reset baseline
-    setCockpitTab('pico');
-    setTypedQuery('');
-    setPicoActiveIdx(0);
-    setScreeningRowsShown(0);
-    setScreeningProcessed(false);
-    setMeterValue(0);
-    setMatrixScanIdx(-1);
-    setAutoTooltipCite(false);
-    setRagSimActive(false);
-    setAutoStatusText(
-      language === 'vi'
-        ? '🟢 ĐANG TỰ ĐỘNG CHẠY: [Bước 1/4] Phân rã câu hỏi PICO & tối ưu chuỗi Boolean...'
-        : '🟢 AUTOPLAY: [Step 1/4] Scoping PICO Framework & Synthesizing Boolean...'
-    );
+  const clearAllTimers = () => {
+    timersRef.current.forEach((id) => {
+      clearTimeout(id);
+      clearInterval(id);
+    });
+    timersRef.current = [];
+  };
 
-    // Typing query
-    let charIdx = 0;
-    const typeInterval = setInterval(() => {
-      charIdx++;
-      setTypedQuery(topic.query.slice(0, charIdx));
-      if (charIdx >= topic.query.length) {
-        clearInterval(typeInterval);
-      }
-    }, 16);
+  const safeTimeout = (fn, delay) => {
+    const id = setTimeout(() => {
+      timersRef.current = timersRef.current.filter((t) => t !== id);
+      fn();
+    }, delay);
+    timersRef.current.push(id);
+    return id;
+  };
 
-    // STAGE 1: PICO Cards sequence
-    const t1 = setTimeout(() => setPicoActiveIdx(1), 900);
-    const t2 = setTimeout(() => setPicoActiveIdx(2), 1600);
-    const t3 = setTimeout(() => setPicoActiveIdx(3), 2300);
-    const t4 = setTimeout(() => setPicoActiveIdx(4), 3000);
-    const t5 = setTimeout(() => setPicoActiveIdx(5), 3600);
-
-    // ── STAGE 2: PRISMA Screening (at 4.6s) ──
-    const t6 = setTimeout(() => {
-      setCockpitTab('screening');
-      setAutoStatusText(
-        language === 'vi'
-          ? '🟢 ĐANG TỰ ĐỘNG CHẠY: [Bước 2/4] Sàng lọc PRISMA & đối chiếu Scopus Q1...'
-          : '🟢 AUTOPLAY: [Step 2/4] PRISMA Screening & Scopus Verification...'
-      );
-      setScreeningRowsShown(topic.rows.length);
-    }, 4600);
-
-    const t7 = setTimeout(() => {
-      setScreeningProcessed(true);
-      // Meter animation 0 -> 75%
-      let curM = 0;
-      const mInterval = setInterval(() => {
-        curM += 4;
-        setMeterValue(Math.min(curM, 75));
-        if (curM >= 75) clearInterval(mInterval);
-      }, 20);
-    }, 5800);
-
-    // ── STAGE 3: Methodology Matrix (at 9.2s) ──
-    const t8 = setTimeout(() => {
-      setCockpitTab('matrix');
-      setAutoStatusText(
-        language === 'vi'
-          ? '🟢 ĐANG TỰ ĐỘNG CHẠY: [Bước 3/4] Trích xuất toàn văn PDF vào Ma trận So sánh...'
-          : '🟢 AUTOPLAY: [Step 3/4] Extracting Full-Text PDFs into Methodology Matrix...'
-      );
-      setMatrixScanIdx(0);
-    }, 9200);
-
-    const t9 = setTimeout(() => setMatrixScanIdx(1), 10400);
-    const t10 = setTimeout(() => setMatrixScanIdx(2), 11600);
-    const t11 = setTimeout(() => setMatrixScanIdx(3), 12800);
-
-    // ── STAGE 4: Synthesis & Fact-Checking RAG (at 14.0s) ──
-    const t12 = setTimeout(() => {
-      setCockpitTab('synthesis');
-      setAutoStatusText(
-        language === 'vi'
-          ? '🟢 ĐANG TỰ ĐỘNG CHẠY: [Bước 4/4] Tổng hợp luận điểm & hỏi đáp Fact-Checking RAG...'
-          : '🟢 AUTOPLAY: [Step 4/4] Grounded Evidence Synthesis & RAG Fact-Checking...'
-      );
-    }, 14000);
-
-    // Pop open citation tooltip automatically to showcase verbatim page quote
-    const t13 = setTimeout(() => setAutoTooltipCite(true), 15200);
-    const t14 = setTimeout(() => {
-      setAutoTooltipCite(false);
-      setRagSimActive(true);
-    }, 17500);
-
-    // Cycle repeat
-    const t15 = setTimeout(() => {
-      setAutoStatusText(
-        language === 'vi'
-          ? '✓ Quy trình hoàn tất! Tự động lặp lại quy trình...'
-          : '✓ Full SLR Cycle Complete! Restarting loop...'
-      );
-    }, 19800);
-
-    const t16 = setTimeout(() => {
-      if (isAutoPlaying) {
-        runAutonomousCycle(activeTopicKey);
-      }
-    }, 21500);
-
-    return () => {
-      clearInterval(typeInterval);
-      [t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16].forEach(clearTimeout);
-    };
+  const safeInterval = (fn, delay) => {
+    const id = setInterval(fn, delay);
+    timersRef.current.push(id);
+    return id;
   };
 
   useEffect(() => {
-    if (isAutoPlaying) {
-      const cleanup = runAutonomousCycle(activeTopicKey);
-      return cleanup;
-    } else {
-      // If user paused, ensure current view is complete and readable
+    // Clear any existing timers whenever play state or topic changes
+    clearAllTimers();
+
+    if (!isAutoPlaying) {
+      // When paused: stop all running micro-timers, reveal complete data for currently active tab
       setPicoActiveIdx(5);
       setScreeningRowsShown(activeTopic.rows.length);
       setScreeningProcessed(true);
@@ -1004,21 +889,135 @@ export default function PublicLandingPage({ onOpenAuth }) {
       setRagSimActive(true);
       setAutoStatusText(
         language === 'vi'
-          ? '⏸ Đã tạm dừng tự động. Bạn có thể tự do khám phá hoặc nhấn "▶ Tự động chạy".'
-          : '⏸ Autoplay paused. Feel free to explore or click "▶ Resume Autoplay".'
+          ? '⏸ Đã tạm dừng. Bạn có thể tự do bấm xem các tab hoặc nhấn "▶ Tự động chạy" để tiếp tục.'
+          : '⏸ Autoplay paused. Feel free to explore tabs or click "▶ Play" to resume.'
       );
+      return () => clearAllTimers();
     }
-  }, [isAutoPlaying, activeTopicKey, language]);
+
+    // ── Run Single Clean Autonomous Cycle ──
+    const runCycle = () => {
+      clearAllTimers();
+      const topic = TOPIC_PRESETS[activeTopicKey] || TOPIC_PRESETS.ecg;
+
+      // 0s: Reset baseline for stage 1
+      setCockpitTab('pico');
+      setTypedQuery('');
+      setPicoActiveIdx(0);
+      setScreeningRowsShown(0);
+      setScreeningProcessed(false);
+      setMeterValue(0);
+      setMatrixScanIdx(-1);
+      setAutoTooltipCite(false);
+      setRagSimActive(false);
+      setAutoStatusText(
+        language === 'vi'
+          ? '🟢 ĐANG TỰ ĐỘNG CHẠY: [Bước 1/4] Phân rã câu hỏi PICO & tối ưu chuỗi Boolean...'
+          : '🟢 AUTOPLAY: [Step 1/4] Scoping PICO Framework & Synthesizing Boolean...'
+      );
+
+      // Typing query animation
+      let charIdx = 0;
+      const typeInterval = safeInterval(() => {
+        charIdx++;
+        setTypedQuery(topic.query.slice(0, charIdx));
+        if (charIdx >= topic.query.length) {
+          clearInterval(typeInterval);
+          timersRef.current = timersRef.current.filter((t) => t !== typeInterval);
+        }
+      }, 16);
+
+      // STAGE 1: PICO Cards sequence
+      safeTimeout(() => setPicoActiveIdx(1), 900);
+      safeTimeout(() => setPicoActiveIdx(2), 1600);
+      safeTimeout(() => setPicoActiveIdx(3), 2300);
+      safeTimeout(() => setPicoActiveIdx(4), 3000);
+      safeTimeout(() => setPicoActiveIdx(5), 3600);
+
+      // ── STAGE 2: PRISMA Screening (at 4.6s) ──
+      safeTimeout(() => {
+        setCockpitTab('screening');
+        setAutoStatusText(
+          language === 'vi'
+            ? '🟢 ĐANG TỰ ĐỘNG CHẠY: [Bước 2/4] Sàng lọc PRISMA & đối chiếu Scopus Q1...'
+            : '🟢 AUTOPLAY: [Step 2/4] PRISMA Screening & Scopus Verification...'
+        );
+        setScreeningRowsShown(topic.rows.length);
+      }, 4600);
+
+      safeTimeout(() => {
+        setScreeningProcessed(true);
+        let curM = 0;
+        const mInterval = safeInterval(() => {
+          curM += 4;
+          setMeterValue(Math.min(curM, 75));
+          if (curM >= 75) {
+            clearInterval(mInterval);
+            timersRef.current = timersRef.current.filter((t) => t !== mInterval);
+          }
+        }, 20);
+      }, 5800);
+
+      // ── STAGE 3: Methodology Matrix (at 9.2s) ──
+      safeTimeout(() => {
+        setCockpitTab('matrix');
+        setAutoStatusText(
+          language === 'vi'
+            ? '🟢 ĐANG TỰ ĐỘNG CHẠY: [Bước 3/4] Trích xuất toàn văn PDF vào Ma trận So sánh...'
+            : '🟢 AUTOPLAY: [Step 3/4] Extracting Full-Text PDFs into Methodology Matrix...'
+        );
+        setMatrixScanIdx(0);
+      }, 9200);
+
+      safeTimeout(() => setMatrixScanIdx(1), 10400);
+      safeTimeout(() => setMatrixScanIdx(2), 11600);
+      safeTimeout(() => setMatrixScanIdx(3), 12800);
+
+      // ── STAGE 4: Synthesis & Fact-Checking RAG (at 14.0s) ──
+      safeTimeout(() => {
+        setCockpitTab('synthesis');
+        setAutoStatusText(
+          language === 'vi'
+            ? '🟢 ĐANG TỰ ĐỘNG CHẠY: [Bước 4/4] Tổng hợp luận điểm & hỏi đáp Fact-Checking RAG...'
+            : '🟢 AUTOPLAY: [Step 4/4] Grounded Evidence Synthesis & RAG Fact-Checking...'
+        );
+      }, 14000);
+
+      safeTimeout(() => setAutoTooltipCite(true), 15200);
+      safeTimeout(() => {
+        setAutoTooltipCite(false);
+        setRagSimActive(true);
+      }, 17500);
+
+      // Cycle completion & restart loop
+      safeTimeout(() => {
+        setAutoStatusText(
+          language === 'vi'
+            ? '✓ Quy trình hoàn tất! Tự động lặp lại quy trình...'
+            : '✓ Full SLR Cycle Complete! Restarting loop...'
+        );
+      }, 19800);
+
+      safeTimeout(() => {
+        runCycle();
+      }, 21500);
+    };
+
+    runCycle();
+
+    return () => {
+      clearAllTimers();
+    };
+  }, [isAutoPlaying, activeTopicKey, cycleKey, language]);
 
   const handleSelectTopic = (key) => {
     setActiveTopicKey(key);
-    if (!isAutoPlaying) {
-      setIsAutoPlaying(true);
-    }
+    setCycleKey((c) => c + 1);
   };
 
   const handleSelectTabManual = (tabId) => {
     setIsAutoPlaying(false);
+    clearAllTimers();
     setCockpitTab(tabId);
     setPicoActiveIdx(5);
     setScreeningRowsShown(activeTopic.rows.length);
@@ -1042,10 +1041,9 @@ export default function PublicLandingPage({ onOpenAuth }) {
           { id: 'agents', label: language === 'vi' ? '03 4 Module AI' : '03 4 AI Modules' },
           { id: 'matrix', label: language === 'vi' ? '04 Ma trận So sánh' : '04 Methodology Matrix' },
           { id: 'prisma', label: language === 'vi' ? '05 Chuẩn PRISMA' : '05 PRISMA Protocol' },
-          { id: 'demo-accounts', label: language === 'vi' ? '06 Tài khoản Mẫu' : '06 Demo Profiles' },
-          { id: 'faq', label: language === 'vi' ? '07 Hỏi đáp (FAQ)' : '07 FAQ' },
-          { id: 'team', label: language === 'vi' ? '08 Đội ngũ' : '08 Team' },
-          { id: 'acknowledgments', label: language === 'vi' ? '09 Lời cảm ơn' : '09 Special Thanks' },
+          { id: 'faq', label: language === 'vi' ? '06 Hỏi đáp (FAQ)' : '06 FAQ' },
+          { id: 'team', label: language === 'vi' ? '07 Đội ngũ' : '07 Team' },
+          { id: 'acknowledgments', label: language === 'vi' ? '08 Lời cảm ơn' : '08 Special Thanks' },
         ].map((item) => {
           const isActive = activeSection === item.id;
           return (
@@ -1075,40 +1073,125 @@ export default function PublicLandingPage({ onOpenAuth }) {
 
       {/* ── 1. Top Glassmorphic Navigation Bar (Always Fixed on Scroll) ─── */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-800/80 transition-colors shadow-xs w-full">
-        <div className="w-full max-w-[1680px] mx-auto px-3 sm:px-5 lg:px-6 h-18 sm:h-20 flex items-center justify-between gap-3 relative z-10">
+        <div className="w-full max-w-[1680px] mx-auto px-4 sm:px-6 lg:px-8 h-18 sm:h-20 flex items-center justify-between gap-4 relative z-10">
           
-          {/* Left: Brand + Desktop Nav Links (Dịch trọn bộ sang trái) */}
-          <div className="flex items-center gap-3 xl:gap-4 2xl:gap-7 shrink-0 min-w-0">
-            {/* Brand */}
-            <div className="flex items-center gap-2 sm:gap-2.5 cursor-pointer select-none group shrink-0" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform shrink-0">
-                <BookOpen className="w-4.5 h-4.5 sm:w-5 sm:h-5" />
-              </div>
-              <div>
-                <span className="font-display font-extrabold text-base sm:text-lg text-slate-900 dark:text-white leading-none tracking-tight block">
-                  LitReview
-                </span>
-                <p className="text-[10px] sm:text-[11px] font-semibold text-blue-600 dark:text-blue-400 mt-1 leading-none whitespace-nowrap">
-                  {language === 'vi' ? 'Nền tảng Nghiên cứu & Tổng quan Tài liệu' : 'Academic Literature Review Platform'}
-                </p>
-              </div>
-            </div>
-
-            {/* Desktop Nav Links (Dịch sát logo sang trái) */}
-            <nav className="hidden lg:flex items-center gap-1 xl:gap-1.5 2xl:gap-3 text-xs xl:text-[12px] 2xl:text-[13px] font-bold text-slate-700 dark:text-slate-200 whitespace-nowrap">
-              <a href="#simulator" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1 px-1 xl:px-1.5">{d.nav.simulator}</a>
-              <a href="#agents" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1 px-1 xl:px-1.5">{d.nav.agents}</a>
-              <a href="#matrix" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1 px-1 xl:px-1.5">{d.nav.matrix}</a>
-              <a href="#prisma" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1 px-1 xl:px-1.5">{d.nav.prisma}</a>
-              <a href="#demo-accounts" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1 px-1 xl:px-1.5">{d.nav.demoProfiles}</a>
-              <a href="#faq" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1 px-1 xl:px-1.5">{d.nav.faq}</a>
-              <a href="#team" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1 px-1 xl:px-1.5">{d.nav.team}</a>
-              <a href="#acknowledgments" className="hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all py-1 px-1 xl:px-1.5">{d.nav.acknowledgments}</a>
-            </nav>
+          {/* Left: Brand Logo */}
+          <div className="flex items-center shrink-0">
+            <BrandLogo
+              size="md"
+              withText
+              withTagline
+              isEn={language === 'en'}
+              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            />
           </div>
 
+          {/* Center: Desktop Nav Links (Balanced Centered Pill Container) */}
+          <nav className="hidden lg:flex items-center gap-1 xl:gap-1.5 text-[13px] font-bold text-slate-700 dark:text-slate-200 whitespace-nowrap bg-slate-100/80 dark:bg-slate-800/60 p-1.5 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 shadow-2xs">
+            <a
+              href="#simulator"
+              className={`px-3 py-1.5 rounded-xl transition-all ${activeSection === 'simulator' ? 'text-emerald-600 dark:text-emerald-400 bg-white dark:bg-slate-900 shadow-xs' : 'hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-white/60 dark:hover:bg-slate-700/50'}`}
+            >
+              {d.nav.simulator}
+            </a>
+            <a
+              href="#agents"
+              className={`px-3 py-1.5 rounded-xl transition-all ${activeSection === 'agents' ? 'text-emerald-600 dark:text-emerald-400 bg-white dark:bg-slate-900 shadow-xs' : 'hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-white/60 dark:hover:bg-slate-700/50'}`}
+            >
+              {d.nav.agents}
+            </a>
+            <a
+              href="#prisma"
+              className={`px-3 py-1.5 rounded-xl transition-all ${activeSection === 'prisma' ? 'text-emerald-600 dark:text-emerald-400 bg-white dark:bg-slate-900 shadow-xs' : 'hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-white/60 dark:hover:bg-slate-700/50'}`}
+            >
+              {d.nav.prisma}
+            </a>
+            <a
+              href="#team"
+              className={`px-3 py-1.5 rounded-xl transition-all ${activeSection === 'team' ? 'text-emerald-600 dark:text-emerald-400 bg-white dark:bg-slate-900 shadow-xs' : 'hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-white/60 dark:hover:bg-slate-700/50'}`}
+            >
+              {d.nav.team}
+            </a>
+
+            {/* "Khám phá / Explore" Dropdown */}
+            <div
+              className="relative"
+              onMouseEnter={() => setNavDropdownOpen(true)}
+              onMouseLeave={() => setNavDropdownOpen(false)}
+            >
+              <button
+                type="button"
+                onClick={() => setNavDropdownOpen(!navDropdownOpen)}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-xl transition-all cursor-pointer ${navDropdownOpen || ['matrix', 'faq', 'acknowledgments'].includes(activeSection) ? 'text-emerald-600 dark:text-emerald-400 bg-white dark:bg-slate-900 shadow-xs' : 'hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-white/60 dark:hover:bg-slate-700/50'}`}
+              >
+                <span>{language === 'vi' ? 'Khám phá' : 'Explore'}</span>
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${navDropdownOpen ? 'rotate-180 text-emerald-500' : 'text-slate-400'}`} />
+              </button>
+
+              {/* 100% Solid Opaque Dropdown Card */}
+              <div
+                className={`absolute top-full left-1/2 -translate-x-1/2 mt-2 w-72 p-2 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-2xl ring-1 ring-black/5 dark:ring-white/10 transition-all duration-200 z-[100] ${navDropdownOpen ? 'opacity-100 translate-y-0 pointer-events-auto visible' : 'opacity-0 -translate-y-2 pointer-events-none invisible'}`}
+                style={{ backgroundColor: darkMode ? '#0F172A' : '#FFFFFF' }}
+              >
+                <a
+                  href="#matrix"
+                  onClick={() => setNavDropdownOpen(false)}
+                  className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-colors group"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-blue-500/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                    <Table className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                      {d.nav.matrix}
+                    </p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 font-normal">
+                      {language === 'vi' ? 'Ma trận so sánh bài báo' : 'Paper synthesis matrix'}
+                    </p>
+                  </div>
+                </a>
+
+                <a
+                  href="#faq"
+                  onClick={() => setNavDropdownOpen(false)}
+                  className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-colors group"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                    <HelpCircle className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+                      {d.nav.faq}
+                    </p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 font-normal">
+                      {language === 'vi' ? 'Câu hỏi thường gặp' : 'Frequently asked questions'}
+                    </p>
+                  </div>
+                </a>
+
+                <a
+                  href="#acknowledgments"
+                  onClick={() => setNavDropdownOpen(false)}
+                  className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-colors group"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                    <Award className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
+                      {d.nav.acknowledgments}
+                    </p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 font-normal">
+                      {language === 'vi' ? 'Tri ân VinUni & Cố vấn' : 'Gratitude to VinUni & Mentors'}
+                    </p>
+                  </div>
+                </a>
+              </div>
+            </div>
+          </nav>
+
           {/* Right: Controls & Actions (Đầy đủ không gian rộng rãi ở góc phải) */}
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 ml-auto">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             
             {/* Language Switch */}
             <button
@@ -1129,20 +1212,12 @@ export default function PublicLandingPage({ onOpenAuth }) {
               {darkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-blue-600" />}
             </button>
 
-            {/* Auth Buttons */}
+            {/* Auth Button (Sign In / Đăng nhập) */}
             <button
               onClick={() => onOpenAuth('login')}
-              className="btn btn-secondary px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-bold cursor-pointer shrink-0 whitespace-nowrap"
+              className="btn btn-primary px-3.5 sm:px-4.5 py-1.5 sm:py-2 text-xs sm:text-sm font-bold shadow-md shadow-blue-500/20 inline-flex items-center gap-1.5 cursor-pointer hover:scale-105 transition-all shrink-0 whitespace-nowrap"
             >
-              {d.nav.login}
-            </button>
-
-            <button
-              onClick={() => onOpenAuth('demo')}
-              className="btn btn-primary px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-bold shadow-md shadow-blue-500/20 inline-flex items-center gap-1.5 cursor-pointer hover:scale-105 transition-all shrink-0 whitespace-nowrap"
-            >
-              <BookOpen className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span>{d.nav.startFree}</span>
+              <span>{d.nav.login}</span>
             </button>
           </div>
 
@@ -1151,12 +1226,12 @@ export default function PublicLandingPage({ onOpenAuth }) {
 
       {/* ── 2. Full-Screen Majestic Two-Column Split Hero Section ─────── */}
       <section id="hero" className="relative overflow-hidden min-h-[calc(100vh-4rem)] flex flex-col justify-between pt-24 sm:pt-28 pb-8 border-b border-surface-200/80 dark:border-surface-800/80 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 xl:pr-24 2xl:pr-28 w-full flex-1 flex items-center my-auto">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex-1 flex items-center my-auto">
           
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center w-full py-6">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 xl:gap-12 items-center w-full py-6">
             
             {/* Left Column: Prestigious Value Proposition */}
-            <ScrollReveal variant="left" className="lg:col-span-7 space-y-6 text-left" delay={50}>
+            <ScrollReveal variant="left" className="lg:col-span-7 xl:col-span-7 space-y-6 text-left" delay={50}>
               
               {/* Badge */}
               <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 dark:bg-blue-950/70 border border-blue-200 dark:border-blue-800/80 shadow-xs backdrop-blur-md">
@@ -1167,9 +1242,9 @@ export default function PublicLandingPage({ onOpenAuth }) {
               </div>
 
               {/* Headline */}
-              <h1 className="font-display font-extrabold text-3xl sm:text-4xl lg:text-[40px] xl:text-[45px] text-slate-900 dark:text-white tracking-tight leading-[1.32] space-y-2">
-                <span className="block">{d.hero.title1}</span>
-                <span className="block text-shimmer gradient-text pb-1">
+              <h1 className="font-display font-extrabold text-3xl sm:text-4xl lg:text-[36px] xl:text-[42px] text-slate-900 dark:text-white tracking-tight leading-[1.22] space-y-1.5 sm:space-y-2">
+                <span className="block whitespace-normal xl:whitespace-nowrap">{d.hero.title1}</span>
+                <span className="inline-block gradient-text pt-1 pb-1">
                   {d.hero.titleHighlight}
                 </span>
               </h1>
@@ -1182,11 +1257,11 @@ export default function PublicLandingPage({ onOpenAuth }) {
               {/* Action Buttons */}
               <div className="flex flex-wrap items-center gap-3.5 pt-2">
                 <button
-                  onClick={() => onOpenAuth('demo')}
+                  onClick={() => onOpenAuth('register')}
                   className="btn btn-primary btn-lg shadow-primary-md hover:scale-105 transition-all cursor-pointer font-bold"
                 >
                   <BookOpen className="w-4 h-4" />
-                  <span>{d.hero.btnDemo}</span>
+                  <span>{d.hero.btnStart}</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
                 
@@ -1357,7 +1432,7 @@ export default function PublicLandingPage({ onOpenAuth }) {
                           ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300 border border-amber-300 dark:border-amber-800'
                           : 'bg-emerald-600 text-white shadow-xs'
                       }`}
-                      title={isAutoPlaying ? 'Tạm dừng chạy tự động' : 'Tiếp tục chạy tự động'}
+                      title={isAutoPlaying ? (language === 'vi' ? 'Tạm dừng chạy tự động' : 'Pause autoplay') : (language === 'vi' ? 'Tiếp tục chạy tự động' : 'Resume autoplay')}
                     >
                       {isAutoPlaying ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
                       <span>{isAutoPlaying ? (language === 'vi' ? 'Tạm dừng' : 'Pause') : (language === 'vi' ? 'Tự động chạy' : 'Play')}</span>
@@ -1365,10 +1440,10 @@ export default function PublicLandingPage({ onOpenAuth }) {
                     <button
                       onClick={() => {
                         setIsAutoPlaying(true);
-                        runAutonomousCycle(activeTopicKey);
+                        setCycleKey((c) => c + 1);
                       }}
                       className="p-1 rounded-lg border border-surface-200 dark:border-surface-700 hover:bg-surface-100 dark:hover:bg-surface-800 text-surface-600 dark:text-surface-300 transition-colors cursor-pointer"
-                      title="Chạy lại từ đầu"
+                      title={language === 'vi' ? 'Chạy lại từ đầu' : 'Restart simulation'}
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
                     </button>
@@ -1868,14 +1943,14 @@ export default function PublicLandingPage({ onOpenAuth }) {
                           </button>
 
                           <button
-                            onClick={() => onOpenAuth('demo')}
+                            onClick={() => onOpenAuth('login')}
                             className="px-2.5 py-1 rounded bg-white dark:bg-surface-700 hover:bg-surface-100 dark:hover:bg-surface-600 border border-surface-200 dark:border-surface-600 text-xs font-mono flex items-center gap-1 transition-all cursor-pointer"
                           >
                             <span>CSV Table</span>
                           </button>
 
                           <button
-                            onClick={() => onOpenAuth('demo')}
+                            onClick={() => onOpenAuth('login')}
                             className="px-2.5 py-1 rounded bg-white dark:bg-surface-700 hover:bg-surface-100 dark:hover:bg-surface-600 border border-surface-200 dark:border-surface-600 text-xs font-mono flex items-center gap-1 transition-all cursor-pointer"
                           >
                             <span>Markdown (.md)</span>
@@ -1883,7 +1958,7 @@ export default function PublicLandingPage({ onOpenAuth }) {
                         </div>
 
                         <button
-                          onClick={() => onOpenAuth('demo')}
+                          onClick={() => onOpenAuth('login')}
                           className="btn btn-primary btn-sm shadow-primary-sm cursor-pointer ml-auto"
                         >
                           <Sparkles className="w-3.5 h-3.5" />
@@ -2085,88 +2160,7 @@ export default function PublicLandingPage({ onOpenAuth }) {
         </div>
       </section>
 
-      {/* ── 7. 1-Click Interactive Demo Accounts ───────────────────────── */}
-      <section id="demo-accounts" className="py-20 bg-surface-100/60 dark:bg-surface-900/40 border-y border-surface-200 dark:border-surface-800 relative z-10 morph-section-bridge">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
-          
-          <ScrollReveal variant="morph" className="text-center space-y-2">
-            <span className="section-label block">{d.demoAccounts.badge}</span>
-            <h2 className="font-display font-bold text-2xl sm:text-3xl text-surface-900 dark:text-white">
-              <span className="text-shimmer">{d.demoAccounts.title}</span>
-            </h2>
-            <p className="text-xs sm:text-sm text-surface-500 max-w-2xl mx-auto">
-              {d.demoAccounts.desc}
-            </p>
-          </ScrollReveal>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            
-            {/* TS. Nguyen Hai */}
-            <ScrollReveal variant="left" delay={100}>
-              
-                <div className="card p-6 flex flex-col justify-between space-y-4 hover:border-primary-500 hover:shadow-xl transition-all scrolly-card">
-                  <div className="flex items-start gap-3.5">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-600 to-indigo-700 text-white font-bold flex items-center justify-center text-base shadow-primary-sm shrink-0">
-                      NH
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-bold text-sm text-surface-900 dark:text-white">{d.demoAccounts.u1Name}</h3>
-                        <span className="badge badge-primary text-[10px]">{d.demoAccounts.u1Role}</span>
-                      </div>
-                      <p className="text-xs text-surface-500 mt-0.5">{d.demoAccounts.u1Inst}</p>
-                      <p className="text-xs text-surface-700 dark:text-surface-300 mt-2 bg-surface-50 dark:bg-surface-800 p-2.5 rounded-lg border border-surface-200 dark:border-surface-700">
-                        {d.demoAccounts.u1Project}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => onOpenAuth('demo')}
-                    className="btn btn-primary btn-sm w-full shadow-primary-sm cursor-pointer"
-                  >
-                    <span>{d.demoAccounts.u1Btn}</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              
-            </ScrollReveal>
-
-            {/* Minh Pham */}
-            <ScrollReveal variant="right" delay={200}>
-              
-                <div className="card p-6 flex flex-col justify-between space-y-4 hover:border-primary-500 hover:shadow-xl transition-all scrolly-card">
-                  <div className="flex items-start gap-3.5">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-600 to-primary-700 text-white font-bold flex items-center justify-center text-base shadow-sm shrink-0">
-                      MP
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-bold text-sm text-surface-900 dark:text-white">{d.demoAccounts.u2Name}</h3>
-                        <span className="badge badge-success text-[10px]">{d.demoAccounts.u2Role}</span>
-                      </div>
-                      <p className="text-xs text-surface-500 mt-0.5">{d.demoAccounts.u2Inst}</p>
-                      <p className="text-xs text-surface-700 dark:text-surface-300 mt-2 bg-surface-50 dark:bg-surface-800 p-2.5 rounded-lg border border-surface-200 dark:border-surface-700">
-                        {d.demoAccounts.u2Project}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => onOpenAuth('demo')}
-                    className="btn btn-secondary btn-sm w-full cursor-pointer"
-                  >
-                    <span>{d.demoAccounts.u2Btn}</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              
-            </ScrollReveal>
-
-          </div>
-
-        </div>
-      </section>
-
-      {/* ── 8. FAQ Accordion ───────────────────────────────────────────── */}
+      {/* ── 7. FAQ Accordion ───────────────────────────────────────────── */}
       <section id="faq" className="py-20 max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 relative z-10 morph-section-bridge">
         <ScrollReveal variant="morph" className="text-center space-y-2">
           <span className="section-label block">{d.faq.badge}</span>
@@ -2206,7 +2200,7 @@ export default function PublicLandingPage({ onOpenAuth }) {
         </div>
       </section>
 
-      {/* ── 9. Product Development Team ─────────────────────────────────── */}
+      {/* ── 8. Product Development Team ─────────────────────────────────── */}
       <section id="team" className="py-20 bg-surface-100/60 dark:bg-surface-900/40 border-y border-surface-200 dark:border-surface-800 relative z-10 morph-section-bridge">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
           
@@ -2280,7 +2274,7 @@ export default function PublicLandingPage({ onOpenAuth }) {
         </div>
       </section>
 
-      {/* ── 10. Special Acknowledgments & Gratitude ──────────────────────── */}
+      {/* ── 9. Special Acknowledgments & Gratitude ──────────────────────── */}
       <section id="acknowledgments" className="py-20 bg-gradient-to-b from-transparent via-primary-500/5 to-transparent relative z-10 morph-section-bridge">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
           
@@ -2341,7 +2335,7 @@ export default function PublicLandingPage({ onOpenAuth }) {
         </div>
       </section>
 
-      {/* ── 9. Final CTA ───────────────────────────────────────────────── */}
+      {/* ── 10. Final CTA ───────────────────────────────────────────────── */}
       <section className="py-24 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6 relative z-10 morph-section-bridge">
         <ScrollReveal variant="zoom" className="space-y-4">
           <h2 className="font-display font-bold text-3xl sm:text-4xl text-surface-900 dark:text-white max-w-2xl mx-auto leading-tight">
@@ -2352,8 +2346,8 @@ export default function PublicLandingPage({ onOpenAuth }) {
           </p>
           <div className="pt-3">
             <button
-              onClick={() => onOpenAuth('demo')}
-              className="btn btn-primary btn-lg shadow-primary-md hover:scale-105 transition-transform cursor-pointer"
+              onClick={() => onOpenAuth('register')}
+              className="btn btn-primary btn-lg shadow-primary-md hover:scale-105 transition-transform cursor-pointer font-bold"
             >
               <span>{d.final.btn}</span>
               <ArrowRight className="w-4 h-4" />
@@ -2366,7 +2360,7 @@ export default function PublicLandingPage({ onOpenAuth }) {
       <footer className="py-8 border-t border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 relative z-10">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-surface-400">
           <div className="flex items-center gap-2">
-            <BookOpen className="w-4 h-4 text-primary-600" />
+            <BrandLogo size="xs" />
             <span className="font-bold text-surface-700 dark:text-surface-300">LitReview AI</span>
             <span>— {d.final.footerTagline}</span>
           </div>

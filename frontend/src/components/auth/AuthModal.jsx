@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { 
-  X, BookOpen, User, Mail, Lock, Building, 
-  ArrowRight, ArrowLeft, ShieldCheck, Check, Eye, EyeOff, 
+  X, User, Mail, Lock, Building, 
+  ArrowRight, ArrowLeft, Eye, EyeOff, 
   ChevronDown, AlertCircle, CheckCircle2
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
+import BrandLogo from '../common/BrandLogo';
 
 const AUTH_TEXT = {
   vi: {
@@ -24,7 +25,7 @@ const AUTH_TEXT = {
     emailPlaceholder: 'name@university.edu.vn',
     passwordLabel: 'Mật khẩu',
     passwordPlaceholder: '••••••••',
-    passwordCreatePlaceholder: 'Tối thiểu 8 ký tự',
+    passwordCreatePlaceholder: 'Tối thiểu 6 ký tự',
     confirmPasswordLabel: 'Xác nhận mật khẩu',
     confirmPasswordPlaceholder: 'Nhập lại mật khẩu',
     rememberMe: 'Ghi nhớ đăng nhập',
@@ -44,14 +45,11 @@ const AUTH_TEXT = {
     roleLabel: 'Vai trò học thuật',
     newToPlatform: 'Chưa có tài khoản?',
     alreadyHaveAccount: 'Đã có tài khoản?',
-    tryDemoBtn: 'Dùng thử tài khoản nghiên cứu mẫu →',
-    demoTitle: 'Chọn tài khoản nghiên cứu mẫu',
-    demoDesc: 'Trải nghiệm ngay toàn bộ quy trình tổng quan tài liệu, sàng lọc PRISMA và phân tích ma trận:',
     errEmail: 'Vui lòng nhập email học thuật.',
     errPassword: 'Vui lòng nhập mật khẩu.',
     errFields: 'Vui lòng điền đầy đủ họ tên và email.',
     errPasswordMatch: 'Mật khẩu xác nhận không khớp.',
-    errPasswordLength: 'Mật khẩu phải có ít nhất 8 ký tự.',
+    errPasswordLength: 'Mật khẩu phải có ít nhất 6 ký tự.',
   },
   en: {
     title: 'LitReview',
@@ -69,7 +67,7 @@ const AUTH_TEXT = {
     emailPlaceholder: 'name@university.edu',
     passwordLabel: 'Password',
     passwordPlaceholder: '••••••••',
-    passwordCreatePlaceholder: 'At least 8 characters',
+    passwordCreatePlaceholder: 'At least 6 characters',
     confirmPasswordLabel: 'Confirm password',
     confirmPasswordPlaceholder: 'Re-enter your password',
     rememberMe: 'Remember me',
@@ -89,14 +87,11 @@ const AUTH_TEXT = {
     roleLabel: 'Academic role',
     newToPlatform: 'New to LitReview?',
     alreadyHaveAccount: 'Already have an account?',
-    tryDemoBtn: 'Try a demo workspace profile →',
-    demoTitle: 'Choose a Demo Researcher Profile',
-    demoDesc: 'Experience the full literature review, PRISMA screening, and methodology matrix pipeline:',
     errEmail: 'Please enter your academic email.',
     errPassword: 'Please enter your password.',
     errFields: 'Please fill in your name and email.',
     errPasswordMatch: 'Passwords do not match.',
-    errPasswordLength: 'Password must be at least 8 characters.',
+    errPasswordLength: 'Password must be at least 6 characters.',
   }
 };
 
@@ -124,11 +119,11 @@ function GoogleIcon({ className = 'w-4 h-4' }) {
 }
 
 export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }) {
-  const { login, loginWithGoogle, loginDemo, demoAccounts, resetPassword, register } = useAuth();
+  const { login, loginWithGoogle, resetPassword, register } = useAuth();
   const { language } = useLanguage();
   const t = AUTH_TEXT[language] || AUTH_TEXT.vi;
 
-  const [mode, setMode] = useState(defaultMode === 'demo' ? 'login' : defaultMode); // 'login' | 'register' | 'forgot'
+  const [mode, setMode] = useState(defaultMode === 'register' ? 'register' : 'login'); // 'login' | 'register' | 'forgot'
 
   // Form Fields
   const [email, setEmail] = useState('');
@@ -172,22 +167,6 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }) {
     }
   };
 
-  const handleDemoSelect = async (account) => {
-    setError('');
-    setLoading(true);
-    try {
-      // Performs a genuine login against a seeded account, so the session that
-      // results is authorised like any other. Failures surface: a demo profile
-      // that cannot sign in means the backend has not seeded it.
-      await loginDemo(account);
-      onClose();
-    } catch (err) {
-      setError(err?.message || 'Không đăng nhập được tài khoản mẫu.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleGoogleSignIn = async () => {
     setError('');
     setLoading(true);
@@ -209,7 +188,7 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }) {
       return;
     }
     if (password.length < 6) {
-      setError(language === 'vi' ? 'Mật khẩu phải có ít nhất 6 ký tự.' : 'Password must be at least 6 characters.');
+      setError(t.errPasswordLength);
       return;
     }
     if (password !== confirmPassword) {
@@ -244,7 +223,6 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }) {
     setMode(newMode);
     setError('');
     setResetSent(false);
-    setShowDemoDrawer(false);
   };
 
   return (
@@ -254,9 +232,7 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }) {
         {/* ── 1. Clean Header ─────────────────────────────────────────── */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-xs">
-              <BookOpen className="w-4 h-4" />
-            </div>
+            <BrandLogo size="md" />
             <div>
               <span className="font-display font-extrabold text-sm text-slate-900 dark:text-white leading-none block">
                 {t.title}
@@ -335,7 +311,7 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }) {
                   <button
                     type="button"
                     onClick={() => switchMode('login')}
-                    className="btn btn-secondary btn-sm w-full cursor-pointer"
+                    className="btn btn-secondary btn-sm w-full cursor-pointer font-bold"
                   >
                     <span>{t.backToSignIn}</span>
                   </button>
@@ -384,44 +360,6 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }) {
           ) : mode === 'login' ? (
             /* ── SIGN IN VIEW ── */
             <div className="space-y-4">
-
-              {/* Demo profiles. Rendered only when the backend offers them,
-                  which it does in development only. */}
-              {demoAccounts.length > 0 && (
-                <div className="space-y-2.5">
-                  <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                    {t.demoTitle}
-                  </p>
-                  {demoAccounts.map(account => (
-                    <button
-                      key={account.username}
-                      type="button"
-                      onClick={() => handleDemoSelect(account)}
-                      disabled={loading}
-                      className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50/20 dark:hover:bg-blue-950/30 transition-all flex items-center justify-between text-left group cursor-pointer disabled:opacity-50"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-bold flex items-center justify-center text-xs shadow-xs shrink-0">
-                          {account.avatar}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-bold text-xs text-slate-900 dark:text-white truncate">{account.name}</p>
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
-                            {account.role} • {account.institution}
-                          </p>
-                        </div>
-                      </div>
-                      <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all shrink-0 ml-2" />
-                    </button>
-                  ))}
-                  <div className="relative flex items-center justify-center pt-1">
-                    <div className="border-t border-slate-200 dark:border-slate-800 w-full" />
-                    <span className="bg-white dark:bg-slate-900 px-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider relative">
-                      {t.orEmail}
-                    </span>
-                  </div>
-                </div>
-              )}
 
               {/* Google Sign-in Button */}
               <button
@@ -517,28 +455,16 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }) {
                 </button>
               </form>
 
-              {/* Secondary Navigation & Demo Shortcut */}
-              <div className="space-y-2.5 pt-3 text-center text-xs text-slate-500 dark:text-slate-400 border-t border-slate-100 dark:border-slate-800">
-                <p>
-                  <span>{t.newToPlatform} </span>
-                  <button
-                    type="button"
-                    onClick={() => switchMode('register')}
-                    className="font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer ml-1"
-                  >
-                    {t.tabRegister}
-                  </button>
-                </p>
-
-                <div>
-                  <button
-                    type="button"
-                    onClick={() => setShowDemoDrawer(true)}
-                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline cursor-pointer"
-                  >
-                    <span>{t.tryDemoBtn}</span>
-                  </button>
-                </div>
+              {/* Switch to Register link */}
+              <div className="pt-3 text-center text-xs text-slate-500 dark:text-slate-400 border-t border-slate-100 dark:border-slate-800">
+                <span>{t.newToPlatform} </span>
+                <button
+                  type="button"
+                  onClick={() => switchMode('register')}
+                  className="font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer ml-1"
+                >
+                  {t.tabRegister}
+                </button>
               </div>
 
             </div>

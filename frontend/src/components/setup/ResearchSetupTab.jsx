@@ -4,9 +4,10 @@ import {
   CheckCircle2, Compass, AlertCircle, ArrowRight, ArrowLeft, Check,
   ShieldCheck, Edit3, Copy, Search, Sparkles,
   ChevronRight, Layers, FileCheck, HelpCircle, Lightbulb,
-  CheckCheck, Bookmark, ArrowUpRight, Filter, Zap
+  CheckCheck, Bookmark, ArrowUpRight, Filter, Zap, Download
 } from 'lucide-react';
 import { normalizeResearchSetup } from '../../utils/researchSetup';
+import { downloadSetupFrameworkMarkdown } from '../../utils/exportUtils';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useProject } from '../../contexts/ProjectContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -119,8 +120,10 @@ export default function ResearchSetupTab({ setActiveTab }) {
   const [newExclude, setNewExclude] = useState('');
 
   // Human-in-the-Loop (HITL) Gate Statuses (Project-Scoped & Inferred)
+  const [activeStep, setActiveStep] = useState(1);
   const [topicApproved, setTopicApproved] = useState(false);
   const [criteriaApproved, setCriteriaApproved] = useState(false);
+  const [isEditingTopicMeta, setIsEditingTopicMeta] = useState(false);
 
   // State: Scope Review
   const [scopeResult, setScopeResult] = useState(null);
@@ -157,6 +160,15 @@ export default function ResearchSetupTab({ setActiveTab }) {
   useEffect(() => {
     if (activeProject) {
       const normalized = normalizeResearchSetup(activeProject);
+      // NOTE: previously cleared research_question here whenever it matched
+      // the project name (meant to hide an old auto-fill placeholder), but
+      // that had no way to tell "system auto-filled this" apart from "user
+      // deliberately typed a question identical to the project name" -- a
+      // real, not-uncommon case for short project names. Since this effect
+      // reruns on every reload/project switch, it silently wiped a real
+      // saved answer every time, and a Save right after would persist the
+      // blank to the backend. Removed rather than guessed at a heuristic;
+      // showing the real saved value is always correct, a placeholder is not.
       setProjectData(normalized);
 
       const pId = activeProjectId || activeProject.id;
@@ -312,8 +324,8 @@ export default function ResearchSetupTab({ setActiveTab }) {
     if (pId) {
       localStorage.setItem(`slr_gate1_topic_approved_${pId}`, 'true');
     }
+    setActiveStep(2);
     await handleSave(updated, { topicApproved: true });
-    scrollToRef(criteriaCardRef);
   };
 
   // Agent 2: Suggested Criteria
@@ -357,8 +369,8 @@ export default function ResearchSetupTab({ setActiveTab }) {
     if (pId) {
       localStorage.setItem(`slr_gate2_criteria_approved_${pId}`, 'true');
     }
+    setActiveStep(3);
     await handleSave(projectData, { topicApproved: true, criteriaApproved: true });
-    scrollToRef(step3CardRef);
   };
 
   // Agent 3: PICO & Keywords (Tra cứu)
@@ -476,48 +488,65 @@ export default function ResearchSetupTab({ setActiveTab }) {
   };
 
   return (
-    <div className="space-y-8 pb-24 max-w-5xl mx-auto px-4 sm:px-6">
+    <div id="tour-setup-main" className="space-y-6 pb-24 w-full max-w-7xl 2xl:max-w-[1600px] mx-auto px-2 sm:px-4 lg:px-6">
       
       {/* ── Page Header ─────────────────────────────────────────────────── */}
       <div className="pt-2">
         <h1 className="font-display font-bold text-2xl sm:text-3xl text-surface-900 dark:text-white tracking-tight">
-          {isVi ? 'Cấu hình Đề tài Nghiên cứu' : 'Research Setup'}
+          {isVi ? 'Xây dựng Khung Đề tài Nghiên cứu' : 'Research Setup Framework'}
         </h1>
         <p className="text-sm text-surface-500 dark:text-surface-400 mt-1">
           {isVi 
-            ? 'Thiết lập đề tài, tiêu chí chọn lọc và bộ từ khóa tìm kiếm học thuật cho nghiên cứu của bạn.' 
+            ? 'Thiết lập phạm vi đề tài, tiêu chí sàng lọc PRISMA và bộ từ khóa tìm kiếm học thuật cho nghiên cứu của bạn.' 
             : 'Define your research topic, screening criteria, and academic search keywords for your study.'}
         </p>
       </div>
 
-      {/* ── Visual Stepper with Illustrated Animated Badges ─────────────── */}
-      <div className="card p-4 sm:p-5 border-surface-200/80 dark:border-surface-800 shadow-sm bg-surface-50/50 dark:bg-surface-850/50 backdrop-blur-sm">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 relative">
+      {/* ── 3 Process Stepper Tabs (Clickable to switch view) ───────────── */}
+      <div id="tour-setup-stepper" className="card p-2 sm:p-2.5 border-surface-200/80 dark:border-surface-800 shadow-xs bg-surface-50/70 dark:bg-surface-850/70 backdrop-blur-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 relative">
           
-          {/* Step 1 Indicator */}
-          <div 
-            onClick={() => scrollToRef({ current: document.getElementById('section-topic-info') })}
-            className="flex items-center gap-3.5 group cursor-pointer"
+          {/* Step 1 Tab */}
+          <button 
+            type="button"
+            onClick={() => setActiveStep(1)}
+            className={`flex items-center gap-3 p-3 rounded-xl transition-all text-left cursor-pointer border ${
+              activeStep === 1 
+                ? 'bg-white dark:bg-slate-900 border-blue-500/50 shadow-sm ring-2 ring-blue-500/10' 
+                : 'border-transparent hover:bg-white/60 dark:hover:bg-slate-900/60'
+            }`}
           >
-            <TopicStepperIcon isApproved={topicApproved} isActive={!topicApproved} />
-            <div className="min-w-0">
-              <p className="text-xs font-bold text-surface-900 dark:text-white uppercase tracking-wider truncate group-hover:text-primary-500 transition-colors">
+            <TopicStepperIcon isApproved={topicApproved} isActive={activeStep === 1} />
+            <div className="min-w-0 flex-1">
+              <p className={`text-xs font-bold uppercase tracking-wider truncate ${activeStep === 1 ? 'text-blue-600 dark:text-blue-400' : 'text-surface-900 dark:text-white'}`}>
                 {isVi ? 'Định hình đề tài' : 'Topic Scope'}
               </p>
               <p className="text-[11px] font-semibold truncate mt-0.5 flex items-center gap-1 text-cyan-600 dark:text-cyan-400">
                 {topicApproved ? (isVi ? '🎯 Đã định hình' : '🎯 Topic Defined') : (isVi ? '💡 Đang thiết lập' : '💡 In Progress')}
               </p>
             </div>
-          </div>
+            {activeStep === 1 && <span className="w-2 h-2 rounded-full bg-blue-600 shrink-0 mr-1" />}
+          </button>
 
-          {/* Step 2 Indicator */}
-          <div 
-            onClick={() => topicApproved && scrollToRef(criteriaCardRef)}
-            className={`flex items-center gap-3.5 group ${topicApproved ? 'cursor-pointer' : 'opacity-60'}`}
+          {/* Step 2 Tab */}
+          <button 
+            type="button"
+            onClick={() => {
+              if (topicApproved) {
+                setActiveStep(2);
+              } else {
+                setErrorMsg(isVi ? 'Vui lòng lưu thông tin Đề tài ở Bước 1 trước khi sang Bước 2.' : 'Please save Topic Scope in Step 1 first.');
+              }
+            }}
+            className={`flex items-center gap-3 p-3 rounded-xl transition-all text-left border ${
+              activeStep === 2 
+                ? 'bg-white dark:bg-slate-900 border-teal-500/50 shadow-sm ring-2 ring-teal-500/10' 
+                : 'border-transparent hover:bg-white/60 dark:hover:bg-slate-900/60'
+            } ${topicApproved ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}
           >
-            <CriteriaStepperIcon isApproved={criteriaApproved} isActive={topicApproved && !criteriaApproved} />
-            <div className="min-w-0">
-              <p className="text-xs font-bold text-surface-900 dark:text-white uppercase tracking-wider truncate group-hover:text-teal-500 transition-colors">
+            <CriteriaStepperIcon isApproved={criteriaApproved} isActive={activeStep === 2} />
+            <div className="min-w-0 flex-1">
+              <p className={`text-xs font-bold uppercase tracking-wider truncate ${activeStep === 2 ? 'text-teal-600 dark:text-teal-400' : 'text-surface-900 dark:text-white'}`}>
                 {isVi ? 'Tiêu chí sàng lọc' : 'Screening Criteria'}
               </p>
               <p className="text-[11px] font-semibold truncate mt-0.5 flex items-center gap-1 text-teal-600 dark:text-teal-400">
@@ -528,16 +557,28 @@ export default function ResearchSetupTab({ setActiveTab }) {
                   : (isVi ? '⏳ Chưa mở' : '⏳ Pending')}
               </p>
             </div>
-          </div>
+            {activeStep === 2 && <span className="w-2 h-2 rounded-full bg-teal-600 shrink-0 mr-1" />}
+          </button>
 
-          {/* Step 3 Indicator */}
-          <div 
-            onClick={() => criteriaApproved && scrollToRef(step3CardRef)}
-            className={`flex items-center gap-3.5 group ${criteriaApproved ? 'cursor-pointer' : 'opacity-60'}`}
+          {/* Step 3 Tab */}
+          <button 
+            type="button"
+            onClick={() => {
+              if (criteriaApproved) {
+                setActiveStep(3);
+              } else {
+                setErrorMsg(isVi ? 'Vui lòng hoàn thành Tiêu chí sàng lọc ở Bước 2 trước khi sang Bước 3.' : 'Please complete Screening Criteria in Step 2 first.');
+              }
+            }}
+            className={`flex items-center gap-3 p-3 rounded-xl transition-all text-left border ${
+              activeStep === 3 
+                ? 'bg-white dark:bg-slate-900 border-purple-500/50 shadow-sm ring-2 ring-purple-500/10' 
+                : 'border-transparent hover:bg-white/60 dark:hover:bg-slate-900/60'
+            } ${criteriaApproved ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}
           >
-            <PicoStepperIcon isApproved={Boolean(picoData)} isActive={criteriaApproved && !picoData} />
-            <div className="min-w-0">
-              <p className="text-xs font-bold text-surface-900 dark:text-white uppercase tracking-wider truncate group-hover:text-purple-500 transition-colors">
+            <PicoStepperIcon isApproved={Boolean(picoData)} isActive={activeStep === 3} />
+            <div className="min-w-0 flex-1">
+              <p className={`text-xs font-bold uppercase tracking-wider truncate ${activeStep === 3 ? 'text-purple-600 dark:text-purple-400' : 'text-surface-900 dark:text-white'}`}>
                 {isVi ? 'PICO & Từ khóa' : 'PICO & Keywords'}
               </p>
               <p className="text-[11px] font-semibold truncate mt-0.5 flex items-center gap-1 text-purple-600 dark:text-purple-400">
@@ -548,598 +589,619 @@ export default function ResearchSetupTab({ setActiveTab }) {
                   : (isVi ? '⏳ Chưa mở' : '⏳ Pending')}
               </p>
             </div>
-          </div>
+            {activeStep === 3 && <span className="w-2 h-2 rounded-full bg-purple-600 shrink-0 mr-1" />}
+          </button>
         </div>
       </div>
 
       {errorMsg && (
-        <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 text-rose-700 dark:text-rose-300 text-xs sm:text-sm flex items-center gap-2.5 animate-slide-up shadow-xs">
-          <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-500" />
-          <span className="font-medium">{errorMsg}</span>
+        <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 text-rose-700 dark:text-rose-300 text-xs sm:text-sm flex items-center justify-between gap-2.5 animate-slide-up shadow-xs">
+          <div className="flex items-center gap-2.5">
+            <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-500" />
+            <span className="font-medium">{errorMsg}</span>
+          </div>
+          <button onClick={() => setErrorMsg(null)} className="text-rose-400 hover:text-rose-600 cursor-pointer">
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
 
-      {/* ── SECTION 1: THÔNG TIN VỀ ĐỀ TÀI NGHIÊN CỨU ────────────────────── */}
-      <div id="section-topic-info" className={`card p-6 sm:p-7 transition-all ${topicApproved ? 'border-cyan-200/80 dark:border-cyan-900/40 bg-cyan-50/10 dark:bg-cyan-950/5' : ''}`}>
-        
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 pb-4 border-b border-surface-100 dark:border-surface-800">
-          <div>
-            <h2 className="font-display font-bold text-lg text-surface-900 dark:text-white flex items-center gap-2">
-              <span>{isVi ? 'Thông tin về đề tài nghiên cứu' : 'Research Topic Information'}</span>
-              {topicApproved && (
-                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-cyan-700 dark:text-cyan-300 bg-cyan-100 dark:bg-cyan-950/60 px-2.5 py-0.5 rounded-full border border-cyan-200 dark:border-cyan-800 shadow-xs">
-                  <Check className="w-3 h-3 stroke-[2.5]" /> {isVi ? 'Đã xác nhận' : 'Confirmed'}
-                </span>
-              )}
-            </h2>
-          </div>
+      {/* ── SINGLE MAIN WORKSPACE DISPLAY AREA ──────────────────────────── */}
+      <div className="transition-all duration-200">
 
-          {topicApproved && (
-            <button
-              type="button"
-              onClick={() => {
-                setTopicApproved(false);
-                const pId = activeProjectId || activeProject?.id;
-                if (pId) localStorage.setItem(`slr_gate1_topic_approved_${pId}`, 'false');
-              }}
-              className="btn btn-sm btn-secondary self-start sm:self-auto flex items-center gap-1.5 font-semibold"
-            >
-              <Edit3 className="w-3.5 h-3.5 text-surface-500" />
-              <span>{isVi ? 'Chỉnh sửa' : 'Edit'}</span>
-            </button>
-          )}
-        </div>
-
-        <div className="space-y-4">
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="section-label font-bold text-xs">
-                {isVi ? 'Tên đề tài nghiên cứu *' : 'Project Name *'}
-              </label>
-              {!topicApproved && (
-                <span className="text-[11px] text-slate-400">
-                  {isVi ? 'Hỗ trợ tự do mọi chủ đề nghiên cứu khoa học' : 'Supports any academic research domain'}
-                </span>
-              )}
-            </div>
-            <input 
-              type="text" 
-              value={projectData.name}
-              onChange={e => setProjectData({...projectData, name: e.target.value})}
-              placeholder={isVi ? 'Nhập bất kỳ đề tài nào: AI, Y tế, Năng lượng, Robotics, Xã hội học...' : 'Enter any research topic: AI, Biomedicine, Energy, Robotics, Social Sciences...'}
-              disabled={topicApproved}
-              className="input input-sm disabled:opacity-60 font-medium"
-            />
-            {!topicApproved && (
-              <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
-                <span className="text-[11px] text-slate-400 font-semibold">{isVi ? 'Gợi ý nhanh:' : 'Quick ideas:'}</span>
-                {[
-                  { label: isVi ? 'AI trong Y tế' : 'Healthcare AI', name: isVi ? 'Ứng dụng Học sâu trong Chẩn đoán Hình ảnh Y tế' : 'Deep Learning in Medical Image Diagnostics', field: 'Y sinh & Chẩn đoán Y tế' },
-                  { label: isVi ? 'LLM Reasoning' : 'LLM Reasoning', name: isVi ? 'Khảo sát Chuỗi tư duy (CoT) trên Mô hình Ngôn ngữ Lớn' : 'Chain-of-Thought Reasoning in Large Language Models', field: 'Xử lý Ngôn ngữ Tự nhiên & LLM' },
-                  { label: isVi ? 'Robot Tự hành' : 'Autonomous Robots', name: isVi ? 'Học tăng cường sâu trong Điều hướng Robot Tự hành' : 'Deep Reinforcement Learning in Autonomous Robotics', field: 'Robotics & Hệ thống Tự hành' },
-                  { label: isVi ? 'Năng lượng Tái tạo' : 'Renewable Energy', name: isVi ? 'Tối ưu hóa Lưới điện Thông minh bằng Học máy' : 'Machine Learning for Smart Grid Optimization', field: 'Khoa học Môi trường & Năng lượng' },
-                ].map((item, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => {
-                      setProjectData({
-                        ...projectData,
-                        name: item.name,
-                        research_field: item.field
-                      });
-                    }}
-                    className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-950/40 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 border border-slate-200/80 dark:border-slate-700/80 text-[11px] transition-colors cursor-pointer"
-                  >
-                    + {item.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="section-label block mb-1.5 font-bold text-xs">
-                {isVi ? 'Câu hỏi / Ý tưởng nghiên cứu chính' : 'Main Research Question / Focus'}
-              </label>
-              <textarea 
-                rows="4"
-                value={projectData.research_question}
-                onChange={e => setProjectData({...projectData, research_question: e.target.value})}
-                placeholder={isVi ? 'Nhập câu hỏi hoặc bài toán nghiên cứu cốt lõi mà bạn muốn khám phá...' : 'Describe your core research question or problem statement...'}
-                disabled={topicApproved}
-                className="input input-sm disabled:opacity-60 resize-none font-medium text-xs leading-relaxed"
-              />
-            </div>
+        {/* ═══════════════════════════════════════════════════════════════════ */}
+        {/* STEP 1: ĐỊNH HÌNH ĐỀ TÀI (TOPIC SCOPE)                              */}
+        {/* ═══════════════════════════════════════════════════════════════════ */}
+        {activeStep === 1 && (
+          <div className="space-y-6 animate-slide-up">
             
-            <div className="space-y-4">
-              <div>
-                <label className="section-label block mb-1.5 font-bold text-xs">
-                  {isVi ? 'Lĩnh vực nghiên cứu' : 'Research Field'}
-                </label>
-                <select
-                  value={projectData.research_field}
-                  onChange={e => setProjectData({...projectData, research_field: e.target.value})}
-                  disabled={topicApproved}
-                  className="input input-sm disabled:opacity-60 cursor-pointer appearance-none font-medium text-xs"
-                >
-                  <option value="">{isVi ? '-- Chọn lĩnh vực nghiên cứu chuyên sâu --' : '-- Select research domain --'}</option>
-                  <option value="Khoa học Máy tính & Trí tuệ Nhân tạo">{isVi ? 'Khoa học Máy tính & Trí tuệ Nhân tạo' : 'Computer Science & AI'}</option>
-                  <option value="Y sinh & Chẩn đoán Y tế">{isVi ? 'Y sinh & Chẩn đoán Y tế' : 'Healthcare & Biomedicine'}</option>
-                  <option value="Robotics & Hệ thống Tự hành">{isVi ? 'Robotics & Hệ thống Tự hành' : 'Robotics & Autonomous Systems'}</option>
-                  <option value="Xử lý Ngôn ngữ Tự nhiên & LLM">{isVi ? 'Xử lý Ngôn ngữ Tự nhiên & LLM' : 'NLP & Large Language Models'}</option>
-                  <option value="Toán học, Thống kê & Tối ưu hóa">{isVi ? 'Toán học, Thống kê & Tối ưu hóa' : 'Mathematics & Optimization'}</option>
-                  <option value="Khoa học Môi trường & Năng lượng">{isVi ? 'Khoa học Môi trường & Năng lượng' : 'Environment & Renewable Energy'}</option>
-                  <option value="Kinh tế, Tài chính & Quản trị">{isVi ? 'Kinh tế, Tài chính & Quản trị' : 'Economics & Business Administration'}</option>
-                  <option value="Khoa học Xã hội & Giáo dục">{isVi ? 'Khoa học Xã hội & Giáo dục' : 'Social Sciences & Education'}</option>
-                  <option value="Nghiên cứu Liên ngành Khác">{isVi ? 'Nghiên cứu Liên ngành Khác' : 'Interdisciplinary / Other'}</option>
-                </select>
+            {/* Top Subtle Notebook Topic Breadcrumb Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 px-4 rounded-2xl bg-surface-50/80 dark:bg-surface-850/60 border border-surface-200/80 dark:border-surface-800 shadow-2xs">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-surface-400 dark:text-surface-500 shrink-0 flex items-center gap-1.5">
+                  <BookOpen className="w-3.5 h-3.5 text-blue-500" />
+                  {isVi ? 'Đề tài nghiên cứu:' : 'Research Project:'}
+                </span>
+                <span className="font-bold text-xs sm:text-sm text-surface-900 dark:text-white truncate">
+                  {projectData.name || (isVi ? 'Chưa đặt tên đề tài' : 'Untitled Project')}
+                </span>
+                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200/80 dark:border-blue-800/80 shrink-0">
+                  🏷️ {projectData.research_field || (isVi ? 'Nghiên cứu Liên ngành' : 'Interdisciplinary')}
+                </span>
               </div>
 
-              <div className="flex gap-3">
-                <div className="flex-1">
-                  <label className="section-label block mb-1.5 font-bold text-xs">
-                    {isVi ? 'Từ năm' : 'From Year'}
-                  </label>
-                  <input
-                    type="number"
-                    disabled={topicApproved}
-                    value={projectData.year_from || 2018}
-                    onChange={e => setProjectData({...projectData, year_from: parseInt(e.target.value) || 2018})}
-                    className="input input-sm disabled:opacity-60 font-medium"
-                  />
-                </div>
-                <div className="flex-1">
-                  <label className="section-label block mb-1.5 font-bold text-xs">
-                    {isVi ? 'Đến năm' : 'To Year'}
-                  </label>
-                  <input
-                    type="number"
-                    disabled={topicApproved}
-                    value={projectData.year_to || 2026}
-                    onChange={e => setProjectData({...projectData, year_to: parseInt(e.target.value) || 2026})}
-                    className="input input-sm disabled:opacity-60 font-medium"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Action buttons at end of Step 1 */}
-          {!topicApproved && (
-            <div className="pt-4 mt-4 border-t border-surface-100 dark:border-surface-800 flex flex-col sm:flex-row items-center justify-between gap-3">
-              <button
-                type="button"
-                onClick={handleOptimizeScope}
-                disabled={loadingScope}
-                className="btn btn-secondary w-full sm:w-auto flex items-center gap-2 font-semibold"
-              >
-                {loadingScope ? <Loader2 className="w-4 h-4 animate-spin text-primary-500" /> : <Compass className="w-4 h-4 text-cyan-500" />}
-                <span>{isVi ? 'Nhận xét về phạm vi đề tài' : 'Review Topic Scope'}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleApproveTopic()}
-                disabled={loading}
-                className="btn btn-primary w-full sm:w-auto flex items-center gap-2 shadow-primary-sm font-bold"
-              >
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                <span>{isVi ? 'Lưu & Chuyển sang bước tiếp theo' : 'Save & Continue'}</span>
-                <ArrowRight className="w-4 h-4 ml-1" />
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* ── TOPIC SCOPE FEEDBACK CARD ────────────────────────────────────── */}
-      {scopeResult && !topicApproved && (
-        <div ref={scopeCardRef} className="card p-6 border-cyan-200 dark:border-cyan-800/80 bg-cyan-50/20 dark:bg-cyan-950/20 space-y-4 animate-slide-up shadow-sm">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-cyan-100 dark:bg-cyan-900/60 flex items-center justify-center text-cyan-600 dark:text-cyan-300">
-                <Compass className="w-5 h-5 animate-spin-slow" />
-              </div>
-              <h3 className="font-display font-bold text-sm text-surface-900 dark:text-white">
-                {isVi ? 'Nhận xét về phạm vi đề tài' : 'Topic Scope Assessment'}
-              </h3>
-            </div>
-            
-            <span className={`badge text-xs font-bold ${
-              scopeResult.status === 'optimal' ? 'badge-success' :
-              scopeResult.status === 'too_narrow' ? 'badge-primary' : 
-              scopeResult.status === 'error' ? 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300 border border-red-300 dark:border-red-800' :
-              'badge-warning'
-            }`}>
-              {scopeResult.status === 'optimal' 
-                ? (isVi ? '✨ Phạm vi tối ưu' : '✨ Optimal Scope')
-                : scopeResult.status === 'too_narrow' 
-                ? (isVi ? '🔍 Đề tài quá hẹp' : '🔍 Too Narrow')
-                : scopeResult.status === 'error'
-                ? (isVi ? '⚠️ Tạm thời gián đoạn' : '⚠️ Service Unavailable')
-                : (isVi ? '⚠️ Đề tài quá rộng' : '⚠️ Too Broad')}
-            </span>
-          </div>
-
-          <p className="text-xs sm:text-sm text-surface-700 dark:text-surface-300 leading-relaxed bg-white dark:bg-surface-800 p-4 rounded-xl border border-surface-200 dark:border-surface-700 shadow-xs font-medium">
-            {scopeResult.feedback}
-          </p>
-
-          {scopeResult.suggested_topics && scopeResult.suggested_topics.length > 0 && (
-            <div className="space-y-2.5 pt-1">
-              <p className="section-label text-surface-600 dark:text-surface-400 font-bold text-xs">
-                {isVi ? 'Gợi ý tinh chỉnh đề tài sắc bén hơn:' : 'Suggested Refinements:'}
-              </p>
-              <div className="grid gap-2.5">
-                {scopeResult.suggested_topics.map((topic, i) => (
-                  <div key={i} className="p-3.5 rounded-xl bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-cyan-300 dark:hover:border-cyan-700 transition-colors shadow-xs">
-                    <span className="text-xs font-medium text-surface-800 dark:text-surface-200 leading-relaxed">{topic}</span>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <button
-                        onClick={() => handleApplyTopic(topic)}
-                        className="btn btn-sm btn-ghost text-xs hover:bg-surface-100 dark:hover:bg-surface-700 font-semibold"
-                      >
-                        {isVi ? 'Áp dụng' : 'Apply'}
-                      </button>
-                      <button
-                        onClick={() => handleApproveTopic(topic)}
-                        className="btn btn-sm btn-primary text-xs font-bold"
-                      >
-                        {isVi ? 'Lưu & Tiếp tục' : 'Save & Continue'}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── SECTION 2: TIÊU CHÍ SÀNG LỌC ─────────────────────────────────── */}
-      {topicApproved && (
-        <div ref={criteriaCardRef} className={`card p-6 sm:p-7 transition-all animate-slide-up ${criteriaApproved ? 'border-teal-200/80 dark:border-teal-900/40 bg-teal-50/10 dark:bg-teal-950/5' : ''}`}>
-          
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 pb-4 border-b border-surface-100 dark:border-surface-800">
-            <div>
-              <h2 className="font-display font-bold text-lg text-surface-900 dark:text-white flex items-center gap-2">
-                <span>{isVi ? 'Tiêu chí sàng lọc' : 'Screening Criteria'}</span>
-                {criteriaApproved && (
-                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-teal-700 dark:text-teal-300 bg-teal-100 dark:bg-teal-950/60 px-2.5 py-0.5 rounded-full border border-teal-200 dark:border-teal-800 shadow-xs">
-                    <Check className="w-3 h-3 stroke-[2.5]" /> {isVi ? 'Đã xác nhận' : 'Confirmed'}
-                  </span>
-                )}
-              </h2>
-            </div>
-
-            <div className="flex items-center gap-2">
-              {criteriaApproved ? (
+              <div className="flex items-center gap-2 shrink-0">
                 <button
                   type="button"
-                  onClick={() => {
-                    setCriteriaApproved(false);
-                    const pId = activeProjectId || activeProject?.id;
-                    if (pId) localStorage.setItem(`slr_gate2_criteria_approved_${pId}`, 'false');
-                  }}
-                  className="btn btn-sm btn-secondary flex items-center gap-1.5 font-semibold"
+                  onClick={() => setIsEditingTopicMeta(!isEditingTopicMeta)}
+                  className="btn btn-sm btn-ghost text-xs text-surface-500 hover:text-blue-600 dark:text-surface-400 dark:hover:text-blue-400 font-semibold flex items-center gap-1 cursor-pointer"
                 >
-                  <Edit3 className="w-3.5 h-3.5 text-surface-500" />
-                  <span>{isVi ? 'Chỉnh sửa' : 'Edit'}</span>
+                  <Edit3 className="w-3.5 h-3.5" />
+                  <span>{isEditingTopicMeta ? (isVi ? 'Đóng' : 'Close') : (isVi ? 'Đổi tên / Lĩnh vực' : 'Edit')}</span>
                 </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleGenerateCriteria}
-                  disabled={loadingCriteria}
-                  className="btn btn-sm btn-secondary flex items-center gap-1.5 font-semibold"
-                >
-                  {loadingCriteria ? <Loader2 className="w-3.5 h-3.5 animate-spin text-teal-500" /> : <Sparkles className="w-3.5 h-3.5 text-teal-500" />}
-                  <span>{isVi ? 'Các tiêu chí gợi ý' : 'Suggested Criteria'}</span>
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* INCLUSION CRITERIA */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between pb-2 border-b border-surface-100 dark:border-surface-800">
-                <h4 className="font-bold text-xs text-emerald-600 dark:text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>{isVi ? 'Tiêu chí chọn vào (Inclusion)' : 'Inclusion Criteria'}</span>
-                </h4>
-                <span className="badge badge-success text-[10px] font-bold">
-                  {projectData.criteria_include.length}
-                </span>
               </div>
-              
-              {!criteriaApproved && (
-                <div className="flex gap-2">
-                  <input 
-                    type="text" 
-                    value={newInclude} 
-                    onChange={e => setNewInclude(e.target.value)} 
-                    onKeyDown={e => e.key === 'Enter' && addInclude()}
-                    placeholder={isVi ? 'Thêm tiêu chí chọn...' : 'Add inclusion criterion...'}
-                    className="input input-sm flex-1 font-medium"
-                  />
-                  <button onClick={addInclude} className="btn btn-sm btn-secondary px-3">
-                    <Plus className="w-4 h-4"/>
-                  </button>
-                </div>
-              )}
-              
-              <ul className="space-y-2">
-                {projectData.criteria_include.map((item, idx) => (
-                  <li key={idx} className="group flex justify-between items-start bg-emerald-50/70 dark:bg-emerald-950/30 p-3.5 rounded-xl text-xs font-semibold border border-emerald-200/70 dark:border-emerald-900/40 text-slate-800 dark:text-slate-100 shadow-2xs">
-                    <span className="pr-3 leading-relaxed">{item}</span>
-                    {!criteriaApproved && (
-                      <button onClick={() => setProjectData(p => ({...p, criteria_include: p.criteria_include.filter((_, i) => i !== idx)}))} className="text-slate-400 hover:text-rose-500 transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0 cursor-pointer">
-                        <X className="w-3.5 h-3.5"/>
-                      </button>
-                    )}
-                  </li>
-                ))}
-              </ul>
             </div>
 
-            {/* EXCLUSION CRITERIA */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between pb-2 border-b border-surface-100 dark:border-surface-800">
-                <h4 className="font-bold text-xs text-rose-600 dark:text-rose-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <AlertCircle className="w-4 h-4" />
-                  <span>{isVi ? 'Tiêu chí loại trừ (Exclusion)' : 'Exclusion Criteria'}</span>
-                </h4>
-                <span className="badge badge-danger text-[10px] font-bold">
-                  {projectData.criteria_exclude.length}
-                </span>
-              </div>
-              
-              {!criteriaApproved && (
-                <div className="flex gap-2">
-                  <input 
-                    type="text" 
-                    value={newExclude} 
-                    onChange={e => setNewExclude(e.target.value)} 
-                    onKeyDown={e => e.key === 'Enter' && addExclude()}
-                    placeholder={isVi ? 'Thêm tiêu chí loại...' : 'Add exclusion criterion...'}
-                    className="input input-sm flex-1 font-medium"
-                  />
-                  <button onClick={addExclude} className="btn btn-sm btn-secondary px-3">
-                    <Plus className="w-4 h-4"/>
-                  </button>
-                </div>
-              )}
-              
-              <ul className="space-y-2">
-                {projectData.criteria_exclude.map((item, idx) => (
-                  <li key={idx} className="group flex justify-between items-start bg-rose-50/70 dark:bg-rose-950/30 p-3.5 rounded-xl text-xs font-semibold border border-rose-200/70 dark:border-rose-900/40 text-slate-800 dark:text-slate-100 shadow-2xs">
-                    <span className="pr-3 leading-relaxed">{item}</span>
-                    {!criteriaApproved && (
-                      <button onClick={() => setProjectData(p => ({...p, criteria_exclude: p.criteria_exclude.filter((_, i) => i !== idx)}))} className="text-slate-400 hover:text-rose-500 transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0 cursor-pointer">
-                        <X className="w-3.5 h-3.5"/>
-                      </button>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-
-          {/* Action buttons at end of Step 2 */}
-          {!criteriaApproved && (
-            <div className="pt-4 mt-6 border-t border-surface-100 dark:border-surface-800 flex flex-col sm:flex-row items-center justify-between gap-3">
-              <button
-                type="button"
-                onClick={() => scrollToRef({ current: document.getElementById('section-topic-info') })}
-                className="btn btn-secondary w-full sm:w-auto flex items-center justify-center gap-2 font-semibold"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                <span>{isVi ? 'Quay lại Bước 1: Đề tài' : 'Back to Step 1: Topic'}</span>
-              </button>
-
-              <button 
-                type="button" 
-                onClick={handleApproveCriteria} 
-                disabled={loading}
-                className="btn btn-primary w-full sm:w-auto shadow-primary-sm font-bold flex items-center justify-center gap-2"
-              >
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
-                <span>{isVi ? 'Lưu & Chuyển sang bước tiếp theo' : 'Save & Continue to PICO'}</span>
-                <ArrowRight className="w-4 h-4 ml-1" />
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── SECTION 3: PHÂN TÍCH KHUNG PICO VÀ BỘ TỪ KHÓA TÌM KIẾM ────────── */}
-      {criteriaApproved && (
-        <div ref={step3CardRef} className="space-y-6 animate-slide-up">
-          
-          {/* Quick Back to Step 2 Link */}
-          <div className="flex justify-start">
-            <button
-              type="button"
-              onClick={() => scrollToRef(criteriaCardRef)}
-              className="btn btn-sm btn-ghost text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white flex items-center gap-1.5 font-semibold cursor-pointer"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>{isVi ? 'Quay lại Bước 2: Tiêu chí sàng lọc' : 'Back to Step 2: Criteria'}</span>
-            </button>
-          </div>
-
-          <div className="card p-7 sm:p-9 text-center rounded-2xl bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 space-y-5 shadow-sm border border-slate-200 dark:border-slate-800">
-            <div className="w-14 h-14 mx-auto rounded-2xl bg-blue-50 dark:bg-blue-950/60 border border-blue-100 dark:border-blue-800/80 flex items-center justify-center shadow-xs">
-              <svg className="w-7 h-7 text-blue-600 dark:text-blue-400 animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 3a9 9 0 0 1 9 9c0 3.87-2.45 7.17-5.9 8.44L12 21l-3.1-1.56A8.99 8.99 0 0 1 3 12a9 9 0 0 1 9-9z" className="fill-blue-500/10 stroke-blue-600 dark:stroke-blue-400" />
-                <path d="M12 7v5l3 3" className="stroke-blue-600 dark:stroke-blue-400 stroke-[2]" />
-                <circle cx="12" cy="12" r="1.5" className="fill-blue-600 dark:fill-blue-400" />
-              </svg>
-            </div>
-            
-            <div className="max-w-2xl mx-auto space-y-2">
-              <h3 className="font-display font-extrabold text-xl sm:text-2xl text-slate-900 dark:text-white tracking-tight">
-                {isVi ? 'Phân tích Khung PICO và bộ từ khóa tìm kiếm' : 'PICO Framework & Academic Search Keywords'}
-              </h3>
-              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
-                {isVi 
-                  ? 'Khung PICO (Đối tượng, Can thiệp, So sánh, Kết quả) giúp cấu trúc hóa câu hỏi nghiên cứu và trích xuất các từ khóa học thuật tiếng Anh chuẩn xác nhất để tìm kiếm bài báo trên Google Scholar & Scopus.'
-                  : 'The PICO framework (Population, Intervention, Comparison, Outcome) structures your research question and extracts the most accurate academic search keywords for literature discovery.'}
-              </p>
-            </div>
-            
-            <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
-              <button 
-                onClick={handleSuggestKeywords} 
-                disabled={loadingKeywords}
-                className="btn btn-primary text-sm font-bold shadow-md px-7 py-3 rounded-xl flex items-center gap-2 cursor-pointer hover:scale-105 transition-all"
-              >
-                {loadingKeywords ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin text-white" />
-                    <span>{isVi ? 'Đang phân tích & tra cứu...' : 'Analyzing & Synthesizing...'}</span>
-                  </>
-                ) : (
-                  <>
-                    <Search className="w-4 h-4" />
-                    <span>{picoData ? (isVi ? 'Tra cứu lại' : 'Re-synthesize') : (isVi ? 'Tra cứu PICO' : 'Synthesize PICO')}</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-
-          {picoData && (
-            <div ref={picoCardRef} className="card p-6 sm:p-8 space-y-6 animate-slide-up bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-100 dark:border-blue-800 flex items-center justify-center text-blue-600 dark:text-blue-400 shadow-xs">
-                    <BookOpen className="w-5 h-5" />
+            {/* Expandable Topic Name / Field Editor */}
+            {isEditingTopicMeta && (
+              <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-900/60 space-y-4 animate-slide-up shadow-sm">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="section-label font-bold text-xs mb-1.5 block">
+                      {isVi ? 'Tên đề tài nghiên cứu' : 'Project Name'}
+                    </label>
+                    <input 
+                      type="text" 
+                      value={projectData.name}
+                      onChange={e => setProjectData({...projectData, name: e.target.value})}
+                      placeholder={isVi ? 'Nhập tên đề tài...' : 'Enter project name...'}
+                      className="input input-sm font-medium"
+                    />
                   </div>
                   <div>
-                    <h4 className="font-display font-extrabold text-lg text-slate-900 dark:text-white">
-                      {isVi ? 'Kết quả phân tích Khung PICO' : 'PICO Analysis Results'}
-                    </h4>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                      {isVi ? 'Đã phân tích và trích xuất cấu trúc đề tài thành công' : 'Analysis and scoping completed successfully'}
+                    <label className="section-label font-bold text-xs mb-1.5 block">
+                      {isVi ? 'Lĩnh vực nghiên cứu' : 'Research Field'}
+                    </label>
+                    <select
+                      value={projectData.research_field}
+                      onChange={e => setProjectData({...projectData, research_field: e.target.value})}
+                      className="input input-sm cursor-pointer appearance-none font-medium text-xs"
+                    >
+                      <option value="">{isVi ? '-- Chọn lĩnh vực nghiên cứu --' : '-- Select research domain --'}</option>
+                      <option value="Khoa học Máy tính & Trí tuệ Nhân tạo">{isVi ? 'Khoa học Máy tính & Trí tuệ Nhân tạo' : 'Computer Science & AI'}</option>
+                      <option value="Y sinh & Chẩn đoán Y tế">{isVi ? 'Y sinh & Chẩn đoán Y tế' : 'Healthcare & Biomedicine'}</option>
+                      <option value="Robotics & Hệ thống Tự hành">{isVi ? 'Robotics & Hệ thống Tự hành' : 'Robotics & Autonomous Systems'}</option>
+                      <option value="Xử lý Ngôn ngữ Tự nhiên & LLM">{isVi ? 'Xử lý Ngôn ngữ Tự nhiên & LLM' : 'NLP & Large Language Models'}</option>
+                      <option value="Toán học, Thống kê & Tối ưu hóa">{isVi ? 'Toán học, Thống kê & Tối ưu hóa' : 'Mathematics & Optimization'}</option>
+                      <option value="Khoa học Môi trường & Năng lượng">{isVi ? 'Khoa học Môi trường & Năng lượng' : 'Environment & Renewable Energy'}</option>
+                      <option value="Kinh tế, Tài chính & Quản trị">{isVi ? 'Kinh tế, Tài chính & Quản trị' : 'Economics & Business Administration'}</option>
+                      <option value="Khoa học Xã hội & Giáo dục">{isVi ? 'Khoa học Xã hội & Giáo dục' : 'Social Sciences & Education'}</option>
+                      <option value="Nghiên cứu Liên ngành Khác">{isVi ? 'Nghiên cứu Liên ngành Khác' : 'Interdisciplinary / Other'}</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── HERO CORE INPUT ARENA: The Visual Center of Attention ────────── */}
+            <div id="section-topic-info" className="card p-6 sm:p-8 bg-white dark:bg-slate-900 border-2 border-blue-500/30 dark:border-blue-500/30 shadow-md shadow-blue-500/5 space-y-6">
+              
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-500/25 shrink-0">
+                    <Target className="w-5 h-5 stroke-[2.4]" />
+                  </div>
+                  <div>
+                    <h2 className="font-display font-extrabold text-lg sm:text-xl text-slate-900 dark:text-white flex items-center gap-2">
+                      <span>{isVi ? 'Xác định Câu hỏi Nghiên cứu & Khung năm' : 'Formulate Research Question & Timeframe'}</span>
+                      {topicApproved && (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-cyan-700 dark:text-cyan-300 bg-cyan-100 dark:bg-cyan-950/60 px-2.5 py-0.5 rounded-full border border-cyan-200 dark:border-cyan-800">
+                          <Check className="w-3 h-3 stroke-[2.5]" /> {isVi ? 'Đã định hình' : 'Confirmed'}
+                        </span>
+                      )}
+                    </h2>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                      {isVi ? 'Vui lòng điền câu hỏi nghiên cứu cụ thể và khoảng năm xuất bản dưới đây:' : 'Please enter your specific research problem statement and publication window below:'}
                     </p>
                   </div>
                 </div>
 
-                {/* Top Right Save Configuration & Analysis Button (Prominent & Clear) */}
-                <button 
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleSave()}
+                    disabled={loading}
+                    className="btn btn-sm btn-secondary flex items-center gap-1.5 font-semibold cursor-pointer"
+                  >
+                    {saved ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-emerald-600 stroke-[2.5]" />
+                        <span>{isVi ? 'Đã lưu!' : 'Saved!'}</span>
+                      </>
+                    ) : (
+                      <>
+                        {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                        <span>{isVi ? 'Lưu nháp' : 'Save Draft'}</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Full Width Hero Question with Inline Compact Year Filter */}
+              <div className="space-y-3">
+                
+                {/* Header with Title on Left and Compact Year Filter on Right */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                  <label className="text-xs sm:text-sm font-extrabold text-blue-700 dark:text-blue-400 flex items-center gap-2">
+                    <span>{isVi ? 'Câu hỏi / Bài toán nghiên cứu cốt lõi *' : 'Core Research Question / Problem Statement *'}</span>
+                  </label>
+
+                  {/* Compact Year Filter Right in Header */}
+                  <div className="flex items-center gap-1.5 self-start sm:self-auto bg-slate-100/90 dark:bg-slate-800/90 px-3 py-1.5 rounded-xl border border-slate-200/80 dark:border-slate-700/80 text-xs shadow-2xs">
+                    <span className="text-slate-500 dark:text-slate-400 font-semibold text-[11px] flex items-center gap-1">
+                      <span>📅</span> {isVi ? 'Khung năm:' : 'Years:'}
+                    </span>
+                    <input
+                      type="number"
+                      value={projectData.year_from || 2020}
+                      onChange={e => setProjectData({...projectData, year_from: parseInt(e.target.value) || 2020})}
+                      className="w-16 py-0.5 px-1.5 text-center text-xs font-bold rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200"
+                    />
+                    <span className="text-slate-400 font-bold">-</span>
+                    <input
+                      type="number"
+                      value={projectData.year_to || 2026}
+                      onChange={e => setProjectData({...projectData, year_to: parseInt(e.target.value) || 2026})}
+                      className="w-16 py-0.5 px-1.5 text-center text-xs font-bold rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200"
+                    />
+                  </div>
+                </div>
+
+                <textarea 
+                  rows="4"
+                  value={projectData.research_question || ''}
+                  onChange={e => setProjectData({...projectData, research_question: e.target.value})}
+                  placeholder={isVi 
+                    ? 'Hãy điền câu hỏi nghiên cứu cụ thể của bạn vào đây (Ví dụ: Các thuật toán xấp xỉ nào hiệu quả nhất để giải bài toán Split Feasibility trong không gian Hilbert vô hạn chiều?)...' 
+                    : 'Please enter your specific research question here (e.g. Which iterative approximation algorithms converge fastest for Split Feasibility Problems in infinite-dimensional Hilbert spaces?)...'}
+                  className="input w-full p-4 rounded-2xl border-2 border-blue-300 dark:border-blue-800/80 focus:border-blue-600 dark:focus:border-blue-400 bg-blue-50/20 dark:bg-slate-800/60 text-slate-900 dark:text-white font-medium text-xs sm:text-sm leading-relaxed resize-none transition-all shadow-inner placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                />
+
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5 pl-1">
+                  <Sparkles className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                  <span>{isVi ? 'Mẹo: Nêu rõ đối tượng, phương pháp và mục tiêu so sánh giúp AI đề xuất tiêu chí & từ khóa chuẩn xác nhất.' : 'Tip: Stating the method, target, and evaluation criteria helps AI generate the most accurate keywords.'}</span>
+                </p>
+              </div>
+
+              {/* Action buttons directly beneath the 2 inputs */}
+              <div className="pt-5 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <button
                   type="button"
-                  onClick={() => handleSave()}
-                  disabled={loading}
-                  className="btn btn-primary self-start sm:self-auto flex items-center gap-2 font-bold shadow-md px-5 py-2.5 rounded-xl transition-all hover:scale-105 cursor-pointer"
+                  onClick={handleOptimizeScope}
+                  disabled={loadingScope}
+                  className="btn btn-secondary w-full sm:w-auto flex items-center justify-center gap-2.5 font-bold px-5 py-3 rounded-xl border border-cyan-300 dark:border-cyan-800 text-cyan-800 dark:text-cyan-200 bg-cyan-50/60 dark:bg-cyan-950/40 hover:bg-cyan-100 transition-all cursor-pointer shadow-xs"
                 >
-                  {saved ? (
+                  {loadingScope ? <Loader2 className="w-4 h-4 animate-spin text-cyan-600" /> : <Compass className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />}
+                  <span>{isVi ? 'Nhận xét về phạm vi đề tài' : 'Review Topic Scope'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleApproveTopic()}
+                  disabled={loading}
+                  className="btn btn-primary w-full sm:w-auto flex items-center justify-center gap-2.5 shadow-md font-extrabold text-sm px-7 py-3 rounded-xl cursor-pointer hover:scale-[1.02] transition-all"
+                >
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4 stroke-[2.5]" />}
+                  <span>{isVi ? 'Lưu & Sang Bước 2: Tiêu chí' : 'Save & Continue to Step 2'}</span>
+                  <ArrowRight className="w-4 h-4 ml-0.5" />
+                </button>
+              </div>
+            </div>
+
+            {/* TOPIC SCOPE FEEDBACK CARD */}
+            {scopeResult && (
+              <div ref={scopeCardRef} className="card p-6 border-cyan-200 dark:border-cyan-800/80 bg-cyan-50/20 dark:bg-cyan-950/20 space-y-4 animate-slide-up shadow-sm">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-cyan-100 dark:bg-cyan-900/60 flex items-center justify-center text-cyan-600 dark:text-cyan-300">
+                      <Compass className="w-5 h-5 animate-spin-slow" />
+                    </div>
+                    <h3 className="font-display font-bold text-sm text-surface-900 dark:text-white">
+                      {isVi ? 'Nhận xét về phạm vi đề tài' : 'Topic Scope Assessment'}
+                    </h3>
+                  </div>
+                  
+                  <span className={`badge text-xs font-bold ${
+                    scopeResult.status === 'optimal' ? 'badge-success' :
+                    scopeResult.status === 'too_narrow' ? 'badge-primary' : 
+                    scopeResult.status === 'error' ? 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300 border border-red-300 dark:border-red-800' :
+                    'badge-warning'
+                  }`}>
+                    {scopeResult.status === 'optimal' 
+                      ? (isVi ? '✨ Phạm vi tối ưu' : '✨ Optimal Scope')
+                      : scopeResult.status === 'too_narrow' 
+                      ? (isVi ? '🔍 Đề tài quá hẹp' : '🔍 Too Narrow')
+                      : scopeResult.status === 'error'
+                      ? (isVi ? '⚠️ Tạm thời gián đoạn' : '⚠️ Service Unavailable')
+                      : (isVi ? '⚠️ Đề tài quá rộng' : '⚠️ Too Broad')}
+                  </span>
+                </div>
+
+                <p className="text-xs sm:text-sm text-surface-700 dark:text-surface-300 leading-relaxed bg-white dark:bg-surface-800 p-4 rounded-xl border border-surface-200 dark:border-surface-700 shadow-xs font-medium">
+                  {scopeResult.feedback}
+                </p>
+
+                {scopeResult.suggested_topics && scopeResult.suggested_topics.length > 0 && (
+                  <div className="space-y-2.5 pt-1">
+                    <p className="section-label text-surface-600 dark:text-surface-400 font-bold text-xs">
+                      {isVi ? 'Gợi ý tinh chỉnh đề tài sắc bén hơn:' : 'Suggested Refinements:'}
+                    </p>
+                    <div className="grid gap-2.5">
+                      {scopeResult.suggested_topics.map((topic, i) => (
+                        <div key={i} className="p-3.5 rounded-xl bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-cyan-300 dark:hover:border-cyan-700 transition-colors shadow-xs">
+                          <span className="text-xs font-medium text-surface-800 dark:text-surface-200 leading-relaxed">{topic}</span>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <button
+                              onClick={() => handleApplyTopic(topic)}
+                              className="btn btn-sm btn-ghost text-xs hover:bg-surface-100 dark:hover:bg-surface-700 font-semibold cursor-pointer"
+                            >
+                              {isVi ? 'Áp dụng' : 'Apply'}
+                            </button>
+                            <button
+                              onClick={() => handleApproveTopic(topic)}
+                              className="btn btn-sm btn-primary text-xs font-bold cursor-pointer"
+                            >
+                              {isVi ? 'Lưu & Tiếp tục' : 'Save & Continue'}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ═══════════════════════════════════════════════════════════════════ */}
+        {/* STEP 2: TIÊU CHÍ SÀNG LỌC (SCREENING CRITERIA)                      */}
+        {/* ═══════════════════════════════════════════════════════════════════ */}
+        {activeStep === 2 && (
+          <div className="space-y-6 animate-slide-up">
+            <div ref={criteriaCardRef} className="card p-6 sm:p-7 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+              
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 pb-4 border-b border-surface-100 dark:border-surface-800">
+                <div>
+                  <h2 className="font-display font-bold text-lg text-surface-900 dark:text-white flex items-center gap-2">
+                    <span>{isVi ? '2. Tiêu chí sàng lọc PRISMA' : '2. PRISMA Screening Criteria'}</span>
+                    {criteriaApproved && (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-teal-700 dark:text-teal-300 bg-teal-100 dark:bg-teal-950/60 px-2.5 py-0.5 rounded-full border border-teal-200 dark:border-teal-800 shadow-xs">
+                        <Check className="w-3 h-3 stroke-[2.5]" /> {isVi ? 'Đã xác nhận' : 'Confirmed'}
+                      </span>
+                    )}
+                  </h2>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleGenerateCriteria}
+                    disabled={loadingCriteria}
+                    className="btn btn-sm btn-secondary flex items-center gap-1.5 font-semibold cursor-pointer"
+                  >
+                    {loadingCriteria ? <Loader2 className="w-3.5 h-3.5 animate-spin text-teal-500" /> : <Sparkles className="w-3.5 h-3.5 text-teal-500" />}
+                    <span>{isVi ? 'AI Gợi ý tiêu chí' : 'AI Suggested Criteria'}</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* INCLUSION CRITERIA */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between pb-2 border-b border-surface-100 dark:border-surface-800">
+                    <h4 className="font-bold text-xs text-emerald-600 dark:text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>{isVi ? 'Tiêu chí chọn vào (Inclusion)' : 'Inclusion Criteria'}</span>
+                    </h4>
+                    <span className="badge badge-success text-[10px] font-bold">
+                      {projectData.criteria_include.length}
+                    </span>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <input 
+                      type="text" 
+                      value={newInclude} 
+                      onChange={e => setNewInclude(e.target.value)} 
+                      onKeyDown={e => e.key === 'Enter' && addInclude()}
+                      placeholder={isVi ? 'Thêm tiêu chí chọn (VD: Bài báo từ 2020-2026, Q1/Q2...)' : 'Add inclusion criterion...'}
+                      className="input input-sm flex-1 font-medium"
+                    />
+                    <button onClick={addInclude} className="btn btn-sm btn-secondary px-3 cursor-pointer">
+                      <Plus className="w-4 h-4"/>
+                    </button>
+                  </div>
+                  
+                  <ul className="space-y-2">
+                    {projectData.criteria_include.map((item, idx) => (
+                      <li key={idx} className="group flex justify-between items-start bg-emerald-50/70 dark:bg-emerald-950/30 p-3.5 rounded-xl text-xs font-semibold border border-emerald-200/70 dark:border-emerald-900/40 text-slate-800 dark:text-slate-100 shadow-2xs">
+                        <span className="pr-3 leading-relaxed">{item}</span>
+                        <button onClick={() => setProjectData(p => ({...p, criteria_include: p.criteria_include.filter((_, i) => i !== idx)}))} className="text-slate-400 hover:text-rose-500 transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0 cursor-pointer">
+                          <X className="w-3.5 h-3.5"/>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* EXCLUSION CRITERIA */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between pb-2 border-b border-surface-100 dark:border-surface-800">
+                    <h4 className="font-bold text-xs text-rose-600 dark:text-rose-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <AlertCircle className="w-4 h-4" />
+                      <span>{isVi ? 'Tiêu chí loại trừ (Exclusion)' : 'Exclusion Criteria'}</span>
+                    </h4>
+                    <span className="badge badge-danger text-[10px] font-bold">
+                      {projectData.criteria_exclude.length}
+                    </span>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <input 
+                      type="text" 
+                      value={newExclude} 
+                      onChange={e => setNewExclude(e.target.value)} 
+                      onKeyDown={e => e.key === 'Enter' && addExclude()}
+                      placeholder={isVi ? 'Thêm tiêu chí loại (VD: Bài báo review tổng quan, thư toà soạn...)' : 'Add exclusion criterion...'}
+                      className="input input-sm flex-1 font-medium"
+                    />
+                    <button onClick={addExclude} className="btn btn-sm btn-secondary px-3 cursor-pointer">
+                      <Plus className="w-4 h-4"/>
+                    </button>
+                  </div>
+                  
+                  <ul className="space-y-2">
+                    {projectData.criteria_exclude.map((item, idx) => (
+                      <li key={idx} className="group flex justify-between items-start bg-rose-50/70 dark:bg-rose-950/30 p-3.5 rounded-xl text-xs font-semibold border border-rose-200/70 dark:border-rose-900/40 text-slate-800 dark:text-slate-100 shadow-2xs">
+                        <span className="pr-3 leading-relaxed">{item}</span>
+                        <button onClick={() => setProjectData(p => ({...p, criteria_exclude: p.criteria_exclude.filter((_, i) => i !== idx)}))} className="text-slate-400 hover:text-rose-500 transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0 cursor-pointer">
+                          <X className="w-3.5 h-3.5"/>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+
+              {/* Action buttons at end of Step 2 */}
+              <div className="pt-4 mt-6 border-t border-surface-100 dark:border-surface-800 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => setActiveStep(1)}
+                  className="btn btn-secondary w-full sm:w-auto flex items-center justify-center gap-2 font-semibold cursor-pointer"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>{isVi ? 'Quay lại Bước 1: Đề tài' : 'Back to Step 1: Topic'}</span>
+                </button>
+
+                <button 
+                  type="button" 
+                  onClick={handleApproveCriteria} 
+                  disabled={loading}
+                  className="btn btn-primary w-full sm:w-auto shadow-primary-sm font-bold flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+                  <span>{isVi ? 'Lưu & Sang Bước 3: PICO & Từ khóa' : 'Save & Continue to PICO'}</span>
+                  <ArrowRight className="w-4 h-4 ml-1" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ═══════════════════════════════════════════════════════════════════ */}
+        {/* STEP 3: PHÂN TÍCH KHUNG PICO & BỘ TỪ KHÓA (PICO & KEYWORDS)        */}
+        {/* ═══════════════════════════════════════════════════════════════════ */}
+        {activeStep === 3 && (
+          <div className="space-y-6 animate-slide-up">
+            
+            <div className="card p-7 sm:p-9 text-center rounded-2xl bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 space-y-6 shadow-sm border border-slate-200 dark:border-slate-800">
+              <div className="w-14 h-14 mx-auto rounded-2xl bg-blue-50 dark:bg-blue-950/60 border border-blue-100 dark:border-blue-800/80 flex items-center justify-center shadow-xs">
+                <svg className="w-7 h-7 text-blue-600 dark:text-blue-400 animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 3a9 9 0 0 1 9 9c0 3.87-2.45 7.17-5.9 8.44L12 21l-3.1-1.56A8.99 8.99 0 0 1 3 12a9 9 0 0 1 9-9z" className="fill-blue-500/10 stroke-blue-600 dark:stroke-blue-400" />
+                  <path d="M12 7v5l3 3" className="stroke-blue-600 dark:stroke-blue-400 stroke-[2]" />
+                  <circle cx="12" cy="12" r="1.5" className="fill-blue-600 dark:fill-blue-400" />
+                </svg>
+              </div>
+              
+              <div className="max-w-2xl mx-auto space-y-2">
+                <h3 className="font-display font-extrabold text-xl sm:text-2xl text-slate-900 dark:text-white tracking-tight">
+                  {isVi ? '3. Phân tích Khung PICO & Bộ từ khóa tìm kiếm' : '3. PICO Framework & Academic Search Keywords'}
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
+                  {isVi 
+                    ? 'Khung PICO (Đối tượng, Can thiệp, So sánh, Kết quả) giúp cấu trúc hóa câu hỏi nghiên cứu và trích xuất các từ khóa học thuật tiếng Anh chuẩn xác nhất để tìm kiếm bài báo trên Google Scholar & Scopus.'
+                    : 'The PICO framework (Population, Intervention, Comparison, Outcome) structures your research question and extracts the most accurate academic search keywords for literature discovery.'}
+                </p>
+              </div>
+
+              {/* Action buttons at end of Step 3 - Identical to Step 2 */}
+              <div className="pt-5 mt-4 border-t border-surface-100 dark:border-surface-800 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => setActiveStep(2)}
+                  className="btn btn-secondary w-full sm:w-auto flex items-center justify-center gap-2 font-semibold cursor-pointer"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>{isVi ? 'Quay lại Bước 2: Tiêu chí' : 'Back to Step 2: Criteria'}</span>
+                </button>
+
+                <button 
+                  onClick={handleSuggestKeywords} 
+                  disabled={loadingKeywords}
+                  className="btn btn-primary w-full sm:w-auto shadow-primary-sm font-bold flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {loadingKeywords ? (
                     <>
-                      <Check className="w-4 h-4 stroke-[2.5]" />
-                      <span>{isVi ? 'Đã lưu cấu hình!' : 'Configuration Saved!'}</span>
+                      <Loader2 className="w-4 h-4 animate-spin text-white" />
+                      <span>{isVi ? 'Đang phân tích & tra cứu...' : 'Analyzing & Synthesizing...'}</span>
                     </>
                   ) : (
                     <>
-                      {loading ? <Loader2 className="w-4 h-4 animate-spin text-white" /> : <Save className="w-4 h-4 text-white" />}
-                      <span>{isVi ? 'Lưu Cấu hình & Phân tích' : 'Save Setup & Analysis'}</span>
+                      <Search className="w-4 h-4" />
+                      <span>{picoData ? (isVi ? 'Tra cứu lại PICO' : 'Re-synthesize PICO') : (isVi ? 'Tra cứu PICO & Sinh từ khóa' : 'Synthesize PICO')}</span>
                     </>
                   )}
                 </button>
               </div>
+            </div>
 
-              {/* 4 PICO Blocks */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-                <div className="p-4 rounded-xl bg-blue-50/50 dark:bg-slate-800/80 border border-blue-100 dark:border-slate-700 shadow-xs space-y-1.5">
-                  <span className="section-label text-blue-700 dark:text-blue-400 block font-bold text-xs">
-                    [P] {isVi ? 'Đối tượng nghiên cứu' : 'Population / Problem'}:
-                  </span>
-                  <p className="text-xs font-semibold text-slate-800 dark:text-slate-100 leading-relaxed">
-                    {picoData.population || 'N/A'}
-                  </p>
-                </div>
+            {picoData && (
+              <div ref={picoCardRef} className="card p-6 sm:p-8 space-y-6 animate-slide-up bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-100 dark:border-blue-800 flex items-center justify-center text-blue-600 dark:text-blue-400 shadow-xs">
+                      <BookOpen className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="font-display font-extrabold text-lg text-slate-900 dark:text-white">
+                        {isVi ? 'Kết quả phân tích Khung PICO' : 'PICO Analysis Results'}
+                      </h4>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                        {isVi ? 'Đã phân tích và trích xuất cấu trúc đề tài thành công' : 'Analysis and scoping completed successfully'}
+                      </p>
+                    </div>
+                  </div>
 
-                <div className="p-4 rounded-xl bg-indigo-50/50 dark:bg-slate-800/80 border border-indigo-100 dark:border-slate-700 shadow-xs space-y-1.5">
-                  <span className="section-label text-indigo-700 dark:text-indigo-400 block font-bold text-xs">
-                    [I] {isVi ? 'Giải pháp & Phương pháp' : 'Intervention / Method'}:
-                  </span>
-                  <p className="text-xs font-semibold text-slate-800 dark:text-slate-100 leading-relaxed">
-                    {picoData.intervention || 'N/A'}
-                  </p>
-                </div>
-
-                <div className="p-4 rounded-xl bg-amber-50/50 dark:bg-slate-800/80 border border-amber-100 dark:border-slate-700 shadow-xs space-y-1.5">
-                  <span className="section-label text-amber-700 dark:text-amber-400 block font-bold text-xs">
-                    [C] {isVi ? 'Tiêu chuẩn đối chiếu' : 'Comparison'}:
-                  </span>
-                  <p className="text-xs font-semibold text-slate-800 dark:text-slate-100 leading-relaxed">
-                    {picoData.comparison || 'N/A'}
-                  </p>
-                </div>
-
-                <div className="p-4 rounded-xl bg-emerald-50/50 dark:bg-slate-800/80 border border-emerald-100 dark:border-slate-700 shadow-xs space-y-1.5">
-                  <span className="section-label text-emerald-700 dark:text-emerald-400 block font-bold text-xs">
-                    [O] {isVi ? 'Kết quả kỳ vọng' : 'Outcome'}:
-                  </span>
-                  <p className="text-xs font-semibold text-slate-800 dark:text-slate-100 leading-relaxed">
-                    {picoData.outcome || 'N/A'}
-                  </p>
-                </div>
-              </div>
-
-              {/* Keywords & Boolean Query Container */}
-              <div className="p-5 sm:p-6 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white space-y-4 shadow-xs">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-700">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                    <Search className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                    {isVi ? 'Bộ từ khóa học thuật đề xuất' : 'Academic Search Keywords'}
-                  </span>
-
-                  {picoData.search_keywords && picoData.search_keywords.length > 0 && (
-                    <button
-                      onClick={handleCopyKeywords}
-                      className="btn btn-sm btn-secondary text-xs flex items-center gap-1.5 font-semibold cursor-pointer"
-                    >
-                      {copiedKeywords ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                      <span>{copiedKeywords ? (isVi ? 'Đã sao chép!' : 'Copied!') : (isVi ? 'Sao chép chuỗi tìm kiếm' : 'Copy Search String')}</span>
-                    </button>
-                  )}
-                </div>
-
-                <div className="flex flex-wrap gap-2.5">
-                  {(picoData.search_keywords || []).map((kw, i) => (
-                    <span 
-                      key={i} 
-                      className="px-3 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 text-xs font-bold border border-blue-200/80 dark:border-blue-800 shadow-xs"
-                    >
-                      {kw}
-                    </span>
-                  ))}
-                </div>
-
-                {/* Big Next Step Guidance */}
-                <div className="pt-4 border-t border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <p className="text-xs text-surface-400">
-                    💡 <strong className="text-surface-200">{isVi ? 'Bước tiếp theo:' : 'Next Step:'}</strong> {isVi 
-                      ? 'Nhấn nút bên cạnh để chuyển sang tab Tìm kiếm. Toàn bộ từ khóa sẽ được tự động điền vào thanh tìm kiếm.' 
-                      : 'Click the button to switch to the Search tab. All keywords will be auto-filled into the search bar.'}
-                  </p>
-
+                  {/* Top Right Save Button */}
                   <button 
-                    onClick={handleProceedToSearch}
-                    className="btn btn-primary btn-lg font-bold shrink-0 flex items-center justify-center gap-2 shadow-primary-md"
+                    type="button"
+                    onClick={() => handleSave()}
+                    disabled={loading}
+                    className="btn btn-primary self-start sm:self-auto flex items-center gap-2 font-bold shadow-md px-5 py-2.5 rounded-xl transition-all hover:scale-105 cursor-pointer"
                   >
-                    <span>{isVi ? 'Tiến hành Tìm kiếm Bài báo' : 'Proceed to Search Papers'}</span>
-                    <ArrowRight className="w-5 h-5" />
+                    {saved ? (
+                      <>
+                        <Check className="w-4 h-4 stroke-[2.5]" />
+                        <span>{isVi ? 'Đã lưu Khung đề tài!' : 'Framework Saved!'}</span>
+                      </>
+                    ) : (
+                      <>
+                        {loading ? <Loader2 className="w-4 h-4 animate-spin text-white" /> : <Save className="w-4 h-4 text-white" />}
+                        <span>{isVi ? 'Lưu Khung Đề tài' : 'Save Framework'}</span>
+                      </>
+                    )}
                   </button>
                 </div>
+
+                {/* 4 PICO Blocks */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                  <div className="p-4 rounded-xl bg-blue-50/50 dark:bg-slate-800/80 border border-blue-100 dark:border-slate-700 shadow-xs space-y-1.5">
+                    <span className="section-label text-blue-700 dark:text-blue-400 block font-bold text-xs">
+                      [P] {isVi ? 'Đối tượng nghiên cứu' : 'Population / Problem'}:
+                    </span>
+                    <p className="text-xs font-semibold text-slate-800 dark:text-slate-100 leading-relaxed">
+                      {picoData.population || 'N/A'}
+                    </p>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-indigo-50/50 dark:bg-slate-800/80 border border-indigo-100 dark:border-slate-700 shadow-xs space-y-1.5">
+                    <span className="section-label text-indigo-700 dark:text-indigo-400 block font-bold text-xs">
+                      [I] {isVi ? 'Giải pháp & Phương pháp' : 'Intervention / Method'}:
+                    </span>
+                    <p className="text-xs font-semibold text-slate-800 dark:text-slate-100 leading-relaxed">
+                      {picoData.intervention || 'N/A'}
+                    </p>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-amber-50/50 dark:bg-slate-800/80 border border-amber-100 dark:border-slate-700 shadow-xs space-y-1.5">
+                    <span className="section-label text-amber-700 dark:text-amber-400 block font-bold text-xs">
+                      [C] {isVi ? 'Tiêu chuẩn đối chiếu' : 'Comparison'}:
+                    </span>
+                    <p className="text-xs font-semibold text-slate-800 dark:text-slate-100 leading-relaxed">
+                      {picoData.comparison || 'N/A'}
+                    </p>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-emerald-50/50 dark:bg-slate-800/80 border border-emerald-100 dark:border-slate-700 shadow-xs space-y-1.5">
+                    <span className="section-label text-emerald-700 dark:text-emerald-400 block font-bold text-xs">
+                      [O] {isVi ? 'Kết quả kỳ vọng' : 'Outcome'}:
+                    </span>
+                    <p className="text-xs font-semibold text-slate-800 dark:text-slate-100 leading-relaxed">
+                      {picoData.outcome || 'N/A'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Keywords & Boolean Query Container */}
+                <div className="p-5 sm:p-6 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white space-y-4 shadow-xs">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-700">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                      <Search className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      {isVi ? 'Bộ từ khóa học thuật đề xuất' : 'Academic Search Keywords'}
+                    </span>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      {picoData.search_keywords && picoData.search_keywords.length > 0 && (
+                        <button
+                          onClick={handleCopyKeywords}
+                          className="btn btn-sm btn-secondary text-xs flex items-center gap-1.5 font-semibold cursor-pointer"
+                        >
+                          {copiedKeywords ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                          <span>{copiedKeywords ? (isVi ? 'Đã sao chép!' : 'Copied!') : (isVi ? 'Sao chép chuỗi từ khóa' : 'Copy Search String')}</span>
+                        </button>
+                      )}
+
+                      <button
+                        onClick={() => downloadSetupFrameworkMarkdown(projectData, picoData, `${(projectData?.name || 'khung_de_tai').replace(/\s+/g, '_')}_framework.md`)}
+                        className="btn btn-sm btn-secondary text-xs flex items-center gap-1.5 font-semibold cursor-pointer"
+                        title={isVi ? 'Tải tóm tắt Khung đề tài dạng Markdown' : 'Download Research Framework summary as Markdown'}
+                      >
+                        <Download className="w-3.5 h-3.5 text-blue-500" />
+                        <span>{isVi ? 'Xuất Khung Đề tài (.md)' : 'Export Framework (.md)'}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2.5">
+                    {(picoData.search_keywords || []).map((kw, i) => (
+                      <span 
+                        key={i} 
+                        className="px-3 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 text-xs font-bold border border-blue-200/80 dark:border-blue-800 shadow-xs"
+                      >
+                        {kw}
+                      </span>
+                    ))}
+                  </div>
+
+                  {/* Big Next Step Guidance */}
+                  <div className="pt-4 border-t border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <button
+                      type="button"
+                      onClick={() => setActiveStep(2)}
+                      className="btn btn-secondary w-full sm:w-auto flex items-center justify-center gap-2 font-semibold text-xs cursor-pointer"
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                      <span>{isVi ? 'Quay lại Bước 2: Tiêu chí' : 'Back to Step 2: Criteria'}</span>
+                    </button>
+
+                    <button 
+                      onClick={handleProceedToSearch}
+                      className="btn btn-primary btn-lg font-bold shrink-0 flex items-center justify-center gap-2 shadow-primary-md cursor-pointer"
+                    >
+                      <span>{isVi ? 'Tiến hành Tìm kiếm Bài báo' : 'Proceed to Search Papers'}</span>
+                      <ArrowRight className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
-          )}
-        </div>
-      )}
+            )}
+          </div>
+        )}
+
+      </div>
     </div>
   );
 }
