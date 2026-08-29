@@ -50,6 +50,7 @@ import {
   tokenizeReviewCitations,
   normalizeSynthesisResponse,
   getDirectSynthesisError,
+  computeCitationQuality,
 } from '../../utils/synthesis';
 import { reviewScrollClass, sectionEvidenceLabel } from '../../utils/reviewPresentation';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -122,7 +123,15 @@ export default function SynthesisPanel({
   const [error, setError] = useState('');
   const [history, setHistory] = useState([]);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-  
+  // fast_v2's own citation_coverage_telemetry (see CitationCoverageTelemetry
+  // in anthropic_citations.py) -- set from the direct /synthesis/execute
+  // response right after a run, AND from `citation_coverage_telemetry` on
+  // GET /synthesis-sessions/{id} (persisted at execution time), so it
+  // survives a page reload / a session reselected from history. Null only
+  // for a Legacy (pre-fast_v2) session that never had this column populated.
+  const [executeTelemetry, setExecuteTelemetry] = useState(null);
+
+
   // Research Focus / Topic Input
   const [researchTopic, setResearchTopic] = useState(() => activeProject?.research_question || '');
   const [copied, setCopied] = useState(false);
@@ -180,7 +189,9 @@ export default function SynthesisPanel({
               try {
                 const detailRes = await safeFetch(`/synthesis-sessions/${sessionToLoad.id}`);
                 if (detailRes.ok) {
-                  setResult(await detailRes.json());
+                  const detail = await detailRes.json();
+                  setResult(detail);
+                  setExecuteTelemetry(detail.citation_coverage_telemetry || null);
                 }
               } catch (e) {
                 console.error('Failed to fetch synthesis session detail', e);
@@ -220,6 +231,7 @@ export default function SynthesisPanel({
         setStatus(data.status);
         if (data.status === 'done') {
           setResult(data);
+          setExecuteTelemetry(data.citation_coverage_telemetry || null);
           fetchHistory(false);
         } else if (data.status === 'failed') {
           setError(data.error_message || t('synthesis.failed_generic'));
@@ -308,6 +320,7 @@ export default function SynthesisPanel({
       const directResult = normalizeSynthesisResponse(data);
       if (directResult) {
         setResult(directResult);
+        setExecuteTelemetry(data?.diagnostics?.citation_coverage_telemetry || null);
         setSessionId(data.session_id || null);
         setStatus('done');
         setOutlinePlan(null);
@@ -336,6 +349,7 @@ export default function SynthesisPanel({
     setSessionId(null);
     setStatus('idle');
     setResult(null);
+    setExecuteTelemetry(null);
     setError('');
     setOutlinePlan(null);
     localStorage.removeItem('litreview_active_synthesis_id');
@@ -368,6 +382,11 @@ export default function SynthesisPanel({
   const reviewSections = useMemo(
     () => buildReviewSections(result, workspacePapers),
     [result, workspacePapers],
+  );
+
+  const citationQuality = useMemo(
+    () => computeCitationQuality(reviewSections, executeTelemetry),
+    [reviewSections, executeTelemetry],
   );
 
   const comparisonRows = useMemo(
@@ -989,6 +1008,70 @@ export default function SynthesisPanel({
                 : 'Tổng hợp học thuật tự động bằng AI. Vui lòng đối chiếu các luận điểm quan trọng với tài liệu gốc được trích dẫn.'}
             </span>
           </div>
+
+          {/* Citation coverage summary. Cited-paragraphs/coverage/uncited are
+              computed from the rendered reviewSections, so they always show
+              (including after a page reload / history reselect). Citation
+              accuracy and the local-verification count come from
+              executeTelemetry -- populated both right after a run AND from
+              the persisted citation_coverage_telemetry column on a reloaded
+              session (see db_models.py::SynthesisSession), so "—" now only
+              means an older session created before that column existed. Big
+              numbers + a short label under each, laid out as a bordered
+              stat grid -- deliberately not a "dashboard" of colorful icon
+              cards, but still meant to be scanned at a glance. */}
+          {citationQuality && (
+            <div className="rounded-xl border border-slate-200 dark:border-slate-700/70 overflow-hidden">
+              <div className="px-4 py-2 bg-slate-50 dark:bg-slate-800/40 border-b border-slate-200 dark:border-slate-700/70 text-xs font-semibold text-slate-600 dark:text-slate-300">
+                {isEn ? 'Citation coverage for this report' : 'Mức độ trích dẫn của báo cáo này'}
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-y sm:divide-y-0 divide-slate-200 dark:divide-slate-700/70">
+                <div className="px-4 py-3">
+                  <div className="text-xl font-extrabold text-slate-800 dark:text-slate-100">
+                    {citationQuality.faithfulnessPct}%
+                  </div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                    {isEn ? 'Cited' : 'Có trích dẫn'}
+                    <span className="text-slate-400 dark:text-slate-500"> ({citationQuality.citedParagraphs}/{citationQuality.substantiveParagraphs})</span>
+                  </div>
+                </div>
+                <div className="px-4 py-3">
+                  <div className="text-xl font-extrabold text-slate-800 dark:text-slate-100">
+                    {citationQuality.hallucinationPct}%
+                  </div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                    {isEn ? 'Not yet cited' : 'Chưa có trích dẫn'}
+                  </div>
+                </div>
+                <div className="px-4 py-3">
+                  <div className="text-xl font-extrabold text-slate-800 dark:text-slate-100">
+                    {citationQuality.precisionPct != null ? `${citationQuality.precisionPct}%` : '—'}
+                  </div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                    {isEn ? 'Citation accuracy' : 'Độ chính xác trích dẫn'}
+                  </div>
+                </div>
+                <div
+                  className="px-4 py-3"
+                  title={isEn
+                    ? 'Sentences confirmed by a local verification model, without an LLM call'
+                    : 'Số câu được một mô hình xác minh cục bộ xác nhận, không cần gọi AI'}
+                >
+                  <div className="text-xl font-extrabold text-slate-800 dark:text-slate-100">
+                    {citationQuality.tier1_2ResolvedClaims != null ? citationQuality.tier1_2ResolvedClaims : '—'}
+                  </div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                    {isEn ? 'Verified locally (no AI)' : 'Xác minh cục bộ (không qua AI)'}
+                  </div>
+                </div>
+              </div>
+              <p className="px-4 py-2 bg-slate-50/70 dark:bg-slate-800/20 border-t border-slate-200 dark:border-slate-700/70 text-[10px] text-slate-400 dark:text-slate-500 leading-relaxed">
+                {isEn
+                  ? '"Not yet cited" means the sentence has no linked source yet -- it is not necessarily incorrect.'
+                  : '"Chưa có trích dẫn" nghĩa là câu đó chưa được gắn nguồn cụ thể — không đồng nghĩa với việc nội dung sai.'}
+              </p>
+            </div>
+          )}
 
           {/* Executive Takeaways Card (Điểm nhấn Cốt lõi) */}
           {consensus.length > 0 && (

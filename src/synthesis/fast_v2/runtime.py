@@ -313,7 +313,7 @@ async def run_section_scoped_synthesis(
     paper_ids: Sequence[uuid.UUID],
     approved_outline: LongformOutlinePlan,
     artifact_dir: str | None = None,
-    citation_batch_size: int = 8,
+    citation_batch_size: int = 4,
     citation_concurrency: int = 4,
 ) -> FastSynthesisV2Result:
     """Execute section-scoped synthesis with an approved LongformOutlinePlan.

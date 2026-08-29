@@ -372,21 +372,87 @@ bật rõ ràng bằng tay sau khi đã xác nhận model chạy đúng).
 - [x] `.gitignore` — thêm `models/nli_evidence_v1/`, giữ đúng pattern các model khác
       (`lora_agent*/`, `temp_*/`) không commit weight file vào git.
 
-### 8.2. Việc còn lại (thực sự còn, không phải đã xong)
+### 8.2. Tích hợp vào pipeline thật — ĐÃ XONG, đã test cục bộ
+
+Quyết định kiến trúc đã chốt: Tầng 2 **lọc trước** (pre-filter), không thay thế Tầng 3
+— chỉ những claim Tier 2 tự tin quyết mới bỏ qua LLM, số còn lại đi qua đúng luồng
+LLM-as-Judge hiện có, không đổi hành vi.
+
+- [x] `src/services/nli_checker.py::resolve_claims_via_nli()` — nhận đúng format
+      `claims_with_evidence` mà `SynthesisService.cross_paper_analysis()` đã dùng cho
+      `verify_claim_set_batch` (không cần lớp chuyển đổi riêng). Luật hợp nhất nhiều
+      evidence/claim (model NLI chỉ nhận 1 premise:1 hypothesis):
+      - Bất kỳ evidence nào NLI báo `contradicted` với confidence ≥ 0.75 → chốt
+        `contradicted` ngay (1 mâu thuẫn thật đủ để không cần chờ các evidence khác).
+      - Có evidence `supported` ≥ 0.75 **và** không có evidence nào `contradicted` ở
+        BẤT KỲ confidence nào (kể cả thấp) → chốt `supported`. Vế contradiction xét
+        khắt khe hơn vế support có chủ đích — tín hiệu mâu thuẫn dù yếu vẫn đáng để
+        Tier 3/con người xem, Tier 2 không nên tự ý bỏ qua.
+      - Còn lại → không quyết, để nguyên cho Tier 3 xử lý y hệt hiện tại.
+- [x] `src/services/synthesis_service.py::cross_paper_analysis()` — chèn Tier 2 ngay
+      trước bước build batch LLM call; claim Tier 2 đã quyết bị loại khỏi
+      `prepared_for_llm` (không tốn LLM call), decision của cả Tier 2 lẫn Tier 3 gộp
+      chung vào 1 dict rồi đi qua **đúng nguyên vẹn** cơ chế
+      `sanitize_claim_verification` hiện có (không bypass fail-closed guard chống
+      evidence_id hallucinate). Khi tắt `NLI_EVIDENCE_ENABLED` (mặc định), nhánh Tier 2
+      không chạy — hành vi y hệt trước khi có Module 1.
+      Lỗi hệ thống (`NLIModelUnavailableError` — thiếu checkpoint, sai thứ tự nhãn)
+      được bắt riêng, log rõ ràng, rồi để toàn bộ claim rơi xuống Tier 3 cho request đó
+      thay vì làm gãy cả phiên tổng hợp.
+- [x] `tests/test_services/test_nli_checker.py` — 6 test đơn vị cho luật hợp nhất
+      (contradicted/supported/escalate/nhiều claim độc lập/không có evidence/tín hiệu
+      mâu thuẫn yếu vẫn chặn support) — dùng `FakeNLIChecker` (double), không load model
+      thật, theo đúng pattern test đã có trong repo.
+- [x] **Smoke-test thật với model B** (không mock) — 3 tình huống, cả 3 đúng:
+      claim đúng khớp 1/2 evidence → `supported`, chỉ chọn evidence liên quan; claim
+      lật ngược 1 bất đẳng thức thật → `contradicted`; claim hoàn toàn không liên quan
+      tới evidence được cung cấp → không quyết, escalate lên Tier 3 (đúng kỳ vọng).
+- [x] Toàn bộ `pytest tests/ -q` (trừ `test_fast_v2/`) — **265 passed**, đúng 3 lỗi
+      baseline đã biết trước Module 1 (không phải regression) + 3 lỗi môi trường
+      Windows cục bộ đã biết (`test_document_processor.py`, PermissionError không
+      liên quan code).
+
+### 8.2.1. Tầng 1 + endpoint đo lường cuối cùng — ĐÃ XONG (bổ sung sau khi rà soát lại đúng mục tiêu gốc)
+
+Rà soát lại thấy thiếu 2 phần so với kiến trúc gốc (mục 2): Tầng 1 (chưa từng có
+code), và bước TÍNH RA con số cuối cùng cho 1 bản tổng hợp đã hoàn thành (trước đó
+mới chỉ có bước lọc claim trong lúc synthesis chạy, chưa có bước đo lường sau đó).
+
+- [x] `src/services/claim_verification_policy.py::fuzzy_verbatim_match()` — Tầng 1,
+      hoàn toàn tất định, không gọi model nào. Đo đoạn khớp liên tục dài nhất
+      (`difflib.find_longest_match`) như % độ dài CLAIM — cố ý không dùng bag-of-words
+      overlap, vì overlap theo tập từ sẽ coi "X đúng" và "X không đúng" là gần như
+      giống hệt nhau (cùng từ, khác đúng 1 từ phủ định); đo theo đoạn khớp liên tục
+      thì việc chèn "not" phá vỡ đoạn khớp, tự động bị loại — đã test riêng case này.
+      Nối vào `cross_paper_analysis()` NGAY TRƯỚC Tầng 2, cùng 1 cờ
+      `NLI_EVIDENCE_ENABLED` (2 tầng đóng gói chung, không thêm cờ riêng).
+- [x] `GET /synthesis-sessions/{session_id}/quality` (`src/api/routes.py`) — endpoint
+      mới tính 3 chỉ số cho 1 session đã xong:
+      - **Faithfulness Score** = claim `supported` / tổng claim (từ `SynthesisClaim.verification_status`, có sẵn).
+      - **Hallucination Rate** = 100% − Faithfulness Score.
+      - **Citation Precision** = câu factual được GIỮ LẠI sau vòng lọc cuối / tổng câu
+        factual writer LLM đề xuất ban đầu. **Không** tính theo kiểu "citation có
+        evidence_id / tổng citation" — đã kiểm tra kỹ: mọi `Citation` được lưu vào DB
+        trong pipeline Legacy đã bị đảm bảo cấu trúc hợp lệ 100% từ trước (chỉ tạo ra
+        từ claim/link đã verify supported), nên đếm kiểu đó sẽ luôn ra 100% và không
+        đo được gì thật. Đã sửa `finalize_review()` để đếm số câu factual đề xuất
+        TRƯỚC khi qua guard lọc cuối (lưu vào `SynthesisMetrics.section_metrics`,
+        cột JSON có sẵn — **không đổi schema DB**, tuân thủ đúng `PROJECT_STANDARDS.md`
+        mục 4 rule 3 cấm tự ý ALTER TABLE).
+- [x] Smoke-test cả 2 phần bằng dữ liệu giả (Tầng 1: case khớp/phủ định/không liên
+      quan; endpoint: dựng 1 SQLite riêng biệt hoàn toàn tách khỏi DB thật, test xong
+      xóa file, không đụng dữ liệu thật của người dùng) — cả 2 đúng như kỳ vọng.
+- [x] `tests/test_services/test_claim_verification_policy.py` — 5 test mới cho Tầng 1.
+- [x] Toàn bộ `pytest tests/` (trừ `test_fast_v2/`) — **270 passed**, vẫn đúng 3+3
+      lỗi baseline/môi trường đã biết, không regression.
+
+### 8.3. Còn lại — deploy EC2 (theo yêu cầu: để SAU khi test local xong, SAU khi merge main)
 
 1. **SSH vào EC2, chạy `free -h`** để biết RAM baseline thật, đối chiếu mục 7.1 —
    quyết định giữ `t3.small`+đổi model nhỏ hơn, hay nâng `t3.medium`, hay quantize.
 2. Copy model đã chọn lên EC2 (`scp -r models/nli_evidence_v1 ubuntu@<EC2_IP>:~/P-165/models/`),
-   bật `NLI_EVIDENCE_ENABLED=true` trong `.env` trên EC2, restart `uvicorn` (lệnh có
-   sẵn ở `PROJECT_STANDARDS.md` mục 7).
-3. Viết code nối Tầng 2 vào pipeline claim-verification thật (hiện `nli_checker.py`
-   là lớp dịch vụ độc lập, sẵn sàng gọi — chưa có PR nối vào
-   `src/services/claim_verification_policy.py` hay `synthesis_service.py`). Đây là
-   việc thiết kế cần bàn thêm (Tầng 2 nên thay thế hoàn toàn Tầng 3 LLM-as-Judge hiện
-   tại, hay chỉ lọc trước để giảm số lần gọi LLM?) — chưa làm trong phiên này vì cần
-   quyết định kiến trúc, không phải việc "quên làm".
-4. (Tuỳ chọn) Mở rộng dataset lên >924 mẫu nếu báo cáo cần số liệu chắc chắn hơn nữa
-   — rẻ, chạy `01_generate_dataset.py --n-premises <cao hơn>` rồi train lại trên Colab.
+   bật `NLI_EVIDENCE_ENABLED=true` trong `.env` trên EC2, restart `uvicorn`.
+3. (Tuỳ chọn) Mở rộng dataset lên >924 mẫu nếu báo cáo cần số liệu chắc chắn hơn nữa.
 
 ---
 

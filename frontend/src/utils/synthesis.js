@@ -102,19 +102,52 @@ export function buildReviewSections(result, workspacePapers) {
   })) : [{ title: 'Literature Review', start: 0, end: markdown.length }];
 
   return blocks.map((block, index) => {
-    const rawBody = markdown.slice(block.start, block.end).trim();
-    // Split into paragraphs to preserve structure
-    const paragraphs = rawBody.split(/\n\s*\n/).filter(p => p.trim().length > 0);
-    
+    const untrimmedBody = markdown.slice(block.start, block.end);
+    const leadingWhitespace = untrimmedBody.length - untrimmedBody.trimStart().length;
+    const rawBody = untrimmedBody.trim();
+    const bodyOffsetInMarkdown = block.start + leadingWhitespace;
+
+    // Split into paragraphs while tracking each paragraph's ABSOLUTE offset in
+    // `markdown` (not just relative to rawBody), so every paragraph can look
+    // up its OWN citations by where their [E00x]/[N] marker actually landed
+    // -- instead of every citation in the section being dumped onto the
+    // first paragraph regardless of which sentence they belong to.
+    const paragraphs = [];
+    const paraSplitRegex = /\n\s*\n/g;
+    let paraCursor = 0;
+    let splitMatch;
+    while ((splitMatch = paraSplitRegex.exec(rawBody)) !== null) {
+      const chunk = rawBody.slice(paraCursor, splitMatch.index);
+      if (chunk.trim()) {
+        paragraphs.push({
+          text: chunk.trim(),
+          absStart: bodyOffsetInMarkdown + paraCursor,
+          absEnd: bodyOffsetInMarkdown + splitMatch.index,
+        });
+      }
+      paraCursor = splitMatch.index + splitMatch[0].length;
+    }
+    const tailChunk = rawBody.slice(paraCursor);
+    if (tailChunk.trim()) {
+      paragraphs.push({
+        text: tailChunk.trim(),
+        absStart: bodyOffsetInMarkdown + paraCursor,
+        absEnd: bodyOffsetInMarkdown + rawBody.length,
+      });
+    }
+
     const citations = (result.citations || [])
       .filter((citation) => citation.review_char_start >= block.start && citation.review_char_start < block.end)
       .map((citation) => enrichCitation(citation, workspacePapers));
-      
-    const sentences = (paragraphs.length ? paragraphs : [rawBody]).map((paraText, pIdx) => ({
-      text: paraText.trim(),
-      sentence_type: 'claim',
-      citations: (pIdx === 0 && citations.length > 0) ? citations : [],
-    }));
+
+    const sentences = (paragraphs.length ? paragraphs : [{ text: rawBody, absStart: block.start, absEnd: block.end }])
+      .map((para) => ({
+        text: para.text,
+        sentence_type: 'claim',
+        citations: citations.filter(
+          (c) => c.review_char_start >= para.absStart && c.review_char_start < para.absEnd,
+        ),
+      }));
 
     return {
       id: `fast-section-${index}`,
@@ -528,6 +561,53 @@ export function generateFollowUpQuestions(result, researchTopic = '') {
   }
 
   return defaultQuestions;
+}
+
+/**
+ * Derives a human-facing citation-quality snapshot for a review.
+ *
+ * Faithfulness/Hallucination/citedParagraphs are computed straight from
+ * `reviewSections` (the same paragraphs already rendered on screen) so this
+ * always has a value -- when a session is reloaded from history or from a
+ * status poll, only `review_markdown` + `citations` survive (no
+ * diagnostics), so anything derived from the backend's own
+ * CitationCoverageTelemetry (see
+ * src/synthesis/fast_v2/citations/anthropic_citations.py::CitationCoverageTelemetry.to_dict)
+ * would otherwise silently disappear on reload.
+ *
+ * `telemetry` (diagnostics.citation_coverage_telemetry, only present in the
+ * direct /synthesis/execute response right after a run) is optional and
+ * only backs two backend-only figures that cannot be recovered from the
+ * saved citations alone: citation precision (valid vs. emitted handles --
+ * invalid ones are already stripped from the saved text) and how many
+ * claims Module 1's local Tier 1/2 pre-filter resolved without an LLM call.
+ * Both read as null (rendered "—") once `telemetry` is unavailable, rather
+ * than a stale or fabricated number.
+ *
+ * This is fast_v2's own measured coverage, NOT the Legacy Tri-Layer
+ * Engine's /synthesis-sessions/{id}/quality endpoint -- that endpoint reads
+ * SynthesisClaim rows the fast_v2 pipeline never writes, so it always
+ * reports 0 claims for a fast_v2 session.
+ */
+export function computeCitationQuality(reviewSections, telemetry = null) {
+  const allSentences = (reviewSections || []).flatMap((section) => section.sentences || []);
+  const substantiveParagraphs = allSentences.length;
+  if (!substantiveParagraphs) return null;
+
+  const citedParagraphs = allSentences.filter((s) => (s.citations || []).length > 0).length;
+  const uncited = substantiveParagraphs - citedParagraphs;
+  const emitted = telemetry?.citation_markers_emitted || 0;
+  const valid = telemetry?.valid_handles || 0;
+
+  return {
+    substantiveParagraphs,
+    citedParagraphs,
+    faithfulnessPct: Math.round((citedParagraphs / substantiveParagraphs) * 1000) / 10,
+    hallucinationPct: Math.round((uncited / substantiveParagraphs) * 1000) / 10,
+    precisionPct: telemetry && emitted > 0 ? Math.round((valid / emitted) * 1000) / 10 : null,
+    tier1_2ResolvedClaims: telemetry ? (telemetry.tier1_2_resolved_claims || 0) : null,
+    llmCallsSkipped: telemetry ? (telemetry.llm_calls_skipped_by_tier1_2 || 0) : null,
+  };
 }
 
 export function tokenizeReviewCitations(review, citations) {

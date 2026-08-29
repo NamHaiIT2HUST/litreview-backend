@@ -299,6 +299,14 @@ class SynthesisSession(Base):
     status = Column(SQLEnum(SynthesisStatus), default=SynthesisStatus.processing)
     review_markdown = Column(Text, nullable=True)
     error_message = Column(Text, nullable=True)
+    # fast_v2's own CitationCoverageTelemetry.to_dict() snapshot (see
+    # src/synthesis/fast_v2/citations/anthropic_citations.py), persisted so
+    # the frontend's citation-quality summary survives a page reload / a
+    # session reselected from history -- it previously existed only in the
+    # direct /synthesis/execute response and vanished afterward. Legacy
+    # (non-fast_v2) sessions leave this null; the frontend already handles
+    # that (see computeCitationQuality in frontend/src/utils/synthesis.js).
+    citation_coverage_telemetry = Column(JSONB, nullable=True)
     created_at = Column(DateTime(timezone=True), default=_now_utc)
 
     project = relationship("Project", back_populates="synthesis_sessions")
