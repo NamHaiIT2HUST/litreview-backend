@@ -185,6 +185,19 @@ export default function ResearchSetupTab({ setActiveTab }) {
       const isGate2Done = g2 === 'true' || (g2 !== 'false' && isGate1Done && hasCriteria);
       setCriteriaApproved(isGate2Done);
 
+      // activeStep defaults to 1 on every mount (useState(1) never persists),
+      // so leaving/returning to this tab silently reset progress back to
+      // step 1 even though topic/criteria were already approved and saved.
+      // Restore the step that matches what's actually done, same as the
+      // per-step "Đã duyệt" badges already reflect.
+      if (isGate2Done) {
+        setActiveStep(3);
+      } else if (isGate1Done) {
+        setActiveStep(2);
+      } else {
+        setActiveStep(1);
+      }
+
       try {
         const cachedScope = localStorage.getItem(`slr_scope_result_${pId}`);
         setScopeResult(cachedScope ? JSON.parse(cachedScope) : null);
@@ -493,7 +506,7 @@ export default function ResearchSetupTab({ setActiveTab }) {
       {/* ── Page Header ─────────────────────────────────────────────────── */}
       <div className="pt-2">
         <h1 className="font-display font-bold text-2xl sm:text-3xl text-surface-900 dark:text-white tracking-tight">
-          {isVi ? 'Xây dựng Khung Đề tài Nghiên cứu' : 'Research Setup Framework'}
+          {isVi ? 'Xây dựng khung đề tài nghiên cứu' : 'Research Setup Framework'}
         </h1>
         <p className="text-sm text-surface-500 dark:text-surface-400 mt-1">
           {isVi 
@@ -693,7 +706,7 @@ export default function ResearchSetupTab({ setActiveTab }) {
                   </div>
                   <div>
                     <h2 className="font-display font-extrabold text-lg sm:text-xl text-slate-900 dark:text-white flex items-center gap-2">
-                      <span>{isVi ? 'Xác định Câu hỏi Nghiên cứu & Khung năm' : 'Formulate Research Question & Timeframe'}</span>
+                      <span>{isVi ? 'Câu hỏi nghiên cứu' : 'Research Question'}</span>
                       {topicApproved && (
                         <span className="inline-flex items-center gap-1 text-[11px] font-bold text-cyan-700 dark:text-cyan-300 bg-cyan-100 dark:bg-cyan-950/60 px-2.5 py-0.5 rounded-full border border-cyan-200 dark:border-cyan-800">
                           <Check className="w-3 h-3 stroke-[2.5]" /> {isVi ? 'Đã định hình' : 'Confirmed'}
@@ -1090,7 +1103,7 @@ export default function ResearchSetupTab({ setActiveTab }) {
                     ) : (
                       <>
                         {loading ? <Loader2 className="w-4 h-4 animate-spin text-white" /> : <Save className="w-4 h-4 text-white" />}
-                        <span>{isVi ? 'Lưu Khung Đề tài' : 'Save Framework'}</span>
+                        <span>{isVi ? 'Lưu khung đề tài' : 'Save Framework'}</span>
                       </>
                     )}
                   </button>
@@ -1160,7 +1173,7 @@ export default function ResearchSetupTab({ setActiveTab }) {
                         title={isVi ? 'Tải tóm tắt Khung đề tài dạng Markdown' : 'Download Research Framework summary as Markdown'}
                       >
                         <Download className="w-3.5 h-3.5 text-blue-500" />
-                        <span>{isVi ? 'Xuất Khung Đề tài (.md)' : 'Export Framework (.md)'}</span>
+                        <span>{isVi ? 'Xuất khung đề tài (.md)' : 'Export Framework (.md)'}</span>
                       </button>
                     </div>
                   </div>

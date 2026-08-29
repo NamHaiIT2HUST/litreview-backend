@@ -256,8 +256,8 @@ export default function HorizontalNavbar({
           <div className="relative" ref={profileDropdownRef}>
             <button
               onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-              className="flex items-center gap-2 py-1 pl-1 pr-2 sm:pr-2.5 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 transition-all cursor-pointer shadow-xs ml-1 max-w-[220px]"
-              title={currentUser?.name || 'User Profile'}
+              className="flex items-center gap-2 py-1 pl-1 pr-2 sm:pr-2.5 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 transition-all cursor-pointer shadow-xs ml-1 max-w-[180px] lg:max-w-[240px] xl:max-w-[300px]"
+              title={currentUser?.name ? `${currentUser.name} · ${currentUser.email || ''}` : 'User Profile'}
             >
               {currentUser?.picture ? (
                 <img
