@@ -12,6 +12,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useProject } from '../contexts/ProjectContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useDarkMode } from '../contexts/DarkModeContext';
+import BrandLogo from './common/BrandLogo';
 
 const WORKFLOW_STEPS = [
   { id: 'overview',   labelKey: 'nav.overview',   icon: Home,     step: null },
@@ -145,15 +146,12 @@ export default function Sidebar({
         </button>
 
         {/* Mobile Brand */}
-        <button
+        <BrandLogo
+          size="sm"
+          withText
+          badgeStyle
           onClick={() => setActiveTab('overview')}
-          className="flex items-center gap-2 cursor-pointer"
-        >
-          <div className="w-7 h-7 rounded-lg bg-primary-600 flex items-center justify-center">
-            <BookOpen className="w-4 h-4 text-white" />
-          </div>
-          <span className="font-display font-bold text-sm text-surface-900 dark:text-white">LitReview</span>
-        </button>
+        />
 
         <div className="flex items-center gap-1">
           <button
@@ -185,24 +183,14 @@ export default function Sidebar({
         }`}>
           {!isCollapsed ? (
             <>
-              <button
+              <BrandLogo
+                size="md"
+                withText
+                withTagline
+                isEn={!isVietnamese}
+                badgeStyle
                 onClick={() => setActiveTab('overview')}
-                className="flex items-center gap-2.5 min-w-0 text-left group cursor-pointer"
-              >
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary-600 to-indigo-700 flex items-center justify-center text-white shadow-primary-sm group-hover:scale-105 transition-transform flex-shrink-0">
-                  <BookOpen className="w-5 h-5" />
-                </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-display font-extrabold text-sm text-surface-900 dark:text-white truncate">
-                      LitReview
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-surface-400 dark:text-surface-500 truncate leading-none mt-0.5 font-medium">
-                    {isVietnamese ? 'Nền tảng Nghiên cứu & Tổng quan' : 'Academic Literature Platform'}
-                  </p>
-                </div>
-              </button>
+              />
 
               <button
                 type="button"
@@ -218,11 +206,10 @@ export default function Sidebar({
             <button
               type="button"
               onClick={() => setIsCollapsed(false)}
-              className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-600 to-primary-800 flex items-center justify-center text-white shadow-primary-sm hover:scale-105 transition-all group relative cursor-pointer"
+              className="p-1 rounded-xl hover:bg-surface-100 dark:hover:bg-surface-800 transition-all group relative cursor-pointer"
               title="Mở rộng sidebar"
             >
-              <BookOpen className="w-5 h-5 group-hover:hidden" />
-              <PanelLeft className="w-5 h-5 hidden group-hover:block" />
+              <BrandLogo size="sm" />
               <span className="tooltip left-full ml-3 opacity-0 group-hover:opacity-100 transition-opacity">
                 Mở rộng Sidebar
               </span>

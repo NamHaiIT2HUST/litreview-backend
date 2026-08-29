@@ -4,25 +4,28 @@ import {
   Sun, Moon, Languages, Check, Plus, LogOut,
   FolderKanban, ChevronDown, LayoutList, PanelLeft,
   LayoutDashboard, User, ShieldCheck, ExternalLink,
-  BookOpen
+  BookOpen, ArrowLeft, MessageSquare, FileText, BarChart2,
+  Sparkles, HelpCircle
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useProject } from '../../contexts/ProjectContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useDarkMode } from '../../contexts/DarkModeContext';
+import BrandLogo from '../common/BrandLogo';
 
 const NAV_ITEMS = [
-  { id: 'overview',   labelVi: 'Tổng quan',   labelEn: 'Overview',  icon: Home },
-  { id: 'setup',      labelVi: 'Cấu hình',    labelEn: 'Setup',     icon: Settings },
-  { id: 'search',     labelVi: 'Tìm kiếm',    labelEn: 'Search',    icon: Search },
-  { id: 'synthesis',  labelVi: 'Phân tích',   labelEn: 'Analysis',  icon: Library },
-  { id: 'export',     labelVi: 'Xuất dữ liệu', labelEn: 'Export',   icon: Download },
+  { id: 'setup',        labelVi: 'Khung đề tài',       labelEn: 'Setup',             icon: Settings },
+  { id: 'search',       labelVi: 'Tìm kiếm',          labelEn: 'Search',            icon: Search },
+  { id: 'chat',         labelVi: 'Chat với nguồn',     labelEn: 'Chat with Sources', icon: MessageSquare },
+  { id: 'synthesis',    labelVi: 'Tổng quan tài liệu', labelEn: 'Literature Review', icon: FileText },
+  { id: 'data_analysis',labelVi: 'Phân tích dữ liệu',  labelEn: 'Data Analysis',     icon: BarChart2 },
 ];
 
 export default function HorizontalNavbar({
   activeTab,
   setActiveTab,
   onOpenNewProject,
+  onStartTour,
   layoutMode = 'horizontal',
   setLayoutMode,
 }) {
@@ -55,7 +58,6 @@ export default function HorizontalNavbar({
   const navItems = currentUser?.role === 'admin' 
     ? [
         { id: 'admin', labelVi: 'Quản trị', labelEn: 'Admin', icon: LayoutDashboard },
-        { id: 'overview', labelVi: 'Tổng quan', labelEn: 'Overview', icon: Home },
       ]
     : NAV_ITEMS;
 
@@ -63,73 +65,84 @@ export default function HorizontalNavbar({
     ? currentUser.name.split(' ').map(n => n[0]).join('').slice(-2).toUpperCase() 
     : 'NH';
 
+  const handleExportFullProject = () => {
+    try {
+      const pId = activeProjectId || activeProject?.id;
+      const cachedPapers = JSON.parse(localStorage.getItem(`litreview_search_papers_${pId}`) || '[]');
+      const setupData = JSON.parse(localStorage.getItem(`research_setup_data_${pId}`) || '{}');
+      const picoData = JSON.parse(localStorage.getItem(`slr_pico_data_${pId}`) || '{}');
+      const chatHistory = JSON.parse(localStorage.getItem(`litreview_workspace_chat_${pId}`) || '[]');
+      
+      const payload = {
+        app: 'T165 LitReview Agent',
+        exported_at: new Date().toISOString(),
+        project: activeProject || setupData,
+        pico: picoData,
+        papers: cachedPapers,
+        chat_history: chatHistory
+      };
+      
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${(activeProject?.name || 'project').replace(/\s+/g, '_')}_full_package.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('Failed to export full project package:', e);
+    }
+  };
+
   return (
-    <header className="sticky top-0 z-40 w-full bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors shadow-xs">
+    <header className="sticky top-0 z-50 w-full bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors shadow-xs">
       <div className="w-full max-w-[1920px] mx-auto px-3 sm:px-4 lg:px-6 h-16 flex items-center justify-between gap-2 sm:gap-4">
         
-        {/* ── 1. Left: Brand Logo & Title ──────────────────────────────── */}
+        {/* ── 1. Left: Brand Logo & Back to All Notebooks ──────────────── */}
+        {/* ── 1. Left: Brand Logo & Unified Project Switcher Hub ─────── */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          <div 
+          <BrandLogo
+            size="md"
+            withText
+            withTagline
+            isEn={!isVi}
+            badgeStyle
             onClick={() => setActiveTab('overview')}
-            className="flex items-center gap-2.5 cursor-pointer group select-none"
-          >
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-display font-extrabold text-sm sm:text-base flex items-center justify-center shadow-md shadow-blue-500/20 group-hover:scale-105 transition-all shrink-0">
-              LR
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-display font-extrabold text-sm sm:text-base text-slate-900 dark:text-white tracking-tight leading-none">
-                  LitReview Agent
-                </span>
-              </div>
-              <p className="hidden md:block text-[10px] font-semibold text-blue-600 dark:text-blue-400 mt-0.5 leading-none">
-                {isVi ? 'Nền tảng Nghiên cứu & Tổng quan' : 'Academic Literature Platform'}
-              </p>
-            </div>
-          </div>
-        </div>
+          />
+          <div className="h-5 w-px bg-slate-200 dark:bg-slate-800 hidden sm:block" />
 
-        {/* ── 2. Center: Primary Horizontal Navigation Tabs ─────────────── */}
-        <nav className="hidden md:flex items-center p-0.5 sm:p-1 rounded-2xl bg-slate-100/70 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 backdrop-blur-sm shrink-0">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={`relative flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer ${
-                  isActive
-                    ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/30'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/80 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-700/60'
-                }`}
-              >
-                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-slate-500 dark:text-slate-400'}`} />
-                <span>{isVi ? item.labelVi : item.labelEn}</span>
-              </button>
-            );
-          })}
-        </nav>
-
-        {/* ── 3. Right: Project Switcher, Layout Toggle, Theme, Profile ─── */}
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          
-          {/* Project Switcher Dropdown */}
+          {/* Unified Project Switcher & Back Hub Dropdown */}
           <div className="relative" ref={projectDropdownRef}>
             <button
+              id="tour-project-switcher"
               onClick={() => setProjectDropdownOpen(!projectDropdownOpen)}
-              className="px-2.5 sm:px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/80 hover:bg-slate-100 dark:hover:bg-slate-750 text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5 sm:gap-2 transition-all cursor-pointer shadow-xs max-w-[120px] sm:max-w-[160px] lg:max-w-[200px]"
-              title={isVi ? 'Đổi đề tài nghiên cứu' : 'Switch Project'}
+              className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-100/90 dark:bg-slate-800/90 hover:bg-slate-200/80 dark:hover:bg-slate-750 border border-slate-200/90 dark:border-slate-700/90 transition-all cursor-pointer shadow-2xs max-w-[150px] sm:max-w-[200px] md:max-w-[260px]"
+              title={isVi ? 'Đề tài hiện tại / Chuyển đề tài' : 'Current Project / Switch'}
             >
               <FolderKanban className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
-              <span className="truncate">{activeProject?.name || (isVi ? 'Chọn đề tài' : 'Select project')}</span>
-              <ChevronDown className="w-3 h-3 text-slate-400 shrink-0" />
+              <span className="truncate">{activeProject?.name || (isVi ? 'Tất cả Đề tài' : 'All Projects')}</span>
+              <ChevronDown className="w-3 h-3 text-slate-400 shrink-0 ml-0.5" />
             </button>
 
             {projectDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl py-2 z-50 animate-slide-up text-xs">
-                <div className="px-3.5 py-1.5 text-[10.5px] font-extrabold uppercase tracking-wider text-slate-400 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                  <span>{isVi ? 'Đề tài Nghiên cứu' : 'Projects'}</span>
+              <div className="absolute left-0 mt-2 w-72 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl py-2 z-50 animate-slide-up text-xs">
+                
+                {/* Back to All Projects Hub Option */}
+                <div className="px-2 pb-1.5 border-b border-slate-100 dark:border-slate-800">
+                  <button
+                    onClick={() => {
+                      setProjectDropdownOpen(false);
+                      setActiveTab('overview');
+                    }}
+                    className="w-full px-2.5 py-1.5 rounded-xl text-left flex items-center gap-2 text-slate-700 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-950/40 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer font-bold"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                    <span>{isVi ? 'Quay lại Tất cả Đề tài' : 'Back to All Projects'}</span>
+                  </button>
+                </div>
+
+                <div className="px-3.5 py-1.5 text-[10.5px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center justify-between">
+                  <span>{isVi ? 'Danh sách Đề tài' : 'Projects'}</span>
                   <span className="font-mono text-blue-600 dark:text-blue-400">{projects.length}</span>
                 </div>
 
@@ -156,7 +169,7 @@ export default function HorizontalNavbar({
                   })}
                 </div>
 
-                <div className="pt-1.5 px-2 border-t border-slate-100 dark:border-slate-800">
+                <div className="pt-1.5 px-2 border-t border-slate-100 dark:border-slate-800 space-y-1">
                   <button
                     onClick={() => {
                       setProjectDropdownOpen(false);
@@ -165,12 +178,50 @@ export default function HorizontalNavbar({
                     className="w-full py-1.5 px-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    <span>{isVi ? 'Tạo đề tài mới' : 'New Project'}</span>
+                    <span>{isVi ? 'Tạo Đề tài mới' : 'New Project'}</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setProjectDropdownOpen(false);
+                      handleExportFullProject();
+                    }}
+                    className="w-full py-1.5 px-2.5 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                    title={isVi ? 'Tải trọn bộ dữ liệu đề tài (JSON)' : 'Export complete project package (JSON)'}
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>{isVi ? 'Xuất Gói Đề tài (.json)' : 'Export Full Package'}</span>
                   </button>
                 </div>
               </div>
             )}
           </div>
+        </div>
+
+        {/* ── 2. Center: Primary Horizontal Navigation Tabs (4 Core Steps) ── */}
+        <nav className="hidden md:flex items-center p-0.5 sm:p-1 rounded-2xl bg-slate-100/70 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 backdrop-blur-sm shrink-0">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id)}
+                className={`relative flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer ${
+                  isActive
+                    ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/30'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/80 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-700/60'
+                }`}
+              >
+                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-slate-500 dark:text-slate-400'}`} />
+                <span>{isVi ? item.labelVi : item.labelEn}</span>
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* ── 3. Right: Language, Theme, Profile ───────────────────────── */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
 
           {/* Language Switch */}
           <button
@@ -259,6 +310,19 @@ export default function HorizontalNavbar({
                 </div>
 
                 <div className="p-1 space-y-0.5">
+                  <button
+                    onClick={() => {
+                      setProfileDropdownOpen(false);
+                      if (onStartTour) onStartTour();
+                    }}
+                    className="w-full px-3 py-2 rounded-xl text-left text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-950/40 hover:text-blue-600 dark:hover:text-blue-400 font-semibold flex items-center gap-2 transition-colors cursor-pointer"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-blue-500" />
+                    <span>{isVi ? 'Hướng dẫn sử dụng (Tour)' : 'Onboarding Tour'}</span>
+                  </button>
+
+                  <div className="h-px bg-slate-100 dark:bg-slate-800 my-1" />
+
                   <button
                     onClick={() => {
                       setProfileDropdownOpen(false);

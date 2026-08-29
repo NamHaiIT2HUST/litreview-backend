@@ -2,12 +2,17 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   Search, Download, ExternalLink, Plus, PlusCircle, CheckCircle2, Key, Loader2, AlertCircle, 
   ChevronDown, ChevronUp, ShieldCheck, ShieldAlert, Activity, Check, X, HelpCircle,
-  BookOpen, Sparkles, Trash2, Target, GitFork, FileText, ArrowRight
+  BookOpen, Sparkles, Trash2, Target, GitFork, FileText, ArrowRight, Code
 } from 'lucide-react';
 import SearchHistoryPanel from './SearchHistoryPanel';
 import FilterSortBar from './FilterSortBar';
 import PaperTable from './PaperTable';
-import { exportPapersToExcel, exportPapersToCsv } from '../../utils/excelExport';
+import { 
+  downloadClientBibTeX, 
+  downloadClientCSV, 
+  downloadClientMarkdown, 
+  downloadClientJSON 
+} from '../../utils/exportUtils';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useProject } from '../../contexts/ProjectContext';
 import { API_BASE, safeFetch } from '../../utils/apiConfig';
@@ -317,6 +322,46 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
 
   const [selectedGapCell, setSelectedGapCell] = useState(null);
 
+  // In-Context Export state & notification
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const [searchToast, setSearchToast] = useState(null);
+  const showSearchToast = (msg) => {
+    setSearchToast(msg);
+    setTimeout(() => setSearchToast(null), 3000);
+  };
+
+  const handleExportSelectedBibTeX = (targetList = null) => {
+    const list = targetList || (selectedPapers.length > 0 ? selectedPapers : papers);
+    if (!list || list.length === 0) return;
+    downloadClientBibTeX(list, `${(activeProject?.name || 'literature').replace(/\s+/g, '_')}_citations.bib`);
+    showSearchToast(isVi ? `Đã xuất ${list.length} bài báo sang BibTeX (.bib)!` : `Exported ${list.length} papers to BibTeX (.bib)!`);
+  };
+
+  const handleExportSelectedCSV = (targetList = null) => {
+    const list = targetList || (selectedPapers.length > 0 ? selectedPapers : papers);
+    if (!list || list.length === 0) return;
+    downloadClientCSV(list, true, `${(activeProject?.name || 'literature').replace(/\s+/g, '_')}_papers.csv`);
+    showSearchToast(isVi ? `Đã xuất ${list.length} bài báo sang Excel/CSV!` : `Exported ${list.length} papers to Excel/CSV!`);
+  };
+
+  const handleExportSelectedMarkdown = (targetList = null) => {
+    const list = targetList || (selectedPapers.length > 0 ? selectedPapers : papers);
+    if (!list || list.length === 0) return;
+    downloadClientMarkdown(list, activeProject || {}, '', `${(activeProject?.name || 'literature').replace(/\s+/g, '_')}_summary.md`);
+    showSearchToast(isVi ? `Đã xuất ${list.length} bài báo sang Markdown (.md)!` : `Exported ${list.length} papers to Markdown (.md)!`);
+  };
+
+  const handleExportSelectedJSON = (targetList = null) => {
+    const list = targetList || (selectedPapers.length > 0 ? selectedPapers : papers);
+    if (!list || list.length === 0) return;
+    downloadClientJSON(list, activeProject || {}, '', `${(activeProject?.name || 'literature').replace(/\s+/g, '_')}_dataset.json`);
+    showSearchToast(isVi ? `Đã xuất ${list.length} bài báo sang JSON (.json)!` : `Exported ${list.length} papers to JSON (.json)!`);
+  };
+
+  const handleExportExcel = () => {
+    handleExportSelectedCSV(filteredAndSortedPapers);
+  };
+
   const handleOpenGapAnalysis = async () => {
     setShowGapModal(true);
     setGapMapLoading(true);
@@ -535,7 +580,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
         relevance_bucket: 'insufficient_info',
         reason: {
           matches: [],
-          mismatches: ['Chưa xác định được sổ ghi chú (project) đang mở. Vui lòng tải lại trang và thử lại.']
+          mismatches: ['Chưa xác định được đề tài (project) đang mở. Vui lòng tải lại trang và thử lại.']
         }
       });
       return;
@@ -864,22 +909,15 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
     return result;
   }, [papers, activePreset, inResultQuery, minCitations, startYear, endYear, selectedJournal, sortBy]);
 
-  const handleExportExcel = (selectedPapers = []) => {
-    const dataToExport = selectedPapers.length > 0
-      ? selectedPapers
-      : filteredAndSortedPapers;
-    exportPapersToExcel(dataToExport, `LitReview_Export_${new Date().toISOString().slice(0, 10)}.xlsx`);
-  };
-
-  const handleExportCsv = (selectedPapers = []) => {
-    const dataToExport = selectedPapers.length > 0
-      ? selectedPapers
-      : filteredAndSortedPapers;
-    exportPapersToCsv(dataToExport, `LitReview_Export_${new Date().toISOString().slice(0, 10)}.csv`);
-  };
-
   return (
-    <div className="flex gap-0 min-h-screen">
+    <div className="flex gap-0 min-h-screen relative">
+      {/* Toast Notification */}
+      {searchToast && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl bg-slate-900/95 dark:bg-slate-800/95 backdrop-blur-md text-white text-xs font-semibold shadow-xl flex items-center gap-2 border border-slate-700/80 animate-slide-up">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>{searchToast}</span>
+        </div>
+      )}
       
       {/* ====== LEFT SIDEBAR ====== */}
       <aside className="hidden lg:flex flex-col w-72 shrink-0 sticky top-0 h-screen overflow-y-auto border-r border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 p-4 space-y-4">
@@ -995,35 +1033,6 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
           {papers.length > 0 && (
             <span className="badge badge-primary">{papers.length} {t('search.verified_papers')}</span>
           )}
-        </div>
-
-        {/* API Key Section (Always Visible & Unobtrusive) */}
-        <div className="card p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface-50/80 dark:bg-surface-900/60 border border-surface-200 dark:border-surface-800">
-          <div className="flex items-center gap-2.5 text-xs font-bold text-surface-700 dark:text-surface-300 shrink-0">
-            <div className="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500">
-              <Key className="w-3.5 h-3.5" />
-            </div>
-            <span>{isVi ? 'Khóa API Google Scholar (SerpApi):' : 'Google Scholar API Key (SerpApi):'}</span>
-          </div>
-
-          <div className="flex items-center gap-2 flex-1 max-w-xl">
-            <input
-              type="password"
-              value={apiKey}
-              onChange={handleApiKeyChange}
-              placeholder={isVi ? 'Nhập khóa SerpApi (hoặc để trống để dùng API backend mặc định)...' : 'Enter SerpApi Key (or leave empty to use backend default)...'}
-              className="input input-sm font-mono flex-1 text-xs"
-            />
-            <a 
-              href="https://serpapi.com/users/sign_up" 
-              target="_blank" 
-              rel="noreferrer"
-              className="btn btn-sm btn-ghost text-primary-600 dark:text-primary-400 flex-shrink-0 text-xs font-semibold"
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{isVi ? 'Nhận key miễn phí' : 'Get free key'}</span>
-            </a>
-          </div>
         </div>
 
         {/* Unified Search Console */}
@@ -1449,30 +1458,87 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
 
           {/* Floating Bottom Action Bar (Fixed Sticky Dock) */}
           {selectedPaperIds.length > 0 && (
-            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[92%] max-w-4xl bg-slate-900/95 backdrop-blur-md text-white p-4 sm:p-5 rounded-3xl border border-slate-750 shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4 z-50 animate-slide-up ring-1 ring-white/10">
+            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[94%] max-w-4xl bg-slate-900/95 backdrop-blur-md text-white p-3.5 sm:p-4 rounded-3xl border border-slate-700/80 shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-3 z-50 animate-slide-up ring-1 ring-white/10">
               <div className="flex items-center gap-3 w-full sm:w-auto">
-                <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-extrabold flex items-center justify-center text-lg shadow-md shrink-0">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-extrabold flex items-center justify-center text-sm shadow-md shrink-0">
                   {selectedPaperIds.length}
                 </div>
                 <div>
-                  <p className="font-bold text-sm text-slate-100">Đã chọn {selectedPaperIds.length} bài báo</p>
-                  <p className="text-xs text-slate-400">Sẵn sàng xuất file báo cáo hoặc đưa vào phân tích</p>
+                  <p className="font-bold text-xs sm:text-sm text-slate-100">
+                    {isVi ? `Đã chọn ${selectedPaperIds.length} bài báo` : `Selected ${selectedPaperIds.length} papers`}
+                  </p>
+                  <p className="text-[11px] text-slate-400">
+                    {isVi ? 'Xuất trích dẫn hoặc chuyển sang phân tích chuyên sâu' : 'Export citations or proceed to analysis'}
+                  </p>
                 </div>
               </div>
 
-              <div className="flex flex-wrap sm:flex-nowrap gap-2.5 w-full sm:w-auto items-center">
+              <div className="flex flex-wrap sm:flex-nowrap gap-2 w-full sm:w-auto items-center justify-end">
                 <button
                   onClick={clearSelectedPapers}
-                  className="px-4 py-2.5 bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white font-semibold rounded-xl text-xs transition-all border border-slate-700 cursor-pointer"
+                  className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-semibold rounded-xl text-xs transition-all border border-slate-700 cursor-pointer"
                 >
-                  Bỏ chọn tất cả
+                  {isVi ? 'Bỏ chọn' : 'Deselect'}
                 </button>
+
+                {/* In-Context Export Dropdown Hub */}
+                <div className="relative">
+                  <button
+                    onClick={() => setExportMenuOpen(!exportMenuOpen)}
+                    className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs transition-all border border-slate-600 shadow-md flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <Download className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>{isVi ? 'Xuất dữ liệu' : 'Export'}</span>
+                    <ChevronDown className={`w-3 h-3 transition-transform ${exportMenuOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {exportMenuOpen && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setExportMenuOpen(false)} />
+                      <div className="absolute right-0 bottom-full mb-2 w-60 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-1.5 z-50 animate-slide-up text-slate-800 dark:text-slate-200">
+                        <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 dark:border-slate-800 mb-1">
+                          {isVi ? 'Chọn định dạng xuất' : 'Select Export Format'}
+                        </div>
+                        <button
+                          onClick={() => { setExportMenuOpen(false); handleExportSelectedBibTeX(); }}
+                          className="w-full px-2.5 py-2 rounded-xl text-xs font-semibold hover:bg-blue-50 dark:hover:bg-blue-950/40 text-left flex items-center gap-2 text-blue-600 dark:text-blue-400 cursor-pointer transition-colors"
+                        >
+                          <FileText className="w-3.5 h-3.5" />
+                          <span>BibTeX (.bib) - LaTeX/Overleaf</span>
+                        </button>
+                        <button
+                          onClick={() => { setExportMenuOpen(false); handleExportSelectedCSV(); }}
+                          className="w-full px-2.5 py-2 rounded-xl text-xs font-semibold hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-left flex items-center gap-2 text-emerald-600 dark:text-emerald-400 cursor-pointer transition-colors"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          <span>Excel / CSV (.csv)</span>
+                        </button>
+                        <button
+                          onClick={() => { setExportMenuOpen(false); handleExportSelectedMarkdown(); }}
+                          className="w-full px-2.5 py-2 rounded-xl text-xs font-semibold hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-left flex items-center gap-2 text-indigo-600 dark:text-indigo-400 cursor-pointer transition-colors"
+                        >
+                          <BookOpen className="w-3.5 h-3.5" />
+                          <span>Markdown Summary (.md)</span>
+                        </button>
+                        <button
+                          onClick={() => { setExportMenuOpen(false); handleExportSelectedJSON(); }}
+                          className="w-full px-2.5 py-2 rounded-xl text-xs font-semibold hover:bg-purple-50 dark:hover:bg-purple-950/40 text-left flex items-center gap-2 text-purple-600 dark:text-purple-400 cursor-pointer transition-colors"
+                        >
+                          <Code className="w-3.5 h-3.5" />
+                          <span>JSON Dataset (.json)</span>
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Direct CTA: Go to Review */}
                 <button
-                  onClick={() => handleExportCsv(selectedPapers)}
-                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer"
+                  onClick={() => setActiveTab('synthesis')}
+                  className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-xl text-xs transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
                 >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Tải CSV ↓</span>
+                  <span>{isVi ? 'Đưa vào Tổng quan' : 'Proceed to Review'}</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>

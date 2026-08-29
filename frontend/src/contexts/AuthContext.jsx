@@ -183,33 +183,6 @@ export function AuthProvider({ children }) {
     throw new Error('Đang tải thư viện Google Sign-In, vui lòng thử lại sau giây lát.');
   };
 
-  const [demoAccounts, setDemoAccounts] = useState([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await safeFetch('/auth/demo-accounts');
-        if (!res.ok) return;
-        const data = await res.json();
-        if (!cancelled && data.accounts) setDemoAccounts(data.accounts);
-      } catch {}
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const loginDemo = async (account) => {
-    if (!account) {
-      throw new Error('Không có tài khoản demo khả dụng lúc này.');
-    }
-    // Demo accounts are ordinary user rows (see GET /auth/demo-accounts): this
-    // performs a real login and receives a real access token, so it is
-    // authorised exactly like any other account rather than only looking so.
-    return login(account.username || account.email, account.password || 'demo123');
-  };
-
   const resetPassword = async (email) => {
     return new Promise((resolve) => {
       setTimeout(() => {
@@ -236,8 +209,6 @@ export function AuthProvider({ children }) {
         isAuthenticated: Boolean(currentUser),
         login,
         loginWithGoogle,
-        loginDemo,
-        demoAccounts,
         resetPassword,
         register,
         logout,

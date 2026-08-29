@@ -29,7 +29,8 @@ import {
   AlertTriangle,
   ArrowRight,
   Layers,
-  Quote
+  Quote,
+  Code
 } from 'lucide-react';
 
 import CitationChip from './CitationChip';
@@ -245,7 +246,7 @@ export default function SynthesisPanel({
   const handlePlanOutline = async () => {
     if (!canRun) return;
     if (!resolvedProjectId) {
-      setError(isEn ? 'Project not resolved yet. Please reload the page and try again.' : 'Chưa xác định được sổ ghi chú (project) đang mở. Vui lòng tải lại trang và thử lại.');
+      setError(isEn ? 'Project not resolved yet. Please reload the page and try again.' : 'Chưa xác định được đề tài (project) đang mở. Vui lòng tải lại trang và thử lại.');
       return;
     }
     setIsPlanning(true);
@@ -279,7 +280,7 @@ export default function SynthesisPanel({
   const handleExecuteApprovedOutline = async () => {
     if (!outlinePlan || !canRun) return;
     if (!resolvedProjectId) {
-      setError(isEn ? 'Project not resolved yet. Please reload the page and try again.' : 'Chưa xác định được sổ ghi chú (project) đang mở. Vui lòng tải lại trang và thử lại.');
+      setError(isEn ? 'Project not resolved yet. Please reload the page and try again.' : 'Chưa xác định được đề tài (project) đang mở. Vui lòng tải lại trang và thử lại.');
       return;
     }
     setStatus('starting');
@@ -520,6 +521,26 @@ export default function SynthesisPanel({
     const a = document.createElement('a');
     a.href = url;
     a.download = `Comparative_Evidence_Matrix_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadJSON = () => {
+    if (!result) return;
+    const payload = {
+      app: 'T165 LitReview Agent',
+      project_id: currentProjectId,
+      topic: researchTopic,
+      generated_at: new Date().toISOString(),
+      synthesis_result: result,
+      workspace_papers: workspacePapers,
+      comparison_matrix: comparisonRows,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Literature_Synthesis_${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -943,6 +964,17 @@ export default function SynthesisPanel({
                   <span>{t('synthesis.export_csv')}</span>
                 </button>
               )}
+
+              <button
+                onClick={handleDownloadJSON}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+                  'border-slate-200 hover:bg-slate-100 text-slate-700 dark:border-slate-700 dark:hover:bg-slate-800 dark:text-slate-300'
+                }`}
+                title={!isEn ? 'Tải dữ liệu tổng hợp (.json)' : 'Download synthesis dataset (.json)'}
+              >
+                <Code className="w-3.5 h-3.5 text-purple-500" />
+                <span>JSON (.json)</span>
+              </button>
             </div>
           </div>
 

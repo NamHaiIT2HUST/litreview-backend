@@ -5,7 +5,6 @@ import SearchTab from './components/search/SearchTab';
 import WorkspaceTab from './components/workspace/WorkspaceTab';
 import PersonalizedDashboard from './components/dashboard/PersonalizedDashboard';
 import ResearchSetupTab from './components/setup/ResearchSetupTab';
-import ExportTab from './components/export/ExportTab';
 import PublicLandingPage from './components/landing/PublicLandingPage';
 import AuthModal from './components/auth/AuthModal';
 import NewProjectModal from './components/projects/NewProjectModal';
@@ -292,7 +291,7 @@ function MainAppShell() {
 
         {/* Research Setup Tab */}
         {activeTab === 'setup' && (
-          <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-10 py-6">
+          <div className="w-full max-w-7xl 2xl:max-w-[1600px] mx-auto px-3 sm:px-6 lg:px-8 py-6">
             <ResearchSetupTab setActiveTab={setActiveTab} />
           </div>
         )}
@@ -318,11 +317,13 @@ function MainAppShell() {
           </div>
         )}
 
-        {/* AI Workspace & Synthesis Tab */}
-        {activeTab === 'synthesis' && (
+        {/* AI Workspace Panels (Chat with sources, Literature review, Data Analysis) */}
+        {['chat', 'synthesis', 'data_analysis', 'analyze'].includes(activeTab) && (
           <div className="w-full">
             <WorkspaceTab
               key={`workspace_${activeProjectId || 'default'}`}
+              activeTab={activeTab}
+              setActiveTab={setActiveTab}
               papers={papers}
               setPapers={setPapers}
               selectedPapers={selectedPapers}
@@ -334,17 +335,6 @@ function MainAppShell() {
               setChatMessages={setChatMessages}
               activeCitation={activeCitation}
               setActiveCitation={setActiveCitation}
-            />
-          </div>
-        )}
-
-        {/* Export & Report Generation Tab */}
-        {activeTab === 'export' && (
-          <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-10 py-6">
-            <ExportTab
-              papers={papers}
-              selectedPapers={selectedPapers}
-              workspacePapers={workspacePapers}
             />
           </div>
         )}
@@ -374,12 +364,13 @@ function MainAppShell() {
 
   // ── RENDER: Authenticated Workspace Shell ───────────────────────────────
   return (
-    <div className={isOverviewHub ? `min-h-screen w-full bg-[#171A21] text-slate-100 ${darkMode ? 'dark' : ''}` : `min-h-screen bg-[#F4F6F9] dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 ${darkMode ? 'dark' : ''}`}>
+    <div className={`min-h-screen w-full bg-[#F8FAFC] dark:bg-[#0A0D14] text-slate-900 dark:text-slate-100 transition-colors duration-200 ${darkMode ? 'dark' : ''}`}>
       {!isOverviewHub && (
         <HorizontalNavbar
           activeTab={activeTab}
           setActiveTab={setActiveTab}
           onOpenNewProject={() => setNewProjectModalOpen(true)}
+          onStartTour={handleStartTour}
         />
       )}
 
@@ -400,7 +391,10 @@ function MainAppShell() {
       <NewProjectModal
         isOpen={newProjectModalOpen}
         onClose={() => setNewProjectModalOpen(false)}
-        onCreated={() => setActiveTab('setup')}
+        onCreated={() => {
+          setActiveTab('setup');
+          setIsTourOpen(true);
+        }}
       />
 
       {/* Auth Modal for switching accounts */}

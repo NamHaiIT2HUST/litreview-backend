@@ -1,76 +1,77 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Sparkles, ArrowRight, ArrowLeft, X, Check, BookOpen,
-  Target, Search, Layers, Download, HelpCircle, Compass
+  Target, Search, Layers, Download, HelpCircle, Compass,
+  MessageSquare, FileText, BarChart2, FolderKanban
 } from 'lucide-react';
 import { useLanguage } from '../../contexts/LanguageContext';
 
 export const TOUR_STEPS = [
   {
-    id: 'overview-center',
-    tab: 'overview',
-    targetSelector: '#tour-dashboard-hero',
-    fallbackSelector: '.app-content',
-    icon: Compass,
-    titleKey: 'tour.step1_title',
-    descKey: 'tour.step1_desc',
-    placement: 'bottom',
-    badge: 'STAGE 01'
-  },
-  {
-    id: 'sidebar-workflow',
-    tab: 'overview',
-    targetSelector: '#tour-sidebar-workflow',
-    fallbackSelector: '.app-sidebar',
-    icon: BookOpen,
-    titleKey: 'tour.step2_title',
-    descKey: 'tour.step2_desc',
-    placement: 'right',
-    badge: 'STAGE 02'
-  },
-  {
-    id: 'setup-pico',
+    id: 'step-setup',
     tab: 'setup',
-    targetSelector: '#tour-setup-pico',
-    fallbackSelector: '.app-content',
+    targetSelector: '#tour-setup-stepper',
+    fallbackSelector: '#tour-setup-main',
     icon: Target,
-    titleKey: 'tour.step3_title',
-    descKey: 'tour.step3_desc',
+    titleKey: 'tour.step1_setup_title',
+    descKey: 'tour.step1_setup_desc',
     placement: 'bottom',
-    badge: 'STAGE 03'
+    badge: 'BƯỚC 01 / SETUP'
   },
   {
-    id: 'search-discovery',
+    id: 'step-search',
     tab: 'search',
     targetSelector: '#tour-search-bar',
     fallbackSelector: '.app-content',
     icon: Search,
-    titleKey: 'tour.step4_title',
-    descKey: 'tour.step4_desc',
+    titleKey: 'tour.step2_search_title',
+    descKey: 'tour.step2_search_desc',
     placement: 'bottom',
-    badge: 'STAGE 04'
+    badge: 'BƯỚC 02 / SEARCH'
   },
   {
-    id: 'workspace-rag',
+    id: 'step-chat',
+    tab: 'chat',
+    targetSelector: '#tour-chat-panel',
+    fallbackSelector: '.app-content',
+    icon: MessageSquare,
+    titleKey: 'tour.step3_chat_title',
+    descKey: 'tour.step3_chat_desc',
+    placement: 'bottom',
+    badge: 'BƯỚC 03 / CHAT'
+  },
+  {
+    id: 'step-synthesis',
     tab: 'synthesis',
-    targetSelector: '#tour-workspace-tabs',
+    targetSelector: '#tour-synthesis-action',
     fallbackSelector: '.app-content',
-    icon: Layers,
-    titleKey: 'tour.step5_title',
-    descKey: 'tour.step5_desc',
+    icon: FileText,
+    titleKey: 'tour.step4_synthesis_title',
+    descKey: 'tour.step4_synthesis_desc',
     placement: 'bottom',
-    badge: 'STAGE 05'
+    badge: 'BƯỚC 04 / SYNTHESIS'
   },
   {
-    id: 'export-publish',
-    tab: 'export',
-    targetSelector: '#tour-export-formats',
+    id: 'step-data-analysis',
+    tab: 'data_analysis',
+    targetSelector: '#tour-data-analysis-panel',
     fallbackSelector: '.app-content',
-    icon: Download,
-    titleKey: 'tour.step6_title',
-    descKey: 'tour.step6_desc',
-    placement: 'top',
-    badge: 'STAGE 06'
+    icon: BarChart2,
+    titleKey: 'tour.step5_data_title',
+    descKey: 'tour.step5_data_desc',
+    placement: 'bottom',
+    badge: 'BƯỚC 05 / DATA'
+  },
+  {
+    id: 'step-project-hub',
+    tab: 'setup',
+    targetSelector: '#tour-project-switcher',
+    fallbackSelector: 'header',
+    icon: FolderKanban,
+    titleKey: 'tour.step6_export_title',
+    descKey: 'tour.step6_export_desc',
+    placement: 'bottom',
+    badge: 'BƯỚC 06 / PROJECT & EXPORT'
   },
 ];
 
@@ -90,6 +91,12 @@ export default function OnboardingTour({
   const totalSteps = TOUR_STEPS.length;
   const isFirstStep = currentStepIndex === 0;
   const isLastStep = currentStepIndex === totalSteps - 1;
+
+  useEffect(() => {
+    if (isOpen) {
+      setCurrentStepIndex(0);
+    }
+  }, [isOpen]);
 
   // Measure target element position
   const updateTargetRect = useCallback(() => {
