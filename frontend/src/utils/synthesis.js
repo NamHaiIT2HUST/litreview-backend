@@ -564,40 +564,49 @@ export function generateFollowUpQuestions(result, researchTopic = '') {
 }
 
 /**
- * Derives a human-facing citation-quality snapshot from the fast_v2
- * pipeline's own CitationCoverageTelemetry (see
- * src/synthesis/fast_v2/citations/anthropic_citations.py::CitationCoverageTelemetry.to_dict),
- * returned as `diagnostics.citation_coverage_telemetry` in the direct
- * /synthesis/execute response. This is fast_v2's own measured coverage, not
- * the Legacy Tri-Layer Engine's /synthesis-sessions/{id}/quality endpoint --
- * that endpoint reads SynthesisClaim rows the fast_v2 pipeline never writes,
- * so it always reports 0 claims for a fast_v2 session.
+ * Derives a human-facing citation-quality snapshot for a review.
  *
- * - Faithfulness: % of substantive paragraphs that ended up with at least
- *   one citation (the inverse of uncited_substantive_paragraphs).
- * - Citation precision: of every [E00x] handle the model actually emitted,
- *   what fraction were valid (in the evidence pack the model was shown).
- * - tier1_2ResolvedClaims / llmCallsSkipped: how much Module 1's local
- *   Tier 1 (verbatim match) + Tier 2 (NLI) pre-filter resolved WITHOUT an
- *   LLM call -- 0 when NLI_EVIDENCE_ENABLED is off, never hidden as "N/A".
+ * Faithfulness/Hallucination/citedParagraphs are computed straight from
+ * `reviewSections` (the same paragraphs already rendered on screen) so this
+ * always has a value -- when a session is reloaded from history or from a
+ * status poll, only `review_markdown` + `citations` survive (no
+ * diagnostics), so anything derived from the backend's own
+ * CitationCoverageTelemetry (see
+ * src/synthesis/fast_v2/citations/anthropic_citations.py::CitationCoverageTelemetry.to_dict)
+ * would otherwise silently disappear on reload.
+ *
+ * `telemetry` (diagnostics.citation_coverage_telemetry, only present in the
+ * direct /synthesis/execute response right after a run) is optional and
+ * only backs two backend-only figures that cannot be recovered from the
+ * saved citations alone: citation precision (valid vs. emitted handles --
+ * invalid ones are already stripped from the saved text) and how many
+ * claims Module 1's local Tier 1/2 pre-filter resolved without an LLM call.
+ * Both read as null (rendered "—") once `telemetry` is unavailable, rather
+ * than a stale or fabricated number.
+ *
+ * This is fast_v2's own measured coverage, NOT the Legacy Tri-Layer
+ * Engine's /synthesis-sessions/{id}/quality endpoint -- that endpoint reads
+ * SynthesisClaim rows the fast_v2 pipeline never writes, so it always
+ * reports 0 claims for a fast_v2 session.
  */
-export function computeCitationQuality(telemetry) {
-  if (!telemetry || !telemetry.substantive_paragraphs) return null;
+export function computeCitationQuality(reviewSections, telemetry = null) {
+  const allSentences = (reviewSections || []).flatMap((section) => section.sentences || []);
+  const substantiveParagraphs = allSentences.length;
+  if (!substantiveParagraphs) return null;
 
-  const substantiveParagraphs = telemetry.substantive_paragraphs;
-  const uncited = telemetry.uncited_substantive_paragraphs || 0;
-  const cited = substantiveParagraphs - uncited;
-  const emitted = telemetry.citation_markers_emitted || 0;
-  const valid = telemetry.valid_handles || 0;
+  const citedParagraphs = allSentences.filter((s) => (s.citations || []).length > 0).length;
+  const uncited = substantiveParagraphs - citedParagraphs;
+  const emitted = telemetry?.citation_markers_emitted || 0;
+  const valid = telemetry?.valid_handles || 0;
 
   return {
     substantiveParagraphs,
-    citedParagraphs: cited,
-    faithfulnessPct: Math.round((cited / substantiveParagraphs) * 1000) / 10,
+    citedParagraphs,
+    faithfulnessPct: Math.round((citedParagraphs / substantiveParagraphs) * 1000) / 10,
     hallucinationPct: Math.round((uncited / substantiveParagraphs) * 1000) / 10,
-    precisionPct: emitted > 0 ? Math.round((valid / emitted) * 1000) / 10 : null,
-    tier1_2ResolvedClaims: telemetry.tier1_2_resolved_claims || 0,
-    llmCallsSkipped: telemetry.llm_calls_skipped_by_tier1_2 || 0,
+    precisionPct: telemetry && emitted > 0 ? Math.round((valid / emitted) * 1000) / 10 : null,
+    tier1_2ResolvedClaims: telemetry ? (telemetry.tier1_2_resolved_claims || 0) : null,
+    llmCallsSkipped: telemetry ? (telemetry.llm_calls_skipped_by_tier1_2 || 0) : null,
   };
 }
 

@@ -2019,6 +2019,7 @@ async def execute_approved_synthesis(
         status=(SynthesisStatus.done if fast_v2_result.grounded else SynthesisStatus.failed),
         review_markdown=fast_v2_result.text,
         error_message=(None if fast_v2_result.grounded else fast_v2_result.grounding_warning),
+        citation_coverage_telemetry=fast_v2_result.diagnostics.get("citation_coverage_telemetry"),
     )
     db.add(persisted)
 
@@ -2262,6 +2263,7 @@ async def get_synthesis_session(
         status=session.status.value,
         review_markdown=session.review_markdown,
         error_message=session.error_message,
+        citation_coverage_telemetry=session.citation_coverage_telemetry,
         citations=[
             SynthesisCitationResponse(
                 id=item.id,

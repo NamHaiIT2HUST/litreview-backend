@@ -237,6 +237,7 @@ async def ensure_local_schema_compatibility():
                 safe_exec("ALTER TABLE synthesis_sessions ADD COLUMN IF NOT EXISTS research_question TEXT")
                 safe_exec("ALTER TABLE synthesis_sessions ADD COLUMN IF NOT EXISTS qa_warning TEXT")
                 safe_exec("ALTER TABLE synthesis_sessions ADD COLUMN IF NOT EXISTS error_message TEXT")
+                safe_exec("ALTER TABLE synthesis_sessions ADD COLUMN IF NOT EXISTS citation_coverage_telemetry JSONB")
             else:
                 cols = {c["name"] for c in inspector.get_columns("synthesis_sessions")}
                 if "research_question" not in cols:
@@ -245,6 +246,8 @@ async def ensure_local_schema_compatibility():
                     safe_exec("ALTER TABLE synthesis_sessions ADD COLUMN qa_warning TEXT")
                 if "error_message" not in cols:
                     safe_exec("ALTER TABLE synthesis_sessions ADD COLUMN error_message TEXT")
+                if "citation_coverage_telemetry" not in cols:
+                    safe_exec("ALTER TABLE synthesis_sessions ADD COLUMN citation_coverage_telemetry JSON")
 
         # Check evidence_records columns
         if "evidence_records" in existing_tables:

@@ -360,6 +360,10 @@ class SynthesisSessionResponse(BaseModel):
     sections: list[SynthesisSectionResponse] = Field(default_factory=list)
     evidence_profile: list[SynthesisEvidenceProfileItem] = Field(default_factory=list)
     dimension_statuses: list[SynthesisDimensionStatusItem] = Field(default_factory=list)
+    # fast_v2's CitationCoverageTelemetry.to_dict() snapshot (see
+    # src/synthesis/fast_v2/citations/anthropic_citations.py), persisted at
+    # execution time. None for Legacy (non-fast_v2) sessions.
+    citation_coverage_telemetry: dict | None = None
 
 
 class SynthesisSessionSummary(BaseModel):

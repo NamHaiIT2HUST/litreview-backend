@@ -28,9 +28,7 @@ import {
   Compass,
   AlertTriangle,
   ArrowRight,
-  Layers,
-  Quote,
-  Cpu
+  Quote
 } from 'lucide-react';
 
 import CitationChip from './CitationChip';
@@ -123,14 +121,13 @@ export default function SynthesisPanel({
   const [error, setError] = useState('');
   const [history, setHistory] = useState([]);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-  // Module 1 (Tier 1/2 pre-filter) citation-quality snapshot for the review
-  // that was JUST generated in this session. Derived from the fast_v2
-  // pipeline's own citation_coverage_telemetry (returned only by the direct
-  // /synthesis/execute response, never persisted to the DB), so it is set
-  // once right after execution and deliberately NOT recomputed from later
-  // GET /synthesis-sessions/{id} polls or history reloads -- those responses
-  // carry citations/review_markdown but no diagnostics.
-  const [citationQuality, setCitationQuality] = useState(null);
+  // fast_v2's own citation_coverage_telemetry (see CitationCoverageTelemetry
+  // in anthropic_citations.py) -- set from the direct /synthesis/execute
+  // response right after a run, AND from `citation_coverage_telemetry` on
+  // GET /synthesis-sessions/{id} (persisted at execution time), so it
+  // survives a page reload / a session reselected from history. Null only
+  // for a Legacy (pre-fast_v2) session that never had this column populated.
+  const [executeTelemetry, setExecuteTelemetry] = useState(null);
 
 
   // Research Focus / Topic Input
@@ -190,7 +187,9 @@ export default function SynthesisPanel({
               try {
                 const detailRes = await safeFetch(`/synthesis-sessions/${sessionToLoad.id}`);
                 if (detailRes.ok) {
-                  setResult(await detailRes.json());
+                  const detail = await detailRes.json();
+                  setResult(detail);
+                  setExecuteTelemetry(detail.citation_coverage_telemetry || null);
                 }
               } catch (e) {
                 console.error('Failed to fetch synthesis session detail', e);
@@ -230,6 +229,7 @@ export default function SynthesisPanel({
         setStatus(data.status);
         if (data.status === 'done') {
           setResult(data);
+          setExecuteTelemetry(data.citation_coverage_telemetry || null);
           fetchHistory(false);
         } else if (data.status === 'failed') {
           setError(data.error_message || t('synthesis.failed_generic'));
@@ -318,7 +318,7 @@ export default function SynthesisPanel({
       const directResult = normalizeSynthesisResponse(data);
       if (directResult) {
         setResult(directResult);
-        setCitationQuality(computeCitationQuality(data?.diagnostics?.citation_coverage_telemetry));
+        setExecuteTelemetry(data?.diagnostics?.citation_coverage_telemetry || null);
         setSessionId(data.session_id || null);
         setStatus('done');
         setOutlinePlan(null);
@@ -347,7 +347,7 @@ export default function SynthesisPanel({
     setSessionId(null);
     setStatus('idle');
     setResult(null);
-    setCitationQuality(null);
+    setExecuteTelemetry(null);
     setError('');
     setOutlinePlan(null);
     localStorage.removeItem('litreview_active_synthesis_id');
@@ -380,6 +380,11 @@ export default function SynthesisPanel({
   const reviewSections = useMemo(
     () => buildReviewSections(result, workspacePapers),
     [result, workspacePapers],
+  );
+
+  const citationQuality = useMemo(
+    () => computeCitationQuality(reviewSections, executeTelemetry),
+    [reviewSections, executeTelemetry],
   );
 
   const comparisonRows = useMemo(
@@ -971,62 +976,67 @@ export default function SynthesisPanel({
             </span>
           </div>
 
-          {/* Module 1 Quality Metrics (Faithfulness / Hallucination Rate / Citation Precision).
-              Computed from this fast_v2 review's own citation_coverage_telemetry -- only
-              available right after this session was generated (not persisted, so it will
-              not reappear after a page reload / history reselect). */}
+          {/* Citation coverage summary. Cited-paragraphs/coverage/uncited are
+              computed from the rendered reviewSections, so they always show
+              (including after a page reload / history reselect). Citation
+              accuracy and the local-verification count come from
+              executeTelemetry -- populated both right after a run AND from
+              the persisted citation_coverage_telemetry column on a reloaded
+              session (see db_models.py::SynthesisSession), so "—" now only
+              means an older session created before that column existed. Big
+              numbers + a short label under each, laid out as a bordered
+              stat grid -- deliberately not a "dashboard" of colorful icon
+              cards, but still meant to be scanned at a glance. */}
           {citationQuality && (
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-              <div className="p-2.5 rounded-xl border bg-white border-slate-200 dark:bg-slate-800/60 dark:border-slate-700">
-                <div className="text-[10px] text-slate-400 font-semibold flex items-center gap-1">
-                  <Layers className="w-3 h-3" />
-                  {isEn ? 'Cited Paragraphs' : 'Đoạn có căn cứ'}
+            <div className="rounded-xl border border-slate-200 dark:border-slate-700/70 overflow-hidden">
+              <div className="px-4 py-2 bg-slate-50 dark:bg-slate-800/40 border-b border-slate-200 dark:border-slate-700/70 text-xs font-semibold text-slate-600 dark:text-slate-300">
+                {isEn ? 'Citation coverage for this report' : 'Mức độ trích dẫn của báo cáo này'}
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-y sm:divide-y-0 divide-slate-200 dark:divide-slate-700/70">
+                <div className="px-4 py-3">
+                  <div className="text-xl font-extrabold text-slate-800 dark:text-slate-100">
+                    {citationQuality.faithfulnessPct}%
+                  </div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                    {isEn ? 'Cited' : 'Có trích dẫn'}
+                    <span className="text-slate-400 dark:text-slate-500"> ({citationQuality.citedParagraphs}/{citationQuality.substantiveParagraphs})</span>
+                  </div>
                 </div>
-                <div className="text-base font-extrabold text-slate-700 dark:text-slate-200 mt-0.5">
-                  {citationQuality.citedParagraphs}/{citationQuality.substantiveParagraphs}
+                <div className="px-4 py-3">
+                  <div className="text-xl font-extrabold text-slate-800 dark:text-slate-100">
+                    {citationQuality.hallucinationPct}%
+                  </div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                    {isEn ? 'Not yet cited' : 'Chưa có trích dẫn'}
+                  </div>
+                </div>
+                <div className="px-4 py-3">
+                  <div className="text-xl font-extrabold text-slate-800 dark:text-slate-100">
+                    {citationQuality.precisionPct != null ? `${citationQuality.precisionPct}%` : '—'}
+                  </div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                    {isEn ? 'Citation accuracy' : 'Độ chính xác trích dẫn'}
+                  </div>
+                </div>
+                <div
+                  className="px-4 py-3"
+                  title={isEn
+                    ? 'Sentences confirmed by a local verification model, without an LLM call'
+                    : 'Số câu được một mô hình xác minh cục bộ xác nhận, không cần gọi AI'}
+                >
+                  <div className="text-xl font-extrabold text-slate-800 dark:text-slate-100">
+                    {citationQuality.tier1_2ResolvedClaims != null ? citationQuality.tier1_2ResolvedClaims : '—'}
+                  </div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                    {isEn ? 'Verified locally (no AI)' : 'Xác minh cục bộ (không qua AI)'}
+                  </div>
                 </div>
               </div>
-              <div className="p-2.5 rounded-xl border bg-white border-slate-200 dark:bg-slate-800/60 dark:border-slate-700">
-                <div className="text-[10px] text-emerald-500 font-semibold flex items-center gap-1">
-                  <ShieldCheck className="w-3 h-3" />
-                  {isEn ? 'Faithfulness' : 'Độ trung thực'}
-                </div>
-                <div className="text-base font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5">
-                  {citationQuality.faithfulnessPct}%
-                </div>
-              </div>
-              <div className="p-2.5 rounded-xl border bg-white border-slate-200 dark:bg-slate-800/60 dark:border-slate-700">
-                <div className="text-[10px] text-rose-500 font-semibold flex items-center gap-1">
-                  <AlertTriangle className="w-3 h-3" />
-                  {isEn ? 'Hallucination Rate' : 'Tỷ lệ ảo giác'}
-                </div>
-                <div className="text-base font-extrabold text-rose-600 dark:text-rose-400 mt-0.5">
-                  {citationQuality.hallucinationPct}%
-                </div>
-              </div>
-              <div className="p-2.5 rounded-xl border bg-white border-slate-200 dark:bg-slate-800/60 dark:border-slate-700">
-                <div className="text-[10px] text-blue-500 font-semibold flex items-center gap-1">
-                  <Quote className="w-3 h-3" />
-                  {isEn ? 'Citation Precision' : 'Độ chính xác trích dẫn'}
-                </div>
-                <div className="text-base font-extrabold text-blue-600 dark:text-blue-400 mt-0.5">
-                  {citationQuality.precisionPct != null ? `${citationQuality.precisionPct}%` : '—'}
-                </div>
-              </div>
-              <div
-                className="p-2.5 rounded-xl border bg-white border-slate-200 dark:bg-slate-800/60 dark:border-slate-700"
-                title={isEn
-                  ? 'Sentences resolved by the local Tier 1/2 model (Module 1) without needing an LLM call'
-                  : 'Số câu được mô hình cục bộ Tier 1/2 (Module 1) xác minh mà không cần gọi LLM'}
-              >
-                <div className="text-[10px] text-violet-500 font-semibold flex items-center gap-1">
-                  <Cpu className="w-3 h-3" />
-                  {isEn ? 'Local Verified (Tier 1/2)' : 'Xác minh cục bộ (Tier 1/2)'}
-                </div>
-                <div className="text-base font-extrabold text-violet-600 dark:text-violet-400 mt-0.5">
-                  {citationQuality.tier1_2ResolvedClaims}
-                </div>
-              </div>
+              <p className="px-4 py-2 bg-slate-50/70 dark:bg-slate-800/20 border-t border-slate-200 dark:border-slate-700/70 text-[10px] text-slate-400 dark:text-slate-500 leading-relaxed">
+                {isEn
+                  ? '"Not yet cited" means the sentence has no linked source yet -- it is not necessarily incorrect.'
+                  : '"Chưa có trích dẫn" nghĩa là câu đó chưa được gắn nguồn cụ thể — không đồng nghĩa với việc nội dung sai.'}
+              </p>
             </div>
           )}
 
