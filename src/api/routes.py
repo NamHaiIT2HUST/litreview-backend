@@ -1069,39 +1069,53 @@ async def workspace_chat(
                         .join(PageText, PDFChunk.page_text_id == PageText.id)
                         .join(Paper, PDFChunk.paper_id == Paper.id)
                         .where((Paper.id == pid_uuid) if pid_uuid else (Paper.title.ilike(f"%{pid_str}%")))
-                        .order_by(PDFChunk.chunk_index)
-                        .limit(4)
+                        # chunk_index resets to 0 on every page (document_processor.py chunks
+                        # per-page independently), so ordering by chunk_index alone gives an
+                        # arbitrary mix of "first chunk of some page" across the whole paper --
+                        # not reliably page 1, where author/title metadata actually lives. Sort
+                        # by page first so this genuinely returns the paper's opening chunks.
+                        # limit(3) not 4: the structured metadata doc inserted below takes
+                        # the 4th "intro item" slot, keeping this paper's total contribution
+                        # to the context budget unchanged (MAX_CONTEXT_CHUNKS=10 downstream
+                        # in rag_service.py) rather than pushing out similarity-search chunks.
+                        .order_by(PageText.page_number, PDFChunk.chunk_index)
+                        .limit(3)
                     )
                     db_rows = (await db.execute(stmt_first_chunks)).fetchall()
-                    if db_rows:
-                        for chunk_row, page_num, file_path, title, abstract in db_rows:
-                            if not any(c.metadata.get("chunk_id") == str(chunk_row.id) for c in chunks):
-                                doc = Document(
-                                    page_content=chunk_row.chunk_text,
-                                    metadata={
-                                        "paper_id": pid_str,
-                                        "page_text_id": str(chunk_row.page_text_id),
-                                        "chunk_id": str(chunk_row.id),
-                                        "ingestion_id": str(chunk_row.ingestion_id),
-                                        "page": page_num,
-                                        "chunk_index": chunk_row.chunk_index,
-                                        "page_char_start": chunk_row.page_char_start,
-                                        "page_char_end": chunk_row.page_char_end,
-                                        "source": str(file_path) if file_path else f"paper_{pid_str}.pdf",
-                                        "paper_title": str(title) if title else "Unknown Title"
-                                    }
-                                )
-                                chunks.insert(0, doc)
-                    else:
-                        # Paper without PDF chunks: fetch metadata and Abstract from DB
-                        stmt = select(Paper).where(
-                            (Paper.id == pid_uuid) if pid_uuid else (Paper.title.ilike(f"%{pid_str}%") | Paper.dedup_key.ilike(f"%{pid_str}%"))
-                        )
-                        paper = (await db.execute(stmt)).scalars().first()
-                        if paper:
-                            text = f"Title: {paper.title}\nAuthors: {paper.authors}\nJournal: {paper.journal or 'N/A'} ({paper.year or 'N/A'})\nAbstract: {paper.abstract or 'Research Topic: ' + paper.title}"
-                            doc = Document(page_content=text, metadata={"paper_id": str(paper.id), "paper_title": paper.title, "page": 1, "source": paper.file_path or f"paper_{paper.id}.pdf"})
+                    for chunk_row, page_num, file_path, title, abstract in db_rows:
+                        if not any(c.metadata.get("chunk_id") == str(chunk_row.id) for c in chunks):
+                            doc = Document(
+                                page_content=chunk_row.chunk_text,
+                                metadata={
+                                    "paper_id": pid_str,
+                                    "page_text_id": str(chunk_row.page_text_id),
+                                    "chunk_id": str(chunk_row.id),
+                                    "ingestion_id": str(chunk_row.ingestion_id),
+                                    "page": page_num,
+                                    "chunk_index": chunk_row.chunk_index,
+                                    "page_char_start": chunk_row.page_char_start,
+                                    "page_char_end": chunk_row.page_char_end,
+                                    "source": str(file_path) if file_path else f"paper_{pid_str}.pdf",
+                                    "paper_title": str(title) if title else "Unknown Title"
+                                }
+                            )
                             chunks.insert(0, doc)
+
+                    # Structured metadata (title/authors/journal/year) straight from the
+                    # Paper row, ALWAYS added regardless of whether PDF chunks exist. A
+                    # short factual question like "who are the authors" matches poorly
+                    # against similarity search (no academic content to compare against),
+                    # and even the opening PDF chunks above are not guaranteed to contain
+                    # a cleanly-extracted author list (layout/OCR-dependent) -- the DB
+                    # fields are the reliable source for exactly this kind of question.
+                    stmt_meta = select(Paper).where(
+                        (Paper.id == pid_uuid) if pid_uuid else (Paper.title.ilike(f"%{pid_str}%") | Paper.dedup_key.ilike(f"%{pid_str}%"))
+                    )
+                    paper = (await db.execute(stmt_meta)).scalars().first()
+                    if paper:
+                        text = f"Title: {paper.title}\nAuthors: {paper.authors}\nJournal: {paper.journal or 'N/A'} ({paper.year or 'N/A'})\nAbstract: {paper.abstract or 'Research Topic: ' + paper.title}"
+                        doc = Document(page_content=text, metadata={"paper_id": str(paper.id), "paper_title": paper.title, "page": 1, "source": paper.file_path or f"paper_{paper.id}.pdf"})
+                        chunks.insert(0, doc)
                 except Exception as e:
                     logger.warning(f"Error fetching introductory chunks for {pid_str}: {e}")
         else:
