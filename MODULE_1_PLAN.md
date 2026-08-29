@@ -412,6 +412,40 @@ LLM-as-Judge hiện có, không đổi hành vi.
       Windows cục bộ đã biết (`test_document_processor.py`, PermissionError không
       liên quan code).
 
+### 8.2.1. Tầng 1 + endpoint đo lường cuối cùng — ĐÃ XONG (bổ sung sau khi rà soát lại đúng mục tiêu gốc)
+
+Rà soát lại thấy thiếu 2 phần so với kiến trúc gốc (mục 2): Tầng 1 (chưa từng có
+code), và bước TÍNH RA con số cuối cùng cho 1 bản tổng hợp đã hoàn thành (trước đó
+mới chỉ có bước lọc claim trong lúc synthesis chạy, chưa có bước đo lường sau đó).
+
+- [x] `src/services/claim_verification_policy.py::fuzzy_verbatim_match()` — Tầng 1,
+      hoàn toàn tất định, không gọi model nào. Đo đoạn khớp liên tục dài nhất
+      (`difflib.find_longest_match`) như % độ dài CLAIM — cố ý không dùng bag-of-words
+      overlap, vì overlap theo tập từ sẽ coi "X đúng" và "X không đúng" là gần như
+      giống hệt nhau (cùng từ, khác đúng 1 từ phủ định); đo theo đoạn khớp liên tục
+      thì việc chèn "not" phá vỡ đoạn khớp, tự động bị loại — đã test riêng case này.
+      Nối vào `cross_paper_analysis()` NGAY TRƯỚC Tầng 2, cùng 1 cờ
+      `NLI_EVIDENCE_ENABLED` (2 tầng đóng gói chung, không thêm cờ riêng).
+- [x] `GET /synthesis-sessions/{session_id}/quality` (`src/api/routes.py`) — endpoint
+      mới tính 3 chỉ số cho 1 session đã xong:
+      - **Faithfulness Score** = claim `supported` / tổng claim (từ `SynthesisClaim.verification_status`, có sẵn).
+      - **Hallucination Rate** = 100% − Faithfulness Score.
+      - **Citation Precision** = câu factual được GIỮ LẠI sau vòng lọc cuối / tổng câu
+        factual writer LLM đề xuất ban đầu. **Không** tính theo kiểu "citation có
+        evidence_id / tổng citation" — đã kiểm tra kỹ: mọi `Citation` được lưu vào DB
+        trong pipeline Legacy đã bị đảm bảo cấu trúc hợp lệ 100% từ trước (chỉ tạo ra
+        từ claim/link đã verify supported), nên đếm kiểu đó sẽ luôn ra 100% và không
+        đo được gì thật. Đã sửa `finalize_review()` để đếm số câu factual đề xuất
+        TRƯỚC khi qua guard lọc cuối (lưu vào `SynthesisMetrics.section_metrics`,
+        cột JSON có sẵn — **không đổi schema DB**, tuân thủ đúng `PROJECT_STANDARDS.md`
+        mục 4 rule 3 cấm tự ý ALTER TABLE).
+- [x] Smoke-test cả 2 phần bằng dữ liệu giả (Tầng 1: case khớp/phủ định/không liên
+      quan; endpoint: dựng 1 SQLite riêng biệt hoàn toàn tách khỏi DB thật, test xong
+      xóa file, không đụng dữ liệu thật của người dùng) — cả 2 đúng như kỳ vọng.
+- [x] `tests/test_services/test_claim_verification_policy.py` — 5 test mới cho Tầng 1.
+- [x] Toàn bộ `pytest tests/` (trừ `test_fast_v2/`) — **270 passed**, vẫn đúng 3+3
+      lỗi baseline/môi trường đã biết, không regression.
+
 ### 8.3. Còn lại — deploy EC2 (theo yêu cầu: để SAU khi test local xong, SAU khi merge main)
 
 1. **SSH vào EC2, chạy `free -h`** để biết RAM baseline thật, đối chiếu mục 7.1 —

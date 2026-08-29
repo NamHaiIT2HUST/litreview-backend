@@ -40,10 +40,15 @@ from src.models.db_models import (
 from src.models.synthesis_schemas import (
     ClaimVerificationBatchOutput,
     ClaimVerificationDecision,
+    EntailmentStatus,
     EvidenceDimension,
     EvidenceExtractionCandidate,
 )
-from src.services.claim_verification_policy import guard_topic_absence_claim, sanitize_claim_verification
+from src.services.claim_verification_policy import (
+    fuzzy_verbatim_match,
+    guard_topic_absence_claim,
+    sanitize_claim_verification,
+)
 from src.services.nli_checker import NLIModelUnavailableError, resolve_claims_via_nli
 from src.services.evidence_extraction_policy import (
     recovery_budget_allows,
@@ -1059,44 +1064,70 @@ class SynthesisService:
         if not prepared:
             raise ValueError("Cross-paper analysis produced no usable synthesis claims")
 
-        # ── Tier 2: local NLI cross-encoder pre-filter (off by default) ──────
-        # Only claims Tier 2 resolves with high confidence are removed from the
-        # LLM batch below; everything else takes the exact same Tier-3 LLM path
-        # as when NLI_EVIDENCE_ENABLED is off. See MODULE_1_PLAN.md and
-        # src/services/nli_checker.py::resolve_claims_via_nli for the merge rule.
+        # ── Tier 1 + Tier 2: deterministic match + local NLI pre-filter ──────
+        # Both off by default, gated by the same flag (they ship together as
+        # one "Evidence Quantification Engine" feature -- see
+        # MODULE_1_PLAN.md). Whatever neither tier resolves takes the exact
+        # same Tier-3 LLM path as when NLI_EVIDENCE_ENABLED is off.
         settings = get_settings()
-        tier2_decisions: dict[uuid.UUID, ClaimVerificationDecision] = {}
+        early_decisions: dict[uuid.UUID, ClaimVerificationDecision] = {}
         if settings.nli_evidence_enabled:
-            try:
-                with llm_trace(db, session_id, "verify_claim_set_tier2_nli"):
-                    tier2_decisions = await resolve_claims_via_nli(
-                        claims_with_evidence=[
-                            (claim.id, claim.statement, evidence_items)
-                            for claim, _links, evidence_items in prepared
-                        ]
+            # Tier 1: deterministic near-verbatim match, no model call at all.
+            for claim, _links, evidence_items in prepared:
+                matched_evidence_id = fuzzy_verbatim_match(
+                    claim.statement,
+                    [
+                        (evidence_id, f"{value} {quote}")
+                        for evidence_id, value, quote in evidence_items
+                    ],
+                )
+                if matched_evidence_id is not None:
+                    early_decisions[claim.id] = ClaimVerificationDecision(
+                        status=EntailmentStatus.supported,
+                        evidence_ids=[matched_evidence_id],
+                        reason=(
+                            "Tier 1 (deterministic near-verbatim match) found the "
+                            "claim quoted almost word-for-word in this evidence; "
+                            "resolved without any model call."
+                        ),
                     )
-                await self._annotate_latest_llm_log(
-                    db, session_id=session_id, step_name="verify_claim_set_tier2_nli",
-                    diagnostic={
-                        "tier2_resolved_count": len(tier2_decisions),
-                        "tier2_total_claims": len(prepared),
-                    },
-                )
-            except NLIModelUnavailableError as exc:
-                # System/config failure (missing checkpoint, wrong label order),
-                # not a per-claim judgement call -- log loudly and let every
-                # claim fall through to Tier 3 for this request rather than
-                # raising and failing the whole synthesis session outright.
-                print(
-                    f"[Tier 2 NLI] Unavailable ({exc}); all claims for this "
-                    f"request fall through to Tier 3 LLM verification.",
-                    flush=True,
-                )
-                tier2_decisions = {}
+            tier1_resolved_count = len(early_decisions)
+            remaining_for_tier2 = [item for item in prepared if item[0].id not in early_decisions]
 
-        prepared_for_llm = [item for item in prepared if item[0].id not in tier2_decisions]
+            # Tier 2: local NLI cross-encoder, only for claims Tier 1 left unresolved.
+            if remaining_for_tier2:
+                try:
+                    with llm_trace(db, session_id, "verify_claim_set_tier2_nli"):
+                        tier2_decisions = await resolve_claims_via_nli(
+                            claims_with_evidence=[
+                                (claim.id, claim.statement, evidence_items)
+                                for claim, _links, evidence_items in remaining_for_tier2
+                            ]
+                        )
+                    early_decisions.update(tier2_decisions)
+                    await self._annotate_latest_llm_log(
+                        db, session_id=session_id, step_name="verify_claim_set_tier2_nli",
+                        diagnostic={
+                            "tier1_resolved_count": tier1_resolved_count,
+                            "tier2_resolved_count": len(tier2_decisions),
+                            "tier2_total_claims": len(remaining_for_tier2),
+                        },
+                    )
+                except NLIModelUnavailableError as exc:
+                    # System/config failure (missing checkpoint, wrong label
+                    # order), not a per-claim judgement call -- log loudly and
+                    # let every remaining claim fall through to Tier 3 for this
+                    # request rather than raising and failing the whole
+                    # synthesis session outright.
+                    print(
+                        f"[Tier 2 NLI] Unavailable ({exc}); remaining claims for "
+                        f"this request fall through to Tier 3 LLM verification.",
+                        flush=True,
+                    )
 
-        decisions: dict[uuid.UUID, ClaimVerificationDecision] = dict(tier2_decisions)
+        prepared_for_llm = [item for item in prepared if item[0].id not in early_decisions]
+
+        decisions: dict[uuid.UUID, ClaimVerificationDecision] = dict(early_decisions)
         fallback_ids: set[uuid.UUID] = set()
         batch_error: str | None = None
         duplicate_ids: set[uuid.UUID] = set()
@@ -1684,11 +1715,25 @@ class SynthesisService:
             append(heading)
             section_parts: list[str] = []
             stored_sentences: list[dict] = []
+            # Counted BEFORE the "no unsupported prose" guard below, so this
+            # tracks every factual sentence the writer proposed for this
+            # section -- not just the ones that survived verification. Used
+            # to compute a real Citation Precision (proposed vs kept), since
+            # every Citation row that DOES get persisted is already
+            # structurally guaranteed valid (built only from claims/links
+            # already verified supported) -- counting persisted citations
+            # alone would always read 100% and measure nothing.
+            section_claim_sentences_proposed = 0
+            section_claim_sentences_kept = 0
 
             for sentence_payload in section_payload.get("sentences", []):
                 sentence = str(sentence_payload.get("sentence", "")).strip()
                 if not sentence:
                     continue
+
+                sentence_type = sentence_payload.get("sentence_type", "claim")
+                if sentence_type == "claim":
+                    section_claim_sentences_proposed += 1
 
                 evidence_candidates: list[tuple[EvidenceRecord, PageText]] = []
                 for raw_claim_id in sentence_payload.get("claim_ids", []):
@@ -1706,9 +1751,9 @@ class SynthesisService:
                 if not evidence_by_paper:
                     continue  # deterministic final guard: no unsupported prose
 
-                sentence_type = sentence_payload.get("sentence_type", "claim")
                 if sentence_type == "claim":
                     factual_sentence_count += 1
+                    section_claim_sentences_kept += 1
                 append(sentence)
                 section_sentence = sentence
                 citation_ids: list[str] = []
@@ -1775,6 +1820,16 @@ class SynthesisService:
                     len(str(item.get("text", "")).split())
                     for item in stored_sentences
                 ),
+                # Citation Precision inputs (see comment above the counters):
+                # proposed = every factual sentence the writer drafted for this
+                # section; kept = the subset that survived the "no unsupported
+                # prose" guard and actually got a citation. Summed across
+                # sections by the /quality endpoint, not stored as a ratio here
+                # -- keeping raw counts lets the session-level ratio be computed
+                # correctly (summing ratios per-section would weight sections
+                # unevenly).
+                "claim_sentences_proposed": section_claim_sentences_proposed,
+                "claim_sentences_kept": section_claim_sentences_kept,
             })
 
         review_markdown = "".join(review_parts).strip()
