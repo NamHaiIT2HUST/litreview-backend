@@ -536,14 +536,27 @@ export default function WorkspaceTab({
         // The fast client-side-text path above never sends the original PDF
         // bytes to the server (that's the whole point -- it avoids the 4.5MB
         // edge payload limit), so the server has no file to show in the
-        // Verification panel. Attach it now in the background via the
-        // existing full-upload endpoint so verification works without
-        // blocking the "instant" upload UX above.
+        // Verification panel yet. Attach it via the existing full-upload
+        // endpoint before marking this paper usable below -- previously this
+        // ran fire-and-forget (`.catch(() => {})`, never awaited), so asking
+        // a question immediately after upload could race the server: Paper.
+        // file_path was still NULL, the chat citation fell back to a
+        // filename that was never actually written to disk, and the
+        // Verification panel's PDF highlight failed with "could not locate
+        // coordinates" -- not a bug in the highlighting itself, just the
+        // file genuinely not there yet. Awaiting here delays this paper
+        // appearing in the workspace by roughly the PDF's upload time, but
+        // guarantees file_path is set before anything can query this paper.
         if (extractedPages && extractedPages.length > 0 && data.paper_id) {
           const attachForm = new FormData();
           attachForm.append('file', item.file);
           attachForm.append('paper_id', data.paper_id);
-          safeFetch('/workspace/upload', { method: 'POST', body: attachForm }).catch(() => {});
+          try {
+            await safeFetch('/workspace/upload', { method: 'POST', body: attachForm });
+          } catch {
+            // Non-fatal: the paper still works for chat/synthesis on its
+            // extracted text, it just won't have a PDF to highlight yet.
+          }
         }
 
         setWorkspacePapers((prev) => [

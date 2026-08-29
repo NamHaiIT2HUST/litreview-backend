@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { 
   BookOpen, 
   FileCheck2, 
@@ -566,6 +566,30 @@ export default function SynthesisPanel({
 
   const isRunning = ['starting', 'processing'].includes(status);
 
+  // Auto-scroll: jump to the running-progress card as soon as a run starts,
+  // then jump to the top of the finished report once it's done -- without
+  // this, starting a run (or it finishing) leaves the view wherever the user
+  // last scrolled, so the loading state / finished report can go unnoticed
+  // below the fold on a long page.
+  const progressSectionRef = useRef(null);
+  const resultSectionRef = useRef(null);
+
+  useEffect(() => {
+    if (isRunning && progressSectionRef.current) {
+      progressSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [isRunning]);
+
+  useEffect(() => {
+    if (status === 'done' && resultSectionRef.current) {
+      // Let the report finish rendering before measuring/scrolling to it.
+      const timer = setTimeout(() => {
+        resultSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [status]);
+
   return (
     <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-transparent">
       
@@ -864,7 +888,7 @@ export default function SynthesisPanel({
 
       {/* Progress & Status Indicator */}
       {isRunning && (
-        <div className="p-8 rounded-2xl border border-blue-100 dark:border-blue-900/40 bg-blue-50/50 dark:bg-blue-950/20 flex flex-col items-center justify-center text-center space-y-4 shadow-sm">
+        <div ref={progressSectionRef} className="p-8 rounded-2xl border border-blue-100 dark:border-blue-900/40 bg-blue-50/50 dark:bg-blue-950/20 flex flex-col items-center justify-center text-center space-y-4 shadow-sm">
           <Loader2 className="w-8 h-8 text-blue-600 dark:text-blue-400 animate-spin" />
           <div className="space-y-1">
             <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">
@@ -904,7 +928,7 @@ export default function SynthesisPanel({
 
       {/* Complete Literature Report View */}
       {(result?.review_markdown || reviewSections.length > 0) && status === 'done' && (
-        <div className={`rounded-2xl border p-6 space-y-6 ${reviewScrollClass} ${
+        <div ref={resultSectionRef} className={`rounded-2xl border p-6 space-y-6 ${reviewScrollClass} ${
           'bg-white border-slate-200 shadow-sm dark:bg-slate-900/40 dark:border-slate-800'
         }`}>
           

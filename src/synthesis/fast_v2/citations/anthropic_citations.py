@@ -130,14 +130,19 @@ You are given a batch of finalized literature review paragraphs, plus an evidenc
 Use the full paragraph to understand what an isolated span alone might not make clear: pronoun antecedents, comparison structure, what a "this" or "it" refers to, and how a claim continues or synthesizes a preceding statement. Evidence ownership is still assigned per claim_id, never to the paragraph as a whole.
 
 RULES:
-1. FACTUAL/TECHNICAL CLAIM: assign only evidence that directly supports that specific claim -- not merely the same topic, same paper, or a nearby result.
+1. FACTUAL/TECHNICAL CLAIM: assign evidence that supports that specific claim's
+   factual content. A close paraphrase, restatement, or accurate summary of
+   what the evidence says COUNTS as support -- exact wording is never
+   required. Evidence that is merely on the same topic, from the same paper,
+   or a nearby-but-different result does NOT count.
 2. MULTI-PAPER COMPARISON: a claim comparing multiple papers (e.g. "Study A uses X whereas Study B uses Y") needs support for BOTH/ALL sides -- include relevant evidence handles from each paper being compared.
 3. SYNTHESIS/INFERENCE: a synthesis claim may cite multiple handles when its conclusion is reasonably grounded in them together. Do not invent an empirical fact during synthesis.
 4. DISCOURSE/TRANSITION: a claim with no independently factual content (e.g. "This connection enabled...", "Taken together, these results show...") gets an empty list.
-5. UNSUPPORTED CLAIM: if no supplied evidence sufficiently supports a factual claim -- including evidence that is only topically related without supporting the specific claim -- return an empty list for it. An empty list is preferable to a topical citation.
+5. UNSUPPORTED CLAIM: if no supplied evidence sufficiently supports a factual claim -- including evidence that is only topically related without supporting the specific claim -- return an empty list for it. An empty list is preferable to a topical citation. This is NOT the same as rule 1's paraphrase case: a claim restating an evidence handle's actual content in different words IS supported by that handle and must NOT be treated as unsupported just because the wording differs.
 6. NEIGHBORING CLAIMS: a citation assigned to one claim is never support for a different claim unless that other claim independently receives the same handle. Do not let an unsupported claim borrow a neighbor's citation.
 7. Deduplicate: never list the same handle twice for one claim.
 8. NEVER invent a handle that is not present in the supplied evidence pack.
+9. DO NOT UNDER-CITE: reserve the empty list for claims the evidence pack genuinely does not address at all, not for claims that are merely phrased differently from the source text. If in doubt between "this is a paraphrase of E003" and "this is unsupported," and E003's content genuinely matches the claim's meaning, cite E003.
 
 Return ONLY a JSON object of the exact form:
 {"assignments": {"<claim_id>": ["E001", ...], "<claim_id>": [], ...}}
