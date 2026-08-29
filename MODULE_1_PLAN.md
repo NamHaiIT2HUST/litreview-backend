@@ -372,21 +372,53 @@ bật rõ ràng bằng tay sau khi đã xác nhận model chạy đúng).
 - [x] `.gitignore` — thêm `models/nli_evidence_v1/`, giữ đúng pattern các model khác
       (`lora_agent*/`, `temp_*/`) không commit weight file vào git.
 
-### 8.2. Việc còn lại (thực sự còn, không phải đã xong)
+### 8.2. Tích hợp vào pipeline thật — ĐÃ XONG, đã test cục bộ
+
+Quyết định kiến trúc đã chốt: Tầng 2 **lọc trước** (pre-filter), không thay thế Tầng 3
+— chỉ những claim Tier 2 tự tin quyết mới bỏ qua LLM, số còn lại đi qua đúng luồng
+LLM-as-Judge hiện có, không đổi hành vi.
+
+- [x] `src/services/nli_checker.py::resolve_claims_via_nli()` — nhận đúng format
+      `claims_with_evidence` mà `SynthesisService.cross_paper_analysis()` đã dùng cho
+      `verify_claim_set_batch` (không cần lớp chuyển đổi riêng). Luật hợp nhất nhiều
+      evidence/claim (model NLI chỉ nhận 1 premise:1 hypothesis):
+      - Bất kỳ evidence nào NLI báo `contradicted` với confidence ≥ 0.75 → chốt
+        `contradicted` ngay (1 mâu thuẫn thật đủ để không cần chờ các evidence khác).
+      - Có evidence `supported` ≥ 0.75 **và** không có evidence nào `contradicted` ở
+        BẤT KỲ confidence nào (kể cả thấp) → chốt `supported`. Vế contradiction xét
+        khắt khe hơn vế support có chủ đích — tín hiệu mâu thuẫn dù yếu vẫn đáng để
+        Tier 3/con người xem, Tier 2 không nên tự ý bỏ qua.
+      - Còn lại → không quyết, để nguyên cho Tier 3 xử lý y hệt hiện tại.
+- [x] `src/services/synthesis_service.py::cross_paper_analysis()` — chèn Tier 2 ngay
+      trước bước build batch LLM call; claim Tier 2 đã quyết bị loại khỏi
+      `prepared_for_llm` (không tốn LLM call), decision của cả Tier 2 lẫn Tier 3 gộp
+      chung vào 1 dict rồi đi qua **đúng nguyên vẹn** cơ chế
+      `sanitize_claim_verification` hiện có (không bypass fail-closed guard chống
+      evidence_id hallucinate). Khi tắt `NLI_EVIDENCE_ENABLED` (mặc định), nhánh Tier 2
+      không chạy — hành vi y hệt trước khi có Module 1.
+      Lỗi hệ thống (`NLIModelUnavailableError` — thiếu checkpoint, sai thứ tự nhãn)
+      được bắt riêng, log rõ ràng, rồi để toàn bộ claim rơi xuống Tier 3 cho request đó
+      thay vì làm gãy cả phiên tổng hợp.
+- [x] `tests/test_services/test_nli_checker.py` — 6 test đơn vị cho luật hợp nhất
+      (contradicted/supported/escalate/nhiều claim độc lập/không có evidence/tín hiệu
+      mâu thuẫn yếu vẫn chặn support) — dùng `FakeNLIChecker` (double), không load model
+      thật, theo đúng pattern test đã có trong repo.
+- [x] **Smoke-test thật với model B** (không mock) — 3 tình huống, cả 3 đúng:
+      claim đúng khớp 1/2 evidence → `supported`, chỉ chọn evidence liên quan; claim
+      lật ngược 1 bất đẳng thức thật → `contradicted`; claim hoàn toàn không liên quan
+      tới evidence được cung cấp → không quyết, escalate lên Tier 3 (đúng kỳ vọng).
+- [x] Toàn bộ `pytest tests/ -q` (trừ `test_fast_v2/`) — **265 passed**, đúng 3 lỗi
+      baseline đã biết trước Module 1 (không phải regression) + 3 lỗi môi trường
+      Windows cục bộ đã biết (`test_document_processor.py`, PermissionError không
+      liên quan code).
+
+### 8.3. Còn lại — deploy EC2 (theo yêu cầu: để SAU khi test local xong, SAU khi merge main)
 
 1. **SSH vào EC2, chạy `free -h`** để biết RAM baseline thật, đối chiếu mục 7.1 —
    quyết định giữ `t3.small`+đổi model nhỏ hơn, hay nâng `t3.medium`, hay quantize.
 2. Copy model đã chọn lên EC2 (`scp -r models/nli_evidence_v1 ubuntu@<EC2_IP>:~/P-165/models/`),
-   bật `NLI_EVIDENCE_ENABLED=true` trong `.env` trên EC2, restart `uvicorn` (lệnh có
-   sẵn ở `PROJECT_STANDARDS.md` mục 7).
-3. Viết code nối Tầng 2 vào pipeline claim-verification thật (hiện `nli_checker.py`
-   là lớp dịch vụ độc lập, sẵn sàng gọi — chưa có PR nối vào
-   `src/services/claim_verification_policy.py` hay `synthesis_service.py`). Đây là
-   việc thiết kế cần bàn thêm (Tầng 2 nên thay thế hoàn toàn Tầng 3 LLM-as-Judge hiện
-   tại, hay chỉ lọc trước để giảm số lần gọi LLM?) — chưa làm trong phiên này vì cần
-   quyết định kiến trúc, không phải việc "quên làm".
-4. (Tuỳ chọn) Mở rộng dataset lên >924 mẫu nếu báo cáo cần số liệu chắc chắn hơn nữa
-   — rẻ, chạy `01_generate_dataset.py --n-premises <cao hơn>` rồi train lại trên Colab.
+   bật `NLI_EVIDENCE_ENABLED=true` trong `.env` trên EC2, restart `uvicorn`.
+3. (Tuỳ chọn) Mở rộng dataset lên >924 mẫu nếu báo cáo cần số liệu chắc chắn hơn nữa.
 
 ---
 

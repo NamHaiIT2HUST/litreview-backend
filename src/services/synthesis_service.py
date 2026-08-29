@@ -44,6 +44,7 @@ from src.models.synthesis_schemas import (
     EvidenceExtractionCandidate,
 )
 from src.services.claim_verification_policy import guard_topic_absence_claim, sanitize_claim_verification
+from src.services.nli_checker import NLIModelUnavailableError, resolve_claims_via_nli
 from src.services.evidence_extraction_policy import (
     recovery_budget_allows,
     should_retry_evidence_batch,
@@ -1058,35 +1059,80 @@ class SynthesisService:
         if not prepared:
             raise ValueError("Cross-paper analysis produced no usable synthesis claims")
 
-        try:
-            with llm_trace(db, session_id, "verify_claim_set_batch"):
-                batch_output = await synthesis_llm_service.verify_claim_set_batch(
-                    claims_with_evidence=[
-                        (claim.id, claim.statement, evidence_items)
-                        for claim, _links, evidence_items in prepared
-                    ]
-                )
-            batch_error = None
-            if not batch_verification_is_complete(batch_output, len(prepared)):
-                with llm_trace(db, session_id, "verify_claim_set_batch_retry"):
-                    retry_output = await synthesis_llm_service.verify_claim_set_batch(
+        # ── Tier 2: local NLI cross-encoder pre-filter (off by default) ──────
+        # Only claims Tier 2 resolves with high confidence are removed from the
+        # LLM batch below; everything else takes the exact same Tier-3 LLM path
+        # as when NLI_EVIDENCE_ENABLED is off. See MODULE_1_PLAN.md and
+        # src/services/nli_checker.py::resolve_claims_via_nli for the merge rule.
+        settings = get_settings()
+        tier2_decisions: dict[uuid.UUID, ClaimVerificationDecision] = {}
+        if settings.nli_evidence_enabled:
+            try:
+                with llm_trace(db, session_id, "verify_claim_set_tier2_nli"):
+                    tier2_decisions = await resolve_claims_via_nli(
                         claims_with_evidence=[
                             (claim.id, claim.statement, evidence_items)
                             for claim, _links, evidence_items in prepared
                         ]
                     )
-                batch_output = retry_output
-        except Exception as exc:
-            batch_error = f"schema/parse failure: {type(exc).__name__}: {str(exc)[:300]}"
-            batch_output = ClaimVerificationBatchOutput(decisions=[])
-        expected_ids = {claim.id for claim, _links, _items in prepared}
-        returned_ids = [item.claim_id for item in batch_output.decisions]
-        duplicate_ids = {item for item in returned_ids if returned_ids.count(item) > 1}
-        unknown_claim_ids = {item for item in returned_ids if item not in expected_ids}
-        decisions, fallback_ids = reconcile_claim_verification_batch(
-            batch_output,
-            expected_ids,
-        )
+                await self._annotate_latest_llm_log(
+                    db, session_id=session_id, step_name="verify_claim_set_tier2_nli",
+                    diagnostic={
+                        "tier2_resolved_count": len(tier2_decisions),
+                        "tier2_total_claims": len(prepared),
+                    },
+                )
+            except NLIModelUnavailableError as exc:
+                # System/config failure (missing checkpoint, wrong label order),
+                # not a per-claim judgement call -- log loudly and let every
+                # claim fall through to Tier 3 for this request rather than
+                # raising and failing the whole synthesis session outright.
+                print(
+                    f"[Tier 2 NLI] Unavailable ({exc}); all claims for this "
+                    f"request fall through to Tier 3 LLM verification.",
+                    flush=True,
+                )
+                tier2_decisions = {}
+
+        prepared_for_llm = [item for item in prepared if item[0].id not in tier2_decisions]
+
+        decisions: dict[uuid.UUID, ClaimVerificationDecision] = dict(tier2_decisions)
+        fallback_ids: set[uuid.UUID] = set()
+        batch_error: str | None = None
+        duplicate_ids: set[uuid.UUID] = set()
+        unknown_claim_ids: set[uuid.UUID] = set()
+
+        if prepared_for_llm:
+            try:
+                with llm_trace(db, session_id, "verify_claim_set_batch"):
+                    batch_output = await synthesis_llm_service.verify_claim_set_batch(
+                        claims_with_evidence=[
+                            (claim.id, claim.statement, evidence_items)
+                            for claim, _links, evidence_items in prepared_for_llm
+                        ]
+                    )
+                if not batch_verification_is_complete(batch_output, len(prepared_for_llm)):
+                    with llm_trace(db, session_id, "verify_claim_set_batch_retry"):
+                        retry_output = await synthesis_llm_service.verify_claim_set_batch(
+                            claims_with_evidence=[
+                                (claim.id, claim.statement, evidence_items)
+                                for claim, _links, evidence_items in prepared_for_llm
+                            ]
+                        )
+                    batch_output = retry_output
+            except Exception as exc:
+                batch_error = f"schema/parse failure: {type(exc).__name__}: {str(exc)[:300]}"
+                batch_output = ClaimVerificationBatchOutput(decisions=[])
+            expected_ids = {claim.id for claim, _links, _items in prepared_for_llm}
+            returned_ids = [item.claim_id for item in batch_output.decisions]
+            duplicate_ids = {item for item in returned_ids if returned_ids.count(item) > 1}
+            unknown_claim_ids = {item for item in returned_ids if item not in expected_ids}
+            llm_decisions, fallback_ids = reconcile_claim_verification_batch(
+                batch_output,
+                expected_ids,
+            )
+            decisions.update(llm_decisions)
+
         await increment_metric(db, session_id, "claim_verification_count", len(prepared))
 
         for claim, valid_link_by_evidence, evidence_items in prepared:
