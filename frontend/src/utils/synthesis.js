@@ -102,19 +102,52 @@ export function buildReviewSections(result, workspacePapers) {
   })) : [{ title: 'Literature Review', start: 0, end: markdown.length }];
 
   return blocks.map((block, index) => {
-    const rawBody = markdown.slice(block.start, block.end).trim();
-    // Split into paragraphs to preserve structure
-    const paragraphs = rawBody.split(/\n\s*\n/).filter(p => p.trim().length > 0);
-    
+    const untrimmedBody = markdown.slice(block.start, block.end);
+    const leadingWhitespace = untrimmedBody.length - untrimmedBody.trimStart().length;
+    const rawBody = untrimmedBody.trim();
+    const bodyOffsetInMarkdown = block.start + leadingWhitespace;
+
+    // Split into paragraphs while tracking each paragraph's ABSOLUTE offset in
+    // `markdown` (not just relative to rawBody), so every paragraph can look
+    // up its OWN citations by where their [E00x]/[N] marker actually landed
+    // -- instead of every citation in the section being dumped onto the
+    // first paragraph regardless of which sentence they belong to.
+    const paragraphs = [];
+    const paraSplitRegex = /\n\s*\n/g;
+    let paraCursor = 0;
+    let splitMatch;
+    while ((splitMatch = paraSplitRegex.exec(rawBody)) !== null) {
+      const chunk = rawBody.slice(paraCursor, splitMatch.index);
+      if (chunk.trim()) {
+        paragraphs.push({
+          text: chunk.trim(),
+          absStart: bodyOffsetInMarkdown + paraCursor,
+          absEnd: bodyOffsetInMarkdown + splitMatch.index,
+        });
+      }
+      paraCursor = splitMatch.index + splitMatch[0].length;
+    }
+    const tailChunk = rawBody.slice(paraCursor);
+    if (tailChunk.trim()) {
+      paragraphs.push({
+        text: tailChunk.trim(),
+        absStart: bodyOffsetInMarkdown + paraCursor,
+        absEnd: bodyOffsetInMarkdown + rawBody.length,
+      });
+    }
+
     const citations = (result.citations || [])
       .filter((citation) => citation.review_char_start >= block.start && citation.review_char_start < block.end)
       .map((citation) => enrichCitation(citation, workspacePapers));
-      
-    const sentences = (paragraphs.length ? paragraphs : [rawBody]).map((paraText, pIdx) => ({
-      text: paraText.trim(),
-      sentence_type: 'claim',
-      citations: (pIdx === 0 && citations.length > 0) ? citations : [],
-    }));
+
+    const sentences = (paragraphs.length ? paragraphs : [{ text: rawBody, absStart: block.start, absEnd: block.end }])
+      .map((para) => ({
+        text: para.text,
+        sentence_type: 'claim',
+        citations: citations.filter(
+          (c) => c.review_char_start >= para.absStart && c.review_char_start < para.absEnd,
+        ),
+      }));
 
     return {
       id: `fast-section-${index}`,
@@ -528,6 +561,44 @@ export function generateFollowUpQuestions(result, researchTopic = '') {
   }
 
   return defaultQuestions;
+}
+
+/**
+ * Derives a human-facing citation-quality snapshot from the fast_v2
+ * pipeline's own CitationCoverageTelemetry (see
+ * src/synthesis/fast_v2/citations/anthropic_citations.py::CitationCoverageTelemetry.to_dict),
+ * returned as `diagnostics.citation_coverage_telemetry` in the direct
+ * /synthesis/execute response. This is fast_v2's own measured coverage, not
+ * the Legacy Tri-Layer Engine's /synthesis-sessions/{id}/quality endpoint --
+ * that endpoint reads SynthesisClaim rows the fast_v2 pipeline never writes,
+ * so it always reports 0 claims for a fast_v2 session.
+ *
+ * - Faithfulness: % of substantive paragraphs that ended up with at least
+ *   one citation (the inverse of uncited_substantive_paragraphs).
+ * - Citation precision: of every [E00x] handle the model actually emitted,
+ *   what fraction were valid (in the evidence pack the model was shown).
+ * - tier1_2ResolvedClaims / llmCallsSkipped: how much Module 1's local
+ *   Tier 1 (verbatim match) + Tier 2 (NLI) pre-filter resolved WITHOUT an
+ *   LLM call -- 0 when NLI_EVIDENCE_ENABLED is off, never hidden as "N/A".
+ */
+export function computeCitationQuality(telemetry) {
+  if (!telemetry || !telemetry.substantive_paragraphs) return null;
+
+  const substantiveParagraphs = telemetry.substantive_paragraphs;
+  const uncited = telemetry.uncited_substantive_paragraphs || 0;
+  const cited = substantiveParagraphs - uncited;
+  const emitted = telemetry.citation_markers_emitted || 0;
+  const valid = telemetry.valid_handles || 0;
+
+  return {
+    substantiveParagraphs,
+    citedParagraphs: cited,
+    faithfulnessPct: Math.round((cited / substantiveParagraphs) * 1000) / 10,
+    hallucinationPct: Math.round((uncited / substantiveParagraphs) * 1000) / 10,
+    precisionPct: emitted > 0 ? Math.round((valid / emitted) * 1000) / 10 : null,
+    tier1_2ResolvedClaims: telemetry.tier1_2_resolved_claims || 0,
+    llmCallsSkipped: telemetry.llm_calls_skipped_by_tier1_2 || 0,
+  };
 }
 
 export function tokenizeReviewCitations(review, citations) {

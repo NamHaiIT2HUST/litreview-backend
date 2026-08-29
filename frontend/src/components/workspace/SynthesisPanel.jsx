@@ -29,7 +29,8 @@ import {
   AlertTriangle,
   ArrowRight,
   Layers,
-  Quote
+  Quote,
+  Cpu
 } from 'lucide-react';
 
 import CitationChip from './CitationChip';
@@ -49,6 +50,7 @@ import {
   tokenizeReviewCitations,
   normalizeSynthesisResponse,
   getDirectSynthesisError,
+  computeCitationQuality,
 } from '../../utils/synthesis';
 import { reviewScrollClass, sectionEvidenceLabel } from '../../utils/reviewPresentation';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -121,23 +123,16 @@ export default function SynthesisPanel({
   const [error, setError] = useState('');
   const [history, setHistory] = useState([]);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-  // Module 1 (Evidence Quantification Engine) quality metrics for the
-  // active session -- null until fetched, and stays null (rendered as a
-  // no-op) when the backend has nothing to report (e.g. NLI_EVIDENCE_ENABLED
-  // is off, or the session has no claims), rather than showing zeros.
-  const [quality, setQuality] = useState(null);
+  // Module 1 (Tier 1/2 pre-filter) citation-quality snapshot for the review
+  // that was JUST generated in this session. Derived from the fast_v2
+  // pipeline's own citation_coverage_telemetry (returned only by the direct
+  // /synthesis/execute response, never persisted to the DB), so it is set
+  // once right after execution and deliberately NOT recomputed from later
+  // GET /synthesis-sessions/{id} polls or history reloads -- those responses
+  // carry citations/review_markdown but no diagnostics.
+  const [citationQuality, setCitationQuality] = useState(null);
 
-  const fetchQuality = async (id) => {
-    try {
-      const qRes = await safeFetch(`/synthesis-sessions/${id}/quality`);
-      if (qRes.ok) {
-        setQuality(await qRes.json());
-      }
-    } catch (e) {
-      console.error('Failed to fetch synthesis quality metrics', e);
-    }
-  };
-  
+
   // Research Focus / Topic Input
   const [researchTopic, setResearchTopic] = useState(() => activeProject?.research_question || '');
   const [copied, setCopied] = useState(false);
@@ -200,7 +195,6 @@ export default function SynthesisPanel({
               } catch (e) {
                 console.error('Failed to fetch synthesis session detail', e);
               }
-              fetchQuality(sessionToLoad.id);
             }
           } else {
             setSessionId(null);
@@ -236,7 +230,6 @@ export default function SynthesisPanel({
         setStatus(data.status);
         if (data.status === 'done') {
           setResult(data);
-          fetchQuality(sessionId);
           fetchHistory(false);
         } else if (data.status === 'failed') {
           setError(data.error_message || t('synthesis.failed_generic'));
@@ -325,6 +318,7 @@ export default function SynthesisPanel({
       const directResult = normalizeSynthesisResponse(data);
       if (directResult) {
         setResult(directResult);
+        setCitationQuality(computeCitationQuality(data?.diagnostics?.citation_coverage_telemetry));
         setSessionId(data.session_id || null);
         setStatus('done');
         setOutlinePlan(null);
@@ -353,6 +347,7 @@ export default function SynthesisPanel({
     setSessionId(null);
     setStatus('idle');
     setResult(null);
+    setCitationQuality(null);
     setError('');
     setOutlinePlan(null);
     localStorage.removeItem('litreview_active_synthesis_id');
@@ -976,16 +971,19 @@ export default function SynthesisPanel({
             </span>
           </div>
 
-          {/* Module 1 Quality Metrics (Faithfulness / Hallucination Rate / Citation Precision) */}
-          {quality && quality.total_claims > 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {/* Module 1 Quality Metrics (Faithfulness / Hallucination Rate / Citation Precision).
+              Computed from this fast_v2 review's own citation_coverage_telemetry -- only
+              available right after this session was generated (not persisted, so it will
+              not reappear after a page reload / history reselect). */}
+          {citationQuality && (
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
               <div className="p-2.5 rounded-xl border bg-white border-slate-200 dark:bg-slate-800/60 dark:border-slate-700">
                 <div className="text-[10px] text-slate-400 font-semibold flex items-center gap-1">
                   <Layers className="w-3 h-3" />
-                  {isEn ? 'Total Claims' : 'Tổng số luận điểm'}
+                  {isEn ? 'Cited Paragraphs' : 'Đoạn có căn cứ'}
                 </div>
                 <div className="text-base font-extrabold text-slate-700 dark:text-slate-200 mt-0.5">
-                  {quality.total_claims}
+                  {citationQuality.citedParagraphs}/{citationQuality.substantiveParagraphs}
                 </div>
               </div>
               <div className="p-2.5 rounded-xl border bg-white border-slate-200 dark:bg-slate-800/60 dark:border-slate-700">
@@ -994,7 +992,7 @@ export default function SynthesisPanel({
                   {isEn ? 'Faithfulness' : 'Độ trung thực'}
                 </div>
                 <div className="text-base font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5">
-                  {quality.faithfulness_score_pct != null ? `${quality.faithfulness_score_pct}%` : '—'}
+                  {citationQuality.faithfulnessPct}%
                 </div>
               </div>
               <div className="p-2.5 rounded-xl border bg-white border-slate-200 dark:bg-slate-800/60 dark:border-slate-700">
@@ -1003,7 +1001,7 @@ export default function SynthesisPanel({
                   {isEn ? 'Hallucination Rate' : 'Tỷ lệ ảo giác'}
                 </div>
                 <div className="text-base font-extrabold text-rose-600 dark:text-rose-400 mt-0.5">
-                  {quality.hallucination_rate_pct != null ? `${quality.hallucination_rate_pct}%` : '—'}
+                  {citationQuality.hallucinationPct}%
                 </div>
               </div>
               <div className="p-2.5 rounded-xl border bg-white border-slate-200 dark:bg-slate-800/60 dark:border-slate-700">
@@ -1012,7 +1010,21 @@ export default function SynthesisPanel({
                   {isEn ? 'Citation Precision' : 'Độ chính xác trích dẫn'}
                 </div>
                 <div className="text-base font-extrabold text-blue-600 dark:text-blue-400 mt-0.5">
-                  {quality.citation_precision_pct != null ? `${quality.citation_precision_pct}%` : '—'}
+                  {citationQuality.precisionPct != null ? `${citationQuality.precisionPct}%` : '—'}
+                </div>
+              </div>
+              <div
+                className="p-2.5 rounded-xl border bg-white border-slate-200 dark:bg-slate-800/60 dark:border-slate-700"
+                title={isEn
+                  ? 'Sentences resolved by the local Tier 1/2 model (Module 1) without needing an LLM call'
+                  : 'Số câu được mô hình cục bộ Tier 1/2 (Module 1) xác minh mà không cần gọi LLM'}
+              >
+                <div className="text-[10px] text-violet-500 font-semibold flex items-center gap-1">
+                  <Cpu className="w-3 h-3" />
+                  {isEn ? 'Local Verified (Tier 1/2)' : 'Xác minh cục bộ (Tier 1/2)'}
+                </div>
+                <div className="text-base font-extrabold text-violet-600 dark:text-violet-400 mt-0.5">
+                  {citationQuality.tier1_2ResolvedClaims}
                 </div>
               </div>
             </div>
