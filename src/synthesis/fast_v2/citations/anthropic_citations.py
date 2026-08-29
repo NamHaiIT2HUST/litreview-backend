@@ -680,6 +680,13 @@ Return ONLY the JSON assignments object described in your instructions, with exa
                 emitted_tags.append(f"[{', '.join(handles)}]")
             elif batch_succeeded:
                 empty_assignment_count += 1  # a genuine model judgment of "no support", not a failure
+                # Temporary diagnostic (2026-08-30): coverage stayed low after
+                # loosening the citation prompt (rule 1/5/9). Log exactly which
+                # spans the model judged unsupported so this can be read from
+                # production logs and classified as genuine discourse/inference
+                # (expected) vs. a real factual claim being under-cited (bug),
+                # instead of guessing from a UI screenshot.
+                print(f"[Citation Agent] EMPTY assignment for {claim_id}: {span_texts.get(claim_id, '')[:180]!r}", flush=True)
         attr_text = insert_citations_at_spans(p_text, spans, handle_lists)
         results_map[b_idx] = (attr_text, status, emitted_tags)
 
