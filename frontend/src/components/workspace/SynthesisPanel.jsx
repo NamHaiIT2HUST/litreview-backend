@@ -121,6 +121,22 @@ export default function SynthesisPanel({
   const [error, setError] = useState('');
   const [history, setHistory] = useState([]);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  // Module 1 (Evidence Quantification Engine) quality metrics for the
+  // active session -- null until fetched, and stays null (rendered as a
+  // no-op) when the backend has nothing to report (e.g. NLI_EVIDENCE_ENABLED
+  // is off, or the session has no claims), rather than showing zeros.
+  const [quality, setQuality] = useState(null);
+
+  const fetchQuality = async (id) => {
+    try {
+      const qRes = await safeFetch(`/synthesis-sessions/${id}/quality`);
+      if (qRes.ok) {
+        setQuality(await qRes.json());
+      }
+    } catch (e) {
+      console.error('Failed to fetch synthesis quality metrics', e);
+    }
+  };
   
   // Research Focus / Topic Input
   const [researchTopic, setResearchTopic] = useState(() => activeProject?.research_question || '');
@@ -184,6 +200,7 @@ export default function SynthesisPanel({
               } catch (e) {
                 console.error('Failed to fetch synthesis session detail', e);
               }
+              fetchQuality(sessionToLoad.id);
             }
           } else {
             setSessionId(null);
@@ -219,6 +236,7 @@ export default function SynthesisPanel({
         setStatus(data.status);
         if (data.status === 'done') {
           setResult(data);
+          fetchQuality(sessionId);
           fetchHistory(false);
         } else if (data.status === 'failed') {
           setError(data.error_message || t('synthesis.failed_generic'));
@@ -957,6 +975,48 @@ export default function SynthesisPanel({
                 : 'Tổng hợp học thuật tự động bằng AI. Vui lòng đối chiếu các luận điểm quan trọng với tài liệu gốc được trích dẫn.'}
             </span>
           </div>
+
+          {/* Module 1 Quality Metrics (Faithfulness / Hallucination Rate / Citation Precision) */}
+          {quality && quality.total_claims > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="p-2.5 rounded-xl border bg-white border-slate-200 dark:bg-slate-800/60 dark:border-slate-700">
+                <div className="text-[10px] text-slate-400 font-semibold flex items-center gap-1">
+                  <Layers className="w-3 h-3" />
+                  {isEn ? 'Total Claims' : 'Tổng số luận điểm'}
+                </div>
+                <div className="text-base font-extrabold text-slate-700 dark:text-slate-200 mt-0.5">
+                  {quality.total_claims}
+                </div>
+              </div>
+              <div className="p-2.5 rounded-xl border bg-white border-slate-200 dark:bg-slate-800/60 dark:border-slate-700">
+                <div className="text-[10px] text-emerald-500 font-semibold flex items-center gap-1">
+                  <ShieldCheck className="w-3 h-3" />
+                  {isEn ? 'Faithfulness' : 'Độ trung thực'}
+                </div>
+                <div className="text-base font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                  {quality.faithfulness_score_pct != null ? `${quality.faithfulness_score_pct}%` : '—'}
+                </div>
+              </div>
+              <div className="p-2.5 rounded-xl border bg-white border-slate-200 dark:bg-slate-800/60 dark:border-slate-700">
+                <div className="text-[10px] text-rose-500 font-semibold flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3" />
+                  {isEn ? 'Hallucination Rate' : 'Tỷ lệ ảo giác'}
+                </div>
+                <div className="text-base font-extrabold text-rose-600 dark:text-rose-400 mt-0.5">
+                  {quality.hallucination_rate_pct != null ? `${quality.hallucination_rate_pct}%` : '—'}
+                </div>
+              </div>
+              <div className="p-2.5 rounded-xl border bg-white border-slate-200 dark:bg-slate-800/60 dark:border-slate-700">
+                <div className="text-[10px] text-blue-500 font-semibold flex items-center gap-1">
+                  <Quote className="w-3 h-3" />
+                  {isEn ? 'Citation Precision' : 'Độ chính xác trích dẫn'}
+                </div>
+                <div className="text-base font-extrabold text-blue-600 dark:text-blue-400 mt-0.5">
+                  {quality.citation_precision_pct != null ? `${quality.citation_precision_pct}%` : '—'}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Executive Takeaways Card (Điểm nhấn Cốt lõi) */}
           {consensus.length > 0 && (
