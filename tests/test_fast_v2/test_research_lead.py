@@ -121,6 +121,96 @@ async def test_plan_longform_outline_makes_exactly_one_llm_call():
     assert len(plan.sections[0].retrieval_queries) == 2
 
 
+@pytest.mark.asyncio
+async def test_malformed_json_response_is_retried_and_can_still_succeed():
+    """Regression: a response that comes back with NO transport error but
+    isn't valid JSON used to raise a raw, unretried ValueError straight out
+    of plan_longform_outline (real production case: 'Research Lead response
+    contained no JSON object' surfaced as a bare 500 on /synthesis/plan).
+    It must now be treated as a retryable failure, same budget as a
+    transport timeout."""
+    bad_response = MagicMock()
+    bad_response.content = "Sure, here is my analysis of the papers: I think section one should discuss..."
+    good_response = MagicMock()
+    good_response.content = json.dumps({
+        "research_question": "does not matter, non-empty was supplied",
+        "sections": [
+            {"id": "sec_1", "title": "Only Section", "purpose": "p", "target_words": 1000,
+             "papers_to_compare": ["A"], "retrieval_queries": ["q"]},
+        ],
+    })
+
+    fake_llm = MagicMock()
+    fake_llm.ainvoke = AsyncMock(side_effect=[bad_response, good_response])
+
+    plan = await plan_longform_outline(
+        llm=fake_llm,
+        research_question="does not matter, non-empty was supplied",
+        paper_metadata=[{"title": "A", "abstract": "x"}],
+        max_retries=1,
+    )
+
+    assert fake_llm.ainvoke.call_count == 2
+    assert plan.sections[0].id == "sec_1"
+
+
+@pytest.mark.asyncio
+async def test_transport_timeout_gets_the_full_retry_budget_not_just_one_attempt():
+    """Regression caught running against a live server: a transport timeout
+    on attempt 1 used to exhaust the ENTIRE outer retry budget immediately
+    (ainvoke_with_retry(max_retries=0) raises after exactly one attempt,
+    and that exception wasn't caught by the outer loop), so max_retries=1
+    silently behaved like max_retries=0 for timeouts specifically. A
+    transport failure must get the same number of attempts as a parse
+    failure -- succeeding on the 2nd attempt must work."""
+    good_response = MagicMock()
+    good_response.content = json.dumps({
+        "research_question": "does not matter, non-empty was supplied",
+        "sections": [
+            {"id": "sec_1", "title": "Only Section", "purpose": "p", "target_words": 1000,
+             "papers_to_compare": ["A"], "retrieval_queries": ["q"]},
+        ],
+    })
+
+    fake_llm = MagicMock()
+    fake_llm.ainvoke = AsyncMock(side_effect=[asyncio.TimeoutError(), good_response])
+
+    plan = await plan_longform_outline(
+        llm=fake_llm,
+        research_question="does not matter, non-empty was supplied",
+        paper_metadata=[{"title": "A", "abstract": "x"}],
+        max_retries=1,
+    )
+
+    assert fake_llm.ainvoke.call_count == 2
+    assert plan.sections[0].id == "sec_1"
+
+
+@pytest.mark.asyncio
+async def test_malformed_json_response_exhausting_retries_raises_typed_error():
+    """After retries are exhausted on parse failure (not transport failure),
+    the caller must get ResearchLeadPlanningError -- a typed, catchable
+    error the API layer can turn into a real HTTP error detail -- never a
+    raw ValueError propagating out of this function."""
+    from src.synthesis.fast_v2.planning.research_lead import ResearchLeadPlanningError
+
+    bad_response = MagicMock()
+    bad_response.content = "not json at all, still not json on retry either"
+
+    fake_llm = MagicMock()
+    fake_llm.ainvoke = AsyncMock(return_value=bad_response)
+
+    with pytest.raises(ResearchLeadPlanningError):
+        await plan_longform_outline(
+            llm=fake_llm,
+            research_question="does not matter, non-empty was supplied",
+            paper_metadata=[{"title": "A", "abstract": "x"}],
+            max_retries=1,
+        )
+
+    assert fake_llm.ainvoke.call_count == 2
+
+
 def test_schema_and_parsing_compatibility():
     """Verify SectionPlan and LongformOutlinePlan serialization and parsing."""
     raw_json = {

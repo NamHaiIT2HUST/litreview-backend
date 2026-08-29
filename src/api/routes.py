@@ -1863,6 +1863,11 @@ class SynthesisPlanRequest(BaseModel):
     project_id: uuid.UUID
     paper_ids: list[str]
     research_question: str | None = None
+    # Free-text emphasis instruction (e.g. "focus on the methodology, keep
+    # the intro brief"). The Planner reflects this in target_words
+    # allocation per section -- deliberately the ONLY way to steer section
+    # length; there is no numeric per-section word-count input anywhere.
+    guidance: str | None = None
 
 
 class SynthesisExecuteRequest(BaseModel):
@@ -1924,7 +1929,7 @@ async def plan_synthesis_outline(
     rq = build_general_review_question(request.research_question)
     metadata = [{"title": p.title or "", "abstract": p.abstract or ""} for p in papers]
 
-    outline_plan = await plan_outline(paper_metadata=metadata, research_question=rq)
+    outline_plan = await plan_outline(paper_metadata=metadata, research_question=rq, guidance=request.guidance)
 
     return JSONResponse(
         status_code=200,
@@ -2014,6 +2019,7 @@ async def execute_approved_synthesis(
         status=(SynthesisStatus.done if fast_v2_result.grounded else SynthesisStatus.failed),
         review_markdown=fast_v2_result.text,
         error_message=(None if fast_v2_result.grounded else fast_v2_result.grounding_warning),
+        citation_coverage_telemetry=fast_v2_result.diagnostics.get("citation_coverage_telemetry"),
     )
     db.add(persisted)
 
@@ -2257,6 +2263,7 @@ async def get_synthesis_session(
         status=session.status.value,
         review_markdown=session.review_markdown,
         error_message=session.error_message,
+        citation_coverage_telemetry=session.citation_coverage_telemetry,
         citations=[
             SynthesisCitationResponse(
                 id=item.id,
@@ -2287,6 +2294,102 @@ async def get_synthesis_session(
             for item in evidence_profile
         ],
     )
+
+class SynthesisQualityResponse(BaseModel):
+    """The 3-layer Evidence Quantification Engine's output metrics (see
+    MODULE_1_PLAN.md) for one finished synthesis session -- computed from
+    SynthesisClaim.verification_status and the section-level counters
+    finalize_review() records, not a separate LLM-judge pass (that's
+    ragas_eval_service.py / rag_guardrail_service.py, a different subsystem
+    over RAG chat answers, not synthesis claims -- these field names are the
+    same on purpose (same concepts) but the two are computed completely
+    differently and are not interchangeable)."""
+
+    session_id: uuid.UUID
+    total_claims: int
+    supported_claims: int
+    contradicted_claims: int
+    insufficient_claims: int
+    faithfulness_score_pct: float | None
+    hallucination_rate_pct: float | None
+    claim_sentences_proposed: int
+    claim_sentences_kept: int
+    citation_precision_pct: float | None
+
+
+@router.get(
+    "/synthesis-sessions/{session_id}/quality",
+    response_model=SynthesisQualityResponse,
+)
+async def get_synthesis_session_quality(
+    session_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+) -> SynthesisQualityResponse:
+    """Faithfulness / Hallucination Rate / Citation Precision for one
+    completed synthesis session -- the Tri-Layer Evidence Quantification
+    Engine's actual deliverable (MODULE_1_PLAN.md), not the claim-verification
+    step alone (that runs earlier, inside cross_paper_analysis(), and only
+    decides what to keep -- this endpoint reports how well it did).
+
+    Citation Precision is NOT "citations with a non-null evidence_id / total
+    citations": every Citation row that gets persisted is already built only
+    from claims verified supported, so that ratio is trivially 100% and
+    measures nothing. It is instead the fraction of factual sentences the
+    writer drafted that survived finalize_review()'s "no unsupported prose"
+    guard and got a citation -- section-level counts recorded at draft time
+    (see synthesis_service.py::finalize_review, "claim_sentences_proposed"/
+    "claim_sentences_kept" in SynthesisMetrics.section_metrics), since the
+    dropped candidates' content isn't retained anywhere queryable after the
+    fact.
+    """
+    from sqlalchemy import func
+    from src.models.db_models import EntailmentStatus, SynthesisClaim, SynthesisMetrics
+
+    session_result = await db.execute(
+        select(SynthesisSession).where(SynthesisSession.id == session_id)
+    )
+    if session_result.scalar_one_or_none() is None:
+        raise HTTPException(status_code=404, detail=f"Synthesis session '{session_id}' not found")
+
+    claim_counts_result = await db.execute(
+        select(SynthesisClaim.verification_status, func.count())
+        .where(SynthesisClaim.synthesis_session_id == session_id)
+        .group_by(SynthesisClaim.verification_status)
+    )
+    counts_by_status = {status: count for status, count in claim_counts_result.all()}
+    supported = counts_by_status.get(EntailmentStatus.supported, 0)
+    contradicted = counts_by_status.get(EntailmentStatus.contradicted, 0)
+    insufficient = counts_by_status.get(EntailmentStatus.insufficient, 0)
+    total_claims = supported + contradicted + insufficient
+
+    faithfulness_score_pct = round(supported / total_claims * 100, 2) if total_claims else None
+    hallucination_rate_pct = round(100 - faithfulness_score_pct, 2) if faithfulness_score_pct is not None else None
+
+    metrics_result = await db.execute(
+        select(SynthesisMetrics).where(SynthesisMetrics.session_id == session_id)
+    )
+    metrics = metrics_result.scalar_one_or_none()
+    section_metrics = (metrics.section_metrics if metrics else None) or []
+    claim_sentences_proposed = sum(int(s.get("claim_sentences_proposed", 0)) for s in section_metrics)
+    claim_sentences_kept = sum(int(s.get("claim_sentences_kept", 0)) for s in section_metrics)
+    citation_precision_pct = (
+        round(claim_sentences_kept / claim_sentences_proposed * 100, 2)
+        if claim_sentences_proposed else None
+    )
+
+    return SynthesisQualityResponse(
+        session_id=session_id,
+        total_claims=total_claims,
+        supported_claims=supported,
+        contradicted_claims=contradicted,
+        insufficient_claims=insufficient,
+        faithfulness_score_pct=faithfulness_score_pct,
+        hallucination_rate_pct=hallucination_rate_pct,
+        claim_sentences_proposed=claim_sentences_proposed,
+        claim_sentences_kept=claim_sentences_kept,
+        citation_precision_pct=citation_precision_pct,
+    )
+
 
 @router.delete("/synthesis-sessions/{session_id}")
 async def delete_synthesis_session(

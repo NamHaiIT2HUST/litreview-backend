@@ -22,7 +22,8 @@ Wiring a concrete reranker is a follow-up task (promotion criterion 6).
 """
 from __future__ import annotations
 
-from typing import Protocol, Sequence, runtime_checkable
+import time
+from typing import Any, Protocol, Sequence, runtime_checkable
 
 from src.synthesis.fast_v2.evidence.models import EvidenceUnit
 
@@ -106,21 +107,60 @@ def apply_reranker_many(
     return results
 
 
+#: Benchmarked against real cross-encoder pairs (~1600 chars avg,
+#: max_length=512): batch_size 8/16/32 wall-clock differs by <6% on CPU --
+#: this is compute-bound, not batching-bound, so 32 (fewer Python-level
+#: chunks) is kept as default. Configurable because the right value can
+#: differ by CPU/deployment target.
+GTE_DEFAULT_BATCH_SIZE = 32
+
+
 class CrossEncoderReranker:
     """Production cross-encoder reranker wrapping RerankerService
     (Alibaba-NLP/gte-reranker-modernbert-base -- BGE is retired, see
     src/services/reranker_service.py for the model actually loaded)."""
 
-    def __init__(self, service: Any | None = None) -> None:
+    def __init__(self, service: Any | None = None, *, batch_size: int = GTE_DEFAULT_BATCH_SIZE) -> None:
         if service is None:
             from src.services.reranker_service import reranker_service
             self._service = reranker_service
         else:
             self._service = service
+        self.batch_size = batch_size
+        #: Populated after each rerank()/rerank_many() call.
+        self.last_inference_ms: float | None = None
+        self.last_forward_call_count: int = 0
+
+    def load(self) -> Any:
+        """Materialise the model now. Lets application startup warmup
+        (``warm_fast_v2`` in runtime.py) pay the model-load cost once, up
+        front, instead of on the first real synthesis request."""
+        return self._service._get_model()
 
     def rerank(self, query: str, texts: Sequence[str]) -> list[tuple[int, float]]:
-        if not texts:
-            return []
+        return self.rerank_many(((query, texts),))[0]
+
+    def rerank_many(
+        self,
+        requests: Sequence[tuple[str, Sequence[str]]],
+    ) -> list[list[tuple[int, float]]]:
+        """Score ordered query/text groups with ONE model.predict() call.
+
+        Pairs are flattened group-major (section-major) and text-major, so
+        section N's candidates always occupy the same slice regardless of
+        how many other sections are batched alongside it. Scores are split
+        back out and ranked INDEPENDENTLY per group -- batching pairs for
+        one shared forward pass never mixes ranking across sections; the
+        query differs per group and sorting happens strictly within each
+        group's own score slice.
+        """
+        groups = [(query, list(texts)) for query, texts in requests]
+        pairs = [[query, text] for query, texts in groups for text in texts]
+        if not pairs:
+            self.last_inference_ms = 0.0
+            self.last_forward_call_count = 0
+            return [[] for _ in groups]
+
         model = self._service._get_model()
         # RerankerService returns the literal string "fallback" (not raising)
         # when its local model directory is missing or fails to load --
@@ -137,11 +177,27 @@ class CrossEncoderReranker:
                 "unrelated/no-op fallback here; either provide the model "
                 "locally or select fast_v2_reranker='identity'/'cross_encoder'."
             )
-        pairs = [[query, text] for text in texts]
-        scores = model.predict(pairs, batch_size=32)
-        indexed_scores = [(i, float(score)) for i, score in enumerate(scores)]
-        indexed_scores.sort(key=lambda x: x[1], reverse=True)
-        return indexed_scores
+
+        t0 = time.perf_counter()
+        scores = model.predict(pairs, batch_size=self.batch_size)
+        self.last_inference_ms = (time.perf_counter() - t0) * 1000.0
+        self.last_forward_call_count = 1
+
+        if len(scores) != len(pairs):
+            raise ValueError(
+                f"Reranker returned {len(scores)} scores for {len(pairs)} "
+                "candidates; scores must be positional and complete."
+            )
+
+        results: list[list[tuple[int, float]]] = []
+        offset = 0
+        for _query, texts in groups:
+            group_scores = scores[offset : offset + len(texts)]
+            offset += len(texts)
+            indexed_scores = [(i, float(score)) for i, score in enumerate(group_scores)]
+            indexed_scores.sort(key=lambda x: x[1], reverse=True)
+            results.append(indexed_scores)
+        return results
 
 
 class IdentityReranker:

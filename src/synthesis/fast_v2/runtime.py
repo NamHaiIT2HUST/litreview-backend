@@ -83,7 +83,7 @@ def build_general_review_question(research_question: str | None) -> str:
 
 
 async def plan_outline(
-    *, paper_metadata: Sequence[dict[str, str]], research_question: str
+    *, paper_metadata: Sequence[dict[str, str]], research_question: str, guidance: str | None = None
 ) -> LongformOutlinePlan:
     """One bounded Research Lead LLM call turns selected titles/abstracts into
     a thematic outline + section-specific retrieval plan.
@@ -122,7 +122,7 @@ async def plan_outline(
 
     llm = ChatOpenAI(model=model, api_key=api_key, base_url=base_url, temperature=0.0)
     return await plan_longform_outline(
-        llm, research_question=research_question, paper_metadata=paper_metadata
+        llm, research_question=research_question, paper_metadata=paper_metadata, guidance=guidance
     )
 
 
@@ -313,6 +313,8 @@ async def run_section_scoped_synthesis(
     paper_ids: Sequence[uuid.UUID],
     approved_outline: LongformOutlinePlan,
     artifact_dir: str | None = None,
+    citation_batch_size: int = 4,
+    citation_concurrency: int = 4,
 ) -> FastSynthesisV2Result:
     """Execute section-scoped synthesis with an approved LongformOutlinePlan.
     
@@ -358,6 +360,8 @@ async def run_section_scoped_synthesis(
         section_candidate_cap=settings.fast_v2_section_candidate_cap or 25,
         writer_max_tokens=settings.fast_v2_writer_max_tokens or 8192,
         artifact_dir=artifact_dir,
+        citation_batch_size=citation_batch_size,
+        citation_concurrency=citation_concurrency,
     )
     return await pipeline.run(approved_outline=approved_outline, paper_ids=paper_ids)
 

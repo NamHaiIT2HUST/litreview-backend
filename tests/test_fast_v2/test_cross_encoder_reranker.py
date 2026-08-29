@@ -329,13 +329,18 @@ def test_identity_reranker_preserves_retrieval_ordering_through_apply():
 def test_default_config_selects_identity_until_gte_is_verified_working():
     """"gte" is the intended production reranker (see src/config.py's
     comment above `fast_v2_reranker`) but is not the default: the checkpoint
-    is not guaranteed to be locally cached, and selecting it when
-    RerankerService's local model directory is absent currently crashes
-    with AttributeError instead of failing loudly (see
-    src/synthesis/fast_v2/selection/rerank.py -- CrossEncoderReranker.rerank
-    calls .predict() on RerankerService's "fallback" string sentinel
-    unconditionally). "identity" stays the safe default until that's fixed
-    and the model is confirmed to load in every deployment target."""
+    is not guaranteed to be locally cached in every deployment target
+    (confirmed absent from this repo's own local HF cache), and
+    reranker_service.py -- shared with the live default paper-search
+    reranking endpoints, not gated behind fast_v2_reranker -- still loads
+    the retired BGE checkpoint with a silent "fallback" sentinel on
+    failure, not the GTE checkpoint. Selecting "gte" when the model isn't
+    loaded now fails loudly with a RuntimeError (see
+    src/synthesis/fast_v2/selection/rerank.py --
+    CrossEncoderReranker.rerank_many's hasattr(model, "predict") check)
+    rather than crashing with an opaque AttributeError, but "identity"
+    stays the safe default until the GTE model is confirmed cached in
+    every deployment target."""
     from src.config import Settings
 
     assert Settings(_env_file=None).fast_v2_reranker == "identity"

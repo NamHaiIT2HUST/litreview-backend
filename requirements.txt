@@ -17,6 +17,15 @@ langchain-huggingface>=0.1.0
 langgraph>=0.2.0
 langgraph-checkpoint-postgres>=2.0.0
 sentence-transformers>=3.0.0
+# Required by DeBERTa-v3's tokenizer family (Module 1's NLI checker,
+# src/services/nli_checker.py) -- AutoTokenizer.from_pretrained() on a
+# DeBERTa-v3 checkpoint raises without it (falls back to a tiktoken BPE
+# loader that cannot parse the sentencepiece .model file, confirmed locally).
+sentencepiece>=0.2.0
+# Required by transformers.Trainer (scripts/finetune_nli/, and any future
+# HF Trainer-based fine-tuning) -- confirmed missing entirely from this
+# project's pinned deps, Trainer.__init__ raises ImportError without it.
+accelerate>=1.1.0
 # ONNX Runtime backend for fast_v2's embedding model (see
 # src/synthesis/fast_v2/evidence/semantic_index.py::_default_model_factory --
 # gte-modernbert-base loads via backend="onnx" for ~27x faster CPU inference).

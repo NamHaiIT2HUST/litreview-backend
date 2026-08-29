@@ -89,3 +89,5 @@ models/*.pt
 checkpoints/
 models/lora_*/
 models/lora_agent*/
+models/nli_evidence_v1/
+scripts/finetune_nli/candidates/
