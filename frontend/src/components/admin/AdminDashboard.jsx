@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Users, Search, BookOpen, FolderGit2, Trash2, 
-  RefreshCw, Shield, Clock, AlertCircle, CheckCircle2, UserCheck
+import {
+  Users, Search, BookOpen, FolderGit2, Trash2,
+  RefreshCw, Shield, Clock, AlertCircle, CheckCircle2, UserCheck, Zap
 } from 'lucide-react';
 import { API_BASE, safeFetch } from '../../utils/apiConfig';
 
@@ -48,6 +48,13 @@ export default function AdminDashboard({ darkMode }) {
     } finally {
       setDeletingId(null);
     }
+  };
+
+  const formatTokens = (n) => {
+    const num = Number(n) || 0;
+    if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M`;
+    if (num >= 1_000) return `${(num / 1_000).toFixed(1)}K`;
+    return String(num);
   };
 
   const formatDate = (isoString) => {
@@ -105,8 +112,8 @@ export default function AdminDashboard({ darkMode }) {
         </div>
       )}
 
-      {/* 4 Summary Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      {/* 5 Summary Stat Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
         {/* Total Users */}
         <div className={`p-6 rounded-3xl border transition-all ${
           darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
@@ -178,6 +185,26 @@ export default function AdminDashboard({ darkMode }) {
             <span className="text-[11px] text-slate-500 mt-1 block">Dự án SLR đã tạo</span>
           </div>
         </div>
+
+        {/* Total Tokens */}
+        <div className={`p-6 rounded-3xl border transition-all ${
+          darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+        }`}>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Token AI Đã Dùng</span>
+            <div className="w-10 h-10 rounded-2xl bg-rose-50 dark:bg-rose-950/80 text-rose-600 dark:text-rose-400 flex items-center justify-center font-bold">
+              <Zap className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="mt-4">
+            <div className="text-3xl font-display font-black text-slate-900 dark:text-white">
+              {loading ? '...' : formatTokens((stats?.summary?.total_input_tokens ?? 0) + (stats?.summary?.total_output_tokens ?? 0))}
+            </div>
+            <span className="text-[11px] text-slate-500 mt-1 block">
+              {loading ? '...' : `${formatTokens(stats?.summary?.total_input_tokens ?? 0)} vào · ${formatTokens(stats?.summary?.total_output_tokens ?? 0)} ra`}
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* Main Grid: User Management & Recent Search Activity */}
@@ -205,6 +232,8 @@ export default function AdminDashboard({ darkMode }) {
                 <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 font-bold uppercase tracking-wider">
                   <th className="py-3 px-2">Tên Đăng Nhập</th>
                   <th className="py-3 px-2">Vai Trò</th>
+                  <th className="py-3 px-2 text-right">Tra Cứu</th>
+                  <th className="py-3 px-2 text-right">Token</th>
                   <th className="py-3 px-2">Ngày Tạo</th>
                   <th className="py-3 px-2 text-right">Thao Tác</th>
                 </tr>
@@ -229,6 +258,12 @@ export default function AdminDashboard({ darkMode }) {
                         {u.role === 'admin' ? <Shield className="w-2.5 h-2.5" /> : null}
                         {u.role}
                       </span>
+                    </td>
+                    <td className="py-3 px-2 text-right font-bold text-slate-700 dark:text-slate-300">
+                      {u.query_count ?? 0}
+                    </td>
+                    <td className="py-3 px-2 text-right font-mono text-slate-700 dark:text-slate-300">
+                      {formatTokens((u.input_tokens ?? 0) + (u.output_tokens ?? 0))}
                     </td>
                     <td className="py-3 px-2 text-slate-500 dark:text-slate-400">
                       {formatDate(u.created_at)}

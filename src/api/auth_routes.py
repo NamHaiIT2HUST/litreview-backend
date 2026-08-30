@@ -176,12 +176,19 @@ async def get_admin_stats(
     db: AsyncSession = Depends(get_db),
     _admin: AuthenticatedUser = Depends(require_admin),
 ):
-    from src.models.db_models import Project, SearchQuery, Paper
+    from src.models.db_models import Project, SearchQuery, Paper, SynthesisSession, SynthesisMetrics
 
     user_count = (await db.execute(select(func.count()).select_from(User))).scalar() or 0
     project_count = (await db.execute(select(func.count()).select_from(Project))).scalar() or 0
     query_count = (await db.execute(select(func.count()).select_from(SearchQuery))).scalar() or 0
     paper_count = (await db.execute(select(func.count()).select_from(Paper))).scalar() or 0
+
+    total_input_tokens, total_output_tokens = (await db.execute(
+        select(
+            func.coalesce(func.sum(SynthesisMetrics.total_input_tokens), 0),
+            func.coalesce(func.sum(SynthesisMetrics.total_output_tokens), 0),
+        )
+    )).one()
 
     recent_queries_result = await db.execute(
         select(SearchQuery.query_string, SearchQuery.executed_at, SearchQuery.result_count)
@@ -203,12 +210,31 @@ async def get_admin_stats(
         p_count = (await db.execute(
             select(func.count()).select_from(Project).where(Project.user_id == u.id)
         )).scalar() or 0
+        q_count = (await db.execute(
+            select(func.count())
+            .select_from(SearchQuery)
+            .join(Project, SearchQuery.project_id == Project.id)
+            .where(Project.user_id == u.id)
+        )).scalar() or 0
+        u_input_tokens, u_output_tokens = (await db.execute(
+            select(
+                func.coalesce(func.sum(SynthesisMetrics.total_input_tokens), 0),
+                func.coalesce(func.sum(SynthesisMetrics.total_output_tokens), 0),
+            )
+            .select_from(SynthesisMetrics)
+            .join(SynthesisSession, SynthesisMetrics.session_id == SynthesisSession.id)
+            .join(Project, SynthesisSession.project_id == Project.id)
+            .where(Project.user_id == u.id)
+        )).one()
         users_data.append({
             "id": str(u.id),
             "username": u.username,
             "role": u.role.value if hasattr(u.role, 'value') else u.role,
             "created_at": u.created_at.isoformat() if u.created_at else "",
-            "project_count": p_count
+            "project_count": p_count,
+            "query_count": q_count,
+            "input_tokens": int(u_input_tokens),
+            "output_tokens": int(u_output_tokens)
         })
 
     return {
@@ -216,7 +242,9 @@ async def get_admin_stats(
             "total_users": user_count,
             "total_projects": project_count,
             "total_queries": query_count,
-            "total_papers": paper_count
+            "total_papers": paper_count,
+            "total_input_tokens": int(total_input_tokens),
+            "total_output_tokens": int(total_output_tokens)
         },
         "users": users_data,
         "recent_queries": recent_queries
