@@ -75,10 +75,10 @@ export default function AdminDashboard({ darkMode }) {
     : 'bg-gradient-to-br from-blue-400 to-sky-600 text-white';
 
   const STAT_CARDS = [
-    { key: 'total_users', label: 'Người Dùng', hint: 'Tài khoản đã đăng ký', Icon: Users, color: 'blue' },
-    { key: 'total_queries', label: 'Lượt Tra Cứu', hint: 'Lệnh tìm kiếm học thuật', Icon: Search, color: 'emerald' },
-    { key: 'total_papers', label: 'Bài Báo Đã Thu Thập', hint: 'Nguồn tài liệu trong CSDL', Icon: BookOpen, color: 'purple' },
-    { key: 'total_projects', label: 'Đề Tài Nghiên Cứu', hint: 'Dự án SLR đã tạo', Icon: FolderGit2, color: 'amber' },
+    { key: 'total_users', label: 'Người dùng', hint: 'Tài khoản đã đăng ký', Icon: Users, color: 'blue' },
+    { key: 'total_queries', label: 'Lượt tra cứu', hint: 'Lệnh tìm kiếm học thuật', Icon: Search, color: 'emerald' },
+    { key: 'total_papers', label: 'Bài báo đã thu thập', hint: 'Nguồn tài liệu trong CSDL', Icon: BookOpen, color: 'purple' },
+    { key: 'total_projects', label: 'Đề tài nghiên cứu', hint: 'Dự án SLR đã tạo', Icon: FolderGit2, color: 'amber' },
   ];
 
   const ICON_STYLES = {
@@ -95,13 +95,13 @@ export default function AdminDashboard({ darkMode }) {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="px-2.5 py-0.5 rounded-full bg-gradient-to-r from-purple-100 to-blue-100 dark:from-purple-900/60 dark:to-blue-900/60 text-purple-700 dark:text-purple-300 font-display font-bold text-[11px] uppercase tracking-wider border border-purple-200 dark:border-purple-800 inline-flex items-center gap-1">
+            <span className="px-2.5 py-0.5 rounded-full bg-gradient-to-r from-purple-100 to-blue-100 dark:from-purple-900/60 dark:to-blue-900/60 text-purple-700 dark:text-purple-300 font-display font-bold text-[11px] tracking-wide border border-purple-200 dark:border-purple-800 inline-flex items-center gap-1">
               <Shield className="w-3 h-3" />
-              HỆ THỐNG QUẢN TRỊ
+              Hệ thống quản trị
             </span>
           </div>
           <h1 className="text-2xl md:text-3xl font-display font-black text-slate-900 dark:text-white tracking-tight">
-            Quản Lý Tài Khoản & Hoạt Động Hệ Thống
+            Quản lý tài khoản & hoạt động hệ thống
           </h1>
           <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 mt-1">
             Dành riêng cho Quản trị viên: Theo dõi số lượng tra cứu, cơ sở dữ liệu và quản lý người dùng.
@@ -144,7 +144,7 @@ export default function AdminDashboard({ darkMode }) {
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{label}</span>
+              <span className="text-xs font-bold text-slate-500 tracking-wide">{label}</span>
               <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ring-4 ${ICON_STYLES[color]}`}>
                 <Icon className="w-5 h-5" />
               </div>
@@ -169,7 +169,7 @@ export default function AdminDashboard({ darkMode }) {
             : 'bg-white border-slate-200 shadow-sm hover:shadow-md'
         }`}>
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Token AI Đã Dùng</span>
+            <span className="text-xs font-bold text-slate-500 tracking-wide">Token AI đã dùng</span>
             <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ring-4 ${ICON_STYLES.rose}`}>
               <Zap className="w-5 h-5" />
             </div>
@@ -200,7 +200,7 @@ export default function AdminDashboard({ darkMode }) {
             <div className="flex items-center gap-2">
               <UserCheck className="w-5 h-5 text-blue-600 dark:text-sky-400" />
               <h2 className="text-lg font-display font-black text-slate-900 dark:text-white">
-                Danh Sách Tài Khoản
+                Danh sách tài khoản
               </h2>
             </div>
             <span className="text-xs font-bold text-slate-500">
@@ -211,13 +211,13 @@ export default function AdminDashboard({ darkMode }) {
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
-                <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 font-bold uppercase tracking-wider text-[10px]">
-                  <th className="py-3 px-2 whitespace-nowrap">Tên Đăng Nhập</th>
-                  <th className="py-3 px-2 whitespace-nowrap">Vai Trò</th>
-                  <th className="py-3 px-2 text-right whitespace-nowrap">Tra Cứu</th>
+                <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 font-bold tracking-wide text-[10px]">
+                  <th className="py-3 px-2 whitespace-nowrap">Tên đăng nhập</th>
+                  <th className="py-3 px-2 whitespace-nowrap">Vai trò</th>
+                  <th className="py-3 px-2 text-right whitespace-nowrap">Tra cứu</th>
                   <th className="py-3 px-2 text-right whitespace-nowrap">Token</th>
-                  <th className="py-3 px-2 whitespace-nowrap">Ngày Tạo</th>
-                  <th className="py-3 px-2 text-right whitespace-nowrap">Thao Tác</th>
+                  <th className="py-3 px-2 whitespace-nowrap">Ngày tạo</th>
+                  <th className="py-3 px-2 text-right whitespace-nowrap">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
@@ -232,7 +232,7 @@ export default function AdminDashboard({ darkMode }) {
                       </div>
                     </td>
                     <td className="py-3 px-2 whitespace-nowrap">
-                      <span className={`px-2.5 py-1 rounded-full font-bold text-[10px] uppercase tracking-wide inline-flex items-center gap-1 ${
+                      <span className={`px-2.5 py-1 rounded-full font-bold text-[10px] capitalize tracking-wide inline-flex items-center gap-1 ${
                         u.role === 'admin'
                           ? 'bg-purple-100 text-purple-700 dark:bg-purple-950/80 dark:text-purple-300 border border-purple-200 dark:border-purple-800'
                           : 'bg-blue-100 text-blue-700 dark:bg-blue-950/80 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
@@ -279,7 +279,7 @@ export default function AdminDashboard({ darkMode }) {
             <div className="flex items-center gap-2">
               <Clock className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
               <h2 className="text-lg font-display font-black text-slate-900 dark:text-white">
-                Lịch Sử Tra Cứu Gần Đây
+                Lịch sử tra cứu gần đây
               </h2>
             </div>
             <span className="text-xs font-bold text-slate-500">10 lượt mới nhất</span>
@@ -292,7 +292,7 @@ export default function AdminDashboard({ darkMode }) {
               stats?.recent_queries?.map((q, idx) => (
                 <div 
                   key={idx}
-                  className="p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-850/50 space-y-1.5"
+                  className="p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/60 space-y-1.5"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <p className="text-xs font-bold text-slate-800 dark:text-slate-200 line-clamp-2 leading-relaxed">
