@@ -225,6 +225,13 @@ function MainAppShell() {
     } catch {
       // ignore
     }
+    // activeCitation (which paper/quote the Verification panel is showing)
+    // belongs to whatever paper the user was just looking at -- it has no
+    // meaning once the project underneath it has changed, but it was never
+    // cleared here, so switching notebooks left the Verification panel
+    // showing a stale citation from the PREVIOUS project (wrong paper,
+    // wrong quote) until the user happened to click a new one themselves.
+    setActiveCitation(null);
   }, [activeProjectId, activeProject?.name]);
 
   useEffect(() => {

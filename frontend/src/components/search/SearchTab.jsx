@@ -48,6 +48,12 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
   const [apiKey, setApiKey] = useState(() => {
     return localStorage.getItem('litreview_serpapi_key') || localStorage.getItem('serp_api_key') || '';
   });
+  // The input for this was dropped from the UI during the branding/layout
+  // overhaul while apiKey/handleApiKeyChange (and the X-API-Key header this
+  // feeds) stayed wired up -- there was no way left to actually set or
+  // change a SerpApi key. Collapsed by default so it doesn't clutter the
+  // main search bar for users who don't need it.
+  const [showApiKeyInput, setShowApiKeyInput] = useState(false);
 
   // Helper: Trích xuất và chuẩn hóa từ khóa học thuật chuẩn xác (tránh bị dính nguyên cả câu văn dài)
   const extractCleanKeywordsFromText = (text = '') => {
@@ -1086,6 +1092,37 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                 </>
               )}
             </button>
+          </div>
+
+          {/* SerpApi Key (optional, collapsible) */}
+          <div className="pt-1">
+            <button
+              type="button"
+              onClick={() => setShowApiKeyInput(prev => !prev)}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-surface-500 hover:text-primary-600 dark:text-surface-400 dark:hover:text-primary-400 transition-colors"
+            >
+              <Key className="w-3.5 h-3.5" />
+              <span>{isVi ? 'Cấu hình SerpApi Key (tùy chọn)' : 'Configure SerpApi Key (optional)'}</span>
+              {apiKey.trim() && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />}
+              {showApiKeyInput ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            </button>
+            {showApiKeyInput && (
+              <div className="mt-2 flex flex-col sm:flex-row sm:items-center gap-2">
+                <div className="relative flex-1">
+                  <Key className="w-4 h-4 text-surface-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="password"
+                    value={apiKey}
+                    onChange={handleApiKeyChange}
+                    placeholder={isVi ? 'Dán SerpApi key của bạn tại đây...' : 'Paste your SerpApi key here...'}
+                    className="w-full pl-9 pr-3 py-2 border rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 bg-surface-50 border-surface-300 text-surface-900 placeholder-surface-400 dark:bg-surface-800 dark:border-surface-700 dark:text-white dark:placeholder-surface-500"
+                  />
+                </div>
+                <span className="text-xs text-surface-400 dark:text-surface-500 shrink-0">
+                  {isVi ? 'Dùng để tăng giới hạn tìm kiếm học thuật (Google Scholar).' : 'Used to raise the academic search (Google Scholar) rate limit.'}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* 1. Suggested Keywords from Topic Area */}
