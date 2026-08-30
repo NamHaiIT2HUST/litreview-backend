@@ -74,6 +74,7 @@ from src.services.rag_eval_harness import rag_eval_harness
 from src.services.synthesis_response_builder import build_section_responses
 from src.services.synthesis_llm_service import synthesis_llm_service
 from src.services.synthesis_session_utils import json_paper_ids
+from src.services.synthesis_metrics_service import get_or_create_metrics
 
 processor = DocumentProcessor()
 
@@ -2050,6 +2051,40 @@ async def execute_approved_synthesis(
             source_char_end=item.source_char_end,
             quoted_snippet=item.quoted_snippet,
         ))
+
+    # /synthesis/execute never recorded LLMCallLog/SynthesisMetrics rows for
+    # this (the only user-reachable) synthesis path, so the admin dashboard's
+    # token-usage totals were always 0 even after real runs -- the writer and
+    # citation agent telemetry above already carries the token counts LangChain
+    # reports on each call, it just never got summed into SynthesisMetrics.
+    writer_tel = fast_v2_result.diagnostics.get("writer_telemetry") or {}
+    citation_tel = fast_v2_result.diagnostics.get("citation_coverage_telemetry") or {}
+    repair_tel = fast_v2_result.diagnostics.get("verbatim_repair_telemetry") or {}
+
+    def _int_or_zero(value) -> int:
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return 0
+
+    metrics = await get_or_create_metrics(db, persisted.id)
+    metrics.total_input_tokens = (
+        _int_or_zero(writer_tel.get("prompt_tokens"))
+        + _int_or_zero(citation_tel.get("total_input_tokens_used"))
+        + _int_or_zero(repair_tel.get("total_input_tokens_used"))
+    )
+    metrics.total_output_tokens = (
+        _int_or_zero(writer_tel.get("completion_tokens"))
+        + _int_or_zero(citation_tel.get("total_tokens_used"))
+        + _int_or_zero(repair_tel.get("total_output_tokens_used"))
+    )
+    metrics.total_llm_calls = (
+        1
+        + _int_or_zero(citation_tel.get("number_of_batches"))
+        + len(repair_tel.get("outcomes") or [])
+    )
+    metrics.synthesis_duration_ms = _int_or_zero(fast_v2_result.timings.get("total_ms"))
+
     await db.commit()
 
     payload = fast_v2_result.to_dict()

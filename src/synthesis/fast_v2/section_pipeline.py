@@ -372,10 +372,15 @@ class SectionScopedSynthesisPipeline:
             writer_finish_reason = "UNKNOWN"
 
         completion_tokens: Any = None
+        prompt_tokens: Any = None
         if usage_metadata:
             completion_tokens = usage_metadata.get("output_tokens")
+            prompt_tokens = usage_metadata.get("input_tokens")
         if completion_tokens is None and last_chunk is not None:
-            completion_tokens = getattr(last_chunk, "response_metadata", {}).get("token_usage", {}).get("completion_tokens")
+            token_usage = getattr(last_chunk, "response_metadata", {}).get("token_usage", {})
+            completion_tokens = token_usage.get("completion_tokens")
+            if prompt_tokens is None:
+                prompt_tokens = token_usage.get("prompt_tokens")
         if completion_tokens is None:
             completion_tokens = "UNKNOWN"
 
@@ -388,6 +393,7 @@ class SectionScopedSynthesisPipeline:
             "configured_max_output_tokens": configured_max_output_tokens,
             "actual_max_tokens_sent": actual_max_tokens_sent,
             "completion_tokens": completion_tokens,
+            "prompt_tokens": prompt_tokens,
             "finish_reason": writer_finish_reason,
             "words_generated": output_words,
             "ends_normally": ends_normally,
