@@ -70,13 +70,33 @@ export default function AdminDashboard({ darkMode }) {
     }
   };
 
+  const roleAvatarClass = (role) => role === 'admin'
+    ? 'bg-gradient-to-br from-purple-500 to-fuchsia-600 text-white'
+    : 'bg-gradient-to-br from-blue-400 to-sky-600 text-white';
+
+  const STAT_CARDS = [
+    { key: 'total_users', label: 'Người Dùng', hint: 'Tài khoản đã đăng ký', Icon: Users, color: 'blue' },
+    { key: 'total_queries', label: 'Lượt Tra Cứu', hint: 'Lệnh tìm kiếm học thuật', Icon: Search, color: 'emerald' },
+    { key: 'total_papers', label: 'Bài Báo Đã Thu Thập', hint: 'Nguồn tài liệu trong CSDL', Icon: BookOpen, color: 'purple' },
+    { key: 'total_projects', label: 'Đề Tài Nghiên Cứu', hint: 'Dự án SLR đã tạo', Icon: FolderGit2, color: 'amber' },
+  ];
+
+  const ICON_STYLES = {
+    blue: 'bg-blue-50 dark:bg-blue-950/80 text-blue-600 dark:text-sky-400 ring-blue-100 dark:ring-blue-900/60',
+    emerald: 'bg-emerald-50 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 ring-emerald-100 dark:ring-emerald-900/60',
+    purple: 'bg-purple-50 dark:bg-purple-950/80 text-purple-600 dark:text-purple-400 ring-purple-100 dark:ring-purple-900/60',
+    amber: 'bg-amber-50 dark:bg-amber-950/80 text-amber-600 dark:text-amber-400 ring-amber-100 dark:ring-amber-900/60',
+    rose: 'bg-rose-50 dark:bg-rose-950/80 text-rose-600 dark:text-rose-400 ring-rose-100 dark:ring-rose-900/60',
+  };
+
   return (
     <div className="space-y-8 max-w-7xl mx-auto pb-16 font-sans">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="px-2.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-display font-bold text-[11px] uppercase tracking-wider border border-blue-200 dark:border-blue-800">
+            <span className="px-2.5 py-0.5 rounded-full bg-gradient-to-r from-purple-100 to-blue-100 dark:from-purple-900/60 dark:to-blue-900/60 text-purple-700 dark:text-purple-300 font-display font-bold text-[11px] uppercase tracking-wider border border-purple-200 dark:border-purple-800 inline-flex items-center gap-1">
+              <Shield className="w-3 h-3" />
               HỆ THỐNG QUẢN TRỊ
             </span>
           </div>
@@ -114,94 +134,56 @@ export default function AdminDashboard({ darkMode }) {
 
       {/* 5 Summary Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
-        {/* Total Users */}
-        <div className={`p-6 rounded-3xl border transition-all ${
-          darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
-        }`}>
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Người Dùng</span>
-            <div className="w-10 h-10 rounded-2xl bg-blue-50 dark:bg-blue-950/80 text-blue-600 dark:text-sky-400 flex items-center justify-center font-bold">
-              <Users className="w-5 h-5" />
+        {STAT_CARDS.map(({ key, label, hint, Icon, color }) => (
+          <div
+            key={key}
+            className={`p-6 rounded-3xl border transition-all hover:-translate-y-0.5 ${
+              darkMode
+                ? 'bg-slate-900 border-slate-800 hover:border-slate-700 hover:shadow-lg hover:shadow-black/20'
+                : 'bg-white border-slate-200 shadow-sm hover:shadow-md'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{label}</span>
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ring-4 ${ICON_STYLES[color]}`}>
+                <Icon className="w-5 h-5" />
+              </div>
+            </div>
+            <div className="mt-4">
+              {loading ? (
+                <div className="h-9 w-16 rounded-lg bg-slate-100 dark:bg-slate-800 animate-pulse" />
+              ) : (
+                <div className="text-3xl font-display font-black text-slate-900 dark:text-white tabular-nums">
+                  {stats?.summary?.[key] ?? 0}
+                </div>
+              )}
+              <span className="text-[11px] text-slate-500 mt-1 block">{hint}</span>
             </div>
           </div>
-          <div className="mt-4">
-            <div className="text-3xl font-display font-black text-slate-900 dark:text-white">
-              {loading ? '...' : (stats?.summary?.total_users ?? 0)}
-            </div>
-            <span className="text-[11px] text-slate-500 mt-1 block">Tài khoản đã đăng ký</span>
-          </div>
-        </div>
-
-        {/* Total Queries */}
-        <div className={`p-6 rounded-3xl border transition-all ${
-          darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
-        }`}>
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Lượt Tra Cứu</span>
-            <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
-              <Search className="w-5 h-5" />
-            </div>
-          </div>
-          <div className="mt-4">
-            <div className="text-3xl font-display font-black text-slate-900 dark:text-white">
-              {loading ? '...' : (stats?.summary?.total_queries ?? 0)}
-            </div>
-            <span className="text-[11px] text-slate-500 mt-1 block">Lệnh tìm kiếm học thuật</span>
-          </div>
-        </div>
-
-        {/* Total Papers */}
-        <div className={`p-6 rounded-3xl border transition-all ${
-          darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
-        }`}>
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Bài Báo Đã Thu Thập</span>
-            <div className="w-10 h-10 rounded-2xl bg-purple-50 dark:bg-purple-950/80 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold">
-              <BookOpen className="w-5 h-5" />
-            </div>
-          </div>
-          <div className="mt-4">
-            <div className="text-3xl font-display font-black text-slate-900 dark:text-white">
-              {loading ? '...' : (stats?.summary?.total_papers ?? 0)}
-            </div>
-            <span className="text-[11px] text-slate-500 mt-1 block">Nguồn tài liệu trong CSDL</span>
-          </div>
-        </div>
-
-        {/* Total Projects */}
-        <div className={`p-6 rounded-3xl border transition-all ${
-          darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
-        }`}>
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Đề Tài Nghiên Cứu</span>
-            <div className="w-10 h-10 rounded-2xl bg-amber-50 dark:bg-amber-950/80 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold">
-              <FolderGit2 className="w-5 h-5" />
-            </div>
-          </div>
-          <div className="mt-4">
-            <div className="text-3xl font-display font-black text-slate-900 dark:text-white">
-              {loading ? '...' : (stats?.summary?.total_projects ?? 0)}
-            </div>
-            <span className="text-[11px] text-slate-500 mt-1 block">Dự án SLR đã tạo</span>
-          </div>
-        </div>
+        ))}
 
         {/* Total Tokens */}
-        <div className={`p-6 rounded-3xl border transition-all ${
-          darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+        <div className={`p-6 rounded-3xl border transition-all hover:-translate-y-0.5 ${
+          darkMode
+            ? 'bg-slate-900 border-slate-800 hover:border-slate-700 hover:shadow-lg hover:shadow-black/20'
+            : 'bg-white border-slate-200 shadow-sm hover:shadow-md'
         }`}>
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Token AI Đã Dùng</span>
-            <div className="w-10 h-10 rounded-2xl bg-rose-50 dark:bg-rose-950/80 text-rose-600 dark:text-rose-400 flex items-center justify-center font-bold">
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ring-4 ${ICON_STYLES.rose}`}>
               <Zap className="w-5 h-5" />
             </div>
           </div>
           <div className="mt-4">
-            <div className="text-3xl font-display font-black text-slate-900 dark:text-white">
-              {loading ? '...' : formatTokens((stats?.summary?.total_input_tokens ?? 0) + (stats?.summary?.total_output_tokens ?? 0))}
-            </div>
+            {loading ? (
+              <div className="h-9 w-16 rounded-lg bg-slate-100 dark:bg-slate-800 animate-pulse" />
+            ) : (
+              <div className="text-3xl font-display font-black text-slate-900 dark:text-white tabular-nums">
+                {formatTokens((stats?.summary?.total_input_tokens ?? 0) + (stats?.summary?.total_output_tokens ?? 0))}
+              </div>
+            )}
             <span className="text-[11px] text-slate-500 mt-1 block">
-              {loading ? '...' : `${formatTokens(stats?.summary?.total_input_tokens ?? 0)} vào · ${formatTokens(stats?.summary?.total_output_tokens ?? 0)} ra`}
+              {loading ? ' ' : `${formatTokens(stats?.summary?.total_input_tokens ?? 0)} vào · ${formatTokens(stats?.summary?.total_output_tokens ?? 0)} ra`}
             </span>
           </div>
         </div>
@@ -229,27 +211,27 @@ export default function AdminDashboard({ darkMode }) {
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
-                <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 font-bold uppercase tracking-wider">
-                  <th className="py-3 px-2">Tên Đăng Nhập</th>
-                  <th className="py-3 px-2">Vai Trò</th>
-                  <th className="py-3 px-2 text-right">Tra Cứu</th>
-                  <th className="py-3 px-2 text-right">Token</th>
-                  <th className="py-3 px-2">Ngày Tạo</th>
-                  <th className="py-3 px-2 text-right">Thao Tác</th>
+                <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 font-bold uppercase tracking-wider text-[10px]">
+                  <th className="py-3 px-2 whitespace-nowrap">Tên Đăng Nhập</th>
+                  <th className="py-3 px-2 whitespace-nowrap">Vai Trò</th>
+                  <th className="py-3 px-2 text-right whitespace-nowrap">Tra Cứu</th>
+                  <th className="py-3 px-2 text-right whitespace-nowrap">Token</th>
+                  <th className="py-3 px-2 whitespace-nowrap">Ngày Tạo</th>
+                  <th className="py-3 px-2 text-right whitespace-nowrap">Thao Tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
                 {stats?.users?.map((u) => (
                   <tr key={u.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-                    <td className="py-3 px-2 font-bold text-slate-900 dark:text-white">
+                    <td className="py-3 px-2 font-bold text-slate-900 dark:text-white whitespace-nowrap">
                       <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-black text-[11px] text-blue-600 dark:text-sky-400">
+                        <div className={`w-7 h-7 rounded-full flex items-center justify-center font-black text-[11px] shadow-sm ${roleAvatarClass(u.role)}`}>
                           {u.username.slice(0, 2).toUpperCase()}
                         </div>
                         <span>{u.username}</span>
                       </div>
                     </td>
-                    <td className="py-3 px-2">
+                    <td className="py-3 px-2 whitespace-nowrap">
                       <span className={`px-2.5 py-1 rounded-full font-bold text-[10px] uppercase tracking-wide inline-flex items-center gap-1 ${
                         u.role === 'admin'
                           ? 'bg-purple-100 text-purple-700 dark:bg-purple-950/80 dark:text-purple-300 border border-purple-200 dark:border-purple-800'
@@ -259,16 +241,16 @@ export default function AdminDashboard({ darkMode }) {
                         {u.role}
                       </span>
                     </td>
-                    <td className="py-3 px-2 text-right font-bold text-slate-700 dark:text-slate-300">
+                    <td className="py-3 px-2 text-right font-bold text-slate-700 dark:text-slate-300 tabular-nums">
                       {u.query_count ?? 0}
                     </td>
-                    <td className="py-3 px-2 text-right font-mono text-slate-700 dark:text-slate-300">
+                    <td className="py-3 px-2 text-right font-mono text-slate-700 dark:text-slate-300 tabular-nums">
                       {formatTokens((u.input_tokens ?? 0) + (u.output_tokens ?? 0))}
                     </td>
-                    <td className="py-3 px-2 text-slate-500 dark:text-slate-400">
+                    <td className="py-3 px-2 text-slate-500 dark:text-slate-400 whitespace-nowrap">
                       {formatDate(u.created_at)}
                     </td>
-                    <td className="py-3 px-2 text-right">
+                    <td className="py-3 px-2 text-right whitespace-nowrap">
                       {u.role !== 'admin' ? (
                         <button
                           onClick={() => handleDeleteUser(u.id, u.username)}
