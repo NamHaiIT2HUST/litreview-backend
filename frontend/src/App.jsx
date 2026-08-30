@@ -34,7 +34,11 @@ function MainAppShell() {
   const [isTourOpen, setIsTourOpen] = useState(false);
 
   useEffect(() => {
-    if (isAuthenticated) {
+    // The tour walks through researcher-only tabs (Setup/Search/Synthesis) and
+    // steers activeTab as it goes -- for an admin account, whose navbar only
+    // ever exposes the Admin tab, that steering fights the admin redirect
+    // effect below and leaves the user stuck bouncing off the Admin tab.
+    if (isAuthenticated && currentUser?.role !== 'admin') {
       const tourCompleted = localStorage.getItem('litreview_tour_completed');
       if (!tourCompleted) {
         const timer = setTimeout(() => {
