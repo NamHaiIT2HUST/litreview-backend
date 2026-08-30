@@ -100,7 +100,13 @@ function MainAppShell() {
   }, [isAuthenticated]);
 
   useEffect(() => {
-    if (currentUser?.role === 'admin' && activeTab !== 'admin' && activeTab !== 'overview') {
+    // Admin accounts are a stats-only viewer role, not a researcher account --
+    // they must never land on the full Overview hub (project grid, "Tạo mới",
+    // search). The 'overview' exception below used to let that happen: a
+    // fresh login forces activeTab to 'overview' (see the effect above), and
+    // that value slipped past this guard's condition, so it never redirected
+    // an admin away from Overview.
+    if (currentUser?.role === 'admin' && activeTab !== 'admin') {
       setActiveTab('admin');
     }
   }, [activeTab, currentUser]);
