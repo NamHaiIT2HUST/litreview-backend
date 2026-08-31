@@ -1131,7 +1131,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <span className="text-xs font-bold text-surface-600 dark:text-surface-300 flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
-                  <span>{isVi ? 'Gợi ý từ khóa từ Đề tài nghiên cứu (PICO):' : 'Suggested Keywords from Topic (PICO):'}</span>
+                  <span>{isVi ? 'Gợi ý từ khóa từ đề tài nghiên cứu (PICO):' : 'Suggested Keywords from Topic (PICO):'}</span>
                 </span>
 
                 <div className="flex items-center gap-2 self-start sm:self-auto">
@@ -1588,7 +1588,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                   }}
                   className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-xl text-xs transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
                 >
-                  <span>{isVi ? 'Đưa vào Tổng quan' : 'Proceed to Review'}</span>
+                  <span>{isVi ? 'Đưa vào tổng quan' : 'Proceed to Review'}</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -1610,7 +1610,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
               <div className="flex items-center gap-3">
                 <ShieldAlert className="w-6 h-6 text-indigo-500" />
                 <h3 className="font-extrabold text-lg">
-                  {isVi ? 'Tiêu chí Đánh giá Screening & PRISMA' : 'PRISMA Screening Protocol & Criteria'}
+                  {isVi ? 'Tiêu chí đánh giá screening & PRISMA' : 'PRISMA Screening Protocol & Criteria'}
                 </h3>
               </div>
               <button
@@ -1868,7 +1868,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                 </div>
                 <div>
                   <h3 className="text-lg font-display font-bold flex items-center gap-2">
-                    {isVi ? 'Phân tích Cơ hội & Khoảng trống Nghiên cứu' : 'Research Gaps & Opportunity Analysis'}
+                    {isVi ? 'Phân tích cơ hội & khoảng trống nghiên cứu' : 'Research Gaps & Opportunity Analysis'}
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
                     {isVi 
@@ -1945,7 +1945,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                           <div className="flex items-center gap-2">
                             <Activity className="w-4 h-4 text-blue-600 dark:text-sky-400" />
                             <span className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200">
-                              {isVi ? 'Phổ Phân Bố Mức Độ Bão Hòa Đề Tài (Gap Spectrum)' : 'Research Saturation Spectrum & Opportunity Index'}
+                              {isVi ? 'Phổ phân bố mức độ bão hòa đề tài (Gap Spectrum)' : 'Research Saturation Spectrum & Opportunity Index'}
                             </span>
                           </div>
                           <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
@@ -2008,7 +2008,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                             <div className="flex items-center gap-2">
                               <span className="w-3 h-3 rounded-full bg-rose-500 inline-block shadow-xs"></span>
                               <span className="font-bold text-xs text-rose-800 dark:text-rose-300">
-                                {isVi ? 'Đã bão hoà' : 'Saturated (> 3 papers)'}
+                                {isVi ? 'Đã bão hòa' : 'Saturated (> 3 papers)'}
                               </span>
                             </div>
                             <span className="text-xs font-extrabold text-rose-700 dark:text-rose-400 bg-white dark:bg-rose-900/60 px-2 py-0.5 rounded-lg border border-rose-300/40">
@@ -2023,7 +2023,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                         <div className="flex items-center justify-between">
                           <h4 className="text-xs font-display font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                             <Sparkles className="w-3.5 h-3.5 text-blue-500" />
-                            <span>{isVi ? 'Mật Độ Bài Báo Theo Trục Kiến Trúc & Phương Pháp' : 'Paper Density by Method & Architecture Axis'}</span>
+                            <span>{isVi ? 'Mật độ bài báo theo trục kiến trúc & phương pháp' : 'Paper Density by Method & Architecture Axis'}</span>
                           </h4>
                           <span className="text-[11px] font-semibold text-slate-500">
                             {isVi ? 'Phân loại từ tập kết quả' : 'Categorized from corpus'}
@@ -2055,7 +2055,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                       <div className="space-y-2.5">
                         <div className="flex items-center justify-between">
                           <h4 className="text-xs font-display font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                            {isVi ? '3. Chi Tiết Các Ô Giao Điểm Nghiên Cứu (Bấm vào ô để xem phân tích chi tiết):' : '3. Topic Intersections Matrix (Click any cell to inspect opportunities):'}
+                            {isVi ? '3. Chi tiết các ô giao điểm nghiên cứu (nhấp vào ô để xem phân tích chi tiết):' : '3. Topic Intersections Matrix (Click any cell to inspect opportunities):'}
                           </h4>
                           <span className="text-[11px] text-blue-500 font-semibold flex items-center gap-1">
                             <span>👆 {isVi ? 'Nhấp ô bất kỳ để xem đề xuất' : 'Click cell for proposals'}</span>
@@ -2082,7 +2082,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                                   c.saturation === 'sparse' ? 'bg-amber-200/80 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300' :
                                   'bg-emerald-200/80 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300'
                                 }`}>
-                                  {c.saturation === 'empty' ? (isVi ? 'Khoảng trống mới' : 'Open Gap') : c.saturation === 'sparse' ? (isVi ? 'Còn dư địa' : 'Emerging') : (isVi ? 'Đã bão hoà' : 'Saturated')}
+                                  {c.saturation === 'empty' ? (isVi ? 'Khoảng trống mới' : 'Open Gap') : c.saturation === 'sparse' ? (isVi ? 'Còn dư địa' : 'Emerging') : (isVi ? 'Đã bão hòa' : 'Saturated')}
                                 </span>
                                 <span className="font-bold text-slate-600 dark:text-slate-300">
                                   {c.paper_count} {isVi ? 'bài báo' : 'papers'}
@@ -2092,7 +2092,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                                 {c.dimension_x} <span className="text-blue-600 dark:text-sky-400">&</span> {c.dimension_y}
                               </div>
                               <div className="text-[11px] font-semibold text-primary-600 dark:text-primary-400 mt-2 flex items-center gap-1 pt-1 border-t border-slate-200/40 dark:border-slate-800/40">
-                                <span>{isVi ? 'Xem bài đã có & Hướng mở rộng ➔' : 'Inspect papers & Novel angles ➔'}</span>
+                                <span>{isVi ? 'Xem bài đã có & hướng mở rộng ➔' : 'Inspect papers & Novel angles ➔'}</span>
                               </div>
                             </button>
                           ))}
@@ -2102,7 +2102,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                       {/* 4. DEEP ANALYTICAL BREAKDOWN & 3 NOVEL DIRECTIONS */}
                       <div className="space-y-4 pt-2 border-t border-slate-200 dark:border-slate-800">
                         <h4 className="text-xs font-display font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                          {isVi ? '4. Phân Tích Chuyên Sâu & Đề Xuất Đột Phá' : '4. In-Depth Analysis & Breakthrough Directions'}
+                          {isVi ? '4. Phân tích chuyên sâu & đề xuất đột phá' : '4. In-Depth Analysis & Breakthrough Directions'}
                         </h4>
 
                         {/* Limitations */}
@@ -2122,23 +2122,23 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                         <div className={`p-4 rounded-2xl border ${'bg-blue-50/50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-800/60'} space-y-3`}>
                           <div className="flex items-center gap-2 text-xs font-bold text-blue-700 dark:text-sky-300">
                             <Sparkles className="w-4 h-4" />
-                            <span>{isVi ? '3 Hướng đề tài đề xuất có tiềm năng công bố cao:' : '3 Proposed High-Impact Research Directions:'}</span>
+                            <span>{isVi ? '3 hướng đề tài đề xuất có tiềm năng công bố cao:' : '3 Proposed High-Impact Research Directions:'}</span>
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
                             <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-blue-100 dark:border-blue-900 space-y-1">
-                              <p className="font-bold text-xs text-blue-600 dark:text-sky-400">{isVi ? 'Hướng 1: Multi-Agent Tri thức' : 'Direction 1: Multi-Agent Knowledge'}</p>
+                              <p className="font-bold text-xs text-blue-600 dark:text-sky-400">{isVi ? 'Hướng 1: Multi-Agent tri thức' : 'Direction 1: Multi-Agent Knowledge'}</p>
                               <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
                                 {isVi ? 'Xây dựng hệ thống Swarm phân tầng để trích xuất và đối chiếu bằng chứng chéo giữa các bài báo.' : 'Hierarchical multi-agent swarm architecture for multi-document synthesis and cross-evidence verification.'}
                               </p>
                             </div>
                             <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-blue-100 dark:border-blue-900 space-y-1">
-                              <p className="font-bold text-xs text-blue-600 dark:text-sky-400">{isVi ? 'Hướng 2: Giảm Thiểu Ảo Giác' : 'Direction 2: Hallucination Mitigation'}</p>
+                              <p className="font-bold text-xs text-blue-600 dark:text-sky-400">{isVi ? 'Hướng 2: Giảm thiểu ảo giác' : 'Direction 2: Hallucination Mitigation'}</p>
                               <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
                                 {isVi ? 'Cơ chế Grounding 100% với trích dẫn DOI trực tiếp từ PDF toàn văn để đảm bảo tính liêm chính học thuật.' : '100% grounded claim-evidence mapping with verifiable DOI & page-level citation anchors.'}
                               </p>
                             </div>
                             <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-blue-100 dark:border-blue-900 space-y-1">
-                              <p className="font-bold text-xs text-blue-600 dark:text-sky-400">{isVi ? 'Hướng 3: Tối Ưu Chi Phí & Tốc Độ' : 'Direction 3: Cost & Latency Optimization'}</p>
+                              <p className="font-bold text-xs text-blue-600 dark:text-sky-400">{isVi ? 'Hướng 3: Tối ưu chi phí & tốc độ' : 'Direction 3: Cost & Latency Optimization'}</p>
                               <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
                                 {isVi ? 'Áp dụng kỹ thuật phân đoạn thông minh và Embedding phân cấp để xử lý hàng trăm trang tài liệu trong vài giây.' : 'Smart chunking and hierarchical embeddings to process hundreds of pages in real time.'}
                               </p>
@@ -2205,7 +2205,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                       selectedGapCell.saturation === 'sparse' ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' :
                       'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
                     }`}>
-                      {selectedGapCell.saturation === 'empty' ? (isVi ? 'Khoảng trống mới (0 bài)' : 'Open Gap (0 papers)') : selectedGapCell.saturation === 'sparse' ? (isVi ? 'Đang phát triển (< 3 bài)' : 'Emerging Topic') : (isVi ? 'Đã bão hoà (Nhiều bài)' : 'Saturated')}
+                      {selectedGapCell.saturation === 'empty' ? (isVi ? 'Khoảng trống mới (0 bài)' : 'Open Gap (0 papers)') : selectedGapCell.saturation === 'sparse' ? (isVi ? 'Đang phát triển (< 3 bài)' : 'Emerging Topic') : (isVi ? 'Đã bão hòa (nhiều bài)' : 'Saturated')}
                     </span>
                     <span className="text-xs font-bold text-slate-500">
                       {selectedGapCell.paper_count} {isVi ? 'bài báo trong tập dữ liệu' : 'papers in corpus'}
@@ -2246,7 +2246,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                     return (
                       <div className="p-4 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 space-y-1.5">
                         <p className="text-xs font-bold text-emerald-800 dark:text-emerald-300">
-                          {isVi ? '✨ 100% Khoảng trống nghiên cứu chưa được khai thác!' : '✨ 100% Open Research Gap in your discovered papers!'}
+                          {isVi ? '✨ 100% khoảng trống nghiên cứu chưa được khai thác!' : '✨ 100% Open Research Gap in your discovered papers!'}
                         </p>
                         <p className="text-xs text-emerald-900/80 dark:text-emerald-300/80 leading-relaxed">
                           {isVi 
@@ -2289,13 +2289,13 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
               <div className="p-4.5 rounded-2xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/60 space-y-3">
                 <div className="flex items-center gap-2 text-xs font-bold text-blue-700 dark:text-sky-300">
                   <Sparkles className="w-4 h-4 text-amber-500" />
-                  <span>{isVi ? '2 Hướng phát triển đột phá có thể công bố thành bài báo mới:' : '2 Novel Breakthrough Angles for Publication:'}</span>
+                  <span>{isVi ? '2 hướng phát triển đột phá có thể công bố thành bài báo mới:' : '2 Novel Breakthrough Angles for Publication:'}</span>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-blue-100 dark:border-blue-900/60 space-y-1.5 shadow-2xs">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-sky-400 bg-blue-50 dark:bg-blue-950 px-2 py-0.5 rounded-md">
-                      {isVi ? 'Đề xuất 1: Thuật toán & Tối ưu' : 'Proposal 1: Algorithm Optimization'}
+                      {isVi ? 'Đề xuất 1: Thuật toán & tối ưu' : 'Proposal 1: Algorithm Optimization'}
                     </span>
                     <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">
                       {isVi 
@@ -2364,7 +2364,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                 </div>
                 <div>
                   <h3 className="text-lg font-display font-bold">
-                    {isVi ? 'Hồ sơ Tóm tắt Bài báo (TL;DR One-Pager)' : 'Paper Summary & Key Insights (TL;DR)'}
+                    {isVi ? 'Hồ sơ tóm tắt bài báo (TL;DR one-pager)' : 'Paper Summary & Key Insights (TL;DR)'}
                   </h3>
                   <p className="text-xs font-mono text-slate-500 mt-1">{summaryPaper.id} | {isVi ? 'Trích xuất bởi AI' : 'Extracted by AI'}</p>
                 </div>
@@ -2474,10 +2474,10 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                 </div>
                 <div>
                   <h3 className="text-lg font-display font-bold flex items-center gap-2">
-                    {isVi ? 'Cây Phả Hệ Trích Dẫn & Khám Phá Nguồn (Smart Snowballing)' : 'Citation Genealogy & Academic Snowballing'}
+                    {isVi ? 'Cây phả hệ trích dẫn & khám phá nguồn (Smart Snowballing)' : 'Citation Genealogy & Academic Snowballing'}
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {isVi ? 'Lần theo dòng chảy học thuật 2 chiều: Tiền đề lịch sử & Kế thừa mới nhất' : 'Trace bidirectional citation graph: Historical Foundations & Recent Extensions'}
+                    {isVi ? 'Lần theo dòng chảy học thuật 2 chiều: tiền đề lịch sử & kế thừa mới nhất' : 'Trace bidirectional citation graph: Historical Foundations & Recent Extensions'}
                   </p>
                 </div>
               </div>
@@ -2529,7 +2529,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                       <div className="flex items-center gap-2">
                         <span className="text-base">🏛️</span>
                         <h4 className="font-display font-bold text-xs uppercase tracking-wider text-amber-700 dark:text-amber-400">
-                          Nguồn Gốc & Tiền Đề (Backward Citations)
+                          Nguồn gốc & tiền đề (backward citations)
                         </h4>
                       </div>
                       <span className="text-[11px] font-bold text-slate-400">
@@ -2633,7 +2633,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                       <div className="flex items-center gap-2">
                         <span className="text-base">🚀</span>
                         <h4 className="font-display font-bold text-xs uppercase tracking-wider text-sky-700 dark:text-sky-400">
-                          Kế Thừa & Phát Triển Mới (Forward Citations)
+                          Kế thừa & phát triển mới (forward citations)
                         </h4>
                       </div>
                       <span className="text-[11px] font-bold text-slate-400">

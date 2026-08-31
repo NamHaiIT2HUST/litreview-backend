@@ -71,7 +71,7 @@ const FEATURED_NOTEBOOKS = [
   },
   {
     id: 'feat_women_revolution',
-    title: 'Những Phụ nữ Cách mạng: Những Người Kiến tạo Xã hội & Đất nước',
+    title: 'Những phụ nữ cách mạng: Những người kiến tạo xã hội & đất nước',
     source: 'U.S. National Archives with Google',
     date: '18 thg 2, 2026',
     sourcesCount: 12,
@@ -95,7 +95,7 @@ const FEATURED_NOTEBOOKS = [
   },
   {
     id: 'feat_progress_stories',
-    title: 'Những Câu chuyện về Sự tiến bộ & Tương lai Công nghệ, từ The Atlantic',
+    title: 'Những câu chuyện về sự tiến bộ & tương lai công nghệ, từ The Atlantic',
     source: 'The Atlantic',
     date: '11 thg 4, 2026',
     sourcesCount: 15,
@@ -122,7 +122,7 @@ const FEATURED_NOTEBOOKS = [
   },
   {
     id: 'feat_founders_blueprint',
-    title: 'Bản Thiết Kế Cách Mạng: The Founders & Tư tưởng Thể chế',
+    title: 'Bản thiết kế cách mạng: The Founders & tư tưởng thể chế',
     source: 'U.S. National Archives with Google',
     date: '17 thg 4, 2026',
     sourcesCount: 12,
@@ -154,7 +154,7 @@ const getNotebookVisual = (title = '', field = '') => {
       gradient: 'from-cyan-500/25 via-blue-600/20 to-slate-900',
       bannerBg: 'bg-gradient-to-br from-cyan-600/40 via-sky-600/30 to-blue-900/50',
       badgeColor: 'text-cyan-300 bg-cyan-950/80 border-cyan-400/40 shadow-xs',
-      tag: 'Robotics & Tự hành',
+      tag: 'Robotics & tự hành',
       icon: '🤖',
       glowBorder: 'hover:border-cyan-400/80 hover:shadow-lg hover:shadow-cyan-500/20',
       accentColor: 'from-cyan-400 to-blue-600',
@@ -165,7 +165,7 @@ const getNotebookVisual = (title = '', field = '') => {
       gradient: 'from-rose-500/25 via-pink-600/20 to-slate-900',
       bannerBg: 'bg-gradient-to-br from-rose-600/40 via-pink-600/30 to-purple-900/50',
       badgeColor: 'text-rose-300 bg-rose-950/80 border-rose-400/40 shadow-xs',
-      tag: 'Y sinh & Tín hiệu',
+      tag: 'Y sinh & tín hiệu',
       icon: '🩺',
       glowBorder: 'hover:border-rose-400/80 hover:shadow-lg hover:shadow-rose-500/20',
       accentColor: 'from-rose-400 to-pink-600',
@@ -176,7 +176,7 @@ const getNotebookVisual = (title = '', field = '') => {
       gradient: 'from-indigo-500/25 via-purple-600/20 to-slate-900',
       bannerBg: 'bg-gradient-to-br from-indigo-600/40 via-purple-600/30 to-blue-900/50',
       badgeColor: 'text-indigo-300 bg-indigo-950/80 border-indigo-400/40 shadow-xs',
-      tag: 'Trí tuệ Nhân tạo & LLM',
+      tag: 'Trí tuệ nhân tạo & LLM',
       icon: '🧠',
       glowBorder: 'hover:border-indigo-400/80 hover:shadow-lg hover:shadow-indigo-500/20',
       accentColor: 'from-indigo-400 to-purple-600',
@@ -187,7 +187,7 @@ const getNotebookVisual = (title = '', field = '') => {
       gradient: 'from-emerald-500/25 via-teal-600/20 to-slate-900',
       bannerBg: 'bg-gradient-to-br from-emerald-600/40 via-teal-600/30 to-slate-900/50',
       badgeColor: 'text-emerald-300 bg-emerald-950/80 border-emerald-400/40 shadow-xs',
-      tag: 'Khoa học Dữ liệu & Hệ thống',
+      tag: 'Khoa học dữ liệu & hệ thống',
       icon: '⚡',
       glowBorder: 'hover:border-emerald-400/80 hover:shadow-lg hover:shadow-emerald-500/20',
       accentColor: 'from-emerald-400 to-teal-600',
@@ -197,7 +197,7 @@ const getNotebookVisual = (title = '', field = '') => {
     gradient: 'from-blue-500/25 via-indigo-600/20 to-slate-900',
     bannerBg: 'bg-gradient-to-br from-blue-600/40 via-indigo-600/30 to-purple-900/50',
     badgeColor: 'text-blue-300 bg-blue-950/80 border-blue-400/40 shadow-xs',
-    tag: field || 'Nghiên cứu Tổng quan',
+    tag: field || 'Nghiên cứu tổng quan',
     icon: '📚',
     glowBorder: 'hover:border-blue-400/80 hover:shadow-lg hover:shadow-blue-500/20',
     accentColor: 'from-blue-400 to-indigo-600',
@@ -462,14 +462,14 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
               <button
                 onClick={() => setViewMode('grid')}
                 className={`p-1.5 rounded-lg transition-all cursor-pointer ${viewMode === 'grid' ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-white shadow-2xs' : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
-                title={isVietnamese ? 'Chế độ Lưới' : 'Grid view'}
+                title={isVietnamese ? 'Chế độ lưới' : 'Grid view'}
               >
                 <LayoutGrid className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setViewMode('list')}
                 className={`p-1.5 rounded-lg transition-all cursor-pointer ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-white shadow-2xs' : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
-                title={isVietnamese ? 'Chế độ Danh sách' : 'List view'}
+                title={isVietnamese ? 'Chế độ danh sách' : 'List view'}
               >
                 <List className="w-4 h-4" />
               </button>
@@ -514,10 +514,10 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
               onClick={() => {
                 const next = !darkMode;
                 setDarkMode(next);
-                showToast(next ? (isVietnamese ? 'Đã bật chế độ Tối' : 'Dark mode enabled') : (isVietnamese ? 'Đã bật chế độ Sáng' : 'Light mode enabled'));
+                showToast(next ? (isVietnamese ? 'Đã bật chế độ tối' : 'Dark mode enabled') : (isVietnamese ? 'Đã bật chế độ sáng' : 'Light mode enabled'));
               }}
               className="p-2 sm:px-2.5 sm:py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-750 transition-all text-xs font-bold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 flex items-center gap-1 cursor-pointer shadow-xs shrink-0"
-              title={isVietnamese ? 'Giao diện Sáng/Tối' : 'Toggle Theme'}
+              title={isVietnamese ? 'Giao diện sáng/tối' : 'Toggle Theme'}
             >
               {darkMode ? (
                 <Sun className="w-3.5 h-3.5 text-amber-500 shrink-0" />
@@ -572,7 +572,7 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
                         {currentUser?.email || 'namhai23092005@gmail.com'}
                       </p>
                       <span className="inline-block mt-0.5 px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] font-semibold">
-                        {isVietnamese ? 'Học giả Nghiên cứu' : 'Scholar Researcher'}
+                        {isVietnamese ? 'Học giả nghiên cứu' : 'Scholar Researcher'}
                       </span>
                     </div>
                   </div>
@@ -640,8 +640,8 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
 
             <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white mb-2">
               {activeFilter === 'shared' 
-                ? (isVietnamese ? 'Đề tài Được chia sẻ với tôi' : 'Shared Projects')
-                : (isVietnamese ? 'Tuyển tập Đề tài Cộng đồng' : 'Community Projects')
+                ? (isVietnamese ? 'Đề tài được chia sẻ với tôi' : 'Shared Projects')
+                : (isVietnamese ? 'Tuyển tập đề tài cộng đồng' : 'Community Projects')
               }
             </h3>
 
@@ -661,7 +661,7 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
               className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs flex items-center gap-2 shadow-xs transition-all cursor-pointer"
             >
               <ArrowLeft className="w-4 h-4" />
-              <span>{isVietnamese ? 'Quay lại Tất cả đề tài' : 'Back to All Projects'}</span>
+              <span>{isVietnamese ? 'Quay lại tất cả đề tài' : 'Back to All Projects'}</span>
             </button>
           </div>
         )}
@@ -881,7 +881,7 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
                                 {proj.name}
                               </h3>
                               <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 mt-1 leading-relaxed">
-                                {proj.research_question || proj.research_field || (isVietnamese ? 'Tổng quan hệ thống & Phân tích tổng hợp' : 'Systematic literature review')}
+                                {proj.research_question || proj.research_field || (isVietnamese ? 'Tổng quan hệ thống & phân tích tổng hợp' : 'Systematic literature review')}
                               </p>
                             </>
                           )}
@@ -967,8 +967,8 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
                                 value={editingName}
                                 onChange={e => setEditingName(e.target.value)}
                                 onKeyDown={e => {
-                                  if (e.key === 'Enter') handleSaveRename(e, proj.id);
-                                  if (e.key === 'Escape') handleCancelRename(e);
+                                   if (e.key === 'Enter') handleSaveRename(e, proj.id);
+                                   if (e.key === 'Escape') handleCancelRename(e);
                                 }}
                                 className="px-2.5 py-1 text-xs rounded-lg bg-slate-100 dark:bg-slate-800 border border-blue-500 text-slate-900 dark:text-white font-semibold focus:outline-none"
                               />
@@ -996,7 +996,7 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
                                 )}
                               </div>
                               <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-xl">
-                                {proj.research_question || proj.research_field || (isVietnamese ? 'Tổng quan hệ thống & Phân tích tổng hợp' : 'Systematic literature review')}
+                                {proj.research_question || proj.research_field || (isVietnamese ? 'Tổng quan hệ thống & phân tích tổng hợp' : 'Systematic literature review')}
                               </p>
                             </div>
                           )}

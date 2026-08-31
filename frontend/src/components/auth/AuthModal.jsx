@@ -11,7 +11,7 @@ import BrandLogo from '../common/BrandLogo';
 const AUTH_TEXT = {
   vi: {
     title: 'LitReview',
-    subtitle: 'Nền tảng Nghiên cứu & Tổng quan Tài liệu',
+    subtitle: 'Nền tảng nghiên cứu & tổng quan tài liệu',
     signInHeading: 'Đăng nhập vào tài khoản của bạn',
     registerHeading: 'Tạo tài khoản nghiên cứu mới',
     forgotHeading: 'Khôi phục mật khẩu',

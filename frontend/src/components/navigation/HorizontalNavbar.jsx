@@ -117,10 +117,10 @@ export default function HorizontalNavbar({
               id="tour-project-switcher"
               onClick={() => setProjectDropdownOpen(!projectDropdownOpen)}
               className="inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-100/90 dark:bg-slate-800/90 hover:bg-slate-200/80 dark:hover:bg-slate-750 border border-slate-200/90 dark:border-slate-700/90 transition-all cursor-pointer shadow-2xs max-w-[120px] sm:max-w-[150px] md:max-w-[180px] xl:max-w-[230px] overflow-hidden"
-              title={activeProject?.name || (isVi ? 'Đề tài hiện tại / Chuyển đề tài' : 'Current Project / Switch')}
+              title={activeProject?.name || (isVi ? 'Đề tài hiện tại / chuyển đề tài' : 'Current Project / Switch')}
             >
               <FolderKanban className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
-              <span className="truncate min-w-0 flex-1">{activeProject?.name || (isVi ? 'Tất cả Đề tài' : 'All Projects')}</span>
+              <span className="truncate min-w-0 flex-1">{activeProject?.name || (isVi ? 'Tất cả đề tài' : 'All Projects')}</span>
               <ChevronDown className="w-3 h-3 text-slate-400 shrink-0 ml-0.5" />
             </button>
 
@@ -137,12 +137,12 @@ export default function HorizontalNavbar({
                     className="w-full px-2.5 py-1.5 rounded-xl text-left flex items-center gap-2 text-slate-700 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-950/40 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer font-bold"
                   >
                     <ArrowLeft className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
-                    <span>{isVi ? 'Quay lại Tất cả Đề tài' : 'Back to All Projects'}</span>
+                    <span>{isVi ? 'Quay lại tất cả đề tài' : 'Back to All Projects'}</span>
                   </button>
                 </div>
 
                 <div className="px-3.5 py-1.5 text-[10.5px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center justify-between">
-                  <span>{isVi ? 'Danh sách Đề tài' : 'Projects'}</span>
+                  <span>{isVi ? 'Danh sách đề tài' : 'Projects'}</span>
                   <span className="font-mono text-blue-600 dark:text-blue-400">{projects.length}</span>
                 </div>
 
@@ -178,7 +178,7 @@ export default function HorizontalNavbar({
                     className="w-full py-1.5 px-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    <span>{isVi ? 'Tạo Đề tài mới' : 'New Project'}</span>
+                    <span>{isVi ? 'Tạo đề tài mới' : 'New Project'}</span>
                   </button>
 
                   <button
@@ -190,7 +190,7 @@ export default function HorizontalNavbar({
                     title={isVi ? 'Tải trọn bộ dữ liệu đề tài (JSON)' : 'Export complete project package (JSON)'}
                   >
                     <Download className="w-3.5 h-3.5" />
-                    <span>{isVi ? 'Xuất Gói Đề tài (.json)' : 'Export Full Package'}</span>
+                    <span>{isVi ? 'Xuất gói đề tài (.json)' : 'Export Full Package'}</span>
                   </button>
                 </div>
               </div>
@@ -239,7 +239,7 @@ export default function HorizontalNavbar({
           <button
             onClick={() => setDarkMode(!darkMode)}
             className="p-2 sm:px-2.5 sm:py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all text-xs font-bold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 flex items-center gap-1.5 cursor-pointer shadow-xs shrink-0"
-            title={isVi ? (darkMode ? 'Chuyển sang giao diện Sáng' : 'Chuyển sang giao diện Tối') : (darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode')}
+            title={isVi ? (darkMode ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối') : (darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode')}
           >
             {darkMode ? (
               <Sun className="w-3.5 h-3.5 text-amber-500 shrink-0" />
