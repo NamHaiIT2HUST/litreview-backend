@@ -4,12 +4,12 @@ import { useProject } from '../../contexts/ProjectContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 
 const QUICK_TOPICS = [
-  { label: 'Y sinh & Tín hiệu', field: 'Y sinh & Chẩn đoán Y tế', example: 'Ứng dụng Deep Learning trong Phân loại Tín hiệu ECG' },
-  { label: 'Trí tuệ Nhân tạo & LLM', field: 'Trí tuệ Nhân tạo & LLM', example: 'Khảo sát Chuỗi Tư duy (Chain-of-Thought) trong LLMs' },
-  { label: 'Robotics & Tự hành', field: 'Robotics & Hệ thống Tự hành', example: 'Học tăng cường sâu và SLAM trong Điều hướng Robot' },
-  { label: 'Khoa học Môi trường', field: 'Khoa học Môi trường & Năng lượng', example: 'Mô hình Dự báo Năng lượng Tái tạo & Lưới điện Thông minh' },
-  { label: 'Khoa học Dữ liệu', field: 'Khoa học Dữ liệu & Hệ thống', example: 'Kiến trúc Multimodal RAG và Tìm kiếm Tri thức Ngữ nghĩa' },
-  { label: 'Kinh tế & Tài chính', field: 'Kinh tế, Tài chính & Quản trị', example: 'Mô hình GNN trong Đánh giá Rủi ro Tín dụng & Thị trường' },
+  { label: 'Y sinh & Tín hiệu', field: 'Y sinh & Chẩn đoán y tế', example: 'Ứng dụng Deep Learning trong phân loại tín hiệu ECG' },
+  { label: 'Trí tuệ nhân tạo & LLM', field: 'Trí tuệ nhân tạo & LLM', example: 'Khảo sát chuỗi tư duy (Chain-of-Thought) trong LLMs' },
+  { label: 'Robotics & Tự hành', field: 'Robotics & Hệ thống tự hành', example: 'Học tăng cường sâu và SLAM trong điều hướng robot' },
+  { label: 'Khoa học môi trường', field: 'Khoa học môi trường & Năng lượng', example: 'Mô hình dự báo năng lượng tái tạo & Lưới điện thông minh' },
+  { label: 'Khoa học dữ liệu', field: 'Khoa học dữ liệu & Hệ thống', example: 'Kiến trúc Multimodal RAG và tìm kiếm tri thức ngữ nghĩa' },
+  { label: 'Kinh tế & Tài chính', field: 'Kinh tế, tài chính & Quản trị', example: 'Mô hình GNN trong đánh giá rủi ro tín dụng & Thị trường' },
 ];
 
 export default function NewProjectModal({ isOpen, onClose, onCreated }) {
@@ -18,9 +18,14 @@ export default function NewProjectModal({ isOpen, onClose, onCreated }) {
   const isVi = language === 'vi';
 
   const [name, setName] = useState('');
-  const [researchField, setResearchField] = useState('Trí tuệ Nhân tạo & LLM');
+  const [researchField, setResearchField] = useState('Trí tuệ nhân tạo & LLM');
   const [loading, setLoading] = useState(false);
   const inputRef = useRef(null);
+  // Tracks whether the mousedown that started this click also began on the
+  // backdrop itself -- without it, selecting text inside the modal and
+  // releasing the mouse outside its bounds fires a click on the backdrop
+  // and closes the modal, silently discarding whatever was typed.
+  const mouseDownOnBackdrop = useRef(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -66,7 +71,14 @@ export default function NewProjectModal({ isOpen, onClose, onCreated }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fade-in">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fade-in"
+      onMouseDown={(e) => { mouseDownOnBackdrop.current = e.target === e.currentTarget; }}
+      onClick={(e) => {
+        if (mouseDownOnBackdrop.current && e.target === e.currentTarget && !loading) onClose();
+        mouseDownOnBackdrop.current = false;
+      }}
+    >
       <div 
         className="w-full max-w-lg flex flex-col overflow-hidden shadow-2xl bg-[#141A26] border border-slate-700/80 rounded-3xl animate-slide-up text-slate-100"
         onClick={e => e.stopPropagation()}
@@ -80,10 +92,10 @@ export default function NewProjectModal({ isOpen, onClose, onCreated }) {
             </div>
             <div>
               <h3 className="font-display font-extrabold text-base sm:text-lg text-white">
-                {isVi ? 'Tạo Đề tài Nghiên cứu Mới' : 'Create New Research Project'}
+                {isVi ? 'Tạo đề tài nghiên cứu mới' : 'Create New Research Project'}
               </h3>
               <p className="text-xs text-slate-400">
-                {isVi ? 'Khởi tạo đề tài Tổng quan Tài liệu (SLR) theo chuẩn PRISMA' : 'Start Systematic Literature Review grounded on real DOIs'}
+                {isVi ? 'Khởi tạo đề tài tổng quan tài liệu (SLR) theo chuẩn PRISMA' : 'Start Systematic Literature Review grounded on real DOIs'}
               </p>
             </div>
           </div>
@@ -102,7 +114,7 @@ export default function NewProjectModal({ isOpen, onClose, onCreated }) {
           <div>
             <div className="flex items-center gap-1.5 text-xs font-bold text-slate-300 mb-2">
               <Lightbulb className="w-3.5 h-3.5 text-amber-400" />
-              <span>{isVi ? 'Gợi ý chủ đề nhanh (Click để chọn):' : 'Quick Topic Suggestions:'}</span>
+              <span>{isVi ? 'Gợi ý chủ đề nhanh (nhấp để chọn):' : 'Quick Topic Suggestions:'}</span>
             </div>
             <div className="flex flex-wrap gap-1.5">
               {QUICK_TOPICS.map((item, idx) => (
@@ -121,7 +133,7 @@ export default function NewProjectModal({ isOpen, onClose, onCreated }) {
           {/* Project Name */}
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-slate-200 block">
-              {isVi ? 'Tên Đề tài Nghiên cứu *' : 'Research Topic / Project Name *'}
+              {isVi ? 'Tên đề tài nghiên cứu *' : 'Research Topic / Project Name *'}
             </label>
             <input
               ref={inputRef}
@@ -129,7 +141,7 @@ export default function NewProjectModal({ isOpen, onClose, onCreated }) {
               required
               value={name}
               onChange={e => setName(e.target.value)}
-              placeholder={isVi ? 'vd: Ứng dụng Deep Learning trong Phân loại Tín hiệu ECG...' : 'e.g., Deep Learning in Cardiac Arrhythmia ECG Detection...'}
+              placeholder={isVi ? 'Ví dụ: Ứng dụng Deep Learning trong phân loại tín hiệu ECG...' : 'e.g., Deep Learning in Cardiac Arrhythmia ECG Detection...'}
               className="w-full px-4 py-3 rounded-2xl bg-[#1E2536] border border-slate-700 text-white placeholder-slate-400 text-xs sm:text-sm font-medium focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all shadow-inner"
             />
           </div>
@@ -137,21 +149,21 @@ export default function NewProjectModal({ isOpen, onClose, onCreated }) {
           {/* Research Domain */}
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-slate-200 block">
-              {isVi ? 'Lĩnh vực Chuyên ngành' : 'Research Domain'}
+              {isVi ? 'Lĩnh vực chuyên ngành' : 'Research Domain'}
             </label>
             <select
               value={researchField}
               onChange={e => setResearchField(e.target.value)}
               className="w-full px-4 py-2.5 rounded-2xl bg-[#1E2536] border border-slate-700 text-slate-200 text-xs sm:text-sm font-medium focus:outline-none focus:border-blue-500 cursor-pointer"
             >
-              <option value="Trí tuệ Nhân tạo & LLM">{isVi ? '🧠 Trí tuệ Nhân tạo & LLM' : '🧠 Artificial Intelligence & LLM'}</option>
-              <option value="Y sinh & Chẩn đoán Y tế">{isVi ? '🩺 Y sinh & Chẩn đoán Y tế' : '🩺 Biomedical & Healthcare AI'}</option>
-              <option value="Robotics & Hệ thống Tự hành">{isVi ? '🤖 Robotics & Hệ thống Tự hành' : '🤖 Robotics & Autonomous Systems'}</option>
-              <option value="Khoa học Dữ liệu & Hệ thống">{isVi ? '⚡ Khoa học Dữ liệu & Hệ thống' : '⚡ Data Science & Systems'}</option>
-              <option value="Khoa học Môi trường & Năng lượng">{isVi ? '🌱 Khoa học Môi trường & Năng lượng' : '🌱 Environmental & Energy Science'}</option>
-              <option value="Kinh tế, Tài chính & Quản trị">{isVi ? '📊 Kinh tế, Tài chính & Quản trị' : '📊 Economics, Finance & Management'}</option>
-              <option value="Khoa học Xã hội & Giáo dục">{isVi ? '📚 Khoa học Xã hội & Giáo dục' : '📚 Social Sciences & Education'}</option>
-              <option value="Nghiên cứu Liên ngành Khác">{isVi ? '🔬 Nghiên cứu Liên ngành Khác' : '🔬 Other Interdisciplinary Fields'}</option>
+              <option value="Trí tuệ nhân tạo & LLM">{isVi ? '🧠 Trí tuệ nhân tạo & LLM' : '🧠 Artificial Intelligence & LLM'}</option>
+              <option value="Y sinh & Chẩn đoán y tế">{isVi ? '🩺 Y sinh & Chẩn đoán y tế' : '🩺 Biomedical & Healthcare AI'}</option>
+              <option value="Robotics & Hệ thống tự hành">{isVi ? '🤖 Robotics & Hệ thống tự hành' : '🤖 Robotics & Autonomous Systems'}</option>
+              <option value="Khoa học dữ liệu & Hệ thống">{isVi ? '⚡ Khoa học dữ liệu & Hệ thống' : '⚡ Data Science & Systems'}</option>
+              <option value="Khoa học môi trường & Năng lượng">{isVi ? '🌱 Khoa học môi trường & Năng lượng' : '🌱 Environmental & Energy Science'}</option>
+              <option value="Kinh tế, tài chính & Quản trị">{isVi ? '📊 Kinh tế, tài chính & Quản trị' : '📊 Economics, Finance & Management'}</option>
+              <option value="Khoa học xã hội & Giáo dục">{isVi ? '📚 Khoa học xã hội & Giáo dục' : '📚 Social Sciences & Education'}</option>
+              <option value="Nghiên cứu liên ngành khác">{isVi ? '🔬 Nghiên cứu liên ngành khác' : '🔬 Other Interdisciplinary Fields'}</option>
             </select>
           </div>
 
@@ -160,7 +172,7 @@ export default function NewProjectModal({ isOpen, onClose, onCreated }) {
             <Sparkles className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
             <span>
               {isVi 
-                ? 'Bạn có thể thiết lập chi tiết Câu hỏi PICO, Giai đoạn năm & Tiêu chí sàng lọc PRISMA ở Bước 1 sau khi vào Không gian làm việc.'
+                ? 'Bạn có thể thiết lập chi tiết câu hỏi PICO, giai đoạn năm & Tiêu chí sàng lọc PRISMA ở bước 1 sau khi vào không gian làm việc.'
                 : 'You will configure the PICO framework, year bounds, and PRISMA screening criteria inside the workspace.'}
             </span>
           </div>
@@ -179,7 +191,7 @@ export default function NewProjectModal({ isOpen, onClose, onCreated }) {
               disabled={loading || !name.trim()}
               className="px-5 py-2.5 rounded-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-extrabold text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-blue-600/30 hover:scale-105 transition-all cursor-pointer"
             >
-              <span>{loading ? (isVi ? 'Đang tạo...' : 'Creating...') : (isVi ? 'Tạo & Vào Không gian làm việc' : 'Create & Open Workspace')}</span>
+              <span>{loading ? (isVi ? 'Đang tạo...' : 'Creating...') : (isVi ? 'Tạo & Vào không gian làm việc' : 'Create & Open Workspace')}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>

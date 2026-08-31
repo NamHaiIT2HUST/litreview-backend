@@ -84,6 +84,16 @@ body {
   overflow-x: hidden;
 }
 
+/* Hides the scrollbar on an overflow-x:auto element while keeping it
+   scrollable -- used by the horizontal nav-tab strips. */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* ─── Custom Scrollbar ───────────────────────────────────────────────────── */
 ::-webkit-scrollbar {
   width: 6px;

@@ -774,7 +774,7 @@ export default function WorkspaceTab({
               {effectiveTab === 'analyze' ? (
                 <div 
                   className="w-10 h-10 rounded-xl bg-primary-50 dark:bg-primary-900/30 border border-primary-200 dark:border-primary-800 flex flex-col items-center justify-center shrink-0 cursor-pointer hover:bg-primary-100 dark:hover:bg-primary-900/50 transition-colors"
-                  title={isVietnamese ? 'Mở Lịch sử phân tích' : 'Open Analysis History'}
+                  title={isVietnamese ? 'Mở lịch sử phân tích' : 'Open Analysis History'}
                   onClick={() => setIsSourcesOpen(true)}
                 >
                   <Clock className="w-5 h-5 text-primary-500" />
@@ -825,9 +825,9 @@ export default function WorkspaceTab({
                 </div>
                 <div>
                   <span className="font-display font-bold text-xs text-surface-900 dark:text-white block leading-none">
-                    {effectiveTab === 'chat' && (isVietnamese ? 'Chat & Hỏi đáp Tài liệu' : 'Chat & Document Q&A')}
-                    {effectiveTab === 'synthesis' && (isVietnamese ? 'Tổng quan Tài liệu Học thuật (SLR)' : 'Academic Literature Review (SLR)')}
-                    {effectiveTab === 'analyze' && (isVietnamese ? 'Phân tích Dữ liệu & Ma trận Bằng chứng' : 'Data Analysis & Evidence Matrix')}
+                    {effectiveTab === 'chat' && (isVietnamese ? 'Chat & Hỏi đáp tài liệu' : 'Chat & Document Q&A')}
+                    {effectiveTab === 'synthesis' && (isVietnamese ? 'Tổng quan tài liệu học thuật (SLR)' : 'Academic Literature Review (SLR)')}
+                    {effectiveTab === 'analyze' && (isVietnamese ? 'Phân tích dữ liệu & Ma trận bằng chứng' : 'Data Analysis & Evidence Matrix')}
                   </span>
                   <span className="section-label mt-0.5 block text-[10px] text-surface-400">
                     {effectiveTab === 'chat' && (isVietnamese ? 'Hỏi đáp tương tác RAG dựa trên các bài báo đã chọn' : 'Interactive RAG Q&A on selected papers')}

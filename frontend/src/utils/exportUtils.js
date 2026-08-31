@@ -208,11 +208,11 @@ export const generateClientJSON = (papers, projectInfo = {}, draftText = '') => 
 
 // Client-side Setup Framework Markdown generator
 export const generateSetupFrameworkMarkdown = (projectData = {}, picoData = null) => {
-  const projName = projectData.name || 'Khung Đề tài Nghiên cứu';
+  const projName = projectData.name || 'Khung đề tài nghiên cứu';
   const timestamp = new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
 
   const lines = [
-    `# Khung Đề tài Nghiên cứu: ${projName}`,
+    `# Khung đề tài nghiên cứu: ${projName}`,
     ``,
     `**Thời gian xuất:** ${timestamp}  `,
     `**Lĩnh vực nghiên cứu:** ${projectData.research_field || 'Liên ngành / Tổng quát'}  `,
@@ -220,15 +220,15 @@ export const generateSetupFrameworkMarkdown = (projectData = {}, picoData = null
     ``,
     `---`,
     ``,
-    `## 1. Bài toán / Câu hỏi Nghiên cứu Cốt lõi`,
+    `## 1. Bài toán / câu hỏi nghiên cứu cốt lõi`,
     ``,
     `> ${projectData.research_question || 'Chưa thiết lập câu hỏi cụ thể.'}`,
     ``,
     `---`,
     ``,
-    `## 2. Tiêu chí Sàng lọc PRISMA (Eligibility Criteria)`,
+    `## 2. Tiêu chí sàng lọc PRISMA (Eligibility Criteria)`,
     ``,
-    `### Tiêu chí Thu nạp (Inclusion Criteria)`,
+    `### Tiêu chí thu nạp (Inclusion Criteria)`,
   ];
 
   const includes = Array.isArray(projectData.criteria_include) ? projectData.criteria_include : (projectData.criteria_include ? [projectData.criteria_include] : []);
@@ -238,7 +238,7 @@ export const generateSetupFrameworkMarkdown = (projectData = {}, picoData = null
     includes.forEach((item, idx) => lines.push(`${idx + 1}. ✅ ${item}`));
   }
 
-  lines.push(``, `### Tiêu chí Loại trừ (Exclusion Criteria)`);
+  lines.push(``, `### Tiêu chí loại trừ (Exclusion Criteria)`);
   const excludes = Array.isArray(projectData.criteria_exclude) ? projectData.criteria_exclude : (projectData.criteria_exclude ? [projectData.criteria_exclude] : []);
   if (excludes.length === 0) {
     lines.push(`- *(Chưa có tiêu chí loại trừ)*`);
@@ -251,14 +251,14 @@ export const generateSetupFrameworkMarkdown = (projectData = {}, picoData = null
       ``,
       `---`,
       ``,
-      `## 3. Khung Phân tích PICO`,
+      `## 3. Khung phân tích PICO`,
       ``,
       `- **[P] Population / Problem (Đối tượng / Bối cảnh):** ${picoData.population || picoData.p || 'N/A'}`,
       `- **[I] Intervention / Method (Phương pháp / Giải pháp):** ${picoData.intervention || picoData.i || 'N/A'}`,
       `- **[C] Comparison / Baseline (Đối chứng / So sánh):** ${picoData.comparison || picoData.c || 'N/A'}`,
       `- **[O] Outcome / Metrics (Kết quả / Tiêu chí đánh giá):** ${picoData.outcome || picoData.o || 'N/A'}`,
       ``,
-      `### Bộ Từ khóa Học thuật (Search Keywords)`,
+      `### Bộ từ khóa học thuật (Search Keywords)`,
       ``
     );
 

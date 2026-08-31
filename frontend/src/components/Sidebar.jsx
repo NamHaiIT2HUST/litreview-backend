@@ -221,7 +221,7 @@ export default function Sidebar({
         {!isCollapsed ? (
           <div className="p-3 border-b border-surface-100 dark:border-surface-800 relative" ref={dropdownRef}>
             <p className="section-label px-1 mb-1.5 flex items-center justify-between">
-              <span>{isVietnamese ? 'Đề tài Nghiên cứu' : 'Research Projects'}</span>
+              <span>{isVietnamese ? 'Đề tài nghiên cứu' : 'Research Projects'}</span>
               <span className="text-[10px] font-mono font-bold text-primary-600 dark:text-primary-400">
                 {projects.length} {isVietnamese ? 'đề tài' : 'projects'}
               </span>
@@ -430,7 +430,7 @@ export default function Sidebar({
                   className="w-full flex items-center gap-2 p-2 rounded-lg text-xs font-bold text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-950/40 border-t border-surface-100 dark:border-surface-700 mt-1 pt-2 transition-colors cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  <span>+ {isVietnamese ? 'Khởi tạo Đề tài Mới' : 'Create New Project'}</span>
+                  <span>+ {isVietnamese ? 'Khởi tạo đề tài mới' : 'Create New Project'}</span>
                 </button>
               </div>
             )}
@@ -468,7 +468,7 @@ export default function Sidebar({
           <div className="pt-3 pb-1">
             {!isCollapsed && (
               <p className="section-label px-3 mb-2 animate-fade-in">
-                {isVietnamese ? 'Quy trình Nghiên cứu' : 'Research Workflow'}
+                {isVietnamese ? 'Quy trình nghiên cứu' : 'Research Workflow'}
               </p>
             )}
             <div id="tour-sidebar-workflow" className="flex flex-col space-y-1">
@@ -618,7 +618,7 @@ export default function Sidebar({
             className={`group relative flex items-center rounded-xl text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 hover:text-surface-900 dark:hover:text-white transition-colors text-sm font-medium cursor-pointer ${
               isCollapsed ? 'w-full justify-center h-9 p-0' : 'w-full gap-3 px-3 py-2'
             }`}
-            title={isVietnamese ? 'Chuyển sang Tiếng Anh' : 'Switch to Vietnamese'}
+            title={isVietnamese ? 'Chuyển sang tiếng Anh' : 'Switch to Vietnamese'}
           >
             <Languages className="w-4 h-4 text-blue-500 flex-shrink-0" />
             {!isCollapsed && (
@@ -648,12 +648,12 @@ export default function Sidebar({
             )}
             {!isCollapsed && (
               <span className="truncate text-xs">
-                {darkMode ? (isVietnamese ? 'Chế độ Tối' : 'Dark Mode') : (isVietnamese ? 'Chế độ Sáng' : 'Light Mode')}
+                {darkMode ? (isVietnamese ? 'Chế độ tối' : 'Dark Mode') : (isVietnamese ? 'Chế độ sáng' : 'Light Mode')}
               </span>
             )}
             {isCollapsed && (
               <span className="tooltip left-full ml-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                {darkMode ? (isVietnamese ? 'Chế độ Tối' : 'Dark Mode') : (isVietnamese ? 'Chế độ Sáng' : 'Light Mode')}
+                {darkMode ? (isVietnamese ? 'Chế độ tối' : 'Dark Mode') : (isVietnamese ? 'Chế độ sáng' : 'Light Mode')}
               </span>
             )}
           </button>

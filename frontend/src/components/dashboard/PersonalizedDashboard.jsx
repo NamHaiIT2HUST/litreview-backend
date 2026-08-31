@@ -71,7 +71,7 @@ const FEATURED_NOTEBOOKS = [
   },
   {
     id: 'feat_women_revolution',
-    title: 'Những Phụ nữ Cách mạng: Những Người Kiến tạo Xã hội & Đất nước',
+    title: 'Những phụ nữ cách mạng: Những người kiến tạo xã hội & Đất nước',
     source: 'U.S. National Archives with Google',
     date: '18 thg 2, 2026',
     sourcesCount: 12,
@@ -95,7 +95,7 @@ const FEATURED_NOTEBOOKS = [
   },
   {
     id: 'feat_progress_stories',
-    title: 'Những Câu chuyện về Sự tiến bộ & Tương lai Công nghệ, từ The Atlantic',
+    title: 'Những câu chuyện về sự tiến bộ & Tương lai công nghệ, từ The Atlantic',
     source: 'The Atlantic',
     date: '11 thg 4, 2026',
     sourcesCount: 15,
@@ -122,7 +122,7 @@ const FEATURED_NOTEBOOKS = [
   },
   {
     id: 'feat_founders_blueprint',
-    title: 'Bản Thiết Kế Cách Mạng: The Founders & Tư tưởng Thể chế',
+    title: 'Bản thiết kế cách mạng: The Founders & Tư tưởng thể chế',
     source: 'U.S. National Archives with Google',
     date: '17 thg 4, 2026',
     sourcesCount: 12,
@@ -176,7 +176,7 @@ const getNotebookVisual = (title = '', field = '') => {
       gradient: 'from-indigo-500/25 via-purple-600/20 to-slate-900',
       bannerBg: 'bg-gradient-to-br from-indigo-600/40 via-purple-600/30 to-blue-900/50',
       badgeColor: 'text-indigo-300 bg-indigo-950/80 border-indigo-400/40 shadow-xs',
-      tag: 'Trí tuệ Nhân tạo & LLM',
+      tag: 'Trí tuệ nhân tạo & LLM',
       icon: '🧠',
       glowBorder: 'hover:border-indigo-400/80 hover:shadow-lg hover:shadow-indigo-500/20',
       accentColor: 'from-indigo-400 to-purple-600',
@@ -187,7 +187,7 @@ const getNotebookVisual = (title = '', field = '') => {
       gradient: 'from-emerald-500/25 via-teal-600/20 to-slate-900',
       bannerBg: 'bg-gradient-to-br from-emerald-600/40 via-teal-600/30 to-slate-900/50',
       badgeColor: 'text-emerald-300 bg-emerald-950/80 border-emerald-400/40 shadow-xs',
-      tag: 'Khoa học Dữ liệu & Hệ thống',
+      tag: 'Khoa học dữ liệu & Hệ thống',
       icon: '⚡',
       glowBorder: 'hover:border-emerald-400/80 hover:shadow-lg hover:shadow-emerald-500/20',
       accentColor: 'from-emerald-400 to-teal-600',
@@ -197,7 +197,7 @@ const getNotebookVisual = (title = '', field = '') => {
     gradient: 'from-blue-500/25 via-indigo-600/20 to-slate-900',
     bannerBg: 'bg-gradient-to-br from-blue-600/40 via-indigo-600/30 to-purple-900/50',
     badgeColor: 'text-blue-300 bg-blue-950/80 border-blue-400/40 shadow-xs',
-    tag: field || 'Nghiên cứu Tổng quan',
+    tag: field || 'Nghiên cứu tổng quan',
     icon: '📚',
     glowBorder: 'hover:border-blue-400/80 hover:shadow-lg hover:shadow-blue-500/20',
     accentColor: 'from-blue-400 to-indigo-600',
@@ -303,7 +303,7 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
   };
 
   const handleOpenFeatured = async (feat) => {
-    const existing = projects.find(p => p.name.toLowerCase().includes(feat.field.toLowerCase()) || p.name === feat.title);
+    const existing = projects.find(p => p.name.toLowerCase().includes(feat.field.toLowerCase()) || p.name.toLowerCase() === feat.title.toLowerCase());
     const samplePapers = feat.samplePapers || [];
 
     if (existing) {
@@ -342,7 +342,7 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
       const welcomeSynthesis = [
         {
           sender: 'ai',
-          text: `### 🌟 Đề tài Nghiên cứu Mẫu: ${feat.title}\n\nHệ thống đã nạp sẵn **${samplePapers.length} tài liệu học thuật chỉ mục Scopus Q1** cho đề tài này:\n\n` +
+          text: `### 🌟 Đề tài nghiên cứu mẫu: ${feat.title}\n\nHệ thống đã nạp sẵn **${samplePapers.length} tài liệu học thuật chỉ mục Scopus Q1** cho đề tài này:\n\n` +
             samplePapers.map((p, idx) => `- **[#${idx + 1}] ${p.title}** (${p.authors}, *${p.journal}*, ${p.year})`).join('\n') +
             `\n\nBạn có thể đặt câu hỏi phân tích đa chiều, so sánh phương pháp hoặc xuất bản báo cáo theo chuẩn PRISMA ngay bên dưới!`
         }
@@ -436,16 +436,17 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
               size="md"
               withText
               withTagline
+              taglineClassName="hidden 2xl:block"
               isEn={!isVietnamese}
               badgeStyle
             />
           </div>
 
           {/* Right: Controls, Search, View Mode, + Tạo mới, Profile Menu */}
-          <div className="flex items-center gap-2 sm:gap-2.5">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             
             {/* Search Input */}
-            <div className="relative hidden md:block w-48 sm:w-60 lg:w-72">
+            <div className="relative hidden md:block w-40 sm:w-52 lg:w-64">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
@@ -461,14 +462,14 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
               <button
                 onClick={() => setViewMode('grid')}
                 className={`p-1.5 rounded-lg transition-all cursor-pointer ${viewMode === 'grid' ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-white shadow-2xs' : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
-                title={isVietnamese ? 'Chế độ Lưới' : 'Grid view'}
+                title={isVietnamese ? 'Chế độ lưới' : 'Grid view'}
               >
                 <LayoutGrid className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setViewMode('list')}
                 className={`p-1.5 rounded-lg transition-all cursor-pointer ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-white shadow-2xs' : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
-                title={isVietnamese ? 'Chế độ Danh sách' : 'List view'}
+                title={isVietnamese ? 'Chế độ danh sách' : 'List view'}
               >
                 <List className="w-4 h-4" />
               </button>
@@ -488,76 +489,62 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
             {/* + Tạo mới Button */}
             <button
               onClick={onOpenNewProject}
-              className="h-9 px-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs flex items-center gap-1.5 transition-all hover:scale-[1.02] cursor-pointer"
+              className="h-9 px-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs flex items-center gap-1.5 transition-all hover:scale-[1.02] cursor-pointer shrink-0"
             >
               <Plus className="w-4 h-4 stroke-[2.8]" />
               <span>{isVietnamese ? 'Tạo mới' : 'New Notebook'}</span>
             </button>
 
-            {/* Quick Language Toggle Button (Identical to HorizontalNavbar) */}
+            {/* Quick Language Toggle Button */}
             <button
               onClick={() => {
                 const nextLang = language === 'vi' ? 'en' : 'vi';
                 setLanguage(nextLang);
                 showToast(nextLang === 'vi' ? 'Đã đổi sang Tiếng Việt' : 'Switched to English');
               }}
-              className="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-750 transition-all text-xs font-bold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 flex items-center gap-1.5 cursor-pointer shadow-xs"
+              className="px-2 sm:px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-750 transition-all text-xs font-bold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 flex items-center gap-1 cursor-pointer shadow-xs shrink-0"
               title={isVietnamese ? 'Đổi ngôn ngữ' : 'Switch Language'}
             >
-              <Languages className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span className="font-mono uppercase text-[11px]">{language}</span>
+              <Languages className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <span className="font-mono uppercase text-[10.5px] sm:text-[11px]">{language}</span>
             </button>
 
-            {/* Dark / Light Mode Switch (Identical to HorizontalNavbar) */}
+            {/* Dark / Light Mode Switch */}
             <button
               onClick={() => {
                 const next = !darkMode;
                 setDarkMode(next);
-                showToast(next ? (isVietnamese ? 'Đã bật chế độ Tối' : 'Dark mode enabled') : (isVietnamese ? 'Đã bật chế độ Sáng' : 'Light mode enabled'));
+                showToast(next ? (isVietnamese ? 'Đã bật chế độ tối' : 'Dark mode enabled') : (isVietnamese ? 'Đã bật chế độ sáng' : 'Light mode enabled'));
               }}
-              className="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-750 transition-all text-xs font-bold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 flex items-center gap-1.5 cursor-pointer shadow-xs"
-              title={isVietnamese ? 'Giao diện Sáng/Tối' : 'Toggle Theme'}
+              className="p-2 sm:px-2.5 sm:py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-750 transition-all text-xs font-bold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 flex items-center gap-1 cursor-pointer shadow-xs shrink-0"
+              title={isVietnamese ? 'Giao diện sáng/tối' : 'Toggle Theme'}
             >
               {darkMode ? (
-                <>
-                  <Sun className="w-3.5 h-3.5 text-amber-500" />
-                  <span className="hidden sm:inline text-[11px]">{isVietnamese ? 'Sáng' : 'Light'}</span>
-                </>
+                <Sun className="w-3.5 h-3.5 text-amber-500 shrink-0" />
               ) : (
-                <>
-                  <Moon className="w-3.5 h-3.5 text-blue-600" />
-                  <span className="hidden sm:inline text-[11px]">{isVietnamese ? 'Tối' : 'Dark'}</span>
-                </>
+                <Moon className="w-3.5 h-3.5 text-blue-600 shrink-0" />
               )}
             </button>
 
-            {/* User Profile Pill (Identical to HorizontalNavbar) */}
-            <div className="relative" ref={profileMenuRef}>
+            {/* User Profile Avatar Icon Button */}
+            <div className="relative shrink-0" ref={profileMenuRef}>
               <button
                 onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-                className="flex items-center gap-2 py-1 pl-1 pr-2 sm:pr-2.5 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 transition-all cursor-pointer shadow-xs ml-1 max-w-[220px]"
+                className="p-1 sm:p-1.5 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 hover:border-blue-500/40 dark:hover:border-blue-500/40 transition-all cursor-pointer shadow-xs flex items-center gap-1.5 ml-0.5"
                 title={currentUser?.name || 'User Profile'}
               >
                 {currentUser?.picture ? (
                   <img
                     src={currentUser.picture}
                     alt={currentUser.name}
-                    className="w-8 h-8 rounded-lg object-cover ring-1 ring-blue-500/30 flex-shrink-0"
+                    className="w-7 h-7 sm:w-[30px] sm:h-[30px] rounded-lg object-cover ring-1 ring-blue-500/30 flex-shrink-0"
                   />
                 ) : (
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-700 text-white font-extrabold text-xs flex items-center justify-center flex-shrink-0 shadow-xs">
+                  <div className="w-7 h-7 sm:w-[30px] sm:h-[30px] rounded-lg bg-gradient-to-br from-blue-600 to-indigo-700 text-white font-extrabold text-xs flex items-center justify-center flex-shrink-0 shadow-xs">
                     {userInitials}
                   </div>
                 )}
-                <div className="hidden lg:block text-left min-w-0 flex-1">
-                  <p className="font-bold text-xs text-slate-800 dark:text-white truncate leading-tight">
-                    {currentUser?.name || 'Researcher'}
-                  </p>
-                  <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate leading-tight lowercase">
-                    {currentUser?.email || 'user@research.edu'}
-                  </p>
-                </div>
-                <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0 hidden sm:block rotate-90" />
+                <ChevronRight className="w-3 h-3 text-slate-400 dark:text-slate-400 shrink-0 pr-0.5 rotate-90" />
               </button>
 
               {/* Dropdown Menu Modal */}
@@ -585,7 +572,7 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
                         {currentUser?.email || 'namhai23092005@gmail.com'}
                       </p>
                       <span className="inline-block mt-0.5 px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] font-semibold">
-                        {isVietnamese ? 'Học giả Nghiên cứu' : 'Scholar Researcher'}
+                        {isVietnamese ? 'Học giả nghiên cứu' : 'Scholar Researcher'}
                       </span>
                     </div>
                   </div>
@@ -653,8 +640,8 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
 
             <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white mb-2">
               {activeFilter === 'shared' 
-                ? (isVietnamese ? 'Đề tài Được chia sẻ với tôi' : 'Shared Projects')
-                : (isVietnamese ? 'Tuyển tập Đề tài Cộng đồng' : 'Community Projects')
+                ? (isVietnamese ? 'Đề tài được chia sẻ với tôi' : 'Shared Projects')
+                : (isVietnamese ? 'Tuyển tập đề tài cộng đồng' : 'Community Projects')
               }
             </h3>
 
@@ -674,7 +661,7 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
               className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs flex items-center gap-2 shadow-xs transition-all cursor-pointer"
             >
               <ArrowLeft className="w-4 h-4" />
-              <span>{isVietnamese ? 'Quay lại Tất cả đề tài' : 'Back to All Projects'}</span>
+              <span>{isVietnamese ? 'Quay lại tất cả đề tài' : 'Back to All Projects'}</span>
             </button>
           </div>
         )}
@@ -980,8 +967,8 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
                                 value={editingName}
                                 onChange={e => setEditingName(e.target.value)}
                                 onKeyDown={e => {
-                                  if (e.key === 'Enter') handleSaveRename(e, proj.id);
-                                  if (e.key === 'Escape') handleCancelRename(e);
+                                   if (e.key === 'Enter') handleSaveRename(e, proj.id);
+                                   if (e.key === 'Escape') handleCancelRename(e);
                                 }}
                                 className="px-2.5 py-1 text-xs rounded-lg bg-slate-100 dark:bg-slate-800 border border-blue-500 text-slate-900 dark:text-white font-semibold focus:outline-none"
                               />

@@ -14,11 +14,11 @@ import { useDarkMode } from '../../contexts/DarkModeContext';
 import BrandLogo from '../common/BrandLogo';
 
 const NAV_ITEMS = [
-  { id: 'setup',        labelVi: 'Khung đề tài',       labelEn: 'Setup',             icon: Settings },
-  { id: 'search',       labelVi: 'Tìm kiếm',          labelEn: 'Search',            icon: Search },
-  { id: 'chat',         labelVi: 'Chat với nguồn',     labelEn: 'Chat with Sources', icon: MessageSquare },
-  { id: 'synthesis',    labelVi: 'Tổng quan tài liệu', labelEn: 'Literature Review', icon: FileText },
-  { id: 'data_analysis',labelVi: 'Phân tích dữ liệu',  labelEn: 'Data Analysis',     icon: BarChart2 },
+  { id: 'setup',        labelVi: 'Khung đề tài',       shortLabelVi: 'Khung đề tài',  labelEn: 'Setup',             shortLabelEn: 'Setup',      icon: Settings },
+  { id: 'search',       labelVi: 'Tìm kiếm',          shortLabelVi: 'Tìm kiếm',     labelEn: 'Search',            shortLabelEn: 'Search',     icon: Search },
+  { id: 'chat',         labelVi: 'Chat với nguồn',     shortLabelVi: 'Chat nguồn',   labelEn: 'Chat with Sources', shortLabelEn: 'Chat',       icon: MessageSquare },
+  { id: 'synthesis',    labelVi: 'Tổng quan tài liệu', shortLabelVi: 'Tổng quan',    labelEn: 'Literature Review', shortLabelEn: 'Review',     icon: FileText },
+  { id: 'data_analysis',labelVi: 'Phân tích dữ liệu',  shortLabelVi: 'Phân tích',    labelEn: 'Data Analysis',     shortLabelEn: 'Analytics',  icon: BarChart2 },
 ];
 
 export default function HorizontalNavbar({
@@ -57,7 +57,7 @@ export default function HorizontalNavbar({
 
   const navItems = currentUser?.role === 'admin' 
     ? [
-        { id: 'admin', labelVi: 'Quản trị', labelEn: 'Admin', icon: LayoutDashboard },
+        { id: 'admin', labelVi: 'Quản trị', shortLabelVi: 'Quản trị', labelEn: 'Admin', shortLabelEn: 'Admin', icon: LayoutDashboard },
       ]
     : NAV_ITEMS;
 
@@ -96,28 +96,28 @@ export default function HorizontalNavbar({
 
   return (
     <header className="sticky top-0 z-50 w-full bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors shadow-xs">
-      <div className="w-full max-w-[1920px] mx-auto px-3 sm:px-4 lg:px-6 h-16 flex items-center justify-between gap-2 sm:gap-4">
+      <div className="w-full max-w-[1920px] mx-auto px-2 sm:px-4 lg:px-6 h-16 flex items-center justify-between gap-1.5 sm:gap-2.5 lg:gap-4">
         
-        {/* ── 1. Left: Brand Logo & Back to All Notebooks ──────────────── */}
         {/* ── 1. Left: Brand Logo & Unified Project Switcher Hub ─────── */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0 min-w-0">
           <BrandLogo
             size="md"
             withText
             withTagline
+            taglineClassName="hidden 2xl:block"
             isEn={!isVi}
             badgeStyle
             onClick={() => setActiveTab('overview')}
           />
-          <div className="h-5 w-px bg-slate-200 dark:bg-slate-800 hidden sm:block" />
+          <div className="h-5 w-px bg-slate-200 dark:bg-slate-800 hidden sm:block shrink-0" />
 
           {/* Unified Project Switcher & Back Hub Dropdown */}
-          <div className="relative" ref={projectDropdownRef}>
+          <div className="relative shrink min-w-0" ref={projectDropdownRef}>
             <button
               id="tour-project-switcher"
               onClick={() => setProjectDropdownOpen(!projectDropdownOpen)}
-              className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-100/90 dark:bg-slate-800/90 hover:bg-slate-200/80 dark:hover:bg-slate-750 border border-slate-200/90 dark:border-slate-700/90 transition-all cursor-pointer shadow-2xs max-w-[150px] sm:max-w-[200px] md:max-w-[260px] overflow-hidden"
-              title={activeProject?.name || (isVi ? 'Đề tài hiện tại / Chuyển đề tài' : 'Current Project / Switch')}
+              className="inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-100/90 dark:bg-slate-800/90 hover:bg-slate-200/80 dark:hover:bg-slate-750 border border-slate-200/90 dark:border-slate-700/90 transition-all cursor-pointer shadow-2xs max-w-[120px] sm:max-w-[150px] md:max-w-[180px] xl:max-w-[230px] overflow-hidden"
+              title={activeProject?.name || (isVi ? 'Đề tài hiện tại / chuyển đề tài' : 'Current Project / Switch')}
             >
               <FolderKanban className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
               {/* min-w-0 is required here: a flex item's default min-width is
@@ -125,8 +125,9 @@ export default function HorizontalNavbar({
                   width and ignore `truncate`/the button's max-w -- overflowing
                   past the button and covering the nav tabs + right-side
                   controls for long project names instead of actually
-                  ellipsizing. */}
-              <span className="truncate min-w-0">{activeProject?.name || (isVi ? 'Tất cả Đề tài' : 'All Projects')}</span>
+                  ellipsizing. flex-1 just lets it claim the button's spare
+                  width before truncating; it doesn't replace min-w-0. */}
+              <span className="truncate min-w-0 flex-1">{activeProject?.name || (isVi ? 'Tất cả đề tài' : 'All Projects')}</span>
               <ChevronDown className="w-3 h-3 text-slate-400 shrink-0 ml-0.5" />
             </button>
 
@@ -143,12 +144,12 @@ export default function HorizontalNavbar({
                     className="w-full px-2.5 py-1.5 rounded-xl text-left flex items-center gap-2 text-slate-700 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-950/40 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer font-bold"
                   >
                     <ArrowLeft className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
-                    <span>{isVi ? 'Quay lại Tất cả Đề tài' : 'Back to All Projects'}</span>
+                    <span>{isVi ? 'Quay lại tất cả đề tài' : 'Back to All Projects'}</span>
                   </button>
                 </div>
 
                 <div className="px-3.5 py-1.5 text-[10.5px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center justify-between">
-                  <span>{isVi ? 'Danh sách Đề tài' : 'Projects'}</span>
+                  <span>{isVi ? 'Danh sách đề tài' : 'Projects'}</span>
                   <span className="font-mono text-blue-600 dark:text-blue-400">{projects.length}</span>
                 </div>
 
@@ -184,7 +185,7 @@ export default function HorizontalNavbar({
                     className="w-full py-1.5 px-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    <span>{isVi ? 'Tạo Đề tài mới' : 'New Project'}</span>
+                    <span>{isVi ? 'Tạo đề tài mới' : 'New Project'}</span>
                   </button>
 
                   <button
@@ -196,7 +197,7 @@ export default function HorizontalNavbar({
                     title={isVi ? 'Tải trọn bộ dữ liệu đề tài (JSON)' : 'Export complete project package (JSON)'}
                   >
                     <Download className="w-3.5 h-3.5" />
-                    <span>{isVi ? 'Xuất Gói Đề tài (.json)' : 'Export Full Package'}</span>
+                    <span>{isVi ? 'Xuất gói đề tài (.json)' : 'Export Full Package'}</span>
                   </button>
                 </div>
               </div>
@@ -204,8 +205,8 @@ export default function HorizontalNavbar({
           </div>
         </div>
 
-        {/* ── 2. Center: Primary Horizontal Navigation Tabs (4 Core Steps) ── */}
-        <nav className="hidden md:flex items-center p-0.5 sm:p-1 rounded-2xl bg-slate-100/70 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 backdrop-blur-sm shrink-0">
+        {/* ── 2. Center: Primary Horizontal Navigation Tabs (5 Core Flat Steps) ── */}
+        <nav className="hidden md:flex items-center p-0.5 sm:p-1 rounded-2xl bg-slate-100/70 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 backdrop-blur-sm shrink min-w-0 overflow-x-auto no-scrollbar">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
@@ -213,78 +214,66 @@ export default function HorizontalNavbar({
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
-                className={`relative flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer ${
+                className={`relative flex items-center gap-1 lg:gap-1.5 px-2 sm:px-2.5 lg:px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer whitespace-nowrap shrink-0 ${
                   isActive
                     ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/30'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-white/80 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-700/60'
                 }`}
+                title={isVi ? item.labelVi : item.labelEn}
               >
-                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-slate-500 dark:text-slate-400'}`} />
-                <span>{isVi ? item.labelVi : item.labelEn}</span>
+                <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-white' : 'text-slate-500 dark:text-slate-400'}`} />
+                <span className="hidden xl:inline">{isVi ? item.labelVi : item.labelEn}</span>
+                <span className="inline xl:hidden">{isVi ? (item.shortLabelVi || item.labelVi) : (item.shortLabelEn || item.labelEn)}</span>
               </button>
             );
           })}
         </nav>
 
         {/* ── 3. Right: Language, Theme, Profile ───────────────────────── */}
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
 
           {/* Language Switch */}
           <button
             onClick={() => setLanguage(language === 'vi' ? 'en' : 'vi')}
-            className="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all text-xs font-bold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 flex items-center gap-1.5 cursor-pointer shadow-xs"
+            className="px-2 sm:px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all text-xs font-bold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 flex items-center gap-1 cursor-pointer shadow-xs shrink-0"
             title={isVi ? 'Đổi ngôn ngữ' : 'Switch Language'}
           >
-            <Languages className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span className="font-mono uppercase text-[11px]">{language}</span>
+            <Languages className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <span className="font-mono uppercase text-[10.5px] sm:text-[11px]">{language}</span>
           </button>
 
           {/* Dark Mode Switch */}
           <button
             onClick={() => setDarkMode(!darkMode)}
-            className="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all text-xs font-bold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 flex items-center gap-1.5 cursor-pointer shadow-xs"
-            title={isVi ? 'Giao diện Sáng/Tối' : 'Toggle Theme'}
+            className="p-2 sm:px-2.5 sm:py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all text-xs font-bold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 flex items-center gap-1.5 cursor-pointer shadow-xs shrink-0"
+            title={isVi ? (darkMode ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối') : (darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode')}
           >
             {darkMode ? (
-              <>
-                <Sun className="w-3.5 h-3.5 text-amber-500" />
-                <span className="hidden sm:inline text-[11px]">{isVi ? 'Sáng' : 'Light'}</span>
-              </>
+              <Sun className="w-3.5 h-3.5 text-amber-500 shrink-0" />
             ) : (
-              <>
-                <Moon className="w-3.5 h-3.5 text-blue-600" />
-                <span className="hidden sm:inline text-[11px]">{isVi ? 'Tối' : 'Dark'}</span>
-              </>
+              <Moon className="w-3.5 h-3.5 text-blue-600 shrink-0" />
             )}
           </button>
 
-          {/* User Profile Pill with Avatar Image, Full Name & Email */}
-          <div className="relative" ref={profileDropdownRef}>
+          {/* User Profile Avatar Icon Button */}
+          <div className="relative shrink-0" ref={profileDropdownRef}>
             <button
               onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-              className="flex items-center gap-2 py-1 pl-1 pr-2 sm:pr-2.5 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 transition-all cursor-pointer shadow-xs ml-1 max-w-[180px] lg:max-w-[240px] xl:max-w-[300px]"
-              title={currentUser?.name ? `${currentUser.name} · ${currentUser.email || ''}` : 'User Profile'}
+              className="p-1 sm:p-1.5 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 hover:border-blue-500/40 dark:hover:border-blue-500/40 transition-all cursor-pointer shadow-xs flex items-center gap-1.5 ml-0.5"
+              title={currentUser?.name ? `${currentUser.name} (${currentUser.email || ''})` : 'User Profile'}
             >
               {currentUser?.picture ? (
                 <img
                   src={currentUser.picture}
                   alt={currentUser.name}
-                  className="w-8 h-8 rounded-lg object-cover ring-1 ring-blue-500/30 flex-shrink-0"
+                  className="w-7 h-7 sm:w-[30px] sm:h-[30px] rounded-lg object-cover ring-1 ring-blue-500/30 flex-shrink-0"
                 />
               ) : (
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-700 text-white font-extrabold text-xs flex items-center justify-center flex-shrink-0 shadow-xs">
+                <div className="w-7 h-7 sm:w-[30px] sm:h-[30px] rounded-lg bg-gradient-to-br from-blue-600 to-indigo-700 text-white font-extrabold text-xs flex items-center justify-center flex-shrink-0 shadow-xs">
                   {userInitials}
                 </div>
               )}
-              <div className="hidden lg:block text-left min-w-0 flex-1">
-                <p className="font-bold text-xs text-slate-800 dark:text-white truncate leading-tight">
-                  {currentUser?.name || 'Researcher'}
-                </p>
-                <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate leading-tight lowercase">
-                  {currentUser?.email || currentUser?.role || 'user@research.edu'}
-                </p>
-              </div>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 hidden sm:block" />
+              <ChevronDown className="w-3 h-3 text-slate-400 dark:text-slate-400 shrink-0 pr-0.5" />
             </button>
 
             {profileDropdownOpen && (
@@ -346,6 +335,30 @@ export default function HorizontalNavbar({
 
         </div>
 
+      </div>
+
+      {/* ── 4. Mobile Horizontal Navigation Bar (< md) ────────────────── */}
+      <div className="md:hidden w-full overflow-x-auto no-scrollbar px-2.5 py-1.5 border-t border-slate-200/60 dark:border-slate-800 bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur-sm">
+        <div className="flex items-center gap-1 min-w-max">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                  isActive
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800'
+                }`}
+              >
+                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-slate-500 dark:text-slate-400'}`} />
+                <span>{isVi ? (item.shortLabelVi || item.labelVi) : (item.shortLabelEn || item.labelEn)}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
     </header>
   );
