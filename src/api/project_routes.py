@@ -298,8 +298,9 @@ async def delete_project(
     # Delete paper children
     if paper_ids:
         await db.execute(sql_delete(SearchQueryPaper).where(SearchQueryPaper.paper_id.in_(paper_ids)))
-        await db.execute(sql_delete(PageText).where(PageText.paper_id.in_(paper_ids)))
+        # PDFChunk.page_text_id references PageText, so chunks must go first.
         await db.execute(sql_delete(PDFChunk).where(PDFChunk.paper_id.in_(paper_ids)))
+        await db.execute(sql_delete(PageText).where(PageText.paper_id.in_(paper_ids)))
         await db.execute(sql_delete(Extraction).where(Extraction.paper_id.in_(paper_ids)))
         await db.execute(sql_delete(ScreeningHistory).where(ScreeningHistory.paper_id.in_(paper_ids)))
         await db.execute(sql_delete(EvidenceRecord).where(EvidenceRecord.paper_id.in_(paper_ids)))

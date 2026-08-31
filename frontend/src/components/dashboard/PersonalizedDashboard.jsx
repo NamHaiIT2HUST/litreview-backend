@@ -389,11 +389,15 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
     showToast(isVietnamese ? 'Đã sao chép liên kết vào bộ nhớ tạm!' : 'Link copied to clipboard!');
   };
 
-  const handleDelete = (e, projId) => {
+  const handleDelete = async (e, projId) => {
     e.stopPropagation();
     setActiveMenuProjectId(null);
-    deleteProject(projId);
-    showToast(isVietnamese ? 'Đã xóa đề tài.' : 'Project deleted.');
+    const result = await deleteProject(projId);
+    showToast(
+      result.success
+        ? (isVietnamese ? 'Đã xóa đề tài.' : 'Project deleted.')
+        : (isVietnamese ? 'Không thể xóa đề tài, vui lòng thử lại.' : 'Failed to delete project, please try again.')
+    );
   };
 
   // Filter and Sort user projects

@@ -358,6 +358,8 @@ export function ProjectProvider({ children }) {
   };
 
   const deleteProject = async (projectId) => {
+    const removed = projects.find(p => p.id === projectId);
+    const previousActiveId = activeProjectId;
     const remaining = projects.filter(p => p.id !== projectId);
     setProjects(remaining);
 
@@ -365,17 +367,30 @@ export function ProjectProvider({ children }) {
       setActiveProjectId(remaining.length > 0 ? remaining[0].id : null);
     }
 
-    // Sync to backend if possible
+    // Sync to backend. A non-OK response (e.g. a server-side error) used to
+    // pass silently here -- the project stayed deleted in local state until
+    // the next reload re-fetched it from the backend, where it had never
+    // actually been removed. Roll the optimistic update back on failure so
+    // the UI reflects what's actually persisted.
     try {
-      await safeFetch(`${API_BASE}/projects/${projectId}`, {
+      const res = await safeFetch(`${API_BASE}/projects/${projectId}`, {
         method: 'DELETE',
         headers: {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
       });
+      if (!res.ok) {
+        setProjects(projects);
+        setActiveProjectId(previousActiveId);
+        return { success: false };
+      }
     } catch (e) {
       console.warn("Backend project deletion warning:", e);
+      setProjects(projects);
+      setActiveProjectId(previousActiveId);
+      return { success: false };
     }
+    return { success: true, removed };
   };
 
   const duplicateProject = (projectId) => {

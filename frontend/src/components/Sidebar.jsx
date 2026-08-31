@@ -94,12 +94,16 @@ export default function Sidebar({
     showToast(isVietnamese ? 'Đã sao chép liên kết đề tài vào bộ nhớ tạm!' : 'Project link copied to clipboard!');
   };
 
-  const handleDelete = (e, projId) => {
+  const handleDelete = async (e, projId) => {
     e.stopPropagation();
     setActiveMenuProjectId(null);
-    deleteProject(projId);
     setDeleteConfirmId(null);
-    showToast(isVietnamese ? 'Đã xóa đề tài thành công.' : 'Project deleted successfully.');
+    const result = await deleteProject(projId);
+    showToast(
+      result.success
+        ? (isVietnamese ? 'Đã xóa đề tài thành công.' : 'Project deleted successfully.')
+        : (isVietnamese ? 'Không thể xóa đề tài, vui lòng thử lại.' : 'Failed to delete project, please try again.')
+    );
   };
 
   // Close dropdown on outside click
