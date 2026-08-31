@@ -295,8 +295,10 @@ def validate_security_settings(settings: "Settings") -> None:
     """Validate security settings and ensure secure fallbacks."""
     problems: list[str] = []
 
-    if not settings.secret_key.strip() or len(settings.secret_key.strip()) < 32:
-        settings.secret_key = "litreview-secret-key-2026-production-secure-token-signing-key-v1"
+    if not settings.secret_key.strip():
+        problems.append("SECRET_KEY is not set.")
+    elif len(settings.secret_key.strip()) < 32:
+        problems.append("SECRET_KEY must be at least 32 characters.")
 
     if settings.seed_default_admin:
         if settings.app_env != "development":

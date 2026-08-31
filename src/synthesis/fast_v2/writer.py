@@ -123,13 +123,16 @@ class WriterClaim:
     evidence_snippets: tuple[dict[str, Any], ...] = ()
 
     def to_prompt_dict(self) -> dict[str, Any]:
+        # Deliberately excludes evidence_snippets: the Writer is citation-free
+        # by design (a downstream Citation Agent attributes prose against
+        # evidence separately), so raw evidence text/quotes must never reach
+        # this prompt -- see test_writer_receives_only_supported_claims_and_no_evidence_payload.
         return {
             "claim_id": self.claim_id,
             "facet": self.facet,
             "claim_text": self.claim_text,
             "paper_id": str(self.paper_id),
             "paper_title": self.paper_title,
-            "evidence_snippets": [dict(item) for item in self.evidence_snippets],
         }
 
 
@@ -501,7 +504,7 @@ def _parse_and_validate(
                 or not all(isinstance(claim_id, str) for claim_id in claim_ids)
             ):
                 raise WriterValidationError("invalid_schema")
-            if len(claim_ids) > 2:
+            if len(set(claim_ids)) > 2:
                 raise WriterValidationError("paragraph_claims_too_many")
             unknown = [claim_id for claim_id in claim_ids if claim_id not in claims_by_id]
             if unknown:

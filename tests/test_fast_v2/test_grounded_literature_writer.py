@@ -177,13 +177,16 @@ def test_writer_claim_includes_only_its_verified_evidence_snippet():
         semantic=semantic, evidence_bank=bank, writer=writer
     )
 
-    payload = [claim.to_prompt_dict() for claim in writer.last_claims]
-    assert payload[0]["evidence_snippets"] == [
-        {"evidence_id": bank.evidence[0].evidence_id, "page": 1, "text": bank.evidence[0].text}
-    ]
-    assert payload[1]["evidence_snippets"] == [
-        {"evidence_id": bank.evidence[1].evidence_id, "page": 1, "text": bank.evidence[1].text}
-    ]
+    # evidence_snippets is scoped per claim on the WriterClaim itself (not on
+    # its to_prompt_dict() -- the Writer is citation-free by design and must
+    # never see raw evidence text; see
+    # test_writer_receives_only_supported_claims_and_no_evidence_payload).
+    assert writer.last_claims[0].evidence_snippets == (
+        {"evidence_id": bank.evidence[0].evidence_id, "page": 1, "text": bank.evidence[0].text},
+    )
+    assert writer.last_claims[1].evidence_snippets == (
+        {"evidence_id": bank.evidence[1].evidence_id, "page": 1, "text": bank.evidence[1].text},
+    )
 
 
 def test_section_title_alias_normalizes_before_strict_validation():
