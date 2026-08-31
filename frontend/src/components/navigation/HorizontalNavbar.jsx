@@ -120,6 +120,13 @@ export default function HorizontalNavbar({
               title={activeProject?.name || (isVi ? 'Đề tài hiện tại / chuyển đề tài' : 'Current Project / Switch')}
             >
               <FolderKanban className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+              {/* min-w-0 is required here: a flex item's default min-width is
+                  "auto", which lets it grow to its text's full intrinsic
+                  width and ignore `truncate`/the button's max-w -- overflowing
+                  past the button and covering the nav tabs + right-side
+                  controls for long project names instead of actually
+                  ellipsizing. flex-1 just lets it claim the button's spare
+                  width before truncating; it doesn't replace min-w-0. */}
               <span className="truncate min-w-0 flex-1">{activeProject?.name || (isVi ? 'Tất cả đề tài' : 'All Projects')}</span>
               <ChevronDown className="w-3 h-3 text-slate-400 shrink-0 ml-0.5" />
             </button>
@@ -259,10 +266,10 @@ export default function HorizontalNavbar({
                 <img
                   src={currentUser.picture}
                   alt={currentUser.name}
-                  className="w-7 h-7 sm:w-7.5 sm:h-7.5 rounded-lg object-cover ring-1 ring-blue-500/30 flex-shrink-0"
+                  className="w-7 h-7 sm:w-[30px] sm:h-[30px] rounded-lg object-cover ring-1 ring-blue-500/30 flex-shrink-0"
                 />
               ) : (
-                <div className="w-7 h-7 sm:w-7.5 sm:h-7.5 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-700 text-white font-extrabold text-xs flex items-center justify-center flex-shrink-0 shadow-xs">
+                <div className="w-7 h-7 sm:w-[30px] sm:h-[30px] rounded-lg bg-gradient-to-br from-blue-600 to-indigo-700 text-white font-extrabold text-xs flex items-center justify-center flex-shrink-0 shadow-xs">
                   {userInitials}
                 </div>
               )}

@@ -912,7 +912,7 @@ export default function PublicLandingPage({ onOpenAuth }) {
       setRagSimActive(false);
       setAutoStatusText(
         language === 'vi'
-          ? '🟢 ĐANG TỰ ĐỘNG CHẠY: [Bước 1/4] Phân rã câu hỏi PICO & Tối ưu chuỗi Boolean...'
+          ? '🟢 ĐANG TỰ ĐỘNG CHẠY: [Bước 1/4] Phân rã câu hỏi PICO & tối ưu chuỗi Boolean...'
           : '🟢 AUTOPLAY: [Step 1/4] Scoping PICO Framework & Synthesizing Boolean...'
       );
 
@@ -939,7 +939,7 @@ export default function PublicLandingPage({ onOpenAuth }) {
         setCockpitTab('screening');
         setAutoStatusText(
           language === 'vi'
-            ? '🟢 ĐANG TỰ ĐỘNG CHẠY: [Bước 2/4] Sàng lọc PRISMA & Đối chiếu Scopus Q1...'
+            ? '🟢 ĐANG TỰ ĐỘNG CHẠY: [Bước 2/4] Sàng lọc PRISMA & đối chiếu Scopus Q1...'
             : '🟢 AUTOPLAY: [Step 2/4] PRISMA Screening & Scopus Verification...'
         );
         setScreeningRowsShown(topic.rows.length);
@@ -978,7 +978,7 @@ export default function PublicLandingPage({ onOpenAuth }) {
         setCockpitTab('synthesis');
         setAutoStatusText(
           language === 'vi'
-            ? '🟢 ĐANG TỰ ĐỘNG CHẠY: [Bước 4/4] Tổng hợp luận điểm & Hỏi đáp Fact-Checking RAG...'
+            ? '🟢 ĐANG TỰ ĐỘNG CHẠY: [Bước 4/4] Tổng hợp luận điểm & hỏi đáp Fact-Checking RAG...'
             : '🟢 AUTOPLAY: [Step 4/4] Grounded Evidence Synthesis & RAG Fact-Checking...'
         );
       }, 14000);

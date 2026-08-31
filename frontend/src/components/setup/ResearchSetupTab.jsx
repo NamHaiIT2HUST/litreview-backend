@@ -783,7 +783,7 @@ export default function ResearchSetupTab({ setActiveTab }) {
 
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5 pl-1">
                   <Sparkles className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                  <span>{isVi ? 'Mẹo: Nêu rõ đối tượng, phương pháp và mục tiêu so sánh giúp AI đề xuất tiêu chí & Từ khóa chuẩn xác nhất.' : 'Tip: Stating the method, target, and evaluation criteria helps AI generate the most accurate keywords.'}</span>
+                  <span>{isVi ? 'Mẹo: Nêu rõ đối tượng, phương pháp và mục tiêu so sánh giúp AI đề xuất tiêu chí & từ khóa chuẩn xác nhất.' : 'Tip: Stating the method, target, and evaluation criteria helps AI generate the most accurate keywords.'}</span>
                 </p>
               </div>
 
@@ -1060,7 +1060,7 @@ export default function ResearchSetupTab({ setActiveTab }) {
                   {loadingKeywords ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin text-white" />
-                      <span>{isVi ? 'Đang phân tích & Tra cứu...' : 'Analyzing & Synthesizing...'}</span>
+                      <span>{isVi ? 'Đang phân tích & tra cứu...' : 'Analyzing & Synthesizing...'}</span>
                     </>
                   ) : (
                     <>

@@ -21,6 +21,11 @@ export default function NewProjectModal({ isOpen, onClose, onCreated }) {
   const [researchField, setResearchField] = useState('Trí tuệ nhân tạo & LLM');
   const [loading, setLoading] = useState(false);
   const inputRef = useRef(null);
+  // Tracks whether the mousedown that started this click also began on the
+  // backdrop itself -- without it, selecting text inside the modal and
+  // releasing the mouse outside its bounds fires a click on the backdrop
+  // and closes the modal, silently discarding whatever was typed.
+  const mouseDownOnBackdrop = useRef(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -66,9 +71,13 @@ export default function NewProjectModal({ isOpen, onClose, onCreated }) {
   };
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fade-in"
-      onClick={onClose}
+      onMouseDown={(e) => { mouseDownOnBackdrop.current = e.target === e.currentTarget; }}
+      onClick={(e) => {
+        if (mouseDownOnBackdrop.current && e.target === e.currentTarget && !loading) onClose();
+        mouseDownOnBackdrop.current = false;
+      }}
     >
       <div 
         className="w-full max-w-lg flex flex-col overflow-hidden shadow-2xl bg-[#141A26] border border-slate-700/80 rounded-3xl animate-slide-up text-slate-100"

@@ -2509,7 +2509,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
               {genealogyLoading ? (
                 <div className="py-20 flex flex-col items-center justify-center gap-4 text-slate-400">
                   <Loader2 className="w-10 h-10 animate-spin text-sky-500" />
-                  <p className="text-sm font-bold">Đang tìm nguồn tiền đề & Kế thừa liên quan đến bài báo này...</p>
+                  <p className="text-sm font-bold">Đang tìm nguồn tiền đề & kế thừa liên quan đến bài báo này...</p>
                 </div>
               ) : genealogyData ? (
                 <div className="space-y-4">

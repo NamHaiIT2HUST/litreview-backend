@@ -303,7 +303,7 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
   };
 
   const handleOpenFeatured = async (feat) => {
-    const existing = projects.find(p => p.name.toLowerCase().includes(feat.field.toLowerCase()) || p.name === feat.title);
+    const existing = projects.find(p => p.name.toLowerCase().includes(feat.field.toLowerCase()) || p.name.toLowerCase() === feat.title.toLowerCase());
     const samplePapers = feat.samplePapers || [];
 
     if (existing) {
@@ -537,10 +537,10 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
                   <img
                     src={currentUser.picture}
                     alt={currentUser.name}
-                    className="w-7 h-7 sm:w-7.5 sm:h-7.5 rounded-lg object-cover ring-1 ring-blue-500/30 flex-shrink-0"
+                    className="w-7 h-7 sm:w-[30px] sm:h-[30px] rounded-lg object-cover ring-1 ring-blue-500/30 flex-shrink-0"
                   />
                 ) : (
-                  <div className="w-7 h-7 sm:w-7.5 sm:h-7.5 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-700 text-white font-extrabold text-xs flex items-center justify-center flex-shrink-0 shadow-xs">
+                  <div className="w-7 h-7 sm:w-[30px] sm:h-[30px] rounded-lg bg-gradient-to-br from-blue-600 to-indigo-700 text-white font-extrabold text-xs flex items-center justify-center flex-shrink-0 shadow-xs">
                     {userInitials}
                   </div>
                 )}
