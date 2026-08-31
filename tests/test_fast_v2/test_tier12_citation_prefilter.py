@@ -10,9 +10,9 @@ from __future__ import annotations
 import asyncio
 import json
 import uuid
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock
 
 from src.models.synthesis_schemas import EntailmentStatus
 from src.services.nli_checker import NLIModelUnavailableError, NLIVerdict

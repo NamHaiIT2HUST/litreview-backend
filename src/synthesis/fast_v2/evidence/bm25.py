@@ -11,7 +11,7 @@ from __future__ import annotations
 import math
 import re
 from collections import Counter
-from typing import Sequence
+from collections.abc import Sequence
 
 _TOKEN_PATTERN = re.compile(r"\w+")
 

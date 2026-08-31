@@ -30,7 +30,6 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Sequence
 
 from src.synthesis.fast_v2.citations.anthropic_citations import (
     is_substantive_prose,

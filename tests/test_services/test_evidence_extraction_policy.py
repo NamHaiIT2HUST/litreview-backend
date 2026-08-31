@@ -1,8 +1,8 @@
-from src.services.evidence_extraction_policy import should_retry_evidence_batch
 from src.services.evidence_extraction_policy import (
     MAX_TARGETED_RECOVERY_PER_DIMENSION,
     MAX_TARGETED_RECOVERY_PER_PAPER,
     recovery_budget_allows,
+    should_retry_evidence_batch,
 )
 
 

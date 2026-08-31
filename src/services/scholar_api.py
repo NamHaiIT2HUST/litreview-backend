@@ -2,7 +2,6 @@ import asyncio
 import datetime
 import hashlib
 import re
-from typing import Optional
 
 import httpx
 from fastapi import HTTPException
@@ -38,7 +37,7 @@ def reconstruct_abstract_from_openalex(inverted_index: dict) -> str:
     return " ".join(sorted_words)
 
 
-def extract_issn_from_openalex_location(location: Optional[dict]) -> Optional[str]:
+def extract_issn_from_openalex_location(location: dict | None) -> str | None:
     """
     Lấy ISSN từ 1 OpenAlex location object (primary_location hoặc best_oa_location).
     Ưu tiên issn_l (linking ISSN, ổn định nhất) -> fallback issn[0] (list print/electronic).
@@ -70,7 +69,7 @@ def clean_paper_title(title: str) -> str:
     return t.strip(" .")
 
 
-async def fetch_full_abstract_openalex(client: httpx.AsyncClient, title: str, doi: Optional[str] = None) -> tuple[Optional[str], str, Optional[str], Optional[str]]:
+async def fetch_full_abstract_openalex(client: httpx.AsyncClient, title: str, doi: str | None = None) -> tuple[str | None, str, str | None, str | None]:
     """
     Tự động tra cứu OpenAlex (miễn phí, 250M+ bài báo) để lấy Full Abstract nguyên bản,
     DOI, ISSN và Tên Tạp chí (cần cho Module 4 Quality Check).
@@ -119,7 +118,7 @@ async def fetch_full_abstract_openalex(client: httpx.AsyncClient, title: str, do
     return None, "N/A", None, None
 
 
-async def fetch_full_abstract_s2(client: httpx.AsyncClient, title: str, doi: Optional[str] = None) -> tuple[Optional[str], Optional[str], str, Optional[str], Optional[str]]:
+async def fetch_full_abstract_s2(client: httpx.AsyncClient, title: str, doi: str | None = None) -> tuple[str | None, str | None, str, str | None, str | None]:
     """
     Tra cứu từ Semantic Scholar để bổ sung Abstract, TL;DR, ISSN và Tên Tạp chí.
     Ưu tiên tra cứu trực tiếp theo DOI nếu có.
@@ -248,7 +247,7 @@ async def search_papers_openalex(query: str, limit: int = 10) -> list[Paper]:
 # search_papers_auto, so nothing was lost by removing it.
 
 
-async def fetch_crossref_info(client: httpx.AsyncClient, title: str) -> tuple[str, Optional[str], Optional[str]]:
+async def fetch_crossref_info(client: httpx.AsyncClient, title: str) -> tuple[str, str | None, str | None]:
     """
     Tra cứu CrossRef API (miễn phí, không giới hạn rate limit) để lấy DOI, ISSN, và Tên Tạp chí chính xác.
     Trả về (doi, issn, journal).
@@ -384,7 +383,7 @@ async def search_papers_serpapi(query: str, api_key: str, limit: int = 10) -> li
         # Check and filter out local unindexed university repositories / non-academic sources
         check_str = f"{title} {final_journal} {url_link}".lower()
         if any(bad in check_str for bad in [
-            "đại học mở", "open university", "ou.edu.vn", "vjol.info.vn", 
+            "đại học mở", "open university", "ou.edu.vn", "vjol.info.vn",
             "tạp chí khoa học", "tap chi khoa hoc", "khoa học và công nghệ",
             "luận văn", "luan van", "khóa luận", "khoa luan", "thạc sĩ", "tiến sĩ",
             "repository.", "dspace.", "thuvien."
@@ -476,7 +475,7 @@ async def search_papers_crossref(query: str, limit: int = 10) -> list[Paper]:
     import re
     url = "https://api.crossref.org/works"
     params = {
-        "query": query, 
+        "query": query,
         "select": "title,author,abstract,published-print,published-online,is-referenced-by-count,URL,DOI,ISSN,container-title",
         "rows": limit
     }
@@ -499,28 +498,28 @@ async def search_papers_crossref(query: str, limit: int = 10) -> list[Paper]:
     for idx, item in enumerate(results):
         title_list = item.get("title", [])
         title = title_list[0] if title_list else "Unknown Title"
-        
+
         authors_data = item.get("author", [])
         author_names = [f"{a.get('given', '')} {a.get('family', '')}".strip() for a in authors_data]
-        
+
         date_parts = item.get("published-print", {}).get("date-parts", [[2024]])
         if not date_parts or not date_parts[0]:
             date_parts = item.get("published-online", {}).get("date-parts", [[2024]])
         year = int(date_parts[0][0]) if date_parts and date_parts[0] else 2024
-        
+
         raw_abstract = item.get("abstract") or ""
         clean_abstract = re.sub(r'<[^>]+>', '', raw_abstract).strip() if raw_abstract else "No abstract provided."
-        
+
         citations = item.get("is-referenced-by-count") or 0
         doi = item.get("DOI") or "N/A"
         url_link = item.get("URL") or f"https://doi.org/{doi}"
-        
+
         issn_list = item.get("ISSN", [])
         issn = issn_list[0] if issn_list else None
-        
+
         container = item.get("container-title", [])
         journal = container[0] if container else "Crossref Journal"
-        
+
         paper_id = hashlib.md5(title.encode()).hexdigest()[:10]
 
         paper = Paper(

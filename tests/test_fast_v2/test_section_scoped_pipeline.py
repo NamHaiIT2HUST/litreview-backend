@@ -1,7 +1,7 @@
-import asyncio
 import uuid
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 from src.synthesis.fast_v2.evidence.models import EvidenceUnit
 from src.synthesis.fast_v2.planning.research_lead import LongformOutlinePlan, SectionPlan

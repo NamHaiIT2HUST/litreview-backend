@@ -27,7 +27,8 @@ citation misattribution. See the ADR section I.
 from __future__ import annotations
 
 import time
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from src.synthesis.fast_v2.evidence.bank import GroundedEvidenceBank
 from src.synthesis.fast_v2.generator.base import FastV2GenerationError, GeneratedDraft

@@ -37,9 +37,11 @@ import json
 import re
 import time
 import uuid
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Mapping, Sequence
+
 from langchain_openai import ChatOpenAI
+
 from src.config import get_settings
 from src.models.synthesis_schemas import EntailmentStatus
 from src.services.claim_verification_policy import fuzzy_verbatim_match
@@ -597,7 +599,7 @@ Return ONLY the JSON assignments object described in your instructions, with exa
                 ]),
                 timeout=CITATION_BATCH_TIMEOUT_SECONDS,
             )
-        except (asyncio.TimeoutError, TimeoutError):
+        except TimeoutError:
             elapsed = time.perf_counter() - started
             print(f"[Citation Agent] batch {batch_id} call TIMEOUT after {elapsed:.1f}s (limit={CITATION_BATCH_TIMEOUT_SECONDS}s)", flush=True)
             return None, 0, 0, TRANSPORT_TIMEOUT
@@ -907,10 +909,10 @@ async def attribute_all_prose_paragraphs(
 
     telemetry.silently_skipped_substantive = telemetry.substantive_paragraphs - telemetry.attributed_attempted
     telemetry.stage_latency_seconds = time.perf_counter() - t0_stage
-    
+
     final_text = "\n\n".join(attributed_blocks)
     overall_diff = (strip_citations(draft_markdown) == strip_citations(final_text))
-    
+
     return FullCitationAttributionResult(
         attributed_markdown=final_text,
         overall_diff_passed=overall_diff,

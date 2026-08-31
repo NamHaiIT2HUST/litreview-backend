@@ -4,11 +4,9 @@ from datetime import UTC, datetime
 
 from sqlalchemy import (
     JSON,
-    Boolean,
     CheckConstraint,
     Column,
     DateTime,
-    Enum as SQLEnum,
     Float,
     ForeignKey,
     Integer,
@@ -16,6 +14,9 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     Uuid,
+)
+from sqlalchemy import (
+    Enum as SQLEnum,
 )
 from sqlalchemy.dialects.postgresql import ARRAY as PG_ARRAY
 from sqlalchemy.dialects.postgresql import JSONB as PG_JSONB
@@ -47,7 +48,7 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     role = Column(SQLEnum(Role), default=Role.user)
     created_at = Column(DateTime(timezone=True), default=_now_utc)
-    
+
     projects = relationship("Project", back_populates="user")
 
 

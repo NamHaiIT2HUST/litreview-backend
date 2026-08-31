@@ -6,9 +6,9 @@ own generated question; both empty is a clear failure, never a fabricated
 generic fallback topic.
 """
 import json
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock
 
 from src.synthesis.fast_v2.planning.research_lead import plan_longform_outline
 

@@ -17,17 +17,15 @@ Quality Verification (Module 4):
                                                       re-check/detail. Pipeline /search
                                                       đã chạy Scopus cross-check cho Top 20.
 """
+import asyncio
+import logging
 import os
 import re
 import uuid
-import asyncio
-from typing import List, Dict, Any, Optional, Union
+from typing import Any
 from uuid import UUID
-import logging
 
-
-logger = logging.getLogger(__name__)
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query, UploadFile, File, Form
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Header, HTTPException, Query, UploadFile
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import String, desc, select
@@ -35,12 +33,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.agents.graph import agent
 from src.config import get_settings
-settings = get_settings()
 from src.database import get_db
-from src.models.db_models import Citation, EvidenceRecord, Paper, Project, SearchQuery, SynthesisSection, SynthesisSession, SynthesisStatus
-
-DEFAULT_PROJECT_ID = "00000000-0000-0000-0000-000000000001"
-
+from src.models.db_models import (
+    Citation,
+    EvidenceRecord,
+    Paper,
+    Project,
+    SearchQuery,
+    SynthesisSection,
+    SynthesisSession,
+    SynthesisStatus,
+)
 from src.models.schemas import (
     ChatRequest,
     ChatResponse,
@@ -50,31 +53,46 @@ from src.models.schemas import (
     SearchQueryRecord,
     SearchResponse,
 )
-from src.models.workspace_schemas import UploadResponse, DirectUploadResponse, WorkspaceChatRequest, WorkspaceChatResponse, EvidenceCoordsRequest, EvidenceCoordsResponse, RectCoord, RAGEvalRequest, RAGEvalRunRequest
-from src.models.search_schemas import SearchExecuteRequest, SearchStrategiesResponse
+from src.models.search_schemas import RerankRequest, RerankResponse, SearchExecuteRequest, SearchStrategiesResponse
 from src.models.synthesis_schemas import (
     SynthesisCitationResponse,
     SynthesisEvidenceProfileItem,
-    SynthesisSessionCreateRequest,
     SynthesisSessionCreatedResponse,
+    SynthesisSessionCreateRequest,
     SynthesisSessionResponse,
     SynthesisSessionSummary,
 )
-from src.services.search_service import generate_search_strategies
-from src.services.scholar_api import search_papers_auto
-from src.services.scopus_matcher import quality_check as run_scopus_quality_check
+from src.models.workspace_schemas import (
+    DirectUploadResponse,
+    EvidenceCoordsRequest,
+    EvidenceCoordsResponse,
+    RAGEvalRequest,
+    RAGEvalRunRequest,
+    RectCoord,
+    UploadResponse,
+    WorkspaceChatRequest,
+    WorkspaceChatResponse,
+)
 from src.services.document_processor import DocumentProcessor
 from src.services.ingestion_service import persist_pdf_provenance
 from src.services.paper_persistence_utils import normalize_authors_for_db
+from src.services.rag_eval_harness import rag_eval_harness
+from src.services.rag_guardrail_service import rag_guardrail_service
+from src.services.rag_service import rag_service
+from src.services.reranker_service import reranker_service
+from src.services.scholar_api import search_papers_auto
+from src.services.scopus_matcher import quality_check as run_scopus_quality_check
+from src.services.search_service import generate_search_strategies
+from src.services.synthesis_llm_service import synthesis_llm_service
+from src.services.synthesis_metrics_service import get_or_create_metrics
+from src.services.synthesis_response_builder import build_section_responses
+from src.services.synthesis_session_utils import json_paper_ids
 from src.services.vector_cleanup_service import create_vector_cleanup_job
 from src.services.vector_store import vector_store_service
-from src.services.rag_service import rag_service
-from src.services.rag_guardrail_service import rag_guardrail_service
-from src.services.rag_eval_harness import rag_eval_harness
-from src.services.synthesis_response_builder import build_section_responses
-from src.services.synthesis_llm_service import synthesis_llm_service
-from src.services.synthesis_session_utils import json_paper_ids
-from src.services.synthesis_metrics_service import get_or_create_metrics
+
+logger = logging.getLogger(__name__)
+settings = get_settings()
+DEFAULT_PROJECT_ID = "00000000-0000-0000-0000-000000000001"
 
 processor = DocumentProcessor()
 
@@ -133,7 +151,7 @@ async def _persist_search(
     Trả về search_query_id vừa tạo và số paper bị skip do dedup trong project.
     """
     project_uuid = _resolve_project_id(project_id)
-    
+
     # Ensure project exists
     p_check = await db.get(Project, project_uuid)
     if not p_check:
@@ -224,7 +242,6 @@ async def _persist_search(
 # Existing endpoints
 # ──────────────────────────────────────────────────────────────────────────────
 
-from src.models.db_models import Project
 
 
 
@@ -232,7 +249,6 @@ from src.models.db_models import Project
 # Existing endpoints
 # ──────────────────────────────────────────────────────────────────────────────
 
-from src.models.db_models import Project
 
 @router.post("/projects/{project_id}/search-strategies", response_model=SearchStrategiesResponse)
 async def get_search_strategies(
@@ -556,11 +572,21 @@ async def delete_paper(
 ):
     """Xóa một paper khỏi database."""
     from sqlalchemy import delete as sql_delete
+
     from src.models.db_models import (
-        Paper, PageText, PDFChunk, Extraction, ScreeningHistory,
-        EvidenceRecord, EvidenceExtractionAttempt, VectorCleanupJob,
-        GenericEvidenceCache, GenericEvidenceCacheItem, RetrievalLog, Citation,
-        SearchQueryPaper
+        Citation,
+        EvidenceExtractionAttempt,
+        EvidenceRecord,
+        Extraction,
+        GenericEvidenceCache,
+        GenericEvidenceCacheItem,
+        PageText,
+        Paper,
+        PDFChunk,
+        RetrievalLog,
+        ScreeningHistory,
+        SearchQueryPaper,
+        VectorCleanupJob,
     )
 
     target_uuid = None
@@ -820,7 +846,7 @@ async def direct_upload_json(
                 metadata={"source": payload.filename, "page": idx}
             )
         )
-    
+
     chunks = processor.text_splitter.split_documents(pages_docs)
     processor._attach_chunk_metadata(pages_docs, chunks)
     for chunk in chunks:
@@ -1039,7 +1065,6 @@ async def workspace_chat(
                     target_pids = []
 
         chunks = []
-        from sqlalchemy import String
         from langchain_core.documents import Document
 
         if target_pids:
@@ -1056,7 +1081,7 @@ async def workspace_chat(
                     chunks.extend(res)
 
             # 2. For each paper, ensure we also have the introductory/abstract chunks so broad & summary queries always have full context
-            from src.models.db_models import PDFChunk, PageText
+            from src.models.db_models import PageText, PDFChunk
             for pid in target_pids:
                 pid_str = str(pid).strip()
                 try:
@@ -1263,37 +1288,37 @@ class DatasetProfile(BaseModel):
     column_count: int = 0
     missing_rate_pct: float = 0.0
     duplicate_rows: int = 0
-    completely_empty_cols: List[str] = Field(default_factory=list)
-    constant_cols: List[str] = Field(default_factory=list)
-    partially_missing_cols: List[Dict[str, Any]] = Field(default_factory=list)
-    columns: List[Dict[str, Any]] = Field(default_factory=list)
-    summary_stats: Dict[str, Any] = Field(default_factory=dict)
-    top_correlations: Optional[List[Dict[str, Any]]] = None
-    columns_to_drop: Optional[List[Dict[str, str]]] = None
-    time_series_info: Optional[Dict[str, Any]] = None
+    completely_empty_cols: list[str] = Field(default_factory=list)
+    constant_cols: list[str] = Field(default_factory=list)
+    partially_missing_cols: list[dict[str, Any]] = Field(default_factory=list)
+    columns: list[dict[str, Any]] = Field(default_factory=list)
+    summary_stats: dict[str, Any] = Field(default_factory=dict)
+    top_correlations: list[dict[str, Any]] | None = None
+    columns_to_drop: list[dict[str, str]] | None = None
+    time_series_info: dict[str, Any] | None = None
 
 class ChartSpec(BaseModel):
     type: str = "bar"  # "bar" | "line" | "donut"
     title: str = ""
-    data: List[Dict[str, Any]] = Field(default_factory=list)
-    x_label: Optional[str] = None
-    y_label: Optional[str] = None
-    unit: Optional[str] = None
+    data: list[dict[str, Any]] = Field(default_factory=list)
+    x_label: str | None = None
+    y_label: str | None = None
+    unit: str | None = None
 
 class KPISpec(BaseModel):
     label: str
-    value: Union[str, int, float]
-    subtext: Optional[str] = None
-    trend: Optional[str] = None
+    value: str | int | float
+    subtext: str | None = None
+    trend: str | None = None
 
 class DataAnalysisResponse(BaseModel):
     answer: str
-    charts: Optional[List[ChartSpec]] = None
-    kpis: Optional[List[KPISpec]] = None
-    dataset_profile: Optional[DatasetProfile] = None
-    figures: Optional[List[str]] = None
-    python_code: Optional[str] = None
-    block_outputs: Optional[List[dict]] = None
+    charts: list[ChartSpec] | None = None
+    kpis: list[KPISpec] | None = None
+    dataset_profile: DatasetProfile | None = None
+    figures: list[str] | None = None
+    python_code: str | None = None
+    block_outputs: list[dict] | None = None
 
 @router.post("/workspace/analyze-data", response_model=DataAnalysisResponse)
 async def workspace_analyze_data(request: DataAnalysisRequest) -> DataAnalysisResponse:
@@ -1302,11 +1327,16 @@ async def workspace_analyze_data(request: DataAnalysisRequest) -> DataAnalysisRe
     thực hiện phân tích thống kê định lượng với Pandas/SciPy/Statsmodels và suy luận học thuật với LLM.
     Đảm bảo 100% số liệu được kiểm chứng thực tế và tuân thủ Khung EDA Chuẩn 7 Phần.
     """
-    import os, io, re, json, logging
-    import pandas as pd
+    import io
+    import json
+    import logging
+    import re
+
     import numpy as np
+    import pandas as pd
+
     from src.services.eda_llm_client import build_eda_llm
-    from src.services.eda_profiling_service import eda_profiling_service, ComprehensiveProfile
+    from src.services.eda_profiling_service import ComprehensiveProfile, eda_profiling_service
 
     logger = logging.getLogger(__name__)
 
@@ -1316,9 +1346,8 @@ async def workspace_analyze_data(request: DataAnalysisRequest) -> DataAnalysisRe
 
     dataset_profile = None
     scientific_summary_text = ""
-    chart_spec = None
     kpis_list = None
-    comp_profile: Optional[ComprehensiveProfile] = None
+    comp_profile: ComprehensiveProfile | None = None
 
     # 1. Phân tích định lượng khoa học và kiểm toán thống kê chuyên sâu
     if request.csv_text.strip():
@@ -1689,8 +1718,8 @@ async def get_evidence_coords(
     request: EvidenceCoordsRequest,
 ) -> EvidenceCoordsResponse:
     """Find text coordinates in PDF for highlighting."""
-    import os
     import logging
+    import os
 
     base_dir = os.path.join("uploads", "papers")
     file_path = os.path.join(base_dir, request.filename)
@@ -1722,11 +1751,11 @@ async def get_evidence_coords(
 
         search_text = request.snippet.strip()
         rects = []
-        import re
         import difflib
+        import re
         def clean_word(w):
             return re.sub(r'\W+', '', w).lower()
-        
+
         words = search_text.split()
         search_words_list = [clean_word(w) for w in words if clean_word(w)]
 
@@ -1772,7 +1801,7 @@ async def get_evidence_coords(
                             height=(hit.y1 - hit.y0) / page_height
                         ))
                         chunk_matched = True
-            
+
             if chunk_matched:
                 # If chunks matched, we consider it a hit. We'll still check the next page if it spilled over.
                 pass
@@ -1780,28 +1809,28 @@ async def get_evidence_coords(
             # 3. Fallback: difflib sequence matching
             page_words = page.get_text("words", sort=True)
             page_clean_words = [clean_word(w[4]) for w in page_words]
-            
+
             if search_words_list and page_clean_words:
                 matcher = difflib.SequenceMatcher(None, page_clean_words, search_words_list)
                 blocks = matcher.get_matching_blocks()
-                
+
                 min_block_size = 2 if len(search_words_list) > 3 else 1
                 valid_blocks = [b for b in blocks if b.size >= min_block_size]
-                
+
                 if valid_blocks:
                     matched_count = sum(b.size for b in valid_blocks)
                     total_matched_words += matched_count
 
                     start_idx = valid_blocks[0].a
                     end_idx = valid_blocks[-1].a + valid_blocks[-1].size
-                    
+
                     def merge_rects(word_list):
                         merged = []
                         current_rect = None
                         def is_same_line(r1, r2):
                             overlap = max(0, min(r1[3], r2[3]) - max(r1[1], r2[1]))
                             return overlap > 0.5 * min(r1[3]-r1[1], r2[3]-r2[1])
-                            
+
                         for w in word_list:
                             r = [w[0], w[1], w[2], w[3]]
                             if current_rect is None:
@@ -1826,7 +1855,7 @@ async def get_evidence_coords(
                         for b in valid_blocks:
                             for i in range(b.a, b.a + b.size):
                                 words_to_merge.append(page_words[i])
-                                
+
                     merged_rects = merge_rects(words_to_merge)
                     for mr in merged_rects:
                         rects.append(RectCoord(
@@ -1836,7 +1865,7 @@ async def get_evidence_coords(
                             width=(mr[2] - mr[0]) / page_width,
                             height=(mr[3] - mr[1]) / page_height
                         ))
-            
+
             # If we've found enough matches on the first page, do not process the next page
             # to avoid false positives (e.g. difflib matching stop words on the next page).
             if rects and not chunk_matched and total_matched_words >= len(search_words_list) * 0.8:
@@ -2196,7 +2225,7 @@ async def create_synthesis_session(
         if getattr(paper, 'active_ingestion_id', None) is None:
             try:
                 await asyncio.wait_for(ensure_paper_ingested(db, paper), timeout=10.0)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 await db.rollback()
                 import logging
                 logging.getLogger(__name__).warning("Auto-ingestion timed out for paper %s, skipping", p_id_str)
@@ -2221,7 +2250,7 @@ async def create_synthesis_session(
         if not use_celery:
             # Use FastAPI BackgroundTasks so synthesis runs in the web process directly
             async def local_run_synthesis(sid: str):
-                from src.tasks.synthesis_tasks import run_synthesis_session, _mark_terminal_failure
+                from src.tasks.synthesis_tasks import _mark_terminal_failure, run_synthesis_session
                 try:
                     await run_synthesis_session(sid)
                 except Exception as exc:
@@ -2392,6 +2421,7 @@ async def get_synthesis_session_quality(
     fact.
     """
     from sqlalchemy import func
+
     from src.models.db_models import EntailmentStatus, SynthesisClaim, SynthesisMetrics
 
     session_result = await db.execute(
@@ -2447,9 +2477,17 @@ async def delete_synthesis_session(
 ):
     """Delete a synthesis session and its cascades."""
     from sqlalchemy import delete as sql_delete
+
     from src.models.db_models import (
-        SynthesisSession, Citation, EvidenceExtractionAttempt, EvidenceRecord,
-        SynthesisClaim, SynthesisSection, RetrievalLog, LLMCallLog, SynthesisMetrics
+        Citation,
+        EvidenceExtractionAttempt,
+        EvidenceRecord,
+        LLMCallLog,
+        RetrievalLog,
+        SynthesisClaim,
+        SynthesisMetrics,
+        SynthesisSection,
+        SynthesisSession,
     )
 
     # Check existence
@@ -2481,9 +2519,10 @@ async def get_pdf_file(
     db: AsyncSession = Depends(get_db)
 ):
     """Serve uploaded PDF files. If the file is missing locally (e.g. Render container restarts), download it from the paper's online URL."""
-    from fastapi.responses import FileResponse
     import os
+
     import httpx
+    from fastapi.responses import FileResponse
 
     base_dir = os.path.join("uploads", "papers")
     os.makedirs(base_dir, exist_ok=True)
@@ -2537,9 +2576,6 @@ async def get_pdf_file(
 # ==============================================================================
 # RERANKER ENDPOINT (FINE-TUNED 3-DOMAIN CROSS-ENCODER)
 # ==============================================================================
-from src.models.search_schemas import RerankRequest, RerankResponse
-from src.services.reranker_service import reranker_service
-
 @router.post("/slr-swarm/rerank-papers", response_model=RerankResponse, tags=["AI Search"])
 async def api_rerank_papers(req: RerankRequest):
     """Tái xếp hạng danh sách bài báo dựa trên độ khớp ngữ nghĩa chuyên sâu với Query."""

@@ -8,7 +8,7 @@ import asyncio
 import json
 from unittest.mock import AsyncMock, MagicMock
 
-from src.synthesis.fast_v2.citations.verbatim_gate import VerbatimGateRecord, VERBATIM_RISK
+from src.synthesis.fast_v2.citations.verbatim_gate import VERBATIM_RISK, VerbatimGateRecord
 from src.synthesis.fast_v2.citations.verbatim_repair import repair_verbatim_claims
 
 

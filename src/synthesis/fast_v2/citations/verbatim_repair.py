@@ -35,8 +35,8 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Mapping, Sequence
 
 from src.synthesis.fast_v2.citations.anthropic_citations import (
     insert_citations_at_spans,

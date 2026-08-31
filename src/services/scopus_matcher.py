@@ -41,9 +41,8 @@ Các nguyên tắc GIỮ NGUYÊN từ spec gốc (không đổi):
 import json
 import logging
 import re
-from typing import Optional
-import httpx
 
+import httpx
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -52,7 +51,7 @@ from src.models.db_models import Paper, ScopusSource
 logger = logging.getLogger(__name__)
 
 
-def normalize_issn(issn: Optional[str]) -> str:
+def normalize_issn(issn: str | None) -> str:
     """Bỏ dấu '-', khoảng trắng, viết hoa. Trả '' nếu rỗng/N/A/None."""
     if not issn:
         return ""
@@ -62,7 +61,7 @@ def normalize_issn(issn: Optional[str]) -> str:
     return re.sub(r"[\s\-]", "", issn).upper()
 
 
-def parse_coverage_field(raw: Optional[str]) -> list[tuple[int, int]]:
+def parse_coverage_field(raw: str | None) -> list[tuple[int, int]]:
     """
     Parse cột "Coverage" của file Scopus thật thành list các khoảng năm.
 
@@ -101,7 +100,7 @@ def parse_coverage_field(raw: Optional[str]) -> list[tuple[int, int]]:
     return ranges
 
 
-def year_in_coverage(year: int, coverage_ranges_json: Optional[str]) -> Optional[bool]:
+def year_in_coverage(year: int, coverage_ranges_json: str | None) -> bool | None:
     """
     True/False nếu xác định được, None nếu source không có dữ liệu Coverage nào
     (không đủ căn cứ kết luận ok/out_of_coverage).
@@ -117,7 +116,7 @@ def year_in_coverage(year: int, coverage_ranges_json: Optional[str]) -> Optional
     return any(start <= year <= end for start, end in ranges)
 
 
-async def find_scopus_source(db: AsyncSession, issn: str = "", journal_title: str = None) -> Optional[ScopusSource]:
+async def find_scopus_source(db: AsyncSession, issn: str = "", journal_title: str = None) -> ScopusSource | None:
     """Tra cứu ISSN hoặc Tên Tạp chí — khớp với CẢ cột issn, eissn và title của scopus_sources."""
     norm_issn = normalize_issn(issn)
     if norm_issn:
@@ -132,7 +131,7 @@ async def find_scopus_source(db: AsyncSession, issn: str = "", journal_title: st
 
     if journal_title and journal_title.strip() and journal_title.lower() not in ("google scholar", "n/a", "unknown"):
         clean_title = journal_title.strip().lower()
-        
+
         # 1. Exact match (case insensitive)
         result = await db.execute(
             select(ScopusSource).where(
@@ -157,7 +156,7 @@ async def find_scopus_source(db: AsyncSession, issn: str = "", journal_title: st
     return None
 
 
-async def fetch_issn_by_doi(doi: str) -> Optional[str]:
+async def fetch_issn_by_doi(doi: str) -> str | None:
     """Fallback: Tra cứu mã ISSN từ OpenAlex qua mã DOI nếu bài báo bị thiếu ISSN."""
     if not doi or doi.upper() in ("N/A", "NONE", ""):
         return None
@@ -195,7 +194,7 @@ async def quality_check(db: AsyncSession, paper: Paper) -> Paper:
 
         # 1. Filter out local unverified repositories
         if any(bad in check_str for bad in [
-            "đại học mở", "open university", "ou.edu.vn", "vjol.info.vn", 
+            "đại học mở", "open university", "ou.edu.vn", "vjol.info.vn",
             "tạp chí khoa học", "tap chi khoa hoc", "khoa học và công nghệ",
             "luận văn", "luan van", "khóa luận", "khoa luan", "thạc sĩ", "tiến sĩ",
             "repository.", "dspace.", "thuvien."
@@ -207,7 +206,7 @@ async def quality_check(db: AsyncSession, paper: Paper) -> Paper:
 
         # 2. Check verified international publishers whitelist
         is_reputable = any(x in j_lower for x in [
-            "ieee", "acm", "springer", "elsevier", "wiley", "nature", "science", "mdpi", 
+            "ieee", "acm", "springer", "elsevier", "wiley", "nature", "science", "mdpi",
             "plos", "frontiers", "taylor & francis", "taylor and francis", "oxford", "cambridge",
             "iop", "royal society", "sage", "hindawi", "spie", "sciencedirect", "cell press",
             "biomed central", "arxiv", "conference", "symposium", "transactions", "journal"

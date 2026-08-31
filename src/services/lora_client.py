@@ -1,8 +1,8 @@
-import os
-import aiohttp
-import logging
 import json
-from src.config import get_settings
+import logging
+import os
+
+import aiohttp
 
 logger = logging.getLogger(__name__)
 
@@ -13,12 +13,12 @@ async def call_lora_model(agent_name: str, instruction: str, input_text: str) ->
     """
     Gọi tới máy chủ LoRA (Local hoặc Colab Ngrok).
     Nếu không có kết nối, trả về None để hệ thống tự động Fallback sang Gemini.
-    
+
     agent_name: lora_agent1_scope | lora_agent2_criteria | lora_agent3_pico
     """
     if not LORA_API_URL:
         return None
-        
+
     prompt_template = """Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
 
 ### Instruction:
@@ -30,7 +30,7 @@ async def call_lora_model(agent_name: str, instruction: str, input_text: str) ->
 ### Response:
 """
     prompt = prompt_template.format(instruction=instruction, input=input_text)
-    
+
     try:
         async with aiohttp.ClientSession() as session:
             # Gửi request tới vLLM / FastAPI Server đang host LoRA
@@ -45,7 +45,7 @@ async def call_lora_model(agent_name: str, instruction: str, input_text: str) ->
                 if resp.status == 200:
                     result = await resp.json()
                     raw_text = result["choices"][0]["text"].strip()
-                    
+
                     # Clean markdown code blocks if any
                     clean_text = raw_text.replace("```json", "").replace("```", "").strip()
                     return json.loads(clean_text)
@@ -53,5 +53,5 @@ async def call_lora_model(agent_name: str, instruction: str, input_text: str) ->
                     logger.warning(f"LoRA Server trả về lỗi: {resp.status}")
     except Exception as e:
         logger.warning(f"Không thể kết nối LoRA Server ({LORA_API_URL}): {e}")
-        
+
     return None

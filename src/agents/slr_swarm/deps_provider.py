@@ -10,14 +10,17 @@ from __future__ import annotations
 import json
 import os
 import re
+
 from src.agents.slr_swarm.contracts import PaperRecord
-from src.agents.slr_swarm.ports import ModelRouter, SwarmDeps
+from src.agents.slr_swarm.ports import LLMPort, ModelRouter, SearchPort, SwarmDeps
 from src.agents.slr_swarm.stubs import (
     DefaultScriptedLLM,
     InMemoryCitations,
     InMemoryCorpus,
     InMemorySearch,
 )
+from src.config import get_settings
+from src.services.search_service import get_serpapi_count
 
 _DEMO_PAPERS = [
     PaperRecord(
@@ -56,9 +59,6 @@ _DEMO_FULLTEXT = {
 }
 
 
-from src.agents.slr_swarm.ports import LLMPort
-from src.config import get_settings
-
 class RealLLMAdapter(LLMPort):
     """Backs the PICO/Gap-Finder agent (Agent 3 in the Research Setup tab).
 
@@ -94,10 +94,6 @@ class RealLLMAdapter(LLMPort):
             logging.getLogger(__name__).warning(f"RealLLMAdapter failover call failed: {e}")
             return "{}"
 
-from src.services.search_service import get_serpapi_count
-from src.agents.slr_swarm.ports import SearchPort
-from src.config import get_settings
-
 class RealSearchAdapter(SearchPort):
     async def search(self, query: str, *, limit: int = 20) -> list[PaperRecord]:
         s = get_settings()
@@ -106,7 +102,7 @@ class RealSearchAdapter(SearchPort):
             # Fallback sang InMemorySearch nếu không có key SerpAPI
             terms = [t.lower() for t in re.findall(r'"([^"]+)"', query)] or [query.lower()]
             return [p for p in _DEMO_PAPERS if any(term in f"{p.title} {p.abstract}".lower() for term in terms)]
-        
+
         # Gọi đếm thật từ Google Scholar qua SerpAPI
         total = await get_serpapi_count(query, api_key)
         # Trả về danh sách PaperRecord tượng trưng với độ dài = total (để _probe_cell lấy len())
@@ -114,7 +110,7 @@ class RealSearchAdapter(SearchPort):
 
 def build_default_deps(**overrides) -> SwarmDeps:
     papers = {p.paper_id: p for p in _DEMO_PAPERS}
-    
+
     use_real = overrides.pop("use_real_llm", None)
     if use_real is None:
         use_real = overrides.pop("real", None)
@@ -122,10 +118,10 @@ def build_default_deps(**overrides) -> SwarmDeps:
         s = get_settings()
         is_test = bool(os.environ.get("PYTEST_CURRENT_TEST")) or s.app_env == "test"
         use_real = not is_test and bool(s.openai_api_key or s.effective_gemini_api_key or s.gemini_api_key or os.getenv("OPENAI_API_KEY") or os.getenv("GEMINI_API_KEY"))
-    
+
     local_llm = RealLLMAdapter() if use_real else DefaultScriptedLLM()
     search_port = RealSearchAdapter() if use_real else InMemorySearch(_DEMO_PAPERS, match_all=True)
-    
+
     deps = SwarmDeps(
         router=ModelRouter(local=local_llm),
         search=search_port,

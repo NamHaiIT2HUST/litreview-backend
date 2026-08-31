@@ -4,25 +4,24 @@ Handles Local Credentials (Username/Password, Role-based Access, Admin Managemen
 and Google OAuth 2.0 (Token verification, Google Identity Services, and session management).
 """
 
-import os
-import logging
-import hashlib
 import base64
-import jwt
-from datetime import datetime, timedelta, UTC
-from typing import Optional, Dict, Any
+import hashlib
+import logging
+import os
+from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, HTTPException, Depends, Request, status
-from fastapi.responses import JSONResponse, RedirectResponse
-from pydantic import BaseModel, EmailStr
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, desc
 import httpx
+import jwt
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import RedirectResponse
+from pydantic import BaseModel
+from sqlalchemy import desc, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.deps import ALGORITHM, AuthenticatedUser, require_admin
 from src.config import get_settings
 from src.database import get_db
-from src.models.db_models import User, Role
+from src.models.db_models import Role, User
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 logger = logging.getLogger("litreview.auth")
@@ -60,7 +59,7 @@ def verify_password(password: str, hashed: str) -> bool:
         return False
 
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.now(UTC) + expires_delta
@@ -85,12 +84,12 @@ class UserLogin(BaseModel):
 
 
 class GoogleAuthPayload(BaseModel):
-    id_token: Optional[str] = None
-    access_token: Optional[str] = None
-    email: Optional[str] = None
-    name: Optional[str] = None
-    picture: Optional[str] = None
-    sub: Optional[str] = None
+    id_token: str | None = None
+    access_token: str | None = None
+    email: str | None = None
+    name: str | None = None
+    picture: str | None = None
+    sub: str | None = None
 
 
 class UserProfileResponse(BaseModel):
@@ -98,14 +97,14 @@ class UserProfileResponse(BaseModel):
     name: str
     email: str
     avatar: str
-    picture: Optional[str] = None
+    picture: str | None = None
     role: str = "Academic Researcher"
     institution: str = "Academic Institution"
     plan: str = "Scholar Pro"
     bio: str = "Đăng nhập xác thực qua Google Workspace."
     provider: str = "google"
     # Added field; existing consumers that ignore it are unaffected.
-    access_token: Optional[str] = None
+    access_token: str | None = None
 
 
 # ── Local Auth Endpoints (Register, Login, Admin) ─────────────────────────────
@@ -114,14 +113,14 @@ class UserProfileResponse(BaseModel):
 async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
     if len(user_data.password) < 6:
         raise HTTPException(status_code=400, detail="Mật khẩu phải có ít nhất 6 ký tự.")
-    
+
     clean_username = user_data.username.strip().lower()
     result = await db.execute(select(User).where(func.lower(User.username) == clean_username))
     if result.scalars().first():
         raise HTTPException(status_code=400, detail="Tên người dùng hoặc email đã tồn tại.")
 
     role_val = Role.admin if user_data.role == "admin" else Role.user
-    
+
     new_user = User(
         username=user_data.username,
         hashed_password=hash_password(user_data.password),
@@ -130,15 +129,15 @@ async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
     db.add(new_user)
     await db.commit()
     await db.refresh(new_user)
-    
+
     access_token = create_access_token(
         data={"sub": new_user.username, "role": new_user.role.value, "id": str(new_user.id)},
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     )
-    
+
     return {
-        "access_token": access_token, 
-        "token_type": "bearer", 
+        "access_token": access_token,
+        "token_type": "bearer",
         "user": {
             "id": str(new_user.id),
             "username": new_user.username,
@@ -151,17 +150,17 @@ async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
 async def login(user_data: UserLogin, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.username == user_data.username))
     user = result.scalars().first()
-    
+
     if not user or not verify_password(user_data.password, user.hashed_password):
         raise HTTPException(status_code=400, detail="Sai tên đăng nhập hoặc mật khẩu.")
-    
+
     access_token = create_access_token(
         data={"sub": user.username, "role": user.role.value, "id": str(user.id)},
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     )
-    
+
     return {
-        "access_token": access_token, 
+        "access_token": access_token,
         "token_type": "bearer",
         "user": {
             "id": str(user.id),
@@ -176,7 +175,7 @@ async def get_admin_stats(
     db: AsyncSession = Depends(get_db),
     _admin: AuthenticatedUser = Depends(require_admin),
 ):
-    from src.models.db_models import Project, SearchQuery, Paper, SynthesisSession, SynthesisMetrics
+    from src.models.db_models import Paper, Project, SearchQuery, SynthesisMetrics, SynthesisSession
 
     user_count = (await db.execute(select(func.count()).select_from(User))).scalar() or 0
     project_count = (await db.execute(select(func.count()).select_from(Project))).scalar() or 0
@@ -397,9 +396,9 @@ async def verify_google_auth(
 
 @router.get("/google/callback")
 async def google_oauth_callback(
-    code: Optional[str] = None,
-    error: Optional[str] = None,
-    state: Optional[str] = None
+    code: str | None = None,
+    error: str | None = None,
+    state: str | None = None
 ):
     # The frontend origin comes from configuration; hardcoding localhost made
     # this endpoint non-functional in every deployed environment.

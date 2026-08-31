@@ -9,13 +9,12 @@ Standards & Metrics:
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
-import os
 import sys
 import time
 import types
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 from src.config import get_settings
@@ -68,16 +67,16 @@ RAGAS_CONTEXT_RECALL_THRESHOLD = 0.80
 class RagasSampleResult(BaseModel):
     sample_id: str
     question: str
-    contexts: List[str] = Field(default_factory=list)
+    contexts: list[str] = Field(default_factory=list)
     answer: str
-    ground_truth: Optional[str] = None
+    ground_truth: str | None = None
     faithfulness: float = Field(default=0.0, description="Faithfulness / Hallucination score [0.0 - 1.0]")
     answer_relevancy: float = Field(default=0.0, description="Answer relevancy score [0.0 - 1.0]")
     context_precision: float = Field(default=0.0, description="Context precision score [0.0 - 1.0]")
     context_recall: float = Field(default=0.0, description="Context recall score [0.0 - 1.0]")
     latency_ms: float = 0.0
     passed_all: bool = False
-    details: Dict[str, Any] = Field(default_factory=dict)
+    details: dict[str, Any] = Field(default_factory=dict)
 
 
 class RagasEvaluationReport(BaseModel):
@@ -96,7 +95,7 @@ class RagasEvaluationReport(BaseModel):
     context_recall_target_met: bool
     overall_ragas_score: float
     avg_latency_ms: float
-    samples: List[RagasSampleResult] = Field(default_factory=list)
+    samples: list[RagasSampleResult] = Field(default_factory=list)
 
 
 class RAGASEvaluationService:
@@ -138,12 +137,12 @@ class RAGASEvaluationService:
         sample_id: str,
         question: str,
         answer: str,
-        contexts: List[str],
-        ground_truth: Optional[str] = None,
+        contexts: list[str],
+        ground_truth: str | None = None,
     ) -> RagasSampleResult:
         """Evaluate a single RAG response using Ragas metrics with resilient execution."""
         t0 = time.time()
-        
+
         # Prepare context texts
         clean_contexts = [c.strip() for c in contexts if c and c.strip()]
         if not clean_contexts:
@@ -159,9 +158,9 @@ class RAGASEvaluationService:
             from ragas.dataset_schema import SingleTurnSample
             from ragas.metrics import (
                 Faithfulness,
-                ResponseRelevancy,
                 LLMContextPrecisionWithReference,
                 LLMContextRecall,
+                ResponseRelevancy,
             )
 
             ragas_llm = self._get_ragas_llm()
@@ -271,23 +270,23 @@ class RAGASEvaluationService:
 
     async def evaluate_test_dataset(
         self,
-        test_items: List[Dict[str, Any]],
+        test_items: list[dict[str, Any]],
         concurrency: int = 3,
     ) -> RagasEvaluationReport:
         """Run batch evaluation over a dataset of test cases with concurrency control."""
         semaphore = asyncio.Semaphore(concurrency)
-        t_start = time.time()
+        time.time()
 
-        async def _eval_one(idx: int, item: Dict[str, Any]) -> RagasSampleResult:
+        async def _eval_one(idx: int, item: dict[str, Any]) -> RagasSampleResult:
             async with semaphore:
                 sample_id = item.get("id") or f"sample_{idx+1}"
                 question = item.get("question", "")
                 ground_truth = item.get("ground_truth") or item.get("expected_answer")
-                
+
                 # If answer or contexts are not pre-computed, execute RAG pipeline
                 answer = item.get("answer")
                 contexts = item.get("contexts")
-                
+
                 if not answer or contexts is None:
                     filter_dict = {"paper_id": item.get("paper_id")} if item.get("paper_id") else None
                     docs = await vector_store_service.search_similar_documents(question, top_k=4, filters=filter_dict)
@@ -304,7 +303,7 @@ class RAGASEvaluationService:
                 )
 
         tasks = [_eval_one(i, item) for i, item in enumerate(test_items)]
-        sample_results: List[RagasSampleResult] = await asyncio.gather(*tasks)
+        sample_results: list[RagasSampleResult] = await asyncio.gather(*tasks)
 
         n = len(sample_results)
         if n == 0:

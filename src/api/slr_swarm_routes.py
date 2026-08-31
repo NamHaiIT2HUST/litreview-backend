@@ -6,23 +6,21 @@ không cần API key. Khi có vLLM/Ollama + SerpApi thật, chỉ cần thay
 """
 
 from __future__ import annotations
+
 import logging
 import os
-import time
+from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from src.agents.slr_swarm.contracts import KpiSnapshot, PICOFrame, PaperRecord
+from src.agents.slr_swarm.agents.criteria_generator import CriteriaGenerationResult, run_criteria_generator
+from src.agents.slr_swarm.agents.gap_finder import run_gap_finder
+from src.agents.slr_swarm.agents.scope_optimizer import ScopeAnalysisResult, run_scope_optimizer
+from src.agents.slr_swarm.contracts import KpiSnapshot
 from src.agents.slr_swarm.deps_provider import build_default_deps
 from src.agents.slr_swarm.graph import run_data_analysis, run_slr
-from src.agents.slr_swarm.agents.gap_finder import run_gap_finder
-from src.agents.slr_swarm.agents.snowball import run_snowball
-from src.agents.slr_swarm.agents.peer_screener import run_peer_screener
-from src.agents.slr_swarm.agents.prisma_drafter import run_prisma_drafter
-from src.agents.slr_swarm.agents.scope_optimizer import run_scope_optimizer, ScopeAnalysisResult
-from src.agents.slr_swarm.agents.criteria_generator import run_criteria_generator, CriteriaGenerationResult
-from src.agents.slr_swarm.kpi import compute_kpi, estimated_cost_saved
+from src.agents.slr_swarm.kpi import estimated_cost_saved
 from src.config import get_settings
 
 router = APIRouter(prefix="/slr-swarm", tags=["slr-swarm"])
@@ -213,12 +211,18 @@ async def step3_draft(payload: DraftRequest):
     raise HTTPException(status_code=410, detail="AI Studio panel đã bị xóa khỏi giao diện.")
 
 # ----------------- DATA ANALYSIS (Agent 5 — DISABLED) -----------------
-class DataAnalysisRequest(BaseModel):
+# NOTE: this route shares its path with the active `/analyze` endpoint above,
+# which was registered first -- FastAPI matches in registration order, so
+# this handler is unreachable. Left in place (dead code) rather than removed
+# since disabling this behavior was evidently a deliberate but incomplete
+# change; the class is renamed only to stop it from shadowing the real
+# DataAnalysisRequest above.
+class _DisabledDataAnalysisRequest(BaseModel):
     csv_text: str = Field(min_length=1)
     goal: str = ""
 
 @router.post("/analyze", include_in_schema=False)
-async def run_analysis(payload: DataAnalysisRequest):
+async def run_analysis(payload: _DisabledDataAnalysisRequest):
     """[DISABLED] CSV Data Copilot (Agent 5) — AI Studio panel removed from UI."""
     raise HTTPException(status_code=410, detail="AI Studio panel đã bị xóa khỏi giao diện.")
 
@@ -238,7 +242,7 @@ async def get_paper_genealogy(payload: GenealogyRequest) -> dict:
     deps = build_default_deps(use_real_llm=_is_real())
     backward_refs = []
     forward_cits = []
-    
+
     try:
         b_records = await deps.citations.references(payload.paper_id or payload.doi)
         f_records = await deps.citations.citations(payload.paper_id or payload.doi)
@@ -301,37 +305,35 @@ Return ONLY a valid JSON object:
         ),
     }
 
-from typing import Optional, Any
 
 # ----------------- PAPER SUMMARY (TL;DR ONE-PAGER) -----------------
 class PaperSummaryRequest(BaseModel):
     paper_id: str
     title: str
-    abstract: Optional[str] = ""
+    abstract: str | None = ""
     authors: Any = ""
     year: Any = 2024
-    venue: Optional[str] = ""
+    venue: str | None = ""
     citations: Any = 0
-    doi: Optional[str] = ""
+    doi: str | None = ""
 
 @router.post("/paper-summary")
 async def get_paper_summary(payload: PaperSummaryRequest) -> dict:
     """Sinh bản tóm tắt TL;DR và cấu trúc bài báo cực kỳ chi tiết."""
-    import os
     import json
-    import asyncio
-    
+
     abstract_text = payload.abstract if payload.abstract and len(payload.abstract) > 20 else "NO ABSTRACT AVAILABLE."
-    
+
     # --- AUTO-FETCH FULL TEXT IF DOI IS AVAILABLE ---
     full_text = ""
     is_paywalled = False
-    
+
     if payload.doi:
         try:
+            import io
+
             import aiohttp
             import pypdf
-            import io
             async with aiohttp.ClientSession() as session:
                 unpaywall_url = f"https://api.unpaywall.org/v2/{payload.doi}?email=admin@litreview.ai"
                 async with session.get(unpaywall_url, timeout=4) as resp:
@@ -371,10 +373,9 @@ CRITICAL INSTRUCTIONS:
 - Be extremely comprehensive and detailed.
 """
         tldr_hint = "Một đoạn tóm tắt siêu tốc (2-3 câu). Bắt buộc ghi chú rõ ràng ở đầu: '🟢 ĐÃ ĐỌC TOÀN VĂN (FULL-TEXT OPEN ACCESS)'"
-        predict_prefix = ""
     else:
         paywall_warning = "🔴 BÀI BÁO BỊ KHÓA BẢN QUYỀN (PAYWALL / TRẢ PHÍ)." if is_paywalled else "⚠️ KHÔNG TÌM THẤY BẢN TOÀN VĂN."
-        
+
         context_block = f"""
 PAPER DETAILS (ABSTRACT ONLY - PAYWALLED):
 Title: {payload.title}
@@ -390,7 +391,7 @@ CRITICAL ANTI-HALLUCINATION INSTRUCTIONS:
 """
         tldr_hint = f"Bắt buộc mở đầu bằng: '{paywall_warning} AI chỉ tóm tắt dựa trên Abstract...'. Sau đó mới tóm tắt 2-3 câu."
 
-    prompt = f"""You are an elite scientific researcher and AI assistant. Your task is to provide an EXTREMELY DETAILED and COMPREHENSIVE structured summary of the following research paper. 
+    prompt = f"""You are an elite scientific researcher and AI assistant. Your task is to provide an EXTREMELY DETAILED and COMPREHENSIVE structured summary of the following research paper.
 
 {context_block}
 
@@ -410,7 +411,6 @@ Return ONLY a valid JSON object with EXACTLY these keys:
   }}
 }}
 """
-    import json
     from src.services.llm import ainvoke_with_failover
 
     try:

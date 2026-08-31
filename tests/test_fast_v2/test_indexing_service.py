@@ -6,12 +6,10 @@ import uuid
 from contextlib import asynccontextmanager
 from types import SimpleNamespace
 
-import numpy as np
 import pytest
 
 from src.synthesis.fast_v2.evidence.indexing_service import FastV2IndexingService
 from src.synthesis.fast_v2.evidence.semantic_index import FastV2SemanticIndex
-
 from tests.test_fast_v2.test_semantic_index import _FakeClient, _FakeEmbedder
 
 PAPER_A = uuid.uuid4()

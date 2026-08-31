@@ -9,15 +9,14 @@ from __future__ import annotations
 import asyncio
 import json
 import uuid
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock
 
 from src.synthesis.fast_v2.citations.anthropic_citations import (
     STRUCTURED_CITATION_SYSTEM_PROMPT,
     attribute_all_prose_paragraphs,
     attribute_paragraph_batch,
-    build_paragraph_section_map,
     format_scoped_evidence_context,
     insert_citations_at_spans,
     resolve_batch_evidence_scope,
@@ -68,7 +67,7 @@ def test_split_paragraph_into_spans_covers_two_sentences():
 
 def test_split_preserves_latex_formula_as_one_span_not_broken_mid_formula():
     spans = split_paragraph_into_spans(PARAGRAPH_CQ)
-    reconstructed = "".join(PARAGRAPH_CQ[s:e] for s, e, _t in spans)
+    "".join(PARAGRAPH_CQ[s:e] for s, e, _t in spans)
     # every span's raw slice must be a verbatim substring of the original
     for start, end, text in spans:
         assert PARAGRAPH_CQ[start:end] == text

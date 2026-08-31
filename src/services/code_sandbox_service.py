@@ -13,13 +13,12 @@ from __future__ import annotations
 import ast
 import asyncio
 import base64
-import contextlib
 import io
 import logging
 import re
-import sys
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
@@ -39,14 +38,14 @@ DISALLOWED_CALLS = {
 
 class CodeExecutionRequest(BaseModel):
     code: str = Field(description="Python code snippet to execute")
-    csv_text: Optional[str] = Field(default="", description="CSV or TSV text to populate the 'df' DataFrame")
-    timeout_seconds: Optional[float] = Field(default=10.0, description="Max execution duration in seconds")
+    csv_text: str | None = Field(default="", description="CSV or TSV text to populate the 'df' DataFrame")
+    timeout_seconds: float | None = Field(default=10.0, description="Max execution duration in seconds")
 
 
 class TableResult(BaseModel):
     name: str = "df"
-    columns: List[str] = Field(default_factory=list)
-    rows: List[Dict[str, Any]] = Field(default_factory=list)
+    columns: list[str] = Field(default_factory=list)
+    rows: list[dict[str, Any]] = Field(default_factory=list)
     total_rows: int = 0
     total_cols: int = 0
 
@@ -54,26 +53,26 @@ class TableResult(BaseModel):
 class StatisticalInsight(BaseModel):
     metric: str
     value: str
-    subtext: Optional[str] = None
+    subtext: str | None = None
     category: str = "general"  # summary, correlation, distribution, hypothesis
 
 
 class CodeExecutionResponse(BaseModel):
     success: bool
-    error: Optional[str] = None
+    error: str | None = None
     stdout: str = ""
     stderr: str = ""
     execution_time_ms: int = 0
-    figures: List[str] = Field(default_factory=list, description="Base64 encoded matplotlib figures")
-    tables: List[TableResult] = Field(default_factory=list, description="Extracted DataFrame tables")
-    insights: List[StatisticalInsight] = Field(default_factory=list)
-    execution_stream: Optional[List[Dict[str, Any]]] = Field(default_factory=list, description="Ordered sequence of stdout text and figures")
+    figures: list[str] = Field(default_factory=list, description="Base64 encoded matplotlib figures")
+    tables: list[TableResult] = Field(default_factory=list, description="Extracted DataFrame tables")
+    insights: list[StatisticalInsight] = Field(default_factory=list)
+    execution_stream: list[dict[str, Any]] | None = Field(default_factory=list, description="Ordered sequence of stdout text and figures")
 
 
 class SecurityCheckVisitor(ast.NodeVisitor):
     """AST visitor that checks for prohibited imports and function calls."""
     def __init__(self):
-        self.errors: List[str] = []
+        self.errors: list[str] = []
 
     def visit_Import(self, node: ast.Import):
         for alias in node.names:
@@ -167,7 +166,7 @@ def smart_repair_python_code(code: str) -> str:
     return current_code
 
 
-def validate_python_code(code: str) -> Optional[str]:
+def validate_python_code(code: str) -> str | None:
     """Parses code into AST and inspects for unsafe operations."""
     repaired_code = smart_repair_python_code(code)
     try:
@@ -182,13 +181,13 @@ def validate_python_code(code: str) -> Optional[str]:
     return None
 
 
-def configure_matplotlib_sandbox(sandbox_globals: Dict[str, Any]) -> Any:
+def configure_matplotlib_sandbox(sandbox_globals: dict[str, Any]) -> Any:
     """Configures Matplotlib & Seaborn with Vietnamese Unicode font support and modern publication-grade styling."""
     try:
         import matplotlib
         matplotlib.use("Agg")
-        import matplotlib.pyplot as plt
         import matplotlib.font_manager as fm
+        import matplotlib.pyplot as plt
 
         plt.clf()
         plt.close("all")
@@ -285,7 +284,7 @@ def configure_matplotlib_sandbox(sandbox_globals: Dict[str, Any]) -> Any:
             kwargs.setdefault('whiskerprops', dict(color='#475569', linewidth=1.3, linestyle='--'))
             kwargs.setdefault('capprops', dict(color='#475569', linewidth=1.3))
             kwargs.setdefault('flierprops', dict(marker='o', markersize=5.5, markerfacecolor='#ea580c', markeredgecolor='#c2410c', alpha=0.85))
-            
+
             res = orig_boxplot(*args, **kwargs)
             if isinstance(res, dict) and 'boxes' in res:
                 for idx, box in enumerate(res['boxes']):
@@ -327,10 +326,10 @@ class CodeSandboxService:
 
     async def execute_blocks_async(
         self,
-        blocks: List[str],
+        blocks: list[str],
         csv_text: str = "",
         timeout_seconds: float = 25.0
-    ) -> List[dict]:
+    ) -> list[dict]:
         """Executes a list of code blocks sequentially in the same environment."""
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
@@ -343,16 +342,17 @@ class CodeSandboxService:
 
     def _execute_blocks_sync(
         self,
-        blocks: List[str],
+        blocks: list[str],
         csv_text: str = "",
         timeout_seconds: float = 25.0
-    ) -> List[dict]:
-        t0 = time.time()
-        
+    ) -> list[dict]:
+        time.time()
+
         # Setup sandbox execution namespace
         import io as py_io
-        import pandas as pd
+
         import numpy as np
+        import pandas as pd
 
         class MockIPythonDisplay:
             @staticmethod
@@ -386,7 +386,7 @@ class CodeSandboxService:
                     return MockIPython
                 raise
 
-        sandbox_globals: Dict[str, Any] = {
+        sandbox_globals: dict[str, Any] = {
             "__builtins__": {
                 "__import__": safe_import,
                 "display": MockIPythonDisplay.display,
@@ -462,45 +462,56 @@ class CodeSandboxService:
             if isinstance(filepath_or_buffer, str):
                 import os
                 if not os.path.exists(filepath_or_buffer):
-                    if df is not None: return df.copy()
-                    if raw_csv: return orig_read_csv(py_io.StringIO(raw_csv), *args, **kwargs)
+                    if df is not None:
+                        return df.copy()
+                    if raw_csv:
+                        return orig_read_csv(py_io.StringIO(raw_csv), *args, **kwargs)
             return orig_read_csv(filepath_or_buffer, *args, **kwargs)
 
         def smart_read_table(filepath_or_buffer, *args, **kwargs):
             if isinstance(filepath_or_buffer, str):
                 import os
                 if not os.path.exists(filepath_or_buffer):
-                    if df is not None: return df.copy()
-                    if raw_csv: return orig_read_table(py_io.StringIO(raw_csv), *args, **kwargs)
+                    if df is not None:
+                        return df.copy()
+                    if raw_csv:
+                        return orig_read_table(py_io.StringIO(raw_csv), *args, **kwargs)
             return orig_read_table(filepath_or_buffer, *args, **kwargs)
 
         def smart_read_excel(filepath_or_buffer, *args, **kwargs):
             if isinstance(filepath_or_buffer, str):
                 import os
                 if not os.path.exists(filepath_or_buffer):
-                    if df is not None: return df.copy()
-                    if raw_csv: return orig_read_csv(py_io.StringIO(raw_csv))
+                    if df is not None:
+                        return df.copy()
+                    if raw_csv:
+                        return orig_read_csv(py_io.StringIO(raw_csv))
             if orig_read_excel:
-                try: return orig_read_excel(filepath_or_buffer, *args, **kwargs)
-                except Exception: pass
-            if df is not None: return df.copy()
-            if raw_csv: return orig_read_csv(py_io.StringIO(raw_csv))
+                try:
+                    return orig_read_excel(filepath_or_buffer, *args, **kwargs)
+                except Exception:
+                    pass
+            if df is not None:
+                return df.copy()
+            if raw_csv:
+                return orig_read_csv(py_io.StringIO(raw_csv))
             raise FileNotFoundError(f"File {filepath_or_buffer} not found and no in-memory dataset available.")
 
         pd.read_csv = smart_read_csv
         pd.read_table = smart_read_table
-        if orig_read_excel: pd.read_excel = smart_read_excel
+        if orig_read_excel:
+            pd.read_excel = smart_read_excel
 
         results = []
         for i, block in enumerate(blocks):
             clean_code = smart_repair_python_code(block)
-            
+
             block_output = {"stdout": "", "stderr": "", "figures": []}
-            
+
             if not clean_code:
                 results.append(block_output)
                 continue
-                
+
             security_error = validate_python_code(clean_code)
             if security_error:
                 block_output["stderr"] = f"Rào chắn bảo mật Sandbox: {security_error}"
@@ -522,8 +533,10 @@ class CodeSandboxService:
                         fig_nums = plt.get_fignums()
                         for num in fig_nums:
                             fig = plt.figure(num)
-                            try: fig.tight_layout(pad=2.0)
-                            except Exception: pass
+                            try:
+                                fig.tight_layout(pad=2.0)
+                            except Exception:
+                                pass
                             buf = io.BytesIO()
                             fig.savefig(buf, format="png", bbox_inches="tight", dpi=160)
                             buf.seek(0)
@@ -531,7 +544,7 @@ class CodeSandboxService:
                             figures_base64.append(f"data:image/png;base64,{img_str}")
                             buf.close()
                         plt.close("all")
-                    except Exception as e:
+                    except Exception:
                         pass
                 plt.show = custom_show
 
@@ -554,24 +567,25 @@ class CodeSandboxService:
                 else:
                     compiled = compile(clean_code, filename=f"<sandbox_block_{i}>", mode="exec")
                     exec(compiled, sandbox_globals)
-                
+
                 # Check for unshown figures
                 if plt:
                     fig_nums = plt.get_fignums()
                     if fig_nums:
                         plt.show()
-                        
+
             except Exception as exc:
                 block_output["stderr"] = f"{type(exc).__name__}: {exc}"
-            
+
             block_output["stdout"] = stdout_buf.getvalue()
             block_output["figures"] = figures_base64
             results.append(block_output)
 
         pd.read_csv = orig_read_csv
         pd.read_table = orig_read_table
-        if orig_read_excel: pd.read_excel = orig_read_excel
-        
+        if orig_read_excel:
+            pd.read_excel = orig_read_excel
+
         return results
 
     def _execute_code_sync(
@@ -581,7 +595,7 @@ class CodeSandboxService:
         timeout_seconds: float = 10.0
     ) -> CodeExecutionResponse:
         t0 = time.time()
-        
+
         # 1. Clean and validate code
         clean_code = smart_repair_python_code(code)
 
@@ -605,8 +619,9 @@ class CodeSandboxService:
         execution_stream = []
 
         import io as py_io
-        import pandas as pd
+
         import numpy as np
+        import pandas as pd
 
         class MockIPythonDisplay:
             @staticmethod
@@ -641,7 +656,7 @@ class CodeSandboxService:
                 raise
 
         # Safe global namespace
-        sandbox_globals: Dict[str, Any] = {
+        sandbox_globals: dict[str, Any] = {
             "__builtins__": {
                 "__import__": safe_import,
                 "display": MockIPythonDisplay.display,
@@ -692,10 +707,9 @@ class CodeSandboxService:
             pass
 
         # Matplotlib headless backend configuration with Unicode font & theme
-        figures_base64: List[str] = []
+        figures_base64: list[str] = []
         plt = configure_matplotlib_sandbox(sandbox_globals)
         if plt is not None:
-            orig_show = plt.show
             def custom_show(*args, **kwargs):
                 try:
                     fig_nums = plt.get_fignums()
@@ -714,9 +728,9 @@ class CodeSandboxService:
                         execution_stream.append({"type": "figure", "content": b64_fig})
                         buf.close()
                     plt.close("all")
-                except Exception as e:
+                except Exception:
                     pass
-            
+
             plt.show = custom_show
 
         # Pre-load DataFrame if CSV text is supplied
@@ -822,7 +836,7 @@ class CodeSandboxService:
 
         sandbox_globals["IPython"] = MockIPython
 
-        exec_error: Optional[str] = None
+        exec_error: str | None = None
         success = True
 
         # 5. Run code within captured environment with patched pandas file reader
@@ -831,7 +845,7 @@ class CodeSandboxService:
             pd.read_table = smart_read_table
             if orig_read_excel:
                 pd.read_excel = smart_read_excel
-            
+
             parsed = ast.parse(clean_code)
             if parsed.body and isinstance(parsed.body[-1], ast.Expr):
                 last_expr = parsed.body.pop()
@@ -876,7 +890,7 @@ class CodeSandboxService:
                 logger.warning(f"Failed to capture matplotlib figures: {e}")
 
         # 7. Extract Tabular Data Results (DataFrames and Series)
-        tables_list: List[TableResult] = []
+        tables_list: list[TableResult] = []
         for var_name, var_val in list(sandbox_globals.items()):
             if var_name.startswith("_") or var_name in ["pd", "pandas", "np", "numpy", "plt", "matplotlib", "sns", "seaborn", "scipy", "stats", "sklearn"]:
                 continue
@@ -914,7 +928,7 @@ class CodeSandboxService:
                     pass
 
         # 8. Compute Automated Statistical Insights
-        insights_list: List[StatisticalInsight] = []
+        insights_list: list[StatisticalInsight] = []
         target_df = None
         for t in tables_list:
             if t.name in ["results", "summary", "df_summary", "corr", "grouped", "df"]:

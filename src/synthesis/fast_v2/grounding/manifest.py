@@ -5,9 +5,9 @@ entailment between generated claim text and referenced evidence text.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
 import json
 import re
+from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
 

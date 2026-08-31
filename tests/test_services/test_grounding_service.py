@@ -1,4 +1,5 @@
 import pytest
+
 from src.services.grounding_service import locate_quote_in_raw_text, normalize_with_mapping
 
 

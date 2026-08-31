@@ -1,5 +1,6 @@
 """Unit Tests for CodeSandboxService."""
 import pytest
+
 from src.services.code_sandbox_service import code_sandbox_service, validate_python_code
 
 
@@ -76,13 +77,13 @@ x = 10 / 0
 
 def test_smart_repair_python_code_fixes_unexpected_indent():
     from src.services.code_sandbox_service import smart_repair_python_code
-    
+
     # Indented block with leading comment (the exact bug case)
     broken_code = """
 # Step 1: Initialize
     import pandas as pd
     import numpy as np
-    
+
     # Step 2: Compute stats
     data = [10, 20, 30]
     res = np.mean(data)

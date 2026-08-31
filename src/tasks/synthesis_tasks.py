@@ -7,8 +7,8 @@ import time
 import uuid
 
 from src.database import DATABASE_URL, session_scope
-from src.services.synthesis_service import synthesis_service
 from src.services.synthesis_metrics_service import get_or_create_metrics
+from src.services.synthesis_service import synthesis_service
 from src.synthesis.graph import build_synthesis_graph
 from src.tasks.celery_app import celery_app
 from src.tasks.retry_policy import should_retry_synthesis

@@ -8,27 +8,28 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from collections.abc import Iterable
 from contextlib import contextmanager
 from contextvars import ContextVar
-from collections.abc import Iterable
+from typing import Any
 from uuid import UUID
 
 from src.config import get_settings
 from src.models.db_models import LLMCallLog
-from src.services.synthesis_coverage_policy import dimension_extraction_rules
 from src.models.synthesis_schemas import (
     ClaimVerificationBatchOutput,
     ClaimVerificationDecision,
     EntailmentDecision,
+    EvidenceDeduplicationBatch,
+    EvidenceDimension,
     EvidenceExtractionBatch,
     PaperEvidenceExtractionOutput,
-    EvidenceDeduplicationBatch,
+    ReviewQABatchOutput,
     SectionDraftOutput,
     SynthesisClaimProposalBatch,
     SynthesisOutlineOutput,
-    EvidenceDimension,
-    ReviewQABatchOutput,
 )
+from src.services.synthesis_coverage_policy import dimension_extraction_rules
 
 logger = logging.getLogger(__name__)
 
@@ -266,11 +267,11 @@ class SynthesisLLMService:
 
     def _get_runner_candidates(self, schema):
         candidates = []
-        
+
         # 1. Primary configured LLM
         primary = self._get_llm()
         m_name = getattr(primary, "model", getattr(primary, "model_name", "primary"))
-        
+
         # Try standard structured output
         try:
             candidates.append((m_name, primary.with_structured_output(schema)))
@@ -310,7 +311,7 @@ class SynthesisLLMService:
                             augmented_messages.append((role, content + sys_addition))
                         else:
                             augmented_messages.append((role, content))
-                    
+
                     if hasattr(self._raw_llm, "ainvoke"):
                         resp = await self._raw_llm.ainvoke(augmented_messages, **kwargs)
                     else:
@@ -350,7 +351,7 @@ class SynthesisLLMService:
         import random
         candidates = self._get_runner_candidates(schema)
         messages = [("system", system), ("human", human)]
-        
+
         last_exception = None
         for attempt in range(len(self._retry_delays) + 1):
             started = time.perf_counter()
@@ -577,7 +578,7 @@ class SynthesisLLMService:
                 if strict_dimension_ids else ""
             )
             contexts.append(f"<dimension name={dimension.value}>\n{id_rule}{body}\n</dimension>")
-            
+
         system_prompt = (
             "Extract auditable evidence for all supplied literature-review dimensions in one "
             "response. Every item must name its dimension, copy a verbatim quote, identify its "
@@ -605,12 +606,12 @@ class SynthesisLLMService:
             "Dimension rules:\n"
             + "\n".join(rules)
         )
-        
+
         human_text = (
             f"Research question:\n{research_question}\n\n"
             + "\n\n--- NEXT DIMENSION ---\n\n".join(contexts)
         )
-        
+
         if page_images:
             human_message = [{"type": "text", "text": human_text}]
             for page_num, b64_img in sorted(page_images.items()):

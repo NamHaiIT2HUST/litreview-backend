@@ -27,8 +27,9 @@ in ``docs/architecture/FAST_SYNTHESIS_V2.md`` section L.
 from __future__ import annotations
 
 import uuid
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Protocol, Sequence, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 
 @dataclass(frozen=True)

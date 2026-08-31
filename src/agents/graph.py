@@ -1,9 +1,9 @@
 from langgraph.graph import END, StateGraph
 
+from src.agents.nodes.agentic_rag_node import agentic_rag_node
 from src.agents.nodes.draft_node import draft_node
 from src.agents.nodes.guard_node import guard_node
 from src.agents.nodes.retrieve_node import retrieve_node
-from src.agents.nodes.agentic_rag_node import agentic_rag_node
 from src.agents.state import AgentState
 
 

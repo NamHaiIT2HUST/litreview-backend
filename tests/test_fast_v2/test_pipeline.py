@@ -9,16 +9,16 @@ import uuid
 
 import pytest
 
+from src.synthesis.fast_v2.dimensions.facets import QuestionFacetDimensionQueryPlanner
 from src.synthesis.fast_v2.evidence.models import EvidenceUnit
 from src.synthesis.fast_v2.evidence.retrieval import StaticEvidenceRetriever
-from src.synthesis.fast_v2.dimensions.facets import QuestionFacetDimensionQueryPlanner
 from src.synthesis.fast_v2.generator.fake import FakeSynthesisGenerator
-from src.synthesis.fast_v2.observability import PHASES
-from src.synthesis.fast_v2.pipeline import FastSynthesisV2Pipeline, FastSynthesisV2Result
 from src.synthesis.fast_v2.grounding.semantic import (
     DeterministicFakeSemanticVerifier,
     SemanticVerdict,
 )
+from src.synthesis.fast_v2.observability import PHASES
+from src.synthesis.fast_v2.pipeline import FastSynthesisV2Pipeline, FastSynthesisV2Result
 from src.synthesis.fast_v2.writer import DeterministicFakeLiteratureWriter
 
 PAPER_A = uuid.uuid4()

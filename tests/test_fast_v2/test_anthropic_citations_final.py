@@ -5,9 +5,9 @@ duplicate-handle dedup, unknown-claim-id rejection. All calls mocked.
 """
 import asyncio
 import json
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock
 
 from src.synthesis.fast_v2.citations.anthropic_citations import (
     CITATION_BATCH_TIMEOUT_SECONDS,
@@ -99,7 +99,7 @@ async def test_L_unknown_claim_id_in_response_is_rejected_not_a_crash():
 async def test_X_timeout_classified_as_transport_timeout():
     p0 = "This paragraph would have had a supportable claim."
     fake_llm = MagicMock()
-    fake_llm.ainvoke = AsyncMock(side_effect=asyncio.TimeoutError())
+    fake_llm.ainvoke = AsyncMock(side_effect=TimeoutError())
     sem = asyncio.Semaphore(4)
 
     results_map, attempts, _out, _in, batch_record = await attribute_paragraph_batch(

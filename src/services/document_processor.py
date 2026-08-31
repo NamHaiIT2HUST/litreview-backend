@@ -1,13 +1,11 @@
 import os
-import shutil
 import uuid
 from collections import defaultdict
 from importlib.metadata import PackageNotFoundError, version
 
 from fastapi import UploadFile
-
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 UPLOAD_DIR = "uploads/papers"
 INGESTION_VERSION = "page-offset-v1"

@@ -1,5 +1,6 @@
 import pytest
-from src.services.rag_guardrail_service import rag_guardrail_service, ClaimAttribution, RAGGuardrailResult
+
+from src.services.rag_guardrail_service import RAGGuardrailResult, rag_guardrail_service
 
 
 def test_validate_input_query_safe_and_injection():
@@ -22,9 +23,9 @@ def test_validate_input_query_safe_and_injection():
 def test_sanitize_citations_strips_hallucinated_keys():
     valid_keys = {"1", "2"}
     answer = "Thuật toán A đạt 95% [1], trong khi mô hình B đạt 90% [2], và mô hình C đạt 80% [99]."
-    
+
     sanitized, bad_keys = rag_guardrail_service.sanitize_citations(answer, valid_keys)
-    
+
     assert "99" in bad_keys
     assert "[99]" not in sanitized
     assert "[1]" in sanitized

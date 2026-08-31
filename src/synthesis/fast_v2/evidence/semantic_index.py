@@ -48,8 +48,9 @@ No LLM anywhere in this module, at ingestion or query time.
 from __future__ import annotations
 
 import uuid
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import Any, Callable, Sequence
+from typing import Any
 
 from src.synthesis.fast_v2.evidence.models import EvidenceUnit
 

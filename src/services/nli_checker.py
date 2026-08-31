@@ -17,8 +17,8 @@ from __future__ import annotations
 
 import time
 import uuid
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Sequence
 
 from src.models.synthesis_schemas import ClaimVerificationDecision, EntailmentStatus
 
@@ -70,7 +70,6 @@ class NLIChecker:
                 f"verification for this tier."
             )
 
-        import torch
         from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
         t0 = time.perf_counter()

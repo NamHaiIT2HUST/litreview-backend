@@ -1,13 +1,13 @@
 """Unit tests for backend export_service.py."""
 import json
-import pytest
+
 from src.services.export_service import (
     escape_bibtex,
-    generate_citation_key,
     generate_bibtex,
+    generate_citation_key,
     generate_csv,
-    generate_markdown_report,
     generate_json_package,
+    generate_markdown_report,
 )
 
 

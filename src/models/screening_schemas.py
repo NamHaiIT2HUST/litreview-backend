@@ -1,10 +1,11 @@
+
 from pydantic import BaseModel, Field
-from typing import List, Optional, Any
+
 
 class ScreenReason(BaseModel):
-    matches: List[str] = Field(default_factory=list)
-    mismatches: List[str] = Field(default_factory=list)
-    exclusion_notes: List[str] = Field(default_factory=list)
+    matches: list[str] = Field(default_factory=list)
+    mismatches: list[str] = Field(default_factory=list)
+    exclusion_notes: list[str] = Field(default_factory=list)
 
 class ScreenResponse(BaseModel):
     relevance_bucket: str = Field(..., description="High / Medium / Low / Insufficient_info")
@@ -16,8 +17,8 @@ class ScreenResponse(BaseModel):
 
 class ScreeningDecisionRequest(BaseModel):
     decision: str = Field(..., description="keep / remove / maybe")
-    note: Optional[str] = Field(None, description="Ghi chú người dùng")
+    note: str | None = Field(None, description="Ghi chú người dùng")
 
 class BulkScreeningDecisionRequest(BaseModel):
-    paper_ids: List[str]
+    paper_ids: list[str]
     decision: str = Field(..., description="keep / remove / maybe")

@@ -1,4 +1,4 @@
-from src.tasks.retry_policy import should_retry_synthesis, should_mark_failed
+from src.tasks.retry_policy import should_mark_failed, should_retry_synthesis
 
 
 def test_transient_failure_retries_without_marking_terminal_failure():

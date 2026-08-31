@@ -4,12 +4,11 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-from collections.abc import Iterable
 import uuid
+from collections.abc import Iterable
 
 from sqlalchemy import delete, select
 
-from src.models.synthesis_schemas import EvidenceDimension, PaperEvidenceExtractionOutput
 from src.models.db_models import (
     EvidenceExtractionAttempt,
     EvidenceRecord,
@@ -20,11 +19,12 @@ from src.models.db_models import (
     PageText,
     PDFChunk,
 )
+from src.models.synthesis_schemas import EvidenceDimension, PaperEvidenceExtractionOutput
+from src.services.grounding_service import normalize_for_matching
 from src.services.synthesis_coverage_policy import (
     dimension_extraction_rules,
     dimension_retrieval_hint,
 )
-from src.services.grounding_service import normalize_for_matching
 
 logger = logging.getLogger(__name__)
 
@@ -283,11 +283,11 @@ async def mark_cache_failed(
 async def precompute_generic_evidence(db, *, paper) -> GenericEvidenceCache | None:
     """Populate generic cache after ingest; never propagate failure to ingestion."""
     from src.config import get_settings
+    from src.models.synthesis_schemas import EvidenceExtractionCandidate
     from src.services.grounding_service import build_anchor_contexts, grounding_service
+    from src.services.synthesis_coverage_policy import should_accept_dimension_scope
     from src.services.synthesis_llm_service import synthesis_llm_service
     from src.services.vector_store import vector_store_service
-    from src.services.synthesis_coverage_policy import should_accept_dimension_scope
-    from src.models.synthesis_schemas import EvidenceExtractionCandidate
 
     page_result = await db.execute(select(PageText).where(
         PageText.paper_id == paper.id,

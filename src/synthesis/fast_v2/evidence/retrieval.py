@@ -14,7 +14,8 @@ never a fallback -- see ``src/services/vector_store.py``.
 from __future__ import annotations
 
 import uuid
-from typing import Any, Protocol, Sequence, runtime_checkable
+from collections.abc import Sequence
+from typing import Any, Protocol, runtime_checkable
 
 from src.synthesis.fast_v2.evidence.models import EvidenceUnit
 

@@ -57,9 +57,10 @@ Scope and limits (do not oversell this component)
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Iterable, Sequence
+from typing import Any
 
 from src.synthesis.fast_v2.evidence.models import EvidenceUnit
 
@@ -151,7 +152,7 @@ class HygieneResult:
         return self.hygiene_class is HygieneClass.scientific_content
 
 
-def _match_entry_line(line: str) -> "re.Match | None":
+def _match_entry_line(line: str) -> re.Match | None:
     line = line.strip()
     if not line:
         return None
@@ -182,7 +183,7 @@ def extract_signals(text: str) -> dict[str, Any]:
     """
     body = text or ""
     lines = body.splitlines()
-    non_empty_lines = [l for l in lines if l.strip()]
+    non_empty_lines = [line for line in lines if line.strip()]
     total_lines = max(len(non_empty_lines), 1)
 
     entry_numbers: list[int] = []
@@ -205,7 +206,7 @@ def extract_signals(text: str) -> dict[str, Any]:
 
     sequential_reference_count = _sequential_run_count(entry_numbers)
 
-    reference_heading_present = any(_REFERENCE_HEADING.match(l) for l in non_empty_lines)
+    reference_heading_present = any(_REFERENCE_HEADING.match(line) for line in non_empty_lines)
 
     boilerplate_hits = sum(1 for phrase in _BOILERPLATE_PHRASES if phrase in lower_text)
 

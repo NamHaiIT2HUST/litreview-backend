@@ -187,7 +187,7 @@ class GroundingService:
 
     async def build_window(self, db, *, source_chunk_id, paper_id) -> tuple[GroundingWindow | None, str | None]:
         # Import lazily so pure normalization tests do not initialize DB config.
-        from src.models.db_models import PDFChunk, PageText
+        from src.models.db_models import PageText, PDFChunk
 
         chunk_result = await db.execute(
             select(PDFChunk).where(PDFChunk.id == source_chunk_id)

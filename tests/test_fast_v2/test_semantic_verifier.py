@@ -16,15 +16,14 @@ from src.synthesis.fast_v2.grounding.manifest import (
 from src.synthesis.fast_v2.grounding.semantic import (
     DeterministicFakeSemanticVerifier,
     HostedBatchSemanticVerifier,
+    SemanticStatementInput,
     SemanticVerdict,
     SemanticVerifierError,
-    SemanticStatementInput,
-    build_semantic_verifier_context,
     build_finalizer_draft,
+    build_semantic_verifier_context,
     parse_semantic_verdict,
     verify_and_filter_statements,
 )
-
 
 PAPER_A = uuid.UUID("11111111-1111-1111-1111-111111111111")
 

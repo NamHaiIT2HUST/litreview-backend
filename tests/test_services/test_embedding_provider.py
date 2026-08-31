@@ -2,7 +2,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from src.services.vector_store import build_embeddings, LightweightHashEmbeddings
+from src.services.vector_store import LightweightHashEmbeddings, build_embeddings
 
 
 class _FakeHuggingFace:

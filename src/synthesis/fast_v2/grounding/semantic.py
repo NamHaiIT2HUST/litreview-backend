@@ -5,11 +5,12 @@ retrieves, rewrites claims, changes citations, or calls the synthesis generator.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
-from enum import Enum
 import json
 import time
-from typing import Any, Callable, Mapping, Protocol, Sequence, runtime_checkable
+from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass, replace
+from enum import Enum
+from typing import Any, Protocol, runtime_checkable
 from uuid import UUID
 
 from src.synthesis.fast_v2.evidence.bank import GroundedEvidenceBank

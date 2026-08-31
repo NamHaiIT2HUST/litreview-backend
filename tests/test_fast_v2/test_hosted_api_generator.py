@@ -8,8 +8,8 @@ import pytest
 
 from src.synthesis.fast_v2.evidence.bank import GroundedEvidenceBank
 from src.synthesis.fast_v2.evidence.models import EvidenceUnit
-from src.synthesis.fast_v2.generator.remote_openscholar import FastV2GenerationError
 from src.synthesis.fast_v2.generator.hosted_api import HostedApiGenerator
+from src.synthesis.fast_v2.generator.remote_openscholar import FastV2GenerationError
 
 MANIFEST_CONTENT = """{"claims":[{"facet":"D1","is_comparative":false,"statements":[{"claim_text":"body text","paper_id":"11111111-1111-1111-1111-111111111111","supports":[{"evidence_id":"E001"}]}]}]}"""
 

@@ -1,11 +1,10 @@
 """FastAPI router for Module M6 — Export."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import List, Optional
+from datetime import UTC, datetime
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,7 +21,7 @@ from src.services.export_service import (
 router = APIRouter()
 
 # In-memory export history log for active session tracking
-EXPORT_HISTORY_LOGS: List[dict] = []
+EXPORT_HISTORY_LOGS: list[dict] = []
 
 
 class ExportRequest(BaseModel):
@@ -30,8 +29,8 @@ class ExportRequest(BaseModel):
     scope: str = Field("keep_only", description="Data scope: keep_only, all, synthesis")
     include_abstract: bool = Field(True, description="Whether to include abstract field")
     citation_key_style: str = Field("author_year", description="BibTeX citation key style")
-    draft_text: Optional[str] = Field(None, description="Custom synthesis draft text")
-    custom_papers: Optional[List[dict]] = Field(None, description="Client-side papers override if DB is empty")
+    draft_text: str | None = Field(None, description="Custom synthesis draft text")
+    custom_papers: list[dict] | None = Field(None, description="Client-side papers override if DB is empty")
 
 
 class ExportResponse(BaseModel):
@@ -40,7 +39,7 @@ class ExportResponse(BaseModel):
     content: str
     papers_count: int
     exported_at: str
-    download_url: Optional[str] = None
+    download_url: str | None = None
 
 
 class ExportHistoryRecord(BaseModel):
@@ -93,10 +92,10 @@ async def export_project_data(
             stmt = select(Paper).where(Paper.project_id == project_id)
             if req.scope == "keep_only":
                 stmt = stmt.where(Paper.screening_decision == "keep")
-            
+
             db_result = await db.execute(stmt)
             db_papers = db_result.scalars().all()
-            
+
             if not db_papers and req.scope == "keep_only":
                 fallback_stmt = select(Paper).where(Paper.project_id == project_id)
                 fallback_res = await db.execute(fallback_stmt)
@@ -122,10 +121,10 @@ async def export_project_data(
 
     # Clean non-alphanumeric chars from project name for filename
     clean_proj_name = "".join(c if c.isalnum() else "_" for c in project_dict["name"]).strip("_") or "Project"
-    now_str = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    now_str = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
 
     format_clean = req.format.lower().strip()
-    
+
     if format_clean == "bibtex":
         content = generate_bibtex(papers_list, citation_key_style=req.citation_key_style)
         ext = "bib"
@@ -151,7 +150,7 @@ async def export_project_data(
         raise HTTPException(status_code=400, detail=f"Unsupported format '{req.format}'. Supported: bibtex, csv, markdown, json")
 
     filename = f"{clean_proj_name}_{format_clean.upper()}_{now_str}.{ext}"
-    exported_at = datetime.now(timezone.utc).isoformat()
+    exported_at = datetime.now(UTC).isoformat()
 
     # Log to export session history
     history_record = {
@@ -174,7 +173,7 @@ async def export_project_data(
     )
 
 
-@router.get("/projects/{project_id}/export/history", response_model=List[ExportHistoryRecord])
+@router.get("/projects/{project_id}/export/history", response_model=list[ExportHistoryRecord])
 async def get_export_history(project_id: UUID):
     """Get recent export history for a project."""
     p_id_str = str(project_id)

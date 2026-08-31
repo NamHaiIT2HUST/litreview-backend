@@ -1,9 +1,8 @@
 """Unit Tests for Citation Guardrails & Map-Reduce Cost Optimizer."""
-import pytest
 from langchain_core.documents import Document
 
+from src.services.map_reduce_optimizer import MapReduceOptimizer, MapSummaryCache
 from src.services.rag_guardrail_service import rag_guardrail_service
-from src.services.map_reduce_optimizer import map_reduce_optimizer, MapReduceOptimizer, MapSummaryCache
 
 
 def test_sanitize_citations_strips_phantom_keys():

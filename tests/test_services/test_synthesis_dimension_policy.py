@@ -1,7 +1,10 @@
 from src.models.synthesis_schemas import EvidenceDimension
-from src.services.synthesis_coverage_policy import normalize_dimension, normalize_planned_dimensions
-from src.services.synthesis_coverage_policy import dimension_extraction_rules
-from src.services.synthesis_coverage_policy import should_accept_dimension_scope
+from src.services.synthesis_coverage_policy import (
+    dimension_extraction_rules,
+    normalize_dimension,
+    normalize_planned_dimensions,
+    should_accept_dimension_scope,
+)
 
 
 def test_planner_output_cannot_remove_dimensions_from_complete_profile():

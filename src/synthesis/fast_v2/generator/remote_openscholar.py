@@ -22,7 +22,8 @@ behind what looks like a normal Fast v2 response.
 from __future__ import annotations
 
 import time
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from src.synthesis.fast_v2.evidence.bank import GroundedEvidenceBank
 from src.synthesis.fast_v2.generator.base import FastV2GenerationError, GeneratedDraft
@@ -130,7 +131,7 @@ class RemoteOpenScholarGenerator:
             return response.json()
         except Exception as exc:
             raise FastV2GenerationError(
-                f"OpenScholar GPU service /health returned a malformed (non-JSON) response"
+                "OpenScholar GPU service /health returned a malformed (non-JSON) response"
             ) from exc
 
     def generate(

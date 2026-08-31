@@ -17,7 +17,7 @@ only projects the outline onto the ``DimensionQueryPlanner`` protocol.
 """
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
 
 from src.synthesis.fast_v2.dimensions.planner import DimensionQuery
 from src.synthesis.fast_v2.planning.research_lead import LongformOutlinePlan

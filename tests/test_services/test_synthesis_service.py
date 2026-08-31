@@ -5,15 +5,16 @@ import pytest
 
 from src.models.db_models import SynthesisClaimType
 from src.models.synthesis_schemas import (
+    ClaimVerificationBatchItem,
+    ClaimVerificationBatchOutput,
     DraftSentence,
+    EntailmentStatus,
     OutlineSectionProposal,
     SectionDraftOutput,
     SentenceType,
     SynthesisOutlineOutput,
 )
-from src.services.synthesis_service import SynthesisService
-from src.services.synthesis_service import batch_verification_is_complete
-from src.models.synthesis_schemas import ClaimVerificationBatchOutput, ClaimVerificationBatchItem, EntailmentStatus
+from src.services.synthesis_service import SynthesisService, batch_verification_is_complete
 
 
 class _Result:

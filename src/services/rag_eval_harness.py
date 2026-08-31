@@ -16,19 +16,16 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import os
 import time
-from typing import Any, Dict, List, Optional
-from uuid import UUID
+from typing import Any
 
-from langchain_core.documents import Document
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel, Field
 
 from src.config import get_settings
+from src.services.rag_guardrail_service import ClaimAttribution, RAGGuardrailResult, rag_guardrail_service
 from src.services.rag_service import rag_service
-from src.services.rag_guardrail_service import rag_guardrail_service, RAGGuardrailResult, ClaimAttribution
 from src.services.vector_store import vector_store_service
 
 logger = logging.getLogger(__name__)
@@ -41,8 +38,8 @@ class BenchmarkTestCase(BaseModel):
     id: str
     question: str
     paper_title: str
-    paper_id: Optional[str] = None
-    expected_topics: List[str] = Field(default_factory=list)
+    paper_id: str | None = None
+    expected_topics: list[str] = Field(default_factory=list)
 
 
 class TestCaseEvaluationResult(BaseModel):
@@ -56,8 +53,8 @@ class TestCaseEvaluationResult(BaseModel):
     retrieval_chunk_count: int
     latency_ms: float
     safety_verdict: str
-    claims: List[ClaimAttribution] = Field(default_factory=list)
-    citations: List[Dict[str, Any]] = Field(default_factory=list)
+    claims: list[ClaimAttribution] = Field(default_factory=list)
+    citations: list[dict[str, Any]] = Field(default_factory=list)
     passed: bool
 
 
@@ -71,9 +68,9 @@ class RAGEvaluationReport(BaseModel):
     overall_hallucination_rate_pct: float
     overall_citation_precision_pct: float
     average_latency_ms: float
-    papers_evaluated: List[str] = Field(default_factory=list)
-    results: List[TestCaseEvaluationResult] = Field(default_factory=list)
-    recommendations: List[str] = Field(default_factory=list)
+    papers_evaluated: list[str] = Field(default_factory=list)
+    results: list[TestCaseEvaluationResult] = Field(default_factory=list)
+    recommendations: list[str] = Field(default_factory=list)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -102,13 +99,13 @@ GEN_TESTS_PROMPT = ChatPromptTemplate.from_messages([
 class RAGEvaluationHarness:
     def __init__(self):
         self.settings = get_settings()
-        self._reports_history: List[RAGEvaluationReport] = []
+        self._reports_history: list[RAGEvaluationReport] = []
 
     async def _generate_single_paper_test(
         self,
-        paper: Dict[str, Any],
+        paper: dict[str, Any],
         idx: int
-    ) -> Optional[BenchmarkTestCase]:
+    ) -> BenchmarkTestCase | None:
         """Generate test question for a single paper asynchronously."""
         title = paper.get("title") or paper.get("filename") or f"Paper {idx+1}"
         pid = str(paper.get("id", ""))
@@ -136,7 +133,7 @@ class RAGEvaluationHarness:
         try:
             chain = GEN_TESTS_PROMPT | rag_service.grounded_llm | StrOutputParser()
             raw = await chain.ainvoke({"title": title, "excerpt": abstract[:1800]})
-            
+
             cleaned = raw.strip()
             if "```json" in cleaned:
                 cleaned = cleaned.split("```json")[-1].split("```")[0].strip()
@@ -169,16 +166,16 @@ class RAGEvaluationHarness:
 
     async def generate_test_cases_from_papers(
         self,
-        papers: List[Dict[str, Any]],
+        papers: list[dict[str, Any]],
         max_questions_per_paper: int = 1
-    ) -> List[BenchmarkTestCase]:
+    ) -> list[BenchmarkTestCase]:
         """Concurrently synthesize QA test cases from workspace papers in parallel."""
         tasks = [
             self._generate_single_paper_test(paper, idx)
             for idx, paper in enumerate(papers[:4])
         ]
         results = await asyncio.gather(*tasks, return_exceptions=True)
-        test_cases: List[BenchmarkTestCase] = []
+        test_cases: list[BenchmarkTestCase] = []
         for r in results:
             if isinstance(r, BenchmarkTestCase):
                 test_cases.append(r)
@@ -191,7 +188,7 @@ class RAGEvaluationHarness:
         """Run full RAG execution and attribution verification for a single test case."""
         t0 = time.time()
         filter_dict = {"paper_id": tc.paper_id} if tc.paper_id else None
-        
+
         # 1. Retrieve chunks (top 4 for fast precision)
         try:
             chunks = await vector_store_service.search_similar_documents(tc.question, top_k=4, filters=filter_dict)
@@ -236,11 +233,11 @@ class RAGEvaluationHarness:
 
     async def run_benchmark(
         self,
-        papers: List[Dict[str, Any]],
-        custom_test_cases: Optional[List[BenchmarkTestCase]] = None,
+        papers: list[dict[str, Any]],
+        custom_test_cases: list[BenchmarkTestCase] | None = None,
     ) -> RAGEvaluationReport:
         """Execute automated evaluation benchmark across test cases concurrently."""
-        start_bench = time.time()
+        time.time()
         test_cases = custom_test_cases or await self.generate_test_cases_from_papers(papers)
 
         if not test_cases:
@@ -257,7 +254,7 @@ class RAGEvaluationHarness:
         tasks = [self._eval_single_test_case(tc) for tc in test_cases]
         raw_results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        results: List[TestCaseEvaluationResult] = []
+        results: list[TestCaseEvaluationResult] = []
         for r in raw_results:
             if isinstance(r, TestCaseEvaluationResult):
                 results.append(r)
@@ -302,7 +299,7 @@ class RAGEvaluationHarness:
 
         return report
 
-    def get_recent_reports(self) -> List[RAGEvaluationReport]:
+    def get_recent_reports(self) -> list[RAGEvaluationReport]:
         return self._reports_history
 
 

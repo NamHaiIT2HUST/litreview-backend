@@ -3,7 +3,12 @@ line-length = 120
 
 [lint]
 select = ["E", "F", "I", "N", "W", "UP"]
-ignore = ["E501"]
+# E501: line length isn't a correctness signal here.
+# UP042: `class X(str, Enum)` -> `StrEnum` is a real behavior change (StrEnum's
+# __str__ returns the value directly; str+Enum's default __str__ returns
+# "ClassName.MEMBER"), not a mechanical rewrite -- left as a per-case decision
+# rather than something ruff should suggest project-wide.
+ignore = ["E501", "UP042"]
 
 [format]
 quote-style = "double"
@@ -12,3 +17,19 @@ indent-style = "space"
 [lint.per-file-ignores]
 "scripts/log_hook.py" = ["N806"]
 "src/models/schemas.py" = ["N815"]
+# `load_dotenv()` must run before `src.config`/`src.database` etc. are
+# imported, since they read env vars at import time -- the mid-file imports
+# here are load-order-dependent, not accidental.
+"src/main.py" = ["E402", "N806"]
+"src/api/screening_routes.py" = ["N806"]
+"src/services/synthesis_service.py" = ["N806"]
+# `ARRAY`/`HTML`/`Markdown` intentionally mimic the SQLAlchemy/IPython names
+# they wrap or stand in for.
+"src/models/db_models.py" = ["N802"]
+"src/services/code_sandbox_service.py" = ["N802"]
+# `test_A_...`, `test_B_...` etc. is a deliberate labeled-scenario naming
+# convention across this test module, not an accidental capital.
+"tests/test_fast_v2/*" = ["N802"]
+"src/synthesis/fast_v2/citations/unsupported_gate.py" = ["N818"]
+"tests/test_fast_v2/test_hosted_api_generator.py" = ["N818"]
+"tests/test_fast_v2/test_remote_openscholar.py" = ["N818"]

@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from typing import Sequence
+from collections.abc import Sequence
 
 from src.synthesis.fast_v2.evidence.models import EvidenceUnit
 from src.synthesis.fast_v2.evidence.semantic_index import FastV2SemanticIndex

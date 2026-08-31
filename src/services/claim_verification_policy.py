@@ -4,10 +4,10 @@ deterministic near-verbatim matching, no model call of any kind."""
 from __future__ import annotations
 
 import difflib
-import uuid
 import re
+import uuid
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Sequence
 
 from src.models.synthesis_schemas import ClaimVerificationDecision, EntailmentStatus
 

@@ -27,9 +27,9 @@ Every result from this pipeline is labelled ``fast_v2_experimental`` with
 from __future__ import annotations
 
 import asyncio
-
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Any, Sequence
+from typing import Any
 
 from src.synthesis.fast_v2.citations.finalizer import (
     FinalCitation,

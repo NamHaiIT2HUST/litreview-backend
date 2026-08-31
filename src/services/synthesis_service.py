@@ -6,11 +6,11 @@ evidence grounding, entailment, outline persistence and citation resolution.
 """
 from __future__ import annotations
 
-import uuid
-import json
-import time
-import os
 import base64
+import json
+import os
+import time
+import uuid
 from collections import defaultdict
 from datetime import UTC, datetime
 
@@ -18,24 +18,31 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config import get_settings
-
 from src.models.db_models import (
     Citation,
     ClaimEvidenceLink,
-    LLMCallLog,
-    EntailmentStatus as DBEntailmentStatus,
     EvidenceExtractionAttempt,
     EvidenceRecord,
-    RetrievalLog,
-    EvidenceRelation as DBEvidenceRelation,
-    GroundingStatus as DBGroundingStatus,
+    LLMCallLog,
     PageText,
     Paper,
+    RetrievalLog,
     SynthesisClaim,
-    SynthesisClaimType as DBSynthesisClaimType,
     SynthesisSection,
     SynthesisSession,
     SynthesisStatus,
+)
+from src.models.db_models import (
+    EntailmentStatus as DBEntailmentStatus,
+)
+from src.models.db_models import (
+    EvidenceRelation as DBEvidenceRelation,
+)
+from src.models.db_models import (
+    GroundingStatus as DBGroundingStatus,
+)
+from src.models.db_models import (
+    SynthesisClaimType as DBSynthesisClaimType,
 )
 from src.models.synthesis_schemas import (
     ClaimVerificationBatchOutput,
@@ -49,30 +56,11 @@ from src.services.claim_verification_policy import (
     guard_topic_absence_claim,
     sanitize_claim_verification,
 )
-from src.services.nli_checker import NLIModelUnavailableError, resolve_claims_via_nli
+from src.services.evidence_deduplication_policy import sanitize_evidence_deduplication
 from src.services.evidence_extraction_policy import (
     recovery_budget_allows,
     should_retry_evidence_batch,
 )
-from src.services.evidence_deduplication_policy import sanitize_evidence_deduplication
-from src.services.grounding_service import build_anchor_contexts, grounding_service
-from src.services.synthesis_llm_service import synthesis_llm_service, llm_trace
-from src.services.synthesis_coverage_policy import (
-    dimensions_needing_expansion,
-    dimension_retrieval_hint,
-    evaluate_section_coverage,
-    missing_evidence_paper_ids,
-    normalize_dimension,
-    should_accept_dimension_scope,
-)
-from src.services.synthesis_session_utils import uuid_paper_ids
-from src.services.research_question_policy import (
-    GENERAL_LITERATURE_REVIEW_OBJECTIVE,
-    resolve_research_objective,
-)
-from src.services.vector_store import vector_store_service
-from src.services.synthesis_qa_policy import apply_sentence_qa
-from src.services.outline_coverage_policy import ensure_paper_outline_coverage, flag_single_paper_multi_claim
 from src.services.generic_evidence_cache_service import (
     extraction_fingerprint,
     lookup_ready_cache,
@@ -80,7 +68,26 @@ from src.services.generic_evidence_cache_service import (
     paper_content_hash,
     store_grounded_cache,
 )
+from src.services.grounding_service import build_anchor_contexts, grounding_service
+from src.services.nli_checker import NLIModelUnavailableError, resolve_claims_via_nli
+from src.services.outline_coverage_policy import ensure_paper_outline_coverage
+from src.services.research_question_policy import (
+    GENERAL_LITERATURE_REVIEW_OBJECTIVE,
+    resolve_research_objective,
+)
+from src.services.synthesis_coverage_policy import (
+    dimension_retrieval_hint,
+    dimensions_needing_expansion,
+    evaluate_section_coverage,
+    missing_evidence_paper_ids,
+    normalize_dimension,
+    should_accept_dimension_scope,
+)
+from src.services.synthesis_llm_service import llm_trace, synthesis_llm_service
 from src.services.synthesis_metrics_service import finalize_metrics, increment_metric
+from src.services.synthesis_qa_policy import apply_sentence_qa
+from src.services.synthesis_session_utils import uuid_paper_ids
+from src.services.vector_store import vector_store_service
 
 
 def _now_utc() -> datetime:
@@ -1524,10 +1531,10 @@ class SynthesisService:
 
         import logging
         logger = logging.getLogger(__name__)
-        
+
         from copy import deepcopy
         refined_sections = deepcopy(drafted_sections)
-        
+
         # Fetch session to get research_question for refinement
         session_result = await db.execute(
             select(SynthesisSession).where(SynthesisSession.id == session_id)
@@ -1537,7 +1544,7 @@ class SynthesisService:
 
         MAX_REFINEMENT_ATTEMPTS = 3
         final_verdicts = {}
-        
+
         for attempt in range(1, MAX_REFINEMENT_ATTEMPTS + 1):
             qa_items: list[str] = []
             for section in refined_sections:
@@ -1555,19 +1562,19 @@ class SynthesisService:
                         f"[sentence_id={sentence_id}]\nType: {sentence.get('sentence_type', 'claim')}\n"
                         f"Sentence: {sentence.get('sentence', '')}\n" + "\n".join(claim_context)
                     )
-            
+
             if not qa_items:
                 break
-                
+
             with llm_trace(db, session_id, f"qa_review_attempt_{attempt}"):
                 output = await synthesis_llm_service.qa_review_batch(
                     qa_context="\n\n---\n\n".join(qa_items)
                 )
-            
+
             verdicts = {item.sentence_id: item.verdict.value for item in output.sentence_checks}
             reasons = {item.sentence_id: item.reason for item in output.sentence_checks}
             final_verdicts = verdicts
-            
+
             sections_to_refine = []
             for section in refined_sections:
                 section_id = str(section.get("section_id"))
@@ -1578,36 +1585,36 @@ class SynthesisService:
                     if verdict in ("warning", "blocked"):
                         reason = reasons.get(sentence_id, "No reason provided")
                         section_qa_issues.append(f"Sentence: \"{sentence.get('sentence', '')}\"\nVerdict: {verdict}\nReason: {reason}")
-                
+
                 if section_qa_issues:
                     sections_to_refine.append((section, section_qa_issues))
-            
+
             if not sections_to_refine:
                 # All sections passed QA!
                 break
-                
+
             if attempt == MAX_REFINEMENT_ATTEMPTS:
                 # Reached max attempts, fallback to pruning
                 break
-                
+
             for section, section_qa_issues in sections_to_refine:
                 section_title = section.get("title", "")
                 logger.info(f"⚠️ QA Review flagged [warning/blocked]. Refining section {section_title} (Attempt {attempt}/{MAX_REFINEMENT_ATTEMPTS - 1})")
-                
+
                 section_claim_ids = set()
                 for sentence in section.get("sentences", []):
                     section_claim_ids.update(str(value) for value in sentence.get("claim_ids", []))
-                
+
                 claims_context_parts = []
                 for claim_id in section_claim_ids:
                     claims_context_parts.append(
                         f"Claim {claim_id}: {statement_by_claim.get(claim_id, '[missing]')}\n"
                         + "\n".join(context_by_claim.get(claim_id, ["[no supported evidence]"]))
                     )
-                
+
                 original_draft = " ".join(s.get("sentence", "") for s in section.get("sentences", []))
                 qa_feedback = "\n\n".join(section_qa_issues)
-                
+
                 with llm_trace(db, session_id, f"refine_section_attempt_{attempt}"):
                     refined_output = await synthesis_llm_service.refine_section(
                         research_question=research_question,
@@ -1616,7 +1623,7 @@ class SynthesisService:
                         original_draft=original_draft,
                         qa_feedback=qa_feedback,
                     )
-                
+
                 sentences = []
                 for item in refined_output.sentences:
                     valid_claim_ids = [claim_id for claim_id in item.claim_ids if str(claim_id) in section_claim_ids]
@@ -1629,7 +1636,7 @@ class SynthesisService:
                             "claim_ids": [str(claim_id) for claim_id in valid_claim_ids],
                         }
                     )
-                
+
                 section["sentences"] = sentences
                 section["raw_draft_word_count"] = sum(len(item["sentence"].split()) for item in sentences)
 

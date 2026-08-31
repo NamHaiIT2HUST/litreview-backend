@@ -7,8 +7,8 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import Send
 
 from src.database import DATABASE_URL, session_scope
-from src.services.synthesis_service import synthesis_service
 from src.models.synthesis_schemas import EvidenceDimension
+from src.services.synthesis_service import synthesis_service
 from src.services.synthesis_write_gate import SynthesisWriteGate
 from src.synthesis.state import SynthesisState
 

@@ -71,6 +71,7 @@ def test_supported_claim_verification_requires_joint_evidence_ids():
 
 def test_draft_sentence_rejects_llm_generated_numeric_citation_markers():
     import pytest
+
     from src.models.synthesis_schemas import DraftSentence
 
     with pytest.raises(ValueError):
@@ -91,7 +92,6 @@ def test_structured_paper_evidence_groups_grounded_items_by_dimension():
 
     from src.models.synthesis_schemas import (
         EvidenceDimension,
-        EvidenceSubjectScope,
         GroundedEvidence,
         StructuredPaperEvidence,
     )

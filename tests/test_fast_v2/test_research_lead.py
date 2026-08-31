@@ -1,13 +1,11 @@
-import asyncio
 import json
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 from src.synthesis.fast_v2.planning.research_lead import (
     RESEARCH_LEAD_SYSTEM_PROMPT,
     LongformOutlinePlan,
-    SectionPlan,
-    _extract_json_object,
     _parse_outline,
     plan_longform_outline,
 )
@@ -173,7 +171,7 @@ async def test_transport_timeout_gets_the_full_retry_budget_not_just_one_attempt
     })
 
     fake_llm = MagicMock()
-    fake_llm.ainvoke = AsyncMock(side_effect=[asyncio.TimeoutError(), good_response])
+    fake_llm.ainvoke = AsyncMock(side_effect=[TimeoutError(), good_response])
 
     plan = await plan_longform_outline(
         llm=fake_llm,

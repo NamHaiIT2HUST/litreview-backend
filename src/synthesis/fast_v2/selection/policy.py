@@ -22,8 +22,8 @@ Hard rules carried over from the validated experiments
 """
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Sequence
 
 from src.synthesis.fast_v2.evidence.models import EvidenceUnit
 

@@ -1,7 +1,6 @@
 """Retry policy for evidence extraction/grounding batches."""
 from __future__ import annotations
 
-
 MAX_TARGETED_RECOVERY_PER_DIMENSION = 1
 MAX_TARGETED_RECOVERY_PER_PAPER = 4
 

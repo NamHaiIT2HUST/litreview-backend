@@ -25,7 +25,8 @@ importing this module on a CPU-only machine must not pull in torch.
 from __future__ import annotations
 
 import uuid
-from typing import Any, Callable, Sequence
+from collections.abc import Callable, Sequence
+from typing import Any
 
 import numpy as np
 

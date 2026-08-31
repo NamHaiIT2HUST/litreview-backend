@@ -1,20 +1,21 @@
-from fastapi import APIRouter, Depends, HTTPException, Header
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from uuid import UUID
 import logging
 import re
+import uuid
+from uuid import UUID
 
+from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.deps import AuthenticatedUser, get_current_user
 from src.database import get_db
 from src.models.db_models import Project
 from src.models.project_schemas import (
+    CriteriaUpdateRequest,
+    KeywordSuggestionResponse,
     ProjectCreateRequest,
     ProjectResponse,
-    CriteriaUpdateRequest,
-    KeywordSuggestionResponse
 )
 from src.models.schemas import PaperRecord
 
@@ -23,7 +24,7 @@ router = APIRouter()
 
 def _fallback_keywords(request: ProjectCreateRequest) -> list[str]:
     """Return a keyword set grounded in the research question and inclusion criteria.
-    
+
     Generic implementation — works for any research topic by extracting
     meaningful phrases from the user's input rather than hardcoding
     domain-specific terms.
@@ -109,8 +110,6 @@ async def create_project(
     await db.refresh(project)
     return project
 
-
-import uuid
 
 def _resolve_project_id(pid_raw: str | UUID) -> UUID:
     if isinstance(pid_raw, UUID):
@@ -203,8 +202,9 @@ async def get_project_papers(
     db: AsyncSession = Depends(get_db)
 ):
     """Get papers for a project."""
-    from sqlalchemy import or_, func
-    from src.models.db_models import Paper, PageText, PDFChunk
+    from sqlalchemy import func, or_
+
+    from src.models.db_models import PageText, Paper, PDFChunk
 
     p_uuid = _resolve_project_id(project_id)
     parent = (await db.execute(select(Project).where(Project.id == p_uuid))).scalar_one_or_none()
@@ -231,24 +231,24 @@ async def get_project_papers(
         )
     if decision:
         stmt = stmt.where(Paper.screening_decision == decision)
-        
+
     result = await db.execute(stmt)
     papers = result.scalars().all()
-    
+
     paper_records = []
     for p in papers:
         record = PaperRecord.model_validate(p)
         if p.source == "direct_upload":
             pages_stmt = select(func.count(PageText.id)).where(PageText.paper_id == p.id)
             chunks_stmt = select(func.count(PDFChunk.id)).where(PDFChunk.paper_id == p.id)
-            
+
             pages_res = await db.execute(pages_stmt)
             chunks_res = await db.execute(chunks_stmt)
-            
+
             record.total_pages = pages_res.scalar_one()
             record.total_chunks = chunks_res.scalar_one()
         paper_records.append(record)
-        
+
     return paper_records
 
 
@@ -259,13 +259,24 @@ async def delete_project(
     db: AsyncSession = Depends(get_db),
 ):
     """Module 1: Delete a research project and all its associated child data cleanly."""
-    from src.models.db_models import (
-        Paper, PageText, PDFChunk, SearchQuery, SearchQueryPaper,
-        SynthesisSession, Citation, SynthesisClaim, SynthesisSection,
-        EvidenceRecord, EvidenceExtractionAttempt, Extraction, ScreeningHistory,
-        VectorCleanupJob
-    )
     from sqlalchemy import delete as sql_delete
+
+    from src.models.db_models import (
+        Citation,
+        EvidenceExtractionAttempt,
+        EvidenceRecord,
+        Extraction,
+        PageText,
+        Paper,
+        PDFChunk,
+        ScreeningHistory,
+        SearchQuery,
+        SearchQueryPaper,
+        SynthesisClaim,
+        SynthesisSection,
+        SynthesisSession,
+        VectorCleanupJob,
+    )
 
     p_uuid = _resolve_project_id(project_id)
     result = await db.execute(select(Project).where(Project.id == p_uuid))
@@ -335,7 +346,7 @@ async def update_criteria(
 
     project.criteria_include = request.criteria_include
     project.criteria_exclude = request.criteria_exclude
-    
+
     await db.commit()
     await db.refresh(project)
     return project

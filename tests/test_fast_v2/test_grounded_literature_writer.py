@@ -21,15 +21,14 @@ from src.synthesis.fast_v2.grounding.semantic import (
     verify_and_filter_statements,
 )
 from src.synthesis.fast_v2.writer import (
+    WRITER_PROMPT_PATH,
     DeterministicFakeLiteratureWriter,
     HostedGroundedLiteratureWriter,
-    WRITER_PROMPT_PATH,
     WriterClaim,
     WriterValidationError,
     _parse_and_validate,
     apply_grounded_literature_writer,
 )
-
 
 PAPER_A = uuid.UUID("11111111-1111-1111-1111-111111111111")
 PAPER_B = uuid.UUID("22222222-2222-2222-2222-222222222222")

@@ -3,8 +3,6 @@ from __future__ import annotations
 
 import uuid
 
-import pytest
-
 from src.synthesis.fast_v2.citations.finalizer import (
     FinalCitation,
     finalize_draft,

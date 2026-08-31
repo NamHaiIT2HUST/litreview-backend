@@ -47,8 +47,8 @@ def test_run_fast_v2_synthesis_uses_facet_planner_not_legacy_taxonomy(monkeypatc
 
     from src import config as config_module
     from src.synthesis.fast_v2 import runtime as runtime_module
-    from src.synthesis.fast_v2.generator.fake import FakeSynthesisGenerator
     from src.synthesis.fast_v2.evidence.retrieval import StaticEvidenceRetriever
+    from src.synthesis.fast_v2.generator.fake import FakeSynthesisGenerator
     from src.synthesis.fast_v2.pipeline import FastSynthesisV2Pipeline
 
     monkeypatch.setattr(config_module, "get_settings", lambda: _hosted_api_settings())
@@ -95,6 +95,7 @@ def test_ensure_fast_v2_indexed_rebuilds_selected_papers(monkeypatch):
     """A previously-ingested PDF must become retrievable on its first review,
     even when it predates the dedicated Fast V2 collection."""
     import asyncio
+
     from src.synthesis.fast_v2 import runtime as runtime_module
 
     paper_ids = [uuid.uuid4(), uuid.uuid4()]

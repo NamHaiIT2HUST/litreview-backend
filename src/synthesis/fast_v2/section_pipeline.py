@@ -18,11 +18,14 @@ import math
 import os
 import re
 import time
-from dataclasses import dataclass
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 from uuid import UUID
 
-from src.synthesis.fast_v2.citations.anthropic_citations import attribute_all_prose_paragraphs, build_paragraph_section_map
+from src.synthesis.fast_v2.citations.anthropic_citations import (
+    attribute_all_prose_paragraphs,
+    build_paragraph_section_map,
+)
 from src.synthesis.fast_v2.citations.finalizer import FinalCitation
 from src.synthesis.fast_v2.citations.unsupported_gate import evaluate_unsupported_claims
 from src.synthesis.fast_v2.citations.verbatim_gate import VERBATIM_RISK, detect_verbatim_risk

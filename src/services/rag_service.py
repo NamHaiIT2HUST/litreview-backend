@@ -22,12 +22,10 @@ import json
 import logging
 import os
 import re
-from typing import List
 
 from langchain_core.documents import Document
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate, PromptTemplate
-from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import BaseModel, Field
 
 from src.config import get_settings
@@ -282,7 +280,7 @@ class RAGService:
         api_base_val = getattr(settings, "get_api_base", "")
         if callable(api_base_val):
             api_base_val = api_base_val()
-        api_base_str = str(api_base_val or "")
+        str(api_base_val or "")
 
         # 1. Gemini
         if provider == "gemini":
@@ -407,7 +405,7 @@ class RAGService:
             stem = uuid_prefix.group(1)
         return stem[:60]
 
-    def _format_docs(self, docs: List[Document]) -> str:
+    def _format_docs(self, docs: list[Document]) -> str:
         return "\n\n".join(doc.page_content for doc in docs)
 
     # -----------------------------------------------------------------------
@@ -451,7 +449,7 @@ class RAGService:
     # -----------------------------------------------------------------------
     # Main Map-Reduce pipeline
     # -----------------------------------------------------------------------
-    async def generate_answer_map_reduce(self, query: str, chunks: List[Document]) -> str:
+    async def generate_answer_map_reduce(self, query: str, chunks: list[Document]) -> str:
         """Full Map-Reduce RAG pipeline.
 
         PaperQA2-inspired improvements:
@@ -520,7 +518,7 @@ class RAGService:
             new_ckey = str(idx)
             numeric_scored.append((new_ckey, cs))
             numeric_key_to_meta[new_ckey] = key_to_meta[old_ckey]
-            
+
         scored = numeric_scored
         key_to_meta = numeric_key_to_meta
 
@@ -558,11 +556,11 @@ class RAGService:
     # -----------------------------------------------------------------------
     # Public API
     # -----------------------------------------------------------------------
-    async def generate_answer(self, query: str, chunks: List[Document]) -> str:
+    async def generate_answer(self, query: str, chunks: list[Document]) -> str:
         return await self.generate_answer_map_reduce(query, chunks)
 
     async def generate_answer_with_citations(
-        self, query: str, chunks: List[Document]
+        self, query: str, chunks: list[Document]
     ) -> dict:
         """Extended API: returns answer + traceable citation metadata.
 
@@ -718,7 +716,7 @@ class RAGService:
         }
 
 
-    async def generate_structured_answer(self, query: str, chunks: List[Document]) -> list[dict]:
+    async def generate_structured_answer(self, query: str, chunks: list[Document]) -> list[dict]:
         """Structured output for synthesis pipelines: [{sentence, chunk_id, source}]."""
         if not chunks:
             return []

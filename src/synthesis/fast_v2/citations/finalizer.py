@@ -341,9 +341,9 @@ def finalize_natural_markdown(
 ) -> FinalizedSynthesis:
     """Deterministically parse handles [E001] from Markdown and bind to FinalCitation objects."""
     evidence_by_id = {unit.evidence_id: unit for unit in evidence_bank.evidence}
-    
+
     citations: list[FinalCitation] = []
-    
+
     # Paper display order
     paper_order: dict[UUID, int] = {}
     for unit in evidence_bank.evidence:
@@ -355,7 +355,7 @@ def finalize_natural_markdown(
         raw_handles = match.group(1)
         start_idx = match.start()
         end_idx = match.end()
-        
+
         handles = [h.strip() for h in raw_handles.split(",") if h.strip()]
         for h in handles:
             ev_id = handle_mapping.get(h)

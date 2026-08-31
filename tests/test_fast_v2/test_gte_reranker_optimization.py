@@ -16,11 +16,12 @@ telemetry test that depended on the reranker_service.py rewrite is omitted.
 """
 from __future__ import annotations
 
+import uuid
+
 import pytest
 
 from src.synthesis.fast_v2.evidence.models import EvidenceUnit
 from src.synthesis.fast_v2.selection.rerank import CrossEncoderReranker, apply_reranker_many
-import uuid
 
 
 class _FakeModel:
@@ -39,7 +40,7 @@ class _FakeModel:
         self.last_pairs_len = len(pairs)
         # Score by a hash of (query, text) so groups don't collide in score
         # space, but is fully deterministic across runs.
-        return [float(-((hash((q, t)) % 1000))) for q, t in pairs]
+        return [float(-(hash((q, t)) % 1000)) for q, t in pairs]
 
 
 class _FakeRerankerService:

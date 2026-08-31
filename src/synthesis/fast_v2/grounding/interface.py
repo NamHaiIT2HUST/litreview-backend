@@ -23,7 +23,6 @@ from src.synthesis.fast_v2.grounding.manifest import (
     ValidatedClaim,
 )
 
-
 _PROVENANCE_REASON_CATEGORIES = {
     "missing_support": "missing_evidence",
     "unknown_evidence_id": "unknown_evidence_id",

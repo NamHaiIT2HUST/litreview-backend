@@ -1,28 +1,27 @@
 from __future__ import annotations
 
-import uuid
 import json
+import uuid
 
 import pytest
 
+from src.synthesis.fast_v2.citations.finalizer import finalize_structured_draft
 from src.synthesis.fast_v2.evidence.bank import GroundedEvidenceBank
 from src.synthesis.fast_v2.evidence.models import EvidenceUnit
-from src.synthesis.fast_v2.grounding.manifest import (
-    ClaimManifest,
-    ClaimStatement,
-    ClaimSupport,
-    GeneratedClaim,
-    StructuredClaimManifestGuard,
-    ClaimManifestParseError,
-    parse_claim_manifest,
-)
 from src.synthesis.fast_v2.generator.base import GeneratedDraft
 from src.synthesis.fast_v2.generator.prompt import PROMPT_VERSION, build_prompt
 from src.synthesis.fast_v2.grounding.interface import (
     StructuredClaimManifestGroundingService,
 )
-from src.synthesis.fast_v2.citations.finalizer import finalize_structured_draft
-
+from src.synthesis.fast_v2.grounding.manifest import (
+    ClaimManifest,
+    ClaimManifestParseError,
+    ClaimStatement,
+    ClaimSupport,
+    GeneratedClaim,
+    StructuredClaimManifestGuard,
+    parse_claim_manifest,
+)
 
 PAPER_A = uuid.UUID("11111111-1111-1111-1111-111111111111")
 PAPER_B = uuid.UUID("22222222-2222-2222-2222-222222222222")

@@ -5,7 +5,6 @@ risk), short benign overlap left CLEAN (not recorded), and claims with no
 citation ignored entirely (that is the unsupported-claim gate's concern).
 """
 from src.synthesis.fast_v2.citations.verbatim_gate import (
-    CLEAN,
     MIN_RUN_WORDS,
     NUMERIC_LEGITIMATE,
     VERBATIM_RISK,
@@ -33,7 +32,7 @@ def test_genuine_prose_near_verbatim_is_flagged():
 
 def test_numeric_statistical_run_is_not_a_risk():
     pre = "The relative risk was elevated across every lag window we examined in this cohort."
-    post = pre + " [E001]"
+    pre + " [E001]"
     # Long shared digit run (a CI table reproduced), should NOT be VERBATIM_RISK.
     evidence_text = "elevated across every lag window we examined in this cohort 1 05 1 00 1 09 1 05 1 00 1 10"
     # Force a long shared run that is mostly digits by using a matching evidence prefix + digits.
@@ -95,6 +94,7 @@ def test_section_ids_attached_per_paragraph():
 
 def test_gate_makes_no_text_changes_and_calls_no_llm():
     import inspect
+
     from src.synthesis.fast_v2.citations import verbatim_gate
     source = inspect.getsource(verbatim_gate)
     assert "ainvoke" not in source

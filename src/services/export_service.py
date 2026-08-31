@@ -12,15 +12,15 @@ import csv
 import io
 import json
 import re
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 
 def escape_bibtex(text: str | None) -> str:
     """Escapes special LaTeX/BibTeX characters."""
     if not text:
         return ""
-    
+
     replacements = [
         ('\\', '\\textbackslash{}'),
         ('&', '\\&'),
@@ -39,9 +39,9 @@ def escape_bibtex(text: str | None) -> str:
     return result
 
 
-def generate_citation_key(authors: Any, year: Optional[int], title: str, existing_keys: set[str] | None = None) -> str:
+def generate_citation_key(authors: Any, year: int | None, title: str, existing_keys: set[str] | None = None) -> str:
     """Generates a clean, unique citation key for BibTeX entries.
-    
+
     Format: AuthorLastnameYearTitleWord (e.g. Smith2024Deep)
     """
     if existing_keys is None:
@@ -52,7 +52,7 @@ def generate_citation_key(authors: Any, year: Optional[int], title: str, existin
         author_str = str(authors[0])
     elif isinstance(authors, str) and authors.strip():
         author_str = authors.split(',')[0].split(';')[0].split(' and ')[0].strip()
-    
+
     author_parts = re.findall(r'[A-Za-z]+', author_str)
     author_key = author_parts[-1].capitalize() if author_parts else "Author"
     year_key = str(year) if year else "ND"
@@ -75,7 +75,7 @@ def generate_citation_key(authors: Any, year: Optional[int], title: str, existin
     return key
 
 
-def generate_bibtex(papers: List[Dict[str, Any] | Any], citation_key_style: str = "author_year") -> str:
+def generate_bibtex(papers: list[dict[str, Any] | Any], citation_key_style: str = "author_year") -> str:
     """Generates BibTeX formatted string for a collection of papers."""
     entries = []
     existing_keys: set[str] = set()
@@ -124,7 +124,7 @@ def generate_bibtex(papers: List[Dict[str, Any] | Any], citation_key_style: str 
     return "\n\n".join(entries)
 
 
-def generate_csv(papers: List[Dict[str, Any] | Any], include_abstract: bool = True) -> str:
+def generate_csv(papers: list[dict[str, Any] | Any], include_abstract: bool = True) -> str:
     """Generates CSV string with UTF-8 BOM for Excel compatibility."""
     output = io.StringIO()
     output.write('\ufeff')
@@ -178,9 +178,9 @@ def generate_csv(papers: List[Dict[str, Any] | Any], include_abstract: bool = Tr
 
 
 def generate_markdown_report(
-    project: Dict[str, Any] | Any | None,
-    papers: List[Dict[str, Any] | Any],
-    draft_text: Optional[str] = None,
+    project: dict[str, Any] | Any | None,
+    papers: list[dict[str, Any] | Any],
+    draft_text: str | None = None,
     include_abstract: bool = True
 ) -> str:
     """Compiles a full Literature Review report in Markdown format."""
@@ -191,7 +191,7 @@ def generate_markdown_report(
     field = proj_dict.get("research_field", "General")
     criteria_inc = proj_dict.get("criteria_include", "N/A")
     criteria_exc = proj_dict.get("criteria_exclude", "N/A")
-    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    timestamp = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
 
     md_lines = [
         f"# {proj_name}",
@@ -286,13 +286,13 @@ def generate_markdown_report(
 
 
 def generate_json_package(
-    project: Dict[str, Any] | Any | None,
-    papers: List[Dict[str, Any] | Any],
-    draft_text: Optional[str] = None
+    project: dict[str, Any] | Any | None,
+    papers: list[dict[str, Any] | Any],
+    draft_text: str | None = None
 ) -> str:
     """Generates structured JSON string packaging project data."""
     proj_dict = (project if isinstance(project, dict) else project.__dict__) if project else {}
-    
+
     clean_papers = []
     for p in papers:
         p_dict = p if isinstance(p, dict) else p.__dict__
@@ -308,7 +308,7 @@ def generate_json_package(
 
     payload = {
         "app": "T165 LitReview Agent",
-        "exported_at": datetime.now(timezone.utc).isoformat(),
+        "exported_at": datetime.now(UTC).isoformat(),
         "project": {
             "id": str(proj_dict.get("id", "")),
             "name": proj_dict.get("name", "Untitled Project"),

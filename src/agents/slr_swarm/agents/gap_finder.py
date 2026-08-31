@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 
 from src.agents.slr_swarm.contracts import GapCell, GapMap, PICOFrame
-from src.agents.slr_swarm.json_utils import as_str_list, parse_object
+from src.agents.slr_swarm.json_utils import as_str_list
 from src.agents.slr_swarm.ports import SwarmDeps
 
 PICO_SCHEMA = {
@@ -150,7 +150,7 @@ async def run_gap_finder(state: dict, deps: SwarmDeps) -> dict:
     research_field = (state.get("research_field") or "").strip()
     criteria_include = ", ".join(state.get("criteria_include") or []) or "Không có"
     criteria_exclude = ", ".join(state.get("criteria_exclude") or []) or "Không có"
-    
+
     if not idea:
         return {"error": "Thiếu ý tưởng nghiên cứu (idea), Agent 1 không thể bắt đầu."}
 
@@ -209,7 +209,7 @@ async def run_gap_finder(state: dict, deps: SwarmDeps) -> dict:
     comp = str(data.get("comparison", "") or "N/A")
     out = str(data.get("outcome", "") or "")
     raw_kws = as_str_list(data.get("search_keywords"))
-    
+
     # Filter keywords: eliminate whole sentence echoes (> 45 chars or > 5 words)
     kws = []
     for kw in raw_kws:
@@ -261,7 +261,7 @@ async def run_gap_finder(state: dict, deps: SwarmDeps) -> dict:
 
     cells: list[GapCell] = []
     raw_corpus = state.get("corpus", [])
-    
+
     # Normalize corpus items into simple dicts/objects
     corpus = []
     for p in raw_corpus:
@@ -269,14 +269,15 @@ async def run_gap_finder(state: dict, deps: SwarmDeps) -> dict:
             corpus.append(p)
         elif hasattr(p, "title"):
             corpus.append({"title": getattr(p, "title", ""), "abstract": getattr(p, "abstract", "")})
-    
+
     for x in axis_x:
         for y in axis_y:
             x_words = [w.lower().strip("(),.") for w in x.split() if len(w) > 2 and w.lower() not in ["with", "from", "using", "models", "level", "and", "the"]]
             y_words = [w.lower().strip("(),.") for w in y.split() if len(w) > 2 and w.lower() not in ["with", "from", "using", "models", "level", "and", "the"]]
-            
+
             def matches_concept(text: str, words: list[str]) -> bool:
-                if not words: return True
+                if not words:
+                    return True
                 text_l = text.lower()
                 return any(w in text_l for w in words)
 
@@ -290,9 +291,9 @@ async def run_gap_finder(state: dict, deps: SwarmDeps) -> dict:
                 matching_count = 0
 
             cells.append(GapCell(
-                dimension_x=x, 
-                dimension_y=y, 
-                paper_count=matching_count, 
+                dimension_x=x,
+                dimension_y=y,
+                paper_count=matching_count,
                 saturation=GapCell.classify(matching_count)
             ))
 

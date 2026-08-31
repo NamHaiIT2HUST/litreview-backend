@@ -25,8 +25,9 @@ import asyncio
 import datetime
 import json
 import time
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from langchain_openai import ChatOpenAI
@@ -150,13 +151,12 @@ async def ainvoke_with_retry(
     timeout_seconds: float = 75.0,
 ):
     """Execute LLM call with a hard timeout (60-90s) and at most 1 retry."""
-    import datetime
 
     last_error: Exception | None = None
     total_attempts = 1 + max_retries
 
     for attempt in range(1, total_attempts + 1):
-        req_start_dt = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        req_start_dt = datetime.datetime.now(datetime.UTC).isoformat()
         t0 = time.perf_counter()
         print(
             f"[Research Lead] Planning attempt {attempt}/{total_attempts} started at {req_start_dt} "
@@ -166,16 +166,16 @@ async def ainvoke_with_retry(
         try:
             resp = await asyncio.wait_for(llm.ainvoke(messages), timeout=timeout_seconds)
             elapsed = round(time.perf_counter() - t0, 2)
-            req_end_dt = datetime.datetime.now(datetime.timezone.utc).isoformat()
+            req_end_dt = datetime.datetime.now(datetime.UTC).isoformat()
             print(
                 f"[Research Lead] Planning attempt {attempt}/{total_attempts} succeeded in {elapsed}s "
                 f"(end={req_end_dt}).",
                 flush=True,
             )
             return resp
-        except (asyncio.TimeoutError, TimeoutError):
+        except TimeoutError:
             elapsed = round(time.perf_counter() - t0, 2)
-            req_end_dt = datetime.datetime.now(datetime.timezone.utc).isoformat()
+            req_end_dt = datetime.datetime.now(datetime.UTC).isoformat()
             last_error = TimeoutError(f"Planning LLM request timed out after {elapsed}s (limit={timeout_seconds}s)")
             print(
                 f"[Research Lead] Attempt {attempt}/{total_attempts} TIMEOUT: "
@@ -185,7 +185,7 @@ async def ainvoke_with_retry(
             )
         except Exception as exc:
             elapsed = round(time.perf_counter() - t0, 2)
-            req_end_dt = datetime.datetime.now(datetime.timezone.utc).isoformat()
+            req_end_dt = datetime.datetime.now(datetime.UTC).isoformat()
             last_error = exc
             print(
                 f"[Research Lead] Attempt {attempt}/{total_attempts} FAILED: "
@@ -195,7 +195,7 @@ async def ainvoke_with_retry(
             )
 
         if attempt < total_attempts:
-            print(f"[Research Lead] Retrying planning request in 2.0s...", flush=True)
+            print("[Research Lead] Retrying planning request in 2.0s...", flush=True)
             await asyncio.sleep(2.0)
 
     raise ResearchLeadPlanningError(
@@ -348,7 +348,7 @@ async def plan_longform_outline(
             # of what the caller asked for.
             last_error = exc
             if attempt < total_attempts:
-                print(f"[Research Lead] Retrying planning request in 2.0s (transport failure)...", flush=True)
+                print("[Research Lead] Retrying planning request in 2.0s (transport failure)...", flush=True)
                 await asyncio.sleep(2.0)
             continue
 
@@ -364,7 +364,7 @@ async def plan_longform_outline(
                 flush=True,
             )
             if attempt < total_attempts:
-                print(f"[Research Lead] Retrying planning request in 2.0s (parse failure)...", flush=True)
+                print("[Research Lead] Retrying planning request in 2.0s (parse failure)...", flush=True)
                 await asyncio.sleep(2.0)
             continue
 

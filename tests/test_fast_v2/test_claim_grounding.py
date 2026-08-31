@@ -9,7 +9,6 @@ from src.synthesis.fast_v2.generator.base import GeneratedDraft
 from src.synthesis.fast_v2.grounding.interface import (
     ClaimGroundingService,
     ClaimGroundingStatus,
-    GroundedDraft,
     UnvalidatedClaimGroundingPassthrough,
 )
 

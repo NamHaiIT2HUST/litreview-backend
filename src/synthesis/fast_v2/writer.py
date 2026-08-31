@@ -6,13 +6,14 @@ already provenance-validated supports consumed by existing P-165 finalizer.
 """
 from __future__ import annotations
 
-from collections import Counter
-from dataclasses import dataclass, replace
 import json
-from pathlib import Path
 import re
 import time
-from typing import Any, Callable, Protocol, Sequence, runtime_checkable
+from collections import Counter
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass, replace
+from pathlib import Path
+from typing import Any, Protocol, runtime_checkable
 from uuid import UUID
 
 from src.synthesis.fast_v2.evidence.bank import GroundedEvidenceBank
@@ -23,11 +24,10 @@ from src.synthesis.fast_v2.grounding.manifest import (
     ValidatedSupport,
 )
 from src.synthesis.fast_v2.grounding.semantic import (
-    SemanticVerificationOutcome,
     SemanticVerdict,
+    SemanticVerificationOutcome,
     build_finalizer_draft,
 )
-
 
 WRITER_PROMPT_PATH = (
     Path(__file__).resolve().parents[1] / "prompts" / "grounded_literature_writer.txt"
@@ -538,7 +538,7 @@ def _project_document(
     sources: dict[str, ValidatedStatement],
     fallback_draft: GroundedDraft,
 ) -> GroundedDraft:
-    claims_by_id = {claim.claim_id: claim for claim in claims}
+    {claim.claim_id: claim for claim in claims}
     projected: list[ValidatedClaim] = []
     for section in document.sections:
         for paragraph in section.paragraphs:

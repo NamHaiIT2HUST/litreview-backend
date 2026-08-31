@@ -1,15 +1,13 @@
 import asyncio
 import os
-from typing import Any, Dict
 
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage
 from langchain_core.tools import tool
 from langgraph.prebuilt import create_react_agent
 
 from src.agents.state import AgentState
 from src.services.rag_service import rag_service
 from src.services.vector_store import vector_store_service
-
 
 # --- MAIN NODE WRAPPER ---
 
@@ -26,7 +24,7 @@ async def agentic_rag_node(state: AgentState) -> dict:
     async def search_and_extract_evidence(search_query: str, original_question: str) -> str:
         """Tìm kiếm tài liệu trong cơ sở dữ liệu và trích xuất các bằng chứng (evidence) liên quan.
         Sử dụng tool này khi bạn cần tìm thêm thông tin để trả lời câu hỏi.
-        
+
         Args:
             search_query: Từ khóa hoặc câu truy vấn dùng để tìm kiếm tài liệu (vector search).
             original_question: Câu hỏi gốc của người dùng để hệ thống biết cần trích xuất thông tin gì từ tài liệu.
@@ -47,22 +45,22 @@ async def agentic_rag_node(state: AgentState) -> dict:
         # 2. Extract Evidence (MAP step inspired by PaperQA2)
         tasks = []
         key_to_meta = {}
-        
+
         for i, doc in enumerate(chunks):
             ckey = rag_service.make_citation_key(doc, i)
             if ckey in key_to_meta:
                 ckey = f"{ckey}_{i}"
-                
+
             source = doc.metadata.get("source", "unknown")
             page = str(doc.metadata.get("page", "?"))
             paper_title = rag_service._get_paper_title(doc)
-            
+
             key_to_meta[ckey] = {
                 "source": source,
                 "page": page,
                 "paper_title": paper_title,
             }
-            
+
             tasks.append(rag_service._map_chunk(
                 ckey,
                 os.path.basename(str(source)),
@@ -84,7 +82,7 @@ async def agentic_rag_node(state: AgentState) -> dict:
             ckey, summary = item
             if summary.relevance_score >= 2 and summary.summary.strip(): # MIN_RELEVANCE_SCORE = 2
                 scored.append((ckey, summary))
-        
+
         if errors and not scored:
             # All chunks failed with exceptions (e.g. RateLimitError)
             return f"Lỗi trích xuất (có thể do Rate Limit API). Lỗi đầu tiên: {errors[0]}"
@@ -102,14 +100,14 @@ async def agentic_rag_node(state: AgentState) -> dict:
             context_lines.append(
                 f"[{ckey}] (Paper: {meta['paper_title']}, page {page_display}) - Độ liên quan: {cs.relevance_score}/10:\n{cs.summary}"
             )
-            
+
         return "\n\n".join(context_lines)
 
 
     # --- AGENTIC RAG SUB-GRAPH SETUP ---
     llm = rag_service.llm
     tools = [search_and_extract_evidence]
-    
+
     system_prompt = (
         "You are a highly advanced academic AI research assistant (Agentic RAG), similar to NotebookLM.\n"
         "Your goal is to synthesize the provided excerpts into an extremely detailed, highly structured, comprehensive, and textbook-quality academic answer.\n"
@@ -136,9 +134,9 @@ async def agentic_rag_node(state: AgentState) -> dict:
         "MATH RULE — MANDATORY:\n"
         "- Use LaTeX for ALL math without exception. Inline: $\\theta$, Display: $$\\beta_k$$."
     )
-    
+
     agent_app = create_react_agent(llm, tools, state_modifier=system_prompt)
-    
+
     # Chạy agent với recursion limit nhỏ để tránh treo loop quá lâu
     inputs = {"messages": [HumanMessage(content=query)]}
     try:

@@ -8,7 +8,6 @@ import uuid
 from src.database import session_scope
 from src.services.vector_cleanup_service import (
     claim_pending_cleanup_job_ids,
-    list_pending_cleanup_job_ids,
     load_cleanup_job,
     mark_cleanup_attempt,
     mark_cleanup_completed,

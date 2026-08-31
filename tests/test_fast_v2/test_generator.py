@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import json
 import sys
-from types import SimpleNamespace
 import uuid
+from types import SimpleNamespace
 
 import pytest
 
@@ -19,8 +19,8 @@ from src.synthesis.fast_v2.generator.openscholar import (
 )
 from src.synthesis.fast_v2.generator.prompt import (
     PROMPT_VERSION,
-    build_references_block,
     build_prompt,
+    build_references_block,
     sanitize_internal_citations,
 )
 

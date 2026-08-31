@@ -14,9 +14,9 @@ This service performs deep quantitative analysis using Pandas, NumPy, SciPy, and
 """
 from __future__ import annotations
 
-import io
 import logging
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
+
 import numpy as np
 import pandas as pd
 from pydantic import BaseModel, Field
@@ -57,36 +57,36 @@ class CorrelationPair(BaseModel):
     var2: str
     pearson_r: float
     p_value: float
-    spearman_r: Optional[float] = None
-    spearman_p: Optional[float] = None
+    spearman_r: float | None = None
+    spearman_p: float | None = None
     significance: str  # "p < 0.001", "p < 0.01", "p < 0.05", "p >= 0.05"
     strength: str      # "Rất mạnh", "Mạnh", "Trung bình", "Yếu"
 
 
 class TimeSeriesProfile(BaseModel):
     is_time_series: bool = False
-    date_column: Optional[str] = None
-    frequency: Optional[str] = None
+    date_column: str | None = None
+    frequency: str | None = None
     is_monotonic_increasing: bool = False
     has_duplicate_timestamps: bool = False
     duplicate_timestamp_count: int = 0
-    timezone_detected: Optional[str] = None
-    mean_interval_hours: Optional[float] = 1.0
+    timezone_detected: str | None = None
+    mean_interval_hours: float | None = 1.0
     irregular_interval_count: int = 0
-    dst_transition_warning: Optional[str] = None
-    adf_statistic: Optional[float] = None
-    adf_p_value: Optional[float] = None
-    is_stationary: Optional[bool] = None
-    critical_values: Dict[str, float] = Field(default_factory=dict)
+    dst_transition_warning: str | None = None
+    adf_statistic: float | None = None
+    adf_p_value: float | None = None
+    is_stationary: bool | None = None
+    critical_values: dict[str, float] = Field(default_factory=dict)
 
 
 class TargetForecastEvaluation(BaseModel):
     target_col: str
-    forecast_col: Optional[str] = None
-    mae: Optional[float] = None
-    rmse: Optional[float] = None
-    mean_bias: Optional[float] = None
-    correlation_with_target: Optional[float] = None
+    forecast_col: str | None = None
+    mae: float | None = None
+    rmse: float | None = None
+    mean_bias: float | None = None
+    correlation_with_target: float | None = None
 
 
 class ComprehensiveProfile(BaseModel):
@@ -96,33 +96,33 @@ class ComprehensiveProfile(BaseModel):
     total_missing_cells: int
     overall_missing_pct: float
     duplicate_rows: int
-    columns_info: List[Dict[str, Any]]
-    
+    columns_info: list[dict[str, Any]]
+
     # Detailed missing audit
-    completely_empty_cols: List[str]   # 100% NaN
-    constant_cols: List[str]           # nunique <= 1 or std == 0
-    partially_missing_cols: List[ColumnMissingDetail]
-    
+    completely_empty_cols: list[str]   # 100% NaN
+    constant_cols: list[str]           # nunique <= 1 or std == 0
+    partially_missing_cols: list[ColumnMissingDetail]
+
     # Univariate stats
-    univariate_stats: List[UnivariateStat]
-    
+    univariate_stats: list[UnivariateStat]
+
     # Multivariate correlations
-    top_correlations: List[CorrelationPair]
-    key_pair_correlations: Dict[str, float]
-    
+    top_correlations: list[CorrelationPair]
+    key_pair_correlations: dict[str, float]
+
     # Time-series details
     time_series_profile: TimeSeriesProfile
-    
+
     # Target / Forecast
-    target_evaluation: Optional[TargetForecastEvaluation] = None
-    
+    target_evaluation: TargetForecastEvaluation | None = None
+
     # Action Plan
-    columns_to_drop: List[Dict[str, str]]
-    imputation_strategy: List[Dict[str, str]]
-    
+    columns_to_drop: list[dict[str, str]]
+    imputation_strategy: list[dict[str, str]]
+
     # Grounded KPIs for UI Cards / Cover Banner
-    grounded_kpis: List[Dict[str, Any]]
-    
+    grounded_kpis: list[dict[str, Any]]
+
     # Formatted Prompt Text for LLM grounding
     llm_context_summary: str
 
@@ -134,7 +134,7 @@ class EDAProfilingService:
         self,
         df: pd.DataFrame,
         filename: str = "",
-        target_hint: Optional[str] = None
+        target_hint: str | None = None
     ) -> ComprehensiveProfile:
         row_count, col_count = df.shape
         total_cells = row_count * col_count if row_count and col_count else 1
@@ -143,10 +143,10 @@ class EDAProfilingService:
         duplicate_rows = int(df.duplicated().sum())
 
         # 1. Inspect Columns
-        completely_empty_cols: List[str] = []
-        constant_cols: List[str] = []
-        partially_missing_cols: List[ColumnMissingDetail] = []
-        columns_info: List[Dict[str, Any]] = []
+        completely_empty_cols: list[str] = []
+        constant_cols: list[str] = []
+        partially_missing_cols: list[ColumnMissingDetail] = []
+        columns_info: list[dict[str, Any]] = []
 
         for col in df.columns:
             col_str = str(col)
@@ -189,7 +189,7 @@ class EDAProfilingService:
 
         # 2. Univariate Statistics & Outlier Calculation (Numeric Columns)
         numeric_cols = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c]) and c not in completely_empty_cols and c not in constant_cols]
-        univariate_stats: List[UnivariateStat] = []
+        univariate_stats: list[UnivariateStat] = []
 
         for nc in numeric_cols:
             series = df[nc].dropna()
@@ -247,14 +247,14 @@ class EDAProfilingService:
             ))
 
         # 3. Multivariate Correlation & Significance Testing
-        top_correlations: List[CorrelationPair] = []
-        key_pair_correlations: Dict[str, float] = {}
+        top_correlations: list[CorrelationPair] = []
+        key_pair_correlations: dict[str, float] = {}
 
         if len(numeric_cols) >= 2:
             try:
                 from scipy import stats
                 corr_matrix = df[numeric_cols].corr(method="pearson")
-                
+
                 pairs = []
                 for i in range(len(numeric_cols)):
                     for j in range(i + 1, len(numeric_cols)):
@@ -319,12 +319,12 @@ class EDAProfilingService:
         # 4. Time-Series Continuity, DST & Stationarity Audit
         ts_profile = TimeSeriesProfile()
         date_cols = [c for c in df.columns if "time" in str(c).lower() or "date" in str(c).lower() or pd.api.types.is_datetime64_any_dtype(df[c])]
-        
+
         if date_cols:
             ts_profile.is_time_series = True
             dt_col = date_cols[0]
             ts_profile.date_column = str(dt_col)
-            
+
             try:
                 # Check raw string sample for timezone offset (+01:00, +02:00, etc.)
                 raw_sample = df[dt_col].dropna().astype(str).head(10).tolist()
@@ -496,7 +496,7 @@ class EDAProfilingService:
                 if "load" in names and "price" in names:
                     price_load_pair = p
                     break
-            
+
             chosen_pair = price_load_pair or top_correlations[0]
             grounded_kpis.append({
                 "label": f"Tương Quan {chosen_pair.var1[:12]} vs {chosen_pair.var2[:12]}",
@@ -559,19 +559,19 @@ class EDAProfilingService:
         col_count: int,
         duplicate_rows: int,
         overall_missing_pct: float,
-        completely_empty_cols: List[str],
-        constant_cols: List[str],
-        partially_missing_cols: List[ColumnMissingDetail],
-        univariate_stats: List[UnivariateStat],
-        top_correlations: List[CorrelationPair],
+        completely_empty_cols: list[str],
+        constant_cols: list[str],
+        partially_missing_cols: list[ColumnMissingDetail],
+        univariate_stats: list[UnivariateStat],
+        top_correlations: list[CorrelationPair],
         ts_profile: TimeSeriesProfile,
-        target_eval: Optional[TargetForecastEvaluation],
-        columns_to_drop: List[Dict[str, str]],
-        imputation_strategy: List[Dict[str, str]],
-        grounded_kpis: List[Dict[str, Any]],
+        target_eval: TargetForecastEvaluation | None,
+        columns_to_drop: list[dict[str, str]],
+        imputation_strategy: list[dict[str, str]],
+        grounded_kpis: list[dict[str, Any]],
     ) -> str:
         sb = []
-        sb.append(f"### BẢNG THỐNG KÊ ĐỊNH LƯỢNG ĐÃ ĐƯỢC XÁC THỰC 100% BỞI PANDAS & SCIPY:")
+        sb.append("### BẢNG THỐNG KÊ ĐỊNH LƯỢNG ĐÃ ĐƯỢC XÁC THỰC 100% BỞI PANDAS & SCIPY:")
         sb.append(f"- **Kích thước**: {row_count} dòng × {col_count} cột. Số dòng trùng lặp: {duplicate_rows}.")
         sb.append(f"- **Tổng quan khuyết thiếu**: Tổng số ô khuyết là {overall_missing_pct}% (tuy nhiên số này do các cột rỗng 100% chi phối, cần phân tách chi tiết theo cột).")
 

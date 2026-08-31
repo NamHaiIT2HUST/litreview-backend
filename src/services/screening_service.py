@@ -1,13 +1,12 @@
 import datetime
 import logging
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from fastapi import HTTPException
-from src.database import get_db
-from src.models.db_models import Paper, ScreeningHistory, ScreeningDecision, RelevanceBucket
-from src.services.rag_service import rag_service
-from src.models.screening_schemas import ScreenResponse
 import uuid
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.models.db_models import Paper, RelevanceBucket
+from src.models.screening_schemas import ScreenResponse
 
 logger = logging.getLogger(__name__)
 
@@ -18,40 +17,40 @@ async def recompute_priority(paper_id: str | uuid.UUID, db: AsyncSession):
     paper = result.scalar_one_or_none()
     if not paper:
         return
-        
+
     relevance_weight = {
         RelevanceBucket.high: 3,
         RelevanceBucket.medium: 2,
         RelevanceBucket.low: 1,
         RelevanceBucket.insufficient_info: 0
     }
-    
+
     scopus_weight = {
         "indexed": 2,
         "undetermined": 1,
         "not_indexed": 0
     }
-    
+
     bucket = paper.relevance_bucket
     status = paper.scopus_status.value if paper.scopus_status else "undetermined"
-    
+
     w_rel = relevance_weight.get(bucket, 0)
     w_scop = scopus_weight.get(status, 1)
-    
+
     current_year = datetime.datetime.now().year
     paper_year = paper.year if paper.year else current_year
     age = current_year - paper_year
     recency = max(0, min(1, (10 - age) / 10))
-    
+
     # Priority = (Rel * 0.5) + (Scop * 0.3) + (Rec * 0.2)
     # Trọng số tối đa: Rel (3), Scop (2), Rec (1)
     # Ta normalize Rel(0-3)/3, Scop(0-2)/2, Rec(0-1)/1
-    
+
     norm_rel = w_rel / 3.0
     norm_scop = w_scop / 2.0
-    
+
     score = (norm_rel * 0.5) + (norm_scop * 0.3) + (recency * 0.2)
-    
+
     paper.priority_score = score
     await db.commit()
     return score
@@ -64,7 +63,7 @@ async def screen_paper_ai(paper: Paper, project) -> ScreenResponse:
             relevance_bucket="insufficient_info",
             reason={"matches": [], "mismatches": ["Abstract bài báo quá ngắn hoặc chưa cập nhật để phân tích kĩ."]}
         )
-        
+
     prompt = f"""
 Bạn là chuyên gia phân tích bài báo khoa học và thẩm định tài liệu tổng quan hệ thống (Systematic Literature Review).
 Hãy phân tích SÂU và CHI TIẾT bài báo sau đối với dự án nghiên cứu:
@@ -106,7 +105,7 @@ Tóm tắt (Abstract): {abstract}
     }}
 }}
 """
-    
+
     # Used to build its own cascade of up to 5 hand-instantiated clients with
     # a hardcoded, gradually-deprecated model list and its own key resolution
     # order -- the same duplicated pattern that made the three Research Setup

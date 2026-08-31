@@ -1,11 +1,10 @@
-import uuid
 import asyncio
+import uuid
 
 import pytest
 
 from src.models.synthesis_schemas import (
     EvidenceDeduplicationBatch,
-    EvidenceDuplicateGroup,
     EvidenceDimension,
     EvidenceExtractionBatch,
     LLMEvidenceItem,

@@ -15,17 +15,10 @@ Capabilities:
 """
 from __future__ import annotations
 
-import asyncio
-import json
 import logging
-import os
 import re
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
-from uuid import UUID
+from typing import Any
 
-from langchain_core.documents import Document
-from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel, Field
 
@@ -40,12 +33,12 @@ logger = logging.getLogger(__name__)
 class ClaimAttribution(BaseModel):
     sentence: str = Field(description="The individual claim or sentence extracted from the answer.")
     status: str = Field(description="Attributable, Contradictory, or Extrapolatory", default="Attributable")
-    citation_keys: List[str] = Field(default_factory=list, description="Citation numbers or keys cited e.g. ['1', '2']")
+    citation_keys: list[str] = Field(default_factory=list, description="Citation numbers or keys cited e.g. ['1', '2']")
     supporting_excerpt: str = Field(default="", description="Relevant snippet from the referenced source text")
     reasoning: str = Field(default="", description="Explanation of why this claim is supported or hallucinated")
-    paper_title: Optional[str] = None
-    page: Optional[Union[int, str]] = None
-    filename: Optional[str] = None
+    paper_title: str | None = None
+    page: int | str | None = None
+    filename: str | None = None
 
 
 class RAGGuardrailResult(BaseModel):
@@ -58,8 +51,8 @@ class RAGGuardrailResult(BaseModel):
     attributable_claims_count: int = 0
     extrapolatory_claims_count: int = 0
     contradictory_claims_count: int = 0
-    hallucinated_citations: List[str] = Field(default_factory=list)
-    claims: List[ClaimAttribution] = Field(default_factory=list)
+    hallucinated_citations: list[str] = Field(default_factory=list)
+    claims: list[ClaimAttribution] = Field(default_factory=list)
     summary_verdict: str = "Tất cả các luận điểm đều được chứng minh bởi tài liệu trích dẫn."
 
 
@@ -106,11 +99,11 @@ class RAGGuardrailService:
         self.settings = get_settings()
 
     # ── 1. Input Guardrail ──────────────────────────────────────────────────
-    def validate_input_query(self, query: str) -> Tuple[bool, Optional[str]]:
+    def validate_input_query(self, query: str) -> tuple[bool, str | None]:
         """Validate input question against prompt injections and malicious patterns."""
         if not query or not query.strip():
             return False, "Câu hỏi không được để trống."
-        
+
         q_norm = query.strip().lower()
         if len(q_norm) > 4000:
             return False, "Câu hỏi vượt quá độ dài tối đa cho phép (4000 ký tự)."
@@ -162,25 +155,24 @@ class RAGGuardrailService:
         return text
 
     def detect_and_strip_ghost_authors(
-        self, text: str, valid_authors: Optional[Set[str]] = None, valid_years: Optional[Set[str]] = None
-    ) -> Tuple[str, List[str]]:
+        self, text: str, valid_authors: set[str] | None = None, valid_years: set[str] | None = None
+    ) -> tuple[str, list[str]]:
         """Detect and sanitize ghost/hallucinated author-year citations not in database."""
         if not text or not valid_authors:
             return text, []
 
-        ghost_references: List[str] = []
+        ghost_references: list[str] = []
         valid_authors_lower = {a.lower() for a in valid_authors if a}
-        valid_years_set = {str(y).strip() for y in (valid_years or set()) if str(y).strip()}
+        {str(y).strip() for y in (valid_years or set()) if str(y).strip()}
 
         # Match patterns like (Author, 2024) or (Author et al., 2024)
         def _filter_author_year(match: re.Match) -> str:
             full_cit = match.group(0)
             author_part = match.group(1).strip().lower()
-            year_part = match.group(2).strip()
+            match.group(2).strip()
 
             # Check if any valid author surname matches
             author_matched = any(va in author_part for va in valid_authors_lower)
-            year_matched = year_part in valid_years_set if valid_years_set else True
 
             if not author_matched:
                 ghost_references.append(full_cit)
@@ -193,12 +185,12 @@ class RAGGuardrailService:
     def sanitize_citations(
         self,
         answer: str,
-        valid_keys: Set[str],
-        valid_authors: Optional[Set[str]] = None,
-        valid_years: Optional[Set[str]] = None,
-    ) -> Tuple[str, List[str]]:
+        valid_keys: set[str],
+        valid_authors: set[str] | None = None,
+        valid_years: set[str] | None = None,
+    ) -> tuple[str, list[str]]:
         """Identify and strip citation keys & ghost references that do not exist in the retrieved context."""
-        found_keys: List[str] = []
+        found_keys: list[str] = []
         for match in re.finditer(r'\[([0-9,\s]+)\]', answer):
             for k in match.group(1).split(","):
                 k_clean = k.strip()
@@ -233,7 +225,7 @@ class RAGGuardrailService:
         self,
         question: str,
         answer: str,
-        context_chunks: List[Dict[str, Any]],
+        context_chunks: list[dict[str, Any]],
     ) -> RAGGuardrailResult:
         """Run ASTA-Bench claim-level attribution verification on the RAG answer."""
         # 1. Check if the answer is a safe refusal ("Cannot answer")
@@ -309,7 +301,7 @@ class RAGGuardrailService:
                 "page": page,
                 "filename": c.get("filename"),
             }
-        context_str = "\n\n".join(context_lines)
+        "\n\n".join(context_lines)
 
         # High-Speed Deterministic ASTA-Bench Claim Attribution (Sub-millisecond)
         # Parse sentences/claims from markdown answer while preserving lists and headings
@@ -326,15 +318,15 @@ class RAGGuardrailService:
         for s in sentences:
             found_cits = re.findall(r'\[(\d+)\]', s)
             valid_cits_in_s = [k for k in found_cits if k in valid_keys]
-            
+
             if valid_cits_in_s:
                 first_k = valid_cits_in_s[0]
                 doc_info = key_to_doc.get(first_k, {})
                 full_doc_text = doc_info.get("full_text", "")
-                
+
                 # Extract first matching or first 150 chars as supporting excerpt
                 excerpt_snippet = doc_info.get("snippet", full_doc_text[:180])
-                
+
                 parsed.append({
                     "sentence": s,
                     "status": "Attributable",
@@ -360,7 +352,7 @@ class RAGGuardrailService:
                 })
 
 
-        claims_list: List[ClaimAttribution] = []
+        claims_list: list[ClaimAttribution] = []
         attributable_cnt = 0
         extrapolatory_cnt = 0
         contradictory_cnt = 0

@@ -42,7 +42,8 @@ from __future__ import annotations
 import asyncio
 import time
 import uuid
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 from src.synthesis.fast_v2.dimensions.facets import (
     FALLBACK_FACETS,
@@ -150,8 +151,9 @@ def _chroma_client_factory() -> Any:
     host = settings.chroma_host or "localhost"
     port = settings.chroma_port if settings.chroma_host else 8001
 
-    import chromadb
     import os
+
+    import chromadb
 
     try:
         client = chromadb.HttpClient(host=host, port=port)
@@ -317,11 +319,12 @@ async def run_section_scoped_synthesis(
     citation_concurrency: int = 4,
 ) -> FastSynthesisV2Result:
     """Execute section-scoped synthesis with an approved LongformOutlinePlan.
-    
+
     Bypasses: Generator Draft 1, Global Evidence Bank merge, ClaimManifest,
     SemanticVerifier, LiteratureWriter Draft 2.
     """
     from langchain_openai import ChatOpenAI
+
     from src.config import get_settings
     from src.synthesis.fast_v2.section_pipeline import SectionScopedSynthesisPipeline
 

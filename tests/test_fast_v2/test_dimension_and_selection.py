@@ -7,7 +7,6 @@ import pytest
 
 from src.synthesis.fast_v2.dimensions.planner import (
     DeterministicDimensionQueryPlanner,
-    DimensionQuery,
     DimensionQueryPlanner,
 )
 from src.synthesis.fast_v2.evidence.models import EvidenceUnit

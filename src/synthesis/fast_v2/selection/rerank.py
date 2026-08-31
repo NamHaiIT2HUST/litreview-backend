@@ -23,7 +23,8 @@ Wiring a concrete reranker is a follow-up task (promotion criterion 6).
 from __future__ import annotations
 
 import time
-from typing import Any, Protocol, Sequence, runtime_checkable
+from collections.abc import Sequence
+from typing import Any, Protocol, runtime_checkable
 
 from src.synthesis.fast_v2.evidence.models import EvidenceUnit
 

@@ -24,11 +24,11 @@ preserved here rather than "improved".
 """
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Any, Mapping, Sequence
+from typing import Any
 
 from src.synthesis.fast_v2.evidence.models import EvidenceUnit
-
 
 DEFAULT_EVIDENCE_BANK_BUDGET = 12
 

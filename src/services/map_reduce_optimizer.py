@@ -11,8 +11,8 @@ import hashlib
 import logging
 import re
 import time
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Set, Tuple
+from dataclasses import dataclass
+from typing import Any
 
 from langchain_core.documents import Document
 
@@ -40,7 +40,7 @@ class TokenCostReport:
 class MapSummaryCache:
     """Thread-safe in-memory cache for MAP chunk summaries."""
     def __init__(self, max_size: int = 2000):
-        self._cache: Dict[str, Tuple[float, Any]] = {}
+        self._cache: dict[str, tuple[float, Any]] = {}
         self._max_size = max_size
 
     def _compute_key(self, chunk_content: str, query: str) -> str:
@@ -49,7 +49,7 @@ class MapSummaryCache:
         q_hash = hashlib.sha256(q_norm.encode("utf-8")).hexdigest()[:16]
         return f"{c_hash}_{q_hash}"
 
-    def get(self, chunk_content: str, query: str) -> Optional[Any]:
+    def get(self, chunk_content: str, query: str) -> Any | None:
         key = self._compute_key(chunk_content, query)
         entry = self._cache.get(key)
         if entry:
@@ -81,10 +81,10 @@ class MapReduceOptimizer:
         return max(1, int(len(text) / 3.5))
 
     def prefilter_chunks(
-        self, query: str, chunks: List[Document], min_word_overlap: int = 1
-    ) -> Tuple[List[Tuple[int, Document]], int]:
+        self, query: str, chunks: list[Document], min_word_overlap: int = 1
+    ) -> tuple[list[tuple[int, Document]], int]:
         """Pre-filters chunks using fast lexical overlap to avoid unnecessary LLM calls.
-        
+
         Returns:
             - List of (original_index, doc) for promising chunks
             - Estimated tokens saved by pruning irrelevant chunks
@@ -99,7 +99,7 @@ class MapReduceOptimizer:
         }
         q_words = {w for w in re.findall(r"\w{3,}", query.lower()) if w not in stop_words}
 
-        kept_chunks: List[Tuple[int, Document]] = []
+        kept_chunks: list[tuple[int, Document]] = []
         pruned_tokens = 0
 
         for idx, doc in enumerate(chunks):

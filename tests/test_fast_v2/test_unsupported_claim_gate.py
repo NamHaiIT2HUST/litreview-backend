@@ -11,8 +11,8 @@ from src.synthesis.fast_v2.citations.unsupported_gate import (
     GROUNDED,
     NON_FACTUAL_UNCITED_OK,
     PASS_WITH_ISSUES,
-    ProseInvariantViolation,
     UNSUPPORTED,
+    ProseInvariantViolation,
     classify_span_type,
     evaluate_unsupported_claims,
     extract_span_citations,
@@ -134,6 +134,7 @@ def test_gate_makes_no_prose_changes():
     """The gate is read-only: it must not be capable of altering the input
     text at all -- it has no return path that includes modified prose."""
     import inspect
+
     from src.synthesis.fast_v2.citations import unsupported_gate
     source = inspect.getsource(unsupported_gate)
     assert "ainvoke" not in source

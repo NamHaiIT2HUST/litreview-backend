@@ -15,9 +15,9 @@ No LLM call. Read-only. Makes no change to any text.
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
-from typing import Mapping, Sequence
 
 from src.synthesis.fast_v2.citations.anthropic_citations import (
     is_substantive_prose,

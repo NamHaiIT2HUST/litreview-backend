@@ -39,7 +39,7 @@ from __future__ import annotations
 
 import re
 import uuid
-from typing import Sequence
+from collections.abc import Sequence
 
 from src.synthesis.fast_v2.dimensions.planner import DimensionQuery
 
