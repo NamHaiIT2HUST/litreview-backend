@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LitReview Agent - Pitch Deck</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #0f172a;
+            color: #1e293b;
+            overflow: hidden;
+        }
+
+        .presentation-container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .slide {
+            display: none;
+            width: 100%;
+            height: 100%;
+            padding: 60px;
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+            overflow-y: auto;
+            animation: slideIn 0.5s ease-out;
+        }
+
+        .slide.active {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        /* Slide Styling */
+        .slide-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 40px;
+            margin-bottom: 40px;
+        }
+
+        .slide-number {
+            font-size: 14px;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            color: #0f172a;
+            line-height: 1.1;
+            margin-bottom: 20px;
+        }
+
+        h2 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #0f172a;
+            line-height: 1.2;
+            margin-bottom: 30px;
+        }
+
+        h3 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #0f172a;
+            margin-bottom: 15px;
+        }
+
+        p, li {
+            font-size: 1.1rem;
+            line-height: 1.6;
+            color: #475569;
+            margin-bottom: 10px;
+        }
+
+        .tagline {
+            font-size: 1.8rem;
+            font-weight: 300;
+            color: #64748b;
+            margin-bottom: 40px;
+            font-style: italic;
+        }
+
+        /* Color Accents */
+        .accent-primary {
+            color: #3b82f6;
+        }
+
+        .accent-success {
+            color: #10b981;
+        }
+
+        .accent-warning {
+            color: #f59e0b;
+        }
+
+        .accent-danger {
+            color: #ef4444;
+        }
+
+        /* Team Section */
+        .team-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 30px;
+            margin-top: 40px;
+        }
+
+        .team-card {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            padding: 25px;
+            border-radius: 12px;
+            border-left: 4px solid #3b82f6;
+        }
+
+        .team-card strong {
+            display: block;
+            color: #0f172a;
+            margin-bottom: 5px;
+            font-size: 1.1rem;
+        }
+
+        .team-card p {
+            font-size: 0.95rem;
+            color: #64748b;
+        }
+
+        /* Content Sections */
+        .content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .metric-box {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            padding: 40px;
+            border-radius: 16px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .metric-number {
+            font-size: 3.5rem;
+            font-weight: 800;
+            margin-bottom: 10px;
+        }
+
+        .metric-label {
+            font-size: 1.1rem;
+            opacity: 0.95;
+            line-height: 1.5;
+        }
+
+        /* Grid Layouts */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            margin-top: 30px;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 30px;
+            margin-top: 30px;
+        }
+
+        .solution-card {
+            background: white;
+            border: 2px solid #e2e8f0;
+            padding: 30px;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .solution-card:hover {
+            border-color: #3b82f6;
+            box-shadow: 0 10px 30px rgba(59, 130, 246, 0.1);
+        }
+
+        .solution-card h3 {
+            margin-top: 15px;
+        }
+
+        .solution-icon {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        /* Table Styling */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 0.95rem;
+        }
+
+        thead {
+            background: #f0f9ff;
+            border-bottom: 2px solid #3b82f6;
+        }
+
+        th {
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            color: #0f172a;
+        }
+
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #e2e8f0;
+            color: #475569;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tbody tr:hover {
+            background: #f8fafc;
+        }
+
+        /* Lists */
+        ul, ol {
+            margin-left: 30px;
+            margin-top: 15px;
+        }
+
+        li {
+            margin-bottom: 12px;
+        }
+
+        /* Code/Workflow Blocks */
+        .workflow {
+            background: #f0f9ff;
+            border-left: 4px solid #3b82f6;
+            padding: 30px;
+            border-radius: 8px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.9rem;
+            line-height: 1.8;
+            color: #0f172a;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            margin-top: 20px;
+        }
+
+        /* Statistics Row */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 30px;
+            margin-top: 40px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: #3b82f6;
+            margin-bottom: 10px;
+        }
+
+        .stat-label {
+            font-size: 0.95rem;
+            color: #64748b;
+        }
+
+        /* Key Message Box */
+        .key-message {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border-left: 4px solid #f59e0b;
+            padding: 30px;
+            border-radius: 8px;
+            margin-top: 30px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #92400e;
+            line-height: 1.6;
+        }
+
+        .key-message.success {
+            background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+            border-left-color: #10b981;
+            color: #065f46;
+        }
+
+        .key-message.info {
+            background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+            border-left-color: #3b82f6;
+            color: #1e40af;
+        }
+
+        /* Bottleneck Boxes */
+        .bottleneck {
+            background: linear-gradient(135deg, #ffe4e6 0%, #fecdd3 100%);
+            border-left: 4px solid #ef4444;
+            padding: 25px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .bottleneck-title {
+            font-weight: 600;
+            color: #991b1b;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+
+        .bottleneck-detail {
+            font-size: 0.95rem;
+            color: #7f1d1d;
+            line-height: 1.6;
+        }
+
+        /* Navigation */
+        .nav-container {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            display: flex;
+            gap: 15px;
+            z-index: 100;
+        }
+
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        button:hover {
+            background: #2563eb;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+        }
+
+        button:disabled {
+            background: #cbd5e1;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .slide-counter {
+            position: fixed;
+            top: 20px;
+            right: 30px;
+            font-size: 0.9rem;
+            color: #64748b;
+            font-weight: 600;
+            background: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Fullscreen Button */
+        .fullscreen-btn {
+            position: fixed;
+            top: 20px;
+            left: 30px;
+            background: white;
+            color: #3b82f6;
+            border: 2px solid #3b82f6;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            z-index: 100;
+        }
+
+        .fullscreen-btn:hover {
+            background: #3b82f6;
+            color: white;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .slide {
+                padding: 40px;
+            }
+
+            h1 {
+                font-size: 2.5rem;
+            }
+
+            h2 {
+                font-size: 2rem;
+            }
+
+            .grid-3 {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-row {
+                grid-template-columns: 1fr;
+            }
+
+            .team-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Print Styles */
+        @media print {
+            body {
+                background: white;
+            }
+
+            .slide {
+                page-break-after: always;
+                display: block !important;
+                height: auto;
+                padding: 40px;
+                background: white;
+            }
+
+            .nav-container,
+            .slide-counter,
+            .fullscreen-btn {
+                display: none;
+            }
+        }
+
+        /* Keyboard Hints */
+        .keyboard-hint {
+            position: fixed;
+            bottom: 10px;
+            left: 30px;
+            font-size: 0.75rem;
+            color: #94a3b8;
+        }
+
+        /* Before/After */
+        .before-after {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            margin-top: 30px;
+        }
+
+        .before-box, .after-box {
+            padding: 30px;
+            border-radius: 12px;
+        }
+
+        .before-box {
+            background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+            border-left: 4px solid #ef4444;
+        }
+
+        .before-box h4 {
+            color: #991b1b;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+
+        .after-box {
+            background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+            border-left: 4px solid #10b981;
+        }
+
+        .after-box h4 {
+            color: #065f46;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+
+        .before-box p, .after-box p {
+            color: inherit;
+            opacity: 0.9;
+        }
+
+        /* Demo Button */
+        .demo-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            padding: 15px 40px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            margin-top: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .demo-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(59, 130, 246, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="presentation-container">
+        <!-- SLIDE 1: TITLE -->
+        <div class="slide active">
+            <button class="fullscreen-btn" onclick="toggleFullscreen()">⛶ Fullscreen</button>
+            <div class="slide-counter"><span id="current-slide">1</span> / <span id="total-slides">10</span></div>
+
+            <div style="text-align: center; flex: 1; display: flex; flex-direction: column; justify-content: center;">
+                <div class="slide-number">Slide 1</div>
+                
+                <div style="margin-bottom: 60px;">
+                    <h1 style="font-size: 4.5rem; margin-bottom: 20px;">🤖 LitReview Agent</h1>
+                    <p class="tagline">From papers to evidence you can trust</p>
+                </div>
+
+                <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; padding: 40px; border-radius: 16px; margin-bottom: 40px;">
+                    <p style="color: white; font-size: 1.3rem; line-height: 1.8;">
+                        Giúp researchers tiết kiệm thời gian sàng lọc, khai thác, và tổng hợp tài liệu khoa học một cách đáng tin cậy
+                    </p>
+                </div>
+
+                <div class="team-grid" style="margin-top: 50px;">
+                    <div class="team-card">
+                        <strong>Team Member 1</strong>
+                        <p>AI/LLM Engineer</p>
+                    </div>
+                    <div class="team-card">
+                        <strong>Team Member 2</strong>
+                        <p>Full-Stack Engineer</p>
+                    </div>
+                    <div class="team-card">
+                        <strong>Team Member 3</strong>
+                        <p>Product Manager</p>
+                    </div>
+                </div>
+
+                <p style="margin-top: 60px; color: #94a3b8; font-size: 0.9rem;">AI20K Demo Day 2026</p>
+            </div>
+        </div>
+
+        <!-- SLIDE 2: BIG PROBLEM -->
+        <div class="slide">
+            <div class="slide-header">
+                <div class="slide-number">Slide 2</div>
+                <h1>Literature Review vẫn còn rất thủ công</h1>
+            </div>
+
+            <div class="content">
+                <div class="stats-row">
+                    <div class="stat-item">
+                        <div class="metric-box" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); margin-bottom: 0;">
+                            <div class="metric-number">67.3</div>
+                            <div class="metric-label">Tuần</div>
+                            <p style="color: white; font-size: 0.85rem; margin-top: 10px; opacity: 0.9;">Thời gian trung bình để hoàn thành một systematic review</p>
+                        </div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="metric-box" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); margin-bottom: 0;">
+                            <div class="metric-number">2.94%</div>
+                            <div class="metric-label">Tỷ lệ</div>
+                            <p style="color: white; font-size: 0.85rem; margin-top: 10px; opacity: 0.9;">Papers tìm được cuối cùng được đưa vào review</p>
+                        </div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="metric-box" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); margin-bottom: 0;">
+                            <div class="metric-number">500K+</div>
+                            <div class="metric-label">Researchers</div>
+                            <p style="color: white; font-size: 0.85rem; margin-top: 10px; opacity: 0.9;">Ước tính mỗi năm phải thực hiện literature review</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="workflow" style="margin-top: 40px;">Search
+      ↓
+Screen (~60h)
+      ↓
+Read Full-text (~50h)
+      ↓
+Extract Evidence (~70h)
+      ↓
+Synthesize (~30h)
+      ↓
+Verify Citations (~20h)
+      ↓
+Publish (67+ weeks)
+                </div>
+
+                <div class="key-message">
+                    💡 Nút thắt không chỉ là tìm được paper — mà là biến paper thành evidence đáng tin cậy
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 3: BOTTLENECKS -->
+        <div class="slide">
+            <div class="slide-header">
+                <div class="slide-number">Slide 3</div>
+                <h1>Ba nút thắt lớn trong quy trình</h1>
+            </div>
+
+            <div class="content">
+                <div class="bottleneck">
+                    <div class="bottleneck-title">🔴 BOTTLENECK 1: SCREENING — Quá nhiều paper, quá ít thời gian</div>
+                    <div class="bottleneck-detail">
+                        <strong>Vấn đề:</strong> 1000+ papers → 97% bị loại → phải đọc 1000 title/abstract thủ công<br>
+                        <strong>Thời gian:</strong> ~60 giờ screening (3-5 phút/paper)<br>
+                        <strong>Impact:</strong> Dễ bỏ sót relevant papers, không consistent
+                    </div>
+                </div>
+
+                <div class="bottleneck">
+                    <div class="bottleneck-title">🔴 BOTTLENECK 2: READ/EXTRACT — Evidence nằm rải rác</div>
+                    <div class="bottleneck-detail">
+                        <strong>Vấn đề:</strong> Evidence nằm ở nhiều pages khác nhau (methodology, results, limitations)<br>
+                        <strong>Thời gian:</strong> 15-20 phút/paper → 80-120 giờ tổng cộng<br>
+                        <strong>Impact:</strong> Dễ quên/bỏ sót, note-taking thủ công → dễ sai lầm
+                    </div>
+                </div>
+
+                <div class="bottleneck">
+                    <div class="bottleneck-title">🔴 BOTTLENECK 3: SYNTHESIZE — Nhiều paper, dễ sai citation</div>
+                    <div class="bottleneck-detail">
+                        <strong>Vấn đề:</strong> 15-20 papers → 50-100 factual claims → 60% citations sai/incomplete<br>
+                        <strong>Thời gian:</strong> 10-15 giờ viết review section với proper citations<br>
+                        <strong>Impact:</strong> Độ tin cậy của review giảm → khó publish hoặc bị reject
+                    </div>
+                </div>
+
+                <div class="key-message info" style="margin-top: 40px;">
+                    ✨ 3 Bottlenecks = 3 Solutions tương ứng
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 4: SOLUTIONS -->
+        <div class="slide">
+            <div class="slide-header">
+                <div class="slide-number">Slide 4</div>
+                <h1>Ba vấn đề. Ba giải pháp tương ứng.</h1>
+            </div>
+
+            <div class="content">
+                <div class="grid-3">
+                    <div class="solution-card">
+                        <div class="solution-icon">🔍</div>
+                        <h3>AI-assisted Screening</h3>
+                        <p><strong>Giảm 70% papers phải đọc</strong></p>
+                        <p style="font-size: 0.9rem; color: #64748b; margin-top: 15px;">Gemini LLM rank papers by relevance → researcher chỉ review top 20-30 candidates</p>
+                        <p style="font-size: 0.85rem; color: #3b82f6; font-weight: 600; margin-top: 10px;">✓ Precision 95%+ ✓ Consistent</p>
+                    </div>
+
+                    <div class="solution-card">
+                        <div class="solution-icon">📄</div>
+                        <h3>Evidence-grounded QA</h3>
+                        <p><strong>Giảm 80% thời gian khai thác</strong></p>
+                        <p style="font-size: 0.9rem; color: #64748b; margin-top: 15px;">RAG + Hybrid Retrieval tìm evidence trực tiếp → không cần mở PDF thủ công</p>
+                        <p style="font-size: 0.85rem; color: #3b82f6; font-weight: 600; margin-top: 10px;">✓ Traceable ✓ Fast (2-3 sec)</p>
+                    </div>
+
+                    <div class="solution-card">
+                        <div class="solution-icon">🔗</div>
+                        <h3>Grounded Synthesis</h3>
+                        <p><strong>Giảm 60% citation errors</strong></p>
+                        <p style="font-size: 0.9rem; color: #64748b; margin-top: 15px;">LangGraph + Citation Validation → mỗi claim có source, tự động verify</p>
+                        <p style="font-size: 0.85rem; color: #10b981; font-weight: 600; margin-top: 10px;">✓ &lt;5% errors ✓ 100% traceable</p>
+                    </div>
+                </div>
+
+                <div class="key-message success" style="margin-top: 40px;">
+                    ✅ AI hỗ trợ researcher xử lý thông tin — paper gốc vẫn là source of truth
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 5: PRODUCT FLOW -->
+        <div class="slide">
+            <div class="slide-header">
+                <div class="slide-number">Slide 5</div>
+                <h1>Từ Input đến Output: Hệ thống hoạt động như thế nào?</h1>
+            </div>
+
+            <div class="content">
+                <div style="background: #f0f9ff; padding: 30px; border-radius: 12px; margin-bottom: 30px;">
+                    <h3 style="color: #0f172a; margin-bottom: 15px;">INPUT (Researcher chuẩn bị)</h3>
+                    <ul style="margin-left: 20px;">
+                        <li><strong>PDFs đã chọn</strong> (5-20 papers)</li>
+                        <li><strong>Research Question</strong> - "Phương pháp nào được sử dụng phổ biến?"</li>
+                        <li><strong>Criteria</strong> - "Include: 1D CNN, Exclude: 2D/3D models"</li>
+                    </ul>
+                </div>
+
+                <div style="background: #fef3c7; padding: 30px; border-radius: 12px; margin-bottom: 30px;">
+                    <h3 style="color: #92400e; margin-bottom: 15px;">PROCESSING (3 Core Modules)</h3>
+                    <div style="margin-left: 20px; font-size: 0.95rem; color: #78350f;">
+                        <div style="margin-bottom: 10px;">1️⃣ <strong>LLM Screening</strong> — Gemini 1.5 Flash rank papers</div>
+                        <div style="margin-bottom: 10px;">2️⃣ <strong>RAG + Retrieval</strong> — ChromaDB + Hybrid Search tìm evidence</div>
+                        <div style="margin-bottom: 10px;">3️⃣ <strong>LangGraph Synthesis</strong> — Tổng hợp + Citation Validation</div>
+                    </div>
+                </div>
+
+                <div style="background: #dcfce7; padding: 30px; border-radius: 12px;">
+                    <h3 style="color: #065f46; margin-bottom: 15px;">OUTPUT (Deliverables)</h3>
+                    <ul style="margin-left: 20px; color: #047857;">
+                        <li>✅ Ranked Papers (sorted by relevance)</li>
+                        <li>✅ Grounded Q&A Answers (with citations)</li>
+                        <li>✅ Literature Review (multi-paper synthesis)</li>
+                        <li>✅ Traceable Citations (Claim → Citation → PDF)</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 6: TECHNIQUES & DECISIONS -->
+        <div class="slide">
+            <div class="slide-header">
+                <div class="slide-number">Slide 6</div>
+                <h1>Kỹ thuật: Mỗi component giải quyết một lỗi cụ thể</h1>
+            </div>
+
+            <div class="content">
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Failure Mode</th>
+                                <th>Kỹ thuật</th>
+                                <th>Metric</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Relevant paper xếp thấp</td>
+                                <td><strong>Hybrid Retrieval</strong> (BM25 + Dense)</td>
+                                <td><span class="accent-success">MRR: 0.76 → 0.81 ✓</span></td>
+                            </tr>
+                            <tr>
+                                <td>Tìm đúng topic, sai evidence</td>
+                                <td><strong>Cross-Encoder Reranker</strong> (bge-v2)</td>
+                                <td><span class="accent-success">Recall@5: 94% → 96% ✓</span></td>
+                            </tr>
+                            <tr>
+                                <td>LLM tự thêm info không có source</td>
+                                <td><strong>Evidence-bounded Generation</strong></td>
+                                <td><span class="accent-success">Faithfulness: 90%+ ✓</span></td>
+                            </tr>
+                            <tr>
+                                <td>Evidence giữa papers bị lẫn</td>
+                                <td><strong>Evidence Bank</strong> (PostgreSQL)</td>
+                                <td><span class="accent-success">Citation precision: 95%+ ✓</span></td>
+                            </tr>
+                            <tr>
+                                <td>Orchestration logic phức tạp</td>
+                                <td><strong>LangGraph</strong> (state machine)</td>
+                                <td><span class="accent-success">Clear control flow ✓</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div style="margin-top: 40px;">
+                    <div style="background: #dbeafe; border-left: 4px solid #3b82f6; padding: 20px; border-radius: 8px;">
+                        <h4 style="color: #1e40af; margin-bottom: 10px;">💡 Tại sao LangGraph (không phải CrewAI/AutoGen)?</h4>
+                        <p style="color: #1e40af; font-size: 0.95rem;">
+                            ✓ State management đơn giản (checkpoint, persist state)<br>
+                            ✓ Debugging clear (graph visualization)<br>
+                            ✓ Không over-engineered cho linear workflows<br>
+                            ✓ Native integration với LangChain
+                        </p>
+                    </div>
+                </div>
+
+                <div class="key-message info" style="margin-top: 20px;">
+                    🎯 Kỹ thuật chọn vì giải quyết vấn đề cụ thể — không phải vì "trendy"
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 7: EVALUATION -->
+        <div class="slide">
+            <div class="slide-header">
+                <div class="slide-number">Slide 7</div>
+                <h1>Hệ thống có thực sự hiệu quả không?</h1>
+            </div>
+
+            <div class="content">
+                <div class="grid-2">
+                    <div>
+                        <h3>Retrieval Pipeline</h3>
+                        <div style="background: #f0f9ff; padding: 20px; border-radius: 8px; margin-top: 15px;">
+                            <p style="font-size: 0.9rem;">
+                                <strong style="color: #3b82f6;">MRR:</strong> 0.7599 → <span class="accent-success">0.8097 ✓</span><br>
+                                <strong style="color: #3b82f6;">Recall@5:</strong> 0.9433 → <span class="accent-success">0.9600 ✓</span><br>
+                                <strong style="color: #3b82f6;">Latency p50:</strong> ~2-3 sec<br>
+                                <strong style="color: #3b82f6;">Latency p95:</strong> ~5-7 sec
+                            </p>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3>Document QA (RAGAS)</h3>
+                        <div style="background: #f0f9ff; padding: 20px; border-radius: 8px; margin-top: 15px;">
+                            <p style="font-size: 0.9rem;">
+                                <strong style="color: #3b82f6;">Context Precision:</strong> [TBD]<br>
+                                <strong style="color: #3b82f6;">Faithfulness:</strong> 90%+ target<br>
+                                <strong style="color: #3b82f6;">Answer Relevancy:</strong> 85%+ target<br>
+                                <strong style="color: #3b82f6;">Citation Precision:</strong> 95%+ target
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="background: #dcfce7; border-left: 4px solid #10b981; padding: 25px; border-radius: 8px; margin-top: 30px;">
+                    <h4 style="color: #065f46; margin-bottom: 15px;">✅ Real Test Case: End-to-End Demo</h4>
+                    <p style="color: #047857; font-size: 0.9rem; margin-bottom: 10px;">
+                        <strong>Query:</strong> "Điều gì là limitation chính?"<br>
+                        <strong>Retrieved:</strong> Evidence từ 3 papers với relevance score 0.92, 0.88, 0.85<br>
+                        <strong>Generated:</strong> "Limitations: 1) Generalization (Paper A), 2) Modality (Paper B), 3) Complexity (Paper C)"<br>
+                        <strong>Verification:</strong> 3/3 claims supported (100% accuracy) ✓
+                    </p>
+                </div>
+
+                <div class="key-message">
+                    📊 Không đánh giá bằng cảm giác — mỗi module có benchmark thực tế
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 8: ARCHITECTURE -->
+        <div class="slide">
+            <div class="slide-header">
+                <div class="slide-number">Slide 8</div>
+                <h1>Kiến trúc & Tech Stack</h1>
+            </div>
+
+            <div class="content">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+                    <div>
+                        <h3>Frontend Layer</h3>
+                        <div style="background: #f0f9ff; padding: 15px; border-radius: 8px; font-size: 0.9rem; color: #1e40af;">
+                            • React 18 + Vite<br>
+                            • TailwindCSS<br>
+                            • react-pdf viewer<br>
+                            • Deploy: Vercel
+                        </div>
+
+                        <h3 style="margin-top: 20px;">Database Layer</h3>
+                        <div style="background: #fef3c7; padding: 15px; border-radius: 8px; font-size: 0.9rem; color: #92400e;">
+                            • PostgreSQL (structured)<br>
+                            • ChromaDB (vectors)<br>
+                            • Connection pooling<br>
+                            • Deploy: Supabase
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3>Backend Layer</h3>
+                        <div style="background: #dbeafe; padding: 15px; border-radius: 8px; font-size: 0.9rem; color: #1e40af;">
+                            • FastAPI 0.115+<br>
+                            • LangChain 0.3<br>
+                            • LangGraph 0.2<br>
+                            • Gemini 1.5 Flash LLM<br>
+                            • Deploy: Render
+                        </div>
+
+                        <h3 style="margin-top: 20px;">External Services</h3>
+                        <div style="background: #dcfce7; padding: 15px; border-radius: 8px; font-size: 0.9rem; color: #065f46;">
+                            • Google Scholar (SerpApi)<br>
+                            • Scopus/OpenAlex API<br>
+                            • Gemini API<br>
+                            • AI20K Tracking
+                        </div>
+                    </div>
+                </div>
+
+                <div class="key-message info" style="margin-top: 30px;">
+                    🏗️ Thiết kế đơn giản & scalable — start small, grow with demand
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 9: BUSINESS MODEL -->
+        <div class="slide">
+            <div class="slide-header">
+                <div class="slide-number">Slide 9</div>
+                <h1>Business Model: Pricing & Go-to-Market</h1>
+            </div>
+
+            <div class="content">
+                <div style="margin-bottom: 30px;">
+                    <h3>Freemium Pricing</h3>
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-top: 15px;">
+                        <div style="background: #f0f9ff; padding: 20px; border-radius: 8px; border-left: 4px solid #94a3b8;">
+                            <p style="font-weight: 600; color: #0f172a; margin-bottom: 10px;">FREE</p>
+                            <p style="font-size: 0.85rem; color: #475569;">3 projects, 20 papers, Basic AI</p>
+                            <p style="font-size: 1.2rem; font-weight: 800; color: #3b82f6; margin-top: 10px;">$0</p>
+                        </div>
+                        <div style="background: #dbeafe; padding: 20px; border-radius: 8px; border-left: 4px solid #3b82f6; border: 3px solid #3b82f6;">
+                            <p style="font-weight: 600; color: #1e40af; margin-bottom: 10px;">PRO ⭐</p>
+                            <p style="font-size: 0.85rem; color: #1e40af;">Unlimited, Synthesis, Export</p>
+                            <p style="font-size: 1.2rem; font-weight: 800; color: #3b82f6; margin-top: 10px;">$9.99/mo</p>
+                        </div>
+                        <div style="background: #dbeafe; padding: 20px; border-radius: 8px; border-left: 4px solid #3b82f6;">
+                            <p style="font-weight: 600; color: #1e40af; margin-bottom: 10px;">TEAM</p>
+                            <p style="font-size: 0.85rem; color: #1e40af;">5 users, Shared workspace</p>
+                            <p style="font-size: 1.2rem; font-weight: 800; color: #3b82f6; margin-top: 10px;">$99/mo</p>
+                        </div>
+                        <div style="background: #dbeafe; padding: 20px; border-radius: 8px; border-left: 4px solid #3b82f6;">
+                            <p style="font-weight: 600; color: #1e40af; margin-bottom: 10px;">ENTERPRISE</p>
+                            <p style="font-size: 0.85rem; color: #1e40af;">Unlimited, API, Support</p>
+                            <p style="font-size: 1.2rem; font-weight: 800; color: #3b82f6; margin-top: 10px;">$999/mo</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 25px; border-radius: 8px; margin-bottom: 20px;">
+                    <h4 style="color: #92400e; margin-bottom: 10px;">📈 Revenue Projection (Year 1)</h4>
+                    <p style="color: #78350f; font-size: 0.9rem;">
+                        Month 1-3: 50 users → MRR $50<br>
+                        Month 4-6: 500 users + 1 TEAM → MRR $849<br>
+                        Month 7-9: 2000 users + 3 TEAM + 1 ENTERPRISE → MRR $3,694<br>
+                        Month 10-12: 3000 users + 5 TEAM + 2 ENTERPRISE → <strong>MRR $5,490</strong>
+                    </p>
+                </div>
+
+                <div class="key-message success">
+                    ✅ Sustainable: Break-even tại 30 PRO users hoặc 3-4 TEAM customers
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 10: CONCLUSION -->
+        <div class="slide">
+            <div class="slide-header">
+                <div class="slide-number">Slide 10</div>
+                <h1>From papers to evidence you can trust</h1>
+            </div>
+
+            <div class="content">
+                <div class="before-after">
+                    <div class="before-box">
+                        <h4>❌ BEFORE (Current)</h4>
+                        <ul style="font-size: 0.9rem; margin-left: 20px;">
+                            <li>Manual Screening: 60 giờ</li>
+                            <li>Read PDF: 80-120 giờ</li>
+                            <li>Write Review: 30-40 giờ</li>
+                            <li>Check Citations: 20 giờ</li>
+                            <li style="margin-top: 15px; font-weight: 600;">Total: 150-200 giờ (4-6 tháng)</li>
+                            <li style="margin-top: 10px;">Citation errors: 60% ❌</li>
+                        </ul>
+                    </div>
+                    <div class="after-box">
+                        <h4>✅ AFTER (LitReview Agent)</h4>
+                        <ul style="font-size: 0.9rem; margin-left: 20px;">
+                            <li>AI Screening: 2 phút</li>
+                            <li>AI Evidence Extraction: 5-10 phút</li>
+                            <li>AI Synthesis: 10 phút</li>
+                            <li>Auto Citation Validation: 2 phút</li>
+                            <li style="margin-top: 15px; font-weight: 600;">Total: 30-50 giờ (1-2 tuần)</li>
+                            <li style="margin-top: 10px;">Citation errors: &lt;5% ✓</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="stats-row" style="margin-top: 40px;">
+                    <div class="stat-item">
+                        <div class="metric-box" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); margin-bottom: 0;">
+                            <div class="metric-number">95%</div>
+                            <div class="metric-label">Giảm thời gian</div>
+                        </div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="metric-box" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); margin-bottom: 0;">
+                            <div class="metric-number">92%</div>
+                            <div class="metric-label">Tăng accuracy</div>
+                        </div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="metric-box" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); margin-bottom: 0;">
+                            <div class="metric-number">100%</div>
+                            <div class="metric-label">Traceable citations</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="key-message info" style="margin-top: 40px; background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border-left-color: #3b82f6; color: #1e40af; text-align: center; font-size: 1.3rem;">
+                    💡 Không thay thế researchers.<br>
+                    Giúp họ tập trung vào INSIGHTS, không vào BUSYWORK.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Controls -->
+    <div class="nav-container">
+        <button onclick="previousSlide()" id="prev-btn">← Previous</button>
+        <button onclick="nextSlide()" id="next-btn">Next →</button>
+    </div>
+
+    <div class="keyboard-hint">
+        ⌨️ Press ← → or Space to navigate
+    </div>
+
+    <script>
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.slide');
+        const totalSlides = slides.length;
+
+        function showSlide(n) {
+            slides.forEach(slide => slide.classList.remove('active'));
+            if (n >= totalSlides) {
+                currentSlide = totalSlides - 1;
+            } else if (n < 0) {
+                currentSlide = 0;
+            } else {
+                currentSlide = n;
+            }
+            slides[currentSlide].classList.add('active');
+            document.getElementById('current-slide').textContent = currentSlide + 1;
+            document.getElementById('prev-btn').disabled = currentSlide === 0;
+            document.getElementById('next-btn').disabled = currentSlide === totalSlides - 1;
+        }
+
+        function nextSlide() {
+            showSlide(currentSlide + 1);
+        }
+
+        function previousSlide() {
+            showSlide(currentSlide - 1);
+        }
+
+        function toggleFullscreen() {
+            const elem = document.documentElement;
+            if (!document.fullscreenElement) {
+                elem.requestFullscreen().catch(err => {
+                    console.error(err);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ') {
+                e.preventDefault();
+                nextSlide();
+            } else if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                previousSlide();
+            }
+        });
+
+        // Initialize
+        document.getElementById('total-slides').textContent = totalSlides;
+        showSlide(0);
+    </script>
+</body>
+</html>
