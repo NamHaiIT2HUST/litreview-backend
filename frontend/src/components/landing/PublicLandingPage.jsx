@@ -1873,7 +1873,7 @@ export default function PublicLandingPage({ onOpenAuth }) {
                       <div className="space-y-2.5">
                         <span className="text-xs font-bold text-surface-800 dark:text-surface-200 flex items-center gap-1.5">
                           <Sparkles className="w-3.5 h-3.5 text-primary-600" />
-                          <span>{language === 'vi' ? 'Khoảng trống Nghiên cứu Tự động Phát hiện (Research Gaps Radar):' : 'Discovered Research Opportunities (Gap Radar):'}</span>
+                          <span>{language === 'vi' ? 'Khoảng trống nghiên cứu tự động phát hiện (Research Gaps Radar):' : 'Discovered Research Opportunities (Gap Radar):'}</span>
                         </span>
                         
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
