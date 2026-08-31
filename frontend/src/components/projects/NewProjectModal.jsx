@@ -4,12 +4,12 @@ import { useProject } from '../../contexts/ProjectContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 
 const QUICK_TOPICS = [
-  { label: 'Y sinh & tín hiệu', field: 'Y sinh & chẩn đoán y tế', example: 'Ứng dụng Deep Learning trong phân loại tín hiệu ECG' },
+  { label: 'Y sinh & Tín hiệu', field: 'Y sinh & Chẩn đoán y tế', example: 'Ứng dụng Deep Learning trong phân loại tín hiệu ECG' },
   { label: 'Trí tuệ nhân tạo & LLM', field: 'Trí tuệ nhân tạo & LLM', example: 'Khảo sát chuỗi tư duy (Chain-of-Thought) trong LLMs' },
-  { label: 'Robotics & tự hành', field: 'Robotics & hệ thống tự hành', example: 'Học tăng cường sâu và SLAM trong điều hướng robot' },
-  { label: 'Khoa học môi trường', field: 'Khoa học môi trường & năng lượng', example: 'Mô hình dự báo năng lượng tái tạo & lưới điện thông minh' },
-  { label: 'Khoa học dữ liệu', field: 'Khoa học dữ liệu & hệ thống', example: 'Kiến trúc Multimodal RAG và tìm kiếm tri thức ngữ nghĩa' },
-  { label: 'Kinh tế & tài chính', field: 'Kinh tế, tài chính & quản trị', example: 'Mô hình GNN trong đánh giá rủi ro tín dụng & thị trường' },
+  { label: 'Robotics & Tự hành', field: 'Robotics & Hệ thống tự hành', example: 'Học tăng cường sâu và SLAM trong điều hướng robot' },
+  { label: 'Khoa học môi trường', field: 'Khoa học môi trường & Năng lượng', example: 'Mô hình dự báo năng lượng tái tạo & Lưới điện thông minh' },
+  { label: 'Khoa học dữ liệu', field: 'Khoa học dữ liệu & Hệ thống', example: 'Kiến trúc Multimodal RAG và tìm kiếm tri thức ngữ nghĩa' },
+  { label: 'Kinh tế & Tài chính', field: 'Kinh tế, tài chính & Quản trị', example: 'Mô hình GNN trong đánh giá rủi ro tín dụng & Thị trường' },
 ];
 
 export default function NewProjectModal({ isOpen, onClose, onCreated }) {
@@ -148,12 +148,12 @@ export default function NewProjectModal({ isOpen, onClose, onCreated }) {
               className="w-full px-4 py-2.5 rounded-2xl bg-[#1E2536] border border-slate-700 text-slate-200 text-xs sm:text-sm font-medium focus:outline-none focus:border-blue-500 cursor-pointer"
             >
               <option value="Trí tuệ nhân tạo & LLM">{isVi ? '🧠 Trí tuệ nhân tạo & LLM' : '🧠 Artificial Intelligence & LLM'}</option>
-              <option value="Y sinh & chẩn đoán y tế">{isVi ? '🩺 Y sinh & chẩn đoán y tế' : '🩺 Biomedical & Healthcare AI'}</option>
-              <option value="Robotics & hệ thống tự hành">{isVi ? '🤖 Robotics & hệ thống tự hành' : '🤖 Robotics & Autonomous Systems'}</option>
-              <option value="Khoa học dữ liệu & hệ thống">{isVi ? '⚡ Khoa học dữ liệu & hệ thống' : '⚡ Data Science & Systems'}</option>
-              <option value="Khoa học môi trường & năng lượng">{isVi ? '🌱 Khoa học môi trường & năng lượng' : '🌱 Environmental & Energy Science'}</option>
-              <option value="Kinh tế, tài chính & quản trị">{isVi ? '📊 Kinh tế, tài chính & quản trị' : '📊 Economics, Finance & Management'}</option>
-              <option value="Khoa học xã hội & giáo dục">{isVi ? '📚 Khoa học xã hội & giáo dục' : '📚 Social Sciences & Education'}</option>
+              <option value="Y sinh & Chẩn đoán y tế">{isVi ? '🩺 Y sinh & Chẩn đoán y tế' : '🩺 Biomedical & Healthcare AI'}</option>
+              <option value="Robotics & Hệ thống tự hành">{isVi ? '🤖 Robotics & Hệ thống tự hành' : '🤖 Robotics & Autonomous Systems'}</option>
+              <option value="Khoa học dữ liệu & Hệ thống">{isVi ? '⚡ Khoa học dữ liệu & Hệ thống' : '⚡ Data Science & Systems'}</option>
+              <option value="Khoa học môi trường & Năng lượng">{isVi ? '🌱 Khoa học môi trường & Năng lượng' : '🌱 Environmental & Energy Science'}</option>
+              <option value="Kinh tế, tài chính & Quản trị">{isVi ? '📊 Kinh tế, tài chính & Quản trị' : '📊 Economics, Finance & Management'}</option>
+              <option value="Khoa học xã hội & Giáo dục">{isVi ? '📚 Khoa học xã hội & Giáo dục' : '📚 Social Sciences & Education'}</option>
               <option value="Nghiên cứu liên ngành khác">{isVi ? '🔬 Nghiên cứu liên ngành khác' : '🔬 Other Interdisciplinary Fields'}</option>
             </select>
           </div>
@@ -163,7 +163,7 @@ export default function NewProjectModal({ isOpen, onClose, onCreated }) {
             <Sparkles className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
             <span>
               {isVi 
-                ? 'Bạn có thể thiết lập chi tiết câu hỏi PICO, giai đoạn năm & tiêu chí sàng lọc PRISMA ở bước 1 sau khi vào không gian làm việc.'
+                ? 'Bạn có thể thiết lập chi tiết câu hỏi PICO, giai đoạn năm & Tiêu chí sàng lọc PRISMA ở bước 1 sau khi vào không gian làm việc.'
                 : 'You will configure the PICO framework, year bounds, and PRISMA screening criteria inside the workspace.'}
             </span>
           </div>
@@ -182,7 +182,7 @@ export default function NewProjectModal({ isOpen, onClose, onCreated }) {
               disabled={loading || !name.trim()}
               className="px-5 py-2.5 rounded-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-extrabold text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-blue-600/30 hover:scale-105 transition-all cursor-pointer"
             >
-              <span>{loading ? (isVi ? 'Đang tạo...' : 'Creating...') : (isVi ? 'Tạo & vào không gian làm việc' : 'Create & Open Workspace')}</span>
+              <span>{loading ? (isVi ? 'Đang tạo...' : 'Creating...') : (isVi ? 'Tạo & Vào không gian làm việc' : 'Create & Open Workspace')}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>

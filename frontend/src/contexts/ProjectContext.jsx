@@ -9,7 +9,7 @@ const INITIAL_DEMO_PROJECTS = [
     id: '00000000-0000-0000-0000-000000000001',
     name: 'Ứng dụng Deep Learning trong phân loại và chẩn đoán tín hiệu điện tim (ECG)',
     research_question: 'Các mô hình 1D-CNN và Transformer có độ chính xác và khả năng tổng quát hóa ra sao trong phát hiện rối loạn nhịp tim từ dữ liệu ECG thời gian thực?',
-    research_field: 'Y tế & chẩn đoán y sinh',
+    research_field: 'Y tế & Chẩn đoán y sinh',
     year_from: 2020,
     year_to: 2026,
     criteria_include: [
@@ -34,7 +34,7 @@ const INITIAL_DEMO_PROJECTS = [
     id: '00000000-0000-0000-0000-000000000002',
     name: 'Khảo sát tổng quan về chuỗi tư duy (Chain-of-Thought) trong mô hình ngôn ngữ lớn',
     research_question: 'Cơ chế prompting Chain-of-Thought và Tree-of-Thoughts cải thiện khả năng suy luận logic và toán học của LLMs như thế nào?',
-    research_field: 'Toán học & tối ưu hóa',
+    research_field: 'Toán học & Tối ưu hóa',
     year_from: 2022,
     year_to: 2026,
     criteria_include: [

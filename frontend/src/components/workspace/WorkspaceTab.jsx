@@ -825,9 +825,9 @@ export default function WorkspaceTab({
                 </div>
                 <div>
                   <span className="font-display font-bold text-xs text-surface-900 dark:text-white block leading-none">
-                    {effectiveTab === 'chat' && (isVietnamese ? 'Chat & hỏi đáp tài liệu' : 'Chat & Document Q&A')}
+                    {effectiveTab === 'chat' && (isVietnamese ? 'Chat & Hỏi đáp tài liệu' : 'Chat & Document Q&A')}
                     {effectiveTab === 'synthesis' && (isVietnamese ? 'Tổng quan tài liệu học thuật (SLR)' : 'Academic Literature Review (SLR)')}
-                    {effectiveTab === 'analyze' && (isVietnamese ? 'Phân tích dữ liệu & ma trận bằng chứng' : 'Data Analysis & Evidence Matrix')}
+                    {effectiveTab === 'analyze' && (isVietnamese ? 'Phân tích dữ liệu & Ma trận bằng chứng' : 'Data Analysis & Evidence Matrix')}
                   </span>
                   <span className="section-label mt-0.5 block text-[10px] text-surface-400">
                     {effectiveTab === 'chat' && (isVietnamese ? 'Hỏi đáp tương tác RAG dựa trên các bài báo đã chọn' : 'Interactive RAG Q&A on selected papers')}

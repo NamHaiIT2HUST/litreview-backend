@@ -110,7 +110,7 @@ export default function BrandLogo({
         </div>
         {withTagline && (
           <p className={`font-sans font-medium text-slate-500 dark:text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-300 ${currentSize.tagline} mt-1 leading-tight tracking-normal whitespace-nowrap transition-colors duration-200 ${taglineClassName}`}>
-            {isEn ? 'Academic Literature Review Platform' : 'Nền tảng nghiên cứu & tổng quan tài liệu'}
+            {isEn ? 'Academic Literature Review Platform' : 'Nền tảng nghiên cứu & Tổng quan tài liệu'}
           </p>
         )}
       </div>

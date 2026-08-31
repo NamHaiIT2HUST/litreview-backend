@@ -507,7 +507,7 @@ const DICTIONARY = {
       tagRetracted: 'Ngoài Scopus',
       tagNoPeer: 'Trùng lặp',
       meterLabel: 'Tỷ lệ bài báo vượt qua vòng sàng lọc tiêu chí PRISMA & Scopus:',
-      stat1Num: '92', stat1Unit: '%', stat1Label: 'Độ chính xác đối chiếu Scopus Q1 & sàng lọc PRISMA',
+      stat1Num: '92', stat1Unit: '%', stat1Label: 'Độ chính xác đối chiếu Scopus Q1 & Sàng lọc PRISMA',
       stat2Num: '340', stat2Unit: ' trang', stat2Label: 'Trung bình số trang PDF trích xuất trong chưa đầy 1 phút',
       stat3Num: '4', stat3Unit: ' phút', stat3Label: 'Thời gian hoàn thiện bản dự thảo Literature Review đầu tiên',
     },
@@ -515,29 +515,29 @@ const DICTIONARY = {
       badge: 'KIẾN TRÚC QUY TRÌNH HỌC THUẬT ĐA PHÂN HỆ',
       title: 'Bốn phân hệ chuyên biệt vận hành chuẩn mực nghiên cứu',
       desc: 'Bốn phân hệ phối hợp chặt chẽ theo đúng chuẩn mực của một bài báo Systematic Literature Review quốc tế:',
-      a1Title: 'Phân hệ 1: Cố vấn đề tài & khung PICO',
+      a1Title: 'Phân hệ 1: Cố vấn đề tài & Khung PICO',
       a1Desc: 'Phân tích câu hỏi nghiên cứu, tự động thiết lập tiêu chí đưa vào / loại trừ (Inclusion/Exclusion) và tổng hợp chuỗi truy vấn Boolean tối ưu.',
-      a2Title: 'Phân hệ 2: Tra cứu & đối chiếu Scopus',
+      a2Title: 'Phân hệ 2: Tra cứu & Đối chiếu Scopus',
       a2Desc: 'Tìm kiếm đa nguồn học thuật trên Google Scholar, tự động đối chiếu chỉ số Scopus (Q1–Q4), lọc trùng lặp và loại bỏ nguồn không đạt chuẩn.',
-      a3Title: 'Phân hệ 3: Sàng lọc PRISMA & ma trận so sánh',
+      a3Title: 'Phân hệ 3: Sàng lọc PRISMA & Ma trận so sánh',
       a3Desc: 'Đọc toàn văn bài báo, đánh giá độ phù hợp theo tiêu chuẩn PRISMA và tự động trích xuất bảng ma trận so sánh Dataset, Model, Metrics.',
-      a4Title: 'Phân hệ 4: Thẩm định y văn & khoảng trống đề tài',
+      a4Title: 'Phân hệ 4: Thẩm định y văn & Khoảng trống đề tài',
       a4Desc: 'Phát hiện các điểm nghẽn và mâu thuẫn chưa giải quyết (Research Gaps) trong y văn; hỏi đáp tra cứu với trích dẫn số trang và câu trích nguyên bản 100%.',
     },
     matrixSection: {
       badge: 'MA TRẬN PHƯƠNG PHÁP & RADAR KHOẢNG TRỐNG',
-      title: 'Tự động so sánh đa chiều & khám phá cơ hội nghiên cứu',
+      title: 'Tự động so sánh đa chiều & Khám phá cơ hội nghiên cứu',
       desc: 'Hệ thống tự động đọc toàn văn PDF và dựng bảng so sánh đa chiều giữa các công trình nghiên cứu đã được chọn lọc:',
-      colAuthor: 'Bài báo & tác giả',
+      colAuthor: 'Bài báo & Tác giả',
       colMethod: 'Phương pháp / kiến trúc',
       colDataset: 'Tập dữ liệu (Dataset)',
       colMetrics: 'Kết quả định lượng',
-      colGap: 'Hạn chế & điểm nghẽn',
+      colGap: 'Hạn chế & Điểm nghẽn',
       gapsTitle: 'Khoảng trống nghiên cứu được phát hiện (Research Gaps Radar):',
     },
     prismaSection: {
       badge: 'TIÊU CHUẨN XUẤT BẢN QUỐC TẾ',
-      title: 'Lưu đồ thu thập & sàng lọc chuẩn PRISMA',
+      title: 'Lưu đồ thu thập & Sàng lọc chuẩn PRISMA',
       desc: 'Toàn bộ quy trình thu thập và sàng lọc tài liệu được ghi nhận minh bạch theo đúng tiêu chuẩn xuất bản quốc tế:',
       s1Num: '01', s1Title: 'Nhận diện (Identification)', s1Desc: 'Thu thập tất cả bản ghi từ Google Scholar và các nguồn học thuật uy tín.',
       s2Num: '02', s2Title: 'Đối chiếu Scopus (Verification)', s2Desc: 'Lọc trùng lặp tự động và xác minh trạng thái chỉ mục Scopus (Q1–Q4).',
@@ -559,7 +559,7 @@ const DICTIONARY = {
     team: {
       badge: 'ĐỘI NGŨ PHÁT TRIỂN',
       title: 'Đội ngũ phát triển sản phẩm',
-      desc: 'Dự án nghiên cứu & phát triển thuộc khóa 3 — Chương trình AI Thực Chiến',
+      desc: 'Dự án nghiên cứu & Phát triển thuộc khóa 3 — Chương trình AI Thực Chiến',
       members: [
         {
           name: 'Nguyễn Đình Liêm',
@@ -912,7 +912,7 @@ export default function PublicLandingPage({ onOpenAuth }) {
       setRagSimActive(false);
       setAutoStatusText(
         language === 'vi'
-          ? '🟢 ĐANG TỰ ĐỘNG CHẠY: [Bước 1/4] Phân rã câu hỏi PICO & tối ưu chuỗi Boolean...'
+          ? '🟢 ĐANG TỰ ĐỘNG CHẠY: [Bước 1/4] Phân rã câu hỏi PICO & Tối ưu chuỗi Boolean...'
           : '🟢 AUTOPLAY: [Step 1/4] Scoping PICO Framework & Synthesizing Boolean...'
       );
 
@@ -939,7 +939,7 @@ export default function PublicLandingPage({ onOpenAuth }) {
         setCockpitTab('screening');
         setAutoStatusText(
           language === 'vi'
-            ? '🟢 ĐANG TỰ ĐỘNG CHẠY: [Bước 2/4] Sàng lọc PRISMA & đối chiếu Scopus Q1...'
+            ? '🟢 ĐANG TỰ ĐỘNG CHẠY: [Bước 2/4] Sàng lọc PRISMA & Đối chiếu Scopus Q1...'
             : '🟢 AUTOPLAY: [Step 2/4] PRISMA Screening & Scopus Verification...'
         );
         setScreeningRowsShown(topic.rows.length);
@@ -978,7 +978,7 @@ export default function PublicLandingPage({ onOpenAuth }) {
         setCockpitTab('synthesis');
         setAutoStatusText(
           language === 'vi'
-            ? '🟢 ĐANG TỰ ĐỘNG CHẠY: [Bước 4/4] Tổng hợp luận điểm & hỏi đáp Fact-Checking RAG...'
+            ? '🟢 ĐANG TỰ ĐỘNG CHẠY: [Bước 4/4] Tổng hợp luận điểm & Hỏi đáp Fact-Checking RAG...'
             : '🟢 AUTOPLAY: [Step 4/4] Grounded Evidence Synthesis & RAG Fact-Checking...'
         );
       }, 14000);

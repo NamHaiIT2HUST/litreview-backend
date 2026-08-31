@@ -71,7 +71,7 @@ const FEATURED_NOTEBOOKS = [
   },
   {
     id: 'feat_women_revolution',
-    title: 'Những phụ nữ cách mạng: Những người kiến tạo xã hội & đất nước',
+    title: 'Những phụ nữ cách mạng: Những người kiến tạo xã hội & Đất nước',
     source: 'U.S. National Archives with Google',
     date: '18 thg 2, 2026',
     sourcesCount: 12,
@@ -95,7 +95,7 @@ const FEATURED_NOTEBOOKS = [
   },
   {
     id: 'feat_progress_stories',
-    title: 'Những câu chuyện về sự tiến bộ & tương lai công nghệ, từ The Atlantic',
+    title: 'Những câu chuyện về sự tiến bộ & Tương lai công nghệ, từ The Atlantic',
     source: 'The Atlantic',
     date: '11 thg 4, 2026',
     sourcesCount: 15,
@@ -122,7 +122,7 @@ const FEATURED_NOTEBOOKS = [
   },
   {
     id: 'feat_founders_blueprint',
-    title: 'Bản thiết kế cách mạng: The Founders & tư tưởng thể chế',
+    title: 'Bản thiết kế cách mạng: The Founders & Tư tưởng thể chế',
     source: 'U.S. National Archives with Google',
     date: '17 thg 4, 2026',
     sourcesCount: 12,
@@ -154,7 +154,7 @@ const getNotebookVisual = (title = '', field = '') => {
       gradient: 'from-cyan-500/25 via-blue-600/20 to-slate-900',
       bannerBg: 'bg-gradient-to-br from-cyan-600/40 via-sky-600/30 to-blue-900/50',
       badgeColor: 'text-cyan-300 bg-cyan-950/80 border-cyan-400/40 shadow-xs',
-      tag: 'Robotics & tự hành',
+      tag: 'Robotics & Tự hành',
       icon: '🤖',
       glowBorder: 'hover:border-cyan-400/80 hover:shadow-lg hover:shadow-cyan-500/20',
       accentColor: 'from-cyan-400 to-blue-600',
@@ -165,7 +165,7 @@ const getNotebookVisual = (title = '', field = '') => {
       gradient: 'from-rose-500/25 via-pink-600/20 to-slate-900',
       bannerBg: 'bg-gradient-to-br from-rose-600/40 via-pink-600/30 to-purple-900/50',
       badgeColor: 'text-rose-300 bg-rose-950/80 border-rose-400/40 shadow-xs',
-      tag: 'Y sinh & tín hiệu',
+      tag: 'Y sinh & Tín hiệu',
       icon: '🩺',
       glowBorder: 'hover:border-rose-400/80 hover:shadow-lg hover:shadow-rose-500/20',
       accentColor: 'from-rose-400 to-pink-600',
@@ -187,7 +187,7 @@ const getNotebookVisual = (title = '', field = '') => {
       gradient: 'from-emerald-500/25 via-teal-600/20 to-slate-900',
       bannerBg: 'bg-gradient-to-br from-emerald-600/40 via-teal-600/30 to-slate-900/50',
       badgeColor: 'text-emerald-300 bg-emerald-950/80 border-emerald-400/40 shadow-xs',
-      tag: 'Khoa học dữ liệu & hệ thống',
+      tag: 'Khoa học dữ liệu & Hệ thống',
       icon: '⚡',
       glowBorder: 'hover:border-emerald-400/80 hover:shadow-lg hover:shadow-emerald-500/20',
       accentColor: 'from-emerald-400 to-teal-600',
@@ -881,7 +881,7 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
                                 {proj.name}
                               </h3>
                               <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 mt-1 leading-relaxed">
-                                {proj.research_question || proj.research_field || (isVietnamese ? 'Tổng quan hệ thống & phân tích tổng hợp' : 'Systematic literature review')}
+                                {proj.research_question || proj.research_field || (isVietnamese ? 'Tổng quan hệ thống & Phân tích tổng hợp' : 'Systematic literature review')}
                               </p>
                             </>
                           )}
@@ -996,7 +996,7 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
                                 )}
                               </div>
                               <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-xl">
-                                {proj.research_question || proj.research_field || (isVietnamese ? 'Tổng quan hệ thống & phân tích tổng hợp' : 'Systematic literature review')}
+                                {proj.research_question || proj.research_field || (isVietnamese ? 'Tổng quan hệ thống & Phân tích tổng hợp' : 'Systematic literature review')}
                               </p>
                             </div>
                           )}

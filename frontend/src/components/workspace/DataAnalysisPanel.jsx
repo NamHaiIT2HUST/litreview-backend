@@ -1718,7 +1718,7 @@ export default function DataAnalysisPanel({
                   <div className="mt-5 pt-3 border-t border-slate-200 dark:border-slate-800/80">
                     <div className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-1.5">
                       <FileCode className="w-4 h-4 text-emerald-500" />
-                      <span>{isEn ? "Technical Appendix: Executable Python Script & Notebook Export" : "Phụ lục kỹ thuật: Mã nguồn tổng hợp EDA & công cụ Sandbox"}</span>
+                      <span>{isEn ? "Technical Appendix: Executable Python Script & Notebook Export" : "Phụ lục kỹ thuật: Mã nguồn tổng hợp EDA & Công cụ Sandbox"}</span>
                     </div>
                     <InteractiveCodeSandboxBlock 
                       code={msg.python_code} 
@@ -1803,7 +1803,7 @@ export default function DataAnalysisPanel({
               </div>
               <div className={`py-2 px-4 rounded-2xl flex items-center gap-2 ${'bg-slate-100 text-slate-700 dark:bg-slate-900 dark:text-slate-300'}`}>
                 <RefreshCw className="w-3.5 h-3.5 animate-spin text-blue-500" />
-                <span className="text-xs font-semibold">{isEn ? 'DaLitRe AI is computing statistics & analyzing data...' : 'DaLitRe AI đang tính toán thống kê & phân tích...'}</span>
+                <span className="text-xs font-semibold">{isEn ? 'DaLitRe AI is computing statistics & analyzing data...' : 'DaLitRe AI đang tính toán thống kê & Phân tích...'}</span>
               </div>
             </div>
           )}
@@ -1816,7 +1816,7 @@ export default function DataAnalysisPanel({
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-emerald-500" />
                   <span className="text-xs font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-300">
-                    {isEn ? 'Scientific Query & Dataset Library' : 'Thư viện câu hỏi & dữ liệu phân tích mẫu'}
+                    {isEn ? 'Scientific Query & Dataset Library' : 'Thư viện câu hỏi & Dữ liệu phân tích mẫu'}
                   </span>
                 </div>
 

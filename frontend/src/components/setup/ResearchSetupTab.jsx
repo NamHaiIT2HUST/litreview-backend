@@ -681,14 +681,14 @@ export default function ResearchSetupTab({ setActiveTab }) {
                       className="input input-sm cursor-pointer appearance-none font-medium text-xs"
                     >
                       <option value="">{isVi ? '-- Chọn lĩnh vực nghiên cứu --' : '-- Select research domain --'}</option>
-                      <option value="Khoa học Máy tính & Trí tuệ Nhân tạo">{isVi ? 'Khoa học máy tính & trí tuệ nhân tạo' : 'Computer Science & AI'}</option>
-                      <option value="Y sinh & Chẩn đoán Y tế">{isVi ? 'Y sinh & chẩn đoán y tế' : 'Healthcare & Biomedicine'}</option>
-                      <option value="Robotics & Hệ thống Tự hành">{isVi ? 'Robotics & hệ thống tự hành' : 'Robotics & Autonomous Systems'}</option>
+                      <option value="Khoa học Máy tính & Trí tuệ Nhân tạo">{isVi ? 'Khoa học máy tính & Trí tuệ nhân tạo' : 'Computer Science & AI'}</option>
+                      <option value="Y sinh & Chẩn đoán Y tế">{isVi ? 'Y sinh & Chẩn đoán y tế' : 'Healthcare & Biomedicine'}</option>
+                      <option value="Robotics & Hệ thống Tự hành">{isVi ? 'Robotics & Hệ thống tự hành' : 'Robotics & Autonomous Systems'}</option>
                       <option value="Xử lý Ngôn ngữ Tự nhiên & LLM">{isVi ? 'Xử lý ngôn ngữ tự nhiên & LLM' : 'NLP & Large Language Models'}</option>
-                      <option value="Toán học, Thống kê & Tối ưu hóa">{isVi ? 'Toán học, thống kê & tối ưu hóa' : 'Mathematics & Optimization'}</option>
-                      <option value="Khoa học Môi trường & Năng lượng">{isVi ? 'Khoa học môi trường & năng lượng' : 'Environment & Renewable Energy'}</option>
-                      <option value="Kinh tế, Tài chính & Quản trị">{isVi ? 'Kinh tế, tài chính & quản trị' : 'Economics & Business Administration'}</option>
-                      <option value="Khoa học Xã hội & Giáo dục">{isVi ? 'Khoa học xã hội & giáo dục' : 'Social Sciences & Education'}</option>
+                      <option value="Toán học, Thống kê & Tối ưu hóa">{isVi ? 'Toán học, thống kê & Tối ưu hóa' : 'Mathematics & Optimization'}</option>
+                      <option value="Khoa học Môi trường & Năng lượng">{isVi ? 'Khoa học môi trường & Năng lượng' : 'Environment & Renewable Energy'}</option>
+                      <option value="Kinh tế, Tài chính & Quản trị">{isVi ? 'Kinh tế, tài chính & Quản trị' : 'Economics & Business Administration'}</option>
+                      <option value="Khoa học Xã hội & Giáo dục">{isVi ? 'Khoa học xã hội & Giáo dục' : 'Social Sciences & Education'}</option>
                       <option value="Nghiên cứu Liên ngành Khác">{isVi ? 'Nghiên cứu liên ngành khác' : 'Interdisciplinary / Other'}</option>
                     </select>
                   </div>
@@ -706,7 +706,7 @@ export default function ResearchSetupTab({ setActiveTab }) {
                   </div>
                   <div>
                     <h2 className="font-display font-extrabold text-lg sm:text-xl text-slate-900 dark:text-white flex items-center gap-2">
-                      <span>{isVi ? 'Xác định câu hỏi nghiên cứu & khung năm' : 'Formulate Research Question & Timeframe'}</span>
+                      <span>{isVi ? 'Xác định câu hỏi nghiên cứu & Khung năm' : 'Formulate Research Question & Timeframe'}</span>
                       {topicApproved && (
                         <span className="inline-flex items-center gap-1 text-[11px] font-bold text-cyan-700 dark:text-cyan-300 bg-cyan-100 dark:bg-cyan-950/60 px-2.5 py-0.5 rounded-full border border-cyan-200 dark:border-cyan-800">
                           <Check className="w-3 h-3 stroke-[2.5]" /> {isVi ? 'Đã định hình' : 'Confirmed'}
@@ -783,7 +783,7 @@ export default function ResearchSetupTab({ setActiveTab }) {
 
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5 pl-1">
                   <Sparkles className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                  <span>{isVi ? 'Mẹo: Nêu rõ đối tượng, phương pháp và mục tiêu so sánh giúp AI đề xuất tiêu chí & từ khóa chuẩn xác nhất.' : 'Tip: Stating the method, target, and evaluation criteria helps AI generate the most accurate keywords.'}</span>
+                  <span>{isVi ? 'Mẹo: Nêu rõ đối tượng, phương pháp và mục tiêu so sánh giúp AI đề xuất tiêu chí & Từ khóa chuẩn xác nhất.' : 'Tip: Stating the method, target, and evaluation criteria helps AI generate the most accurate keywords.'}</span>
                 </p>
               </div>
 
@@ -806,7 +806,7 @@ export default function ResearchSetupTab({ setActiveTab }) {
                   className="btn btn-primary w-full sm:w-auto flex items-center justify-center gap-2.5 shadow-md font-extrabold text-sm px-7 py-3 rounded-xl cursor-pointer hover:scale-[1.02] transition-all"
                 >
                   {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4 stroke-[2.5]" />}
-                  <span>{isVi ? 'Lưu & sang bước 2: Tiêu chí' : 'Save & Continue to Step 2'}</span>
+                  <span>{isVi ? 'Lưu & Sang bước 2: Tiêu chí' : 'Save & Continue to Step 2'}</span>
                   <ArrowRight className="w-4 h-4 ml-0.5" />
                 </button>
               </div>
@@ -865,7 +865,7 @@ export default function ResearchSetupTab({ setActiveTab }) {
                               onClick={() => handleApproveTopic(topic)}
                               className="btn btn-sm btn-primary text-xs font-bold cursor-pointer"
                             >
-                              {isVi ? 'Lưu & tiếp tục' : 'Save & Continue'}
+                              {isVi ? 'Lưu & Tiếp tục' : 'Save & Continue'}
                             </button>
                           </div>
                         </div>
@@ -986,17 +986,18 @@ export default function ResearchSetupTab({ setActiveTab }) {
                     ))}
                   </ul>
                 </div>
+
               </div>
 
-              {/* Action buttons at end of Step 2 */}
-              <div className="pt-4 mt-6 border-t border-surface-100 dark:border-surface-800 flex flex-col sm:flex-row items-center justify-between gap-3">
+              {/* Step 2 Bottom Navigation */}
+              <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
                 <button
                   type="button"
                   onClick={() => setActiveStep(1)}
                   className="btn btn-secondary w-full sm:w-auto flex items-center justify-center gap-2 font-semibold cursor-pointer"
                 >
                   <ArrowLeft className="w-4 h-4" />
-                  <span>{isVi ? 'Quay lại bước 1: Đề tài' : 'Back to Step 1: Topic'}</span>
+                  <span>{isVi ? 'Quay lại bước 1: Định hình' : 'Back to Step 1: Definition'}</span>
                 </button>
 
                 <button 
@@ -1006,7 +1007,7 @@ export default function ResearchSetupTab({ setActiveTab }) {
                   className="btn btn-primary w-full sm:w-auto shadow-primary-sm font-bold flex items-center justify-center gap-2 cursor-pointer"
                 >
                   {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
-                  <span>{isVi ? 'Lưu & sang bước 3: PICO & từ khóa' : 'Save & Continue to PICO'}</span>
+                  <span>{isVi ? 'Lưu & Sang bước 3: PICO & Từ khóa' : 'Save & Continue to PICO'}</span>
                   <ArrowRight className="w-4 h-4 ml-1" />
                 </button>
               </div>
@@ -1031,7 +1032,7 @@ export default function ResearchSetupTab({ setActiveTab }) {
               
               <div className="max-w-2xl mx-auto space-y-2">
                 <h3 className="font-display font-extrabold text-xl sm:text-2xl text-slate-900 dark:text-white tracking-tight">
-                  {isVi ? '3. Phân tích khung PICO & bộ từ khóa tìm kiếm' : '3. PICO Framework & Academic Search Keywords'}
+                  {isVi ? '3. Phân tích khung PICO & Bộ từ khóa tìm kiếm' : '3. PICO Framework & Academic Search Keywords'}
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
                   {isVi 
@@ -1059,12 +1060,12 @@ export default function ResearchSetupTab({ setActiveTab }) {
                   {loadingKeywords ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin text-white" />
-                      <span>{isVi ? 'Đang phân tích & tra cứu...' : 'Analyzing & Synthesizing...'}</span>
+                      <span>{isVi ? 'Đang phân tích & Tra cứu...' : 'Analyzing & Synthesizing...'}</span>
                     </>
                   ) : (
                     <>
                       <Search className="w-4 h-4" />
-                      <span>{picoData ? (isVi ? 'Tra cứu lại PICO' : 'Re-synthesize PICO') : (isVi ? 'Tra cứu PICO & sinh từ khóa' : 'Synthesize PICO')}</span>
+                      <span>{picoData ? (isVi ? 'Tra cứu lại PICO' : 'Re-synthesize PICO') : (isVi ? 'Tra cứu PICO & Sinh từ khóa' : 'Synthesize PICO')}</span>
                     </>
                   )}
                 </button>
@@ -1122,7 +1123,7 @@ export default function ResearchSetupTab({ setActiveTab }) {
 
                   <div className="p-4 rounded-xl bg-indigo-50/50 dark:bg-slate-800/80 border border-indigo-100 dark:border-slate-700 shadow-xs space-y-1.5">
                     <span className="section-label text-indigo-700 dark:text-indigo-400 block font-bold text-xs">
-                      [I] {isVi ? 'Giải pháp & phương pháp' : 'Intervention / Method'}:
+                      [I] {isVi ? 'Giải pháp & Phương pháp' : 'Intervention / Method'}:
                     </span>
                     <p className="text-xs font-semibold text-slate-800 dark:text-slate-100 leading-relaxed">
                       {picoData.intervention || 'N/A'}

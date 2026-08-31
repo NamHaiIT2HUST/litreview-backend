@@ -71,25 +71,25 @@ const getPerspectiveBadge = (title = '', isEn = false) => {
   const t = title.toLowerCase();
   if (t.includes('cơ sở') || t.includes('tổng quan') || t.includes('lý thuyết') || t.includes('bài toán') || t.includes('theory') || t.includes('foundation')) {
     return {
-      label: isEn ? 'Theoretical Foundations' : 'Cơ sở lý thuyết & bài toán',
+      label: isEn ? 'Theoretical Foundations' : 'Cơ sở lý thuyết & Bài toán',
       badgeClass: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border-blue-200 dark:border-blue-800/60'
     };
   }
   if (t.includes('phương pháp') || t.includes('thuật toán') || t.includes('kỹ thuật') || t.includes('đột phá') || t.includes('method') || t.includes('algorithm')) {
     return {
-      label: isEn ? 'Methodology & Techniques' : 'Phương pháp luận & kỹ thuật',
+      label: isEn ? 'Methodology & Techniques' : 'Phương pháp luận & Kỹ thuật',
       badgeClass: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-950 dark:text-cyan-300 border-cyan-200 dark:border-cyan-800/60'
     };
   }
   if (t.includes('thực nghiệm') || t.includes('đánh giá') || t.includes('phát hiện') || t.includes('kết quả') || t.includes('experiment') || t.includes('finding') || t.includes('result')) {
     return {
-      label: isEn ? 'Empirical Findings' : 'Thực nghiệm & phát hiện cốt lõi',
+      label: isEn ? 'Empirical Findings' : 'Thực nghiệm & Phát hiện cốt lõi',
       badgeClass: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60'
     };
   }
   if (t.includes('phê phán') || t.includes('khoảng trống') || t.includes('hạn chế') || t.includes('hướng mở') || t.includes('gap') || t.includes('limitation') || t.includes('future')) {
     return {
-      label: isEn ? 'Research Gaps & Future Directions' : 'Khoảng trống nghiên cứu & hướng mở',
+      label: isEn ? 'Research Gaps & Future Directions' : 'Khoảng trống nghiên cứu & Hướng mở',
       badgeClass: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border-amber-200 dark:border-amber-900/60'
     };
   }
@@ -763,7 +763,7 @@ export default function SynthesisPanel({
                   2
                 </span>
                 <h4 className="font-bold text-sm text-slate-800 dark:text-slate-100">
-                  {isEn ? 'Review & Refine Outline (Approval Gate)' : 'Phê duyệt & tinh chỉnh dàn ý tổng quan (Approval Gate)'}
+                  {isEn ? 'Review & Refine Outline (Approval Gate)' : 'Phê duyệt & Tinh chỉnh dàn ý tổng quan (Approval Gate)'}
                 </h4>
               </div>
               <span className="text-[11px] font-semibold text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-900/60 px-2.5 py-0.5 rounded-full">
@@ -872,7 +872,7 @@ export default function SynthesisPanel({
                 className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
               >
                 <Check className="w-4 h-4" />
-                <span>{isEn ? 'Approve & Generate Review' : 'Phê duyệt dàn ý & bắt đầu viết báo cáo'}</span>
+                <span>{isEn ? 'Approve & Generate Review' : 'Phê duyệt dàn ý & Bắt đầu viết báo cáo'}</span>
               </button>
             </div>
           </div>

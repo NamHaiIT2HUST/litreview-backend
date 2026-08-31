@@ -101,7 +101,7 @@ export default function AdminDashboard({ darkMode }) {
             </span>
           </div>
           <h1 className="text-2xl md:text-3xl font-display font-black text-slate-900 dark:text-white tracking-tight">
-            Quản lý tài khoản & hoạt động hệ thống
+            Quản lý tài khoản & Hoạt động hệ thống
           </h1>
           <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 mt-1">
             Dành riêng cho Quản trị viên: Theo dõi số lượng tra cứu, cơ sở dữ liệu và quản lý người dùng.
