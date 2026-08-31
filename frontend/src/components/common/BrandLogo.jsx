@@ -18,6 +18,7 @@ export default function BrandLogo({
   size = 'md',
   withText = false,
   withTagline = false,
+  taglineClassName = '',
   isEn = false,
   className = '',
   imgClassName = '',
@@ -108,7 +109,7 @@ export default function BrandLogo({
           <span className={`inline-block ${currentSize.dot} rounded-full bg-emerald-500 group-hover:bg-emerald-400 dark:group-hover:bg-emerald-300 ml-1 shadow-xs shadow-emerald-500/50 group-hover:shadow-md group-hover:shadow-emerald-400/60 transition-all duration-300 group-hover:scale-135 shrink-0`}></span>
         </div>
         {withTagline && (
-          <p className={`font-sans font-medium text-slate-500 dark:text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-300 ${currentSize.tagline} mt-1 leading-tight tracking-normal whitespace-nowrap transition-colors duration-200`}>
+          <p className={`font-sans font-medium text-slate-500 dark:text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-300 ${currentSize.tagline} mt-1 leading-tight tracking-normal whitespace-nowrap transition-colors duration-200 ${taglineClassName}`}>
             {isEn ? 'Academic Literature Review Platform' : 'Nền tảng Nghiên cứu & Tổng quan Tài liệu'}
           </p>
         )}
