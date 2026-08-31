@@ -160,10 +160,15 @@ export default function ResearchSetupTab({ setActiveTab }) {
   useEffect(() => {
     if (activeProject) {
       const normalized = normalizeResearchSetup(activeProject);
-      // If research_question is identical to project name (legacy fallback), clear it so user sees clean placeholder
-      if (normalized.research_question && normalized.research_question.trim().toLowerCase() === (normalized.name || '').trim().toLowerCase()) {
-        normalized.research_question = '';
-      }
+      // NOTE: previously cleared research_question here whenever it matched
+      // the project name (meant to hide an old auto-fill placeholder), but
+      // that had no way to tell "system auto-filled this" apart from "user
+      // deliberately typed a question identical to the project name" -- a
+      // real, not-uncommon case for short project names. Since this effect
+      // reruns on every reload/project switch, it silently wiped a real
+      // saved answer every time, and a Save right after would persist the
+      // blank to the backend. Removed rather than guessed at a heuristic;
+      // showing the real saved value is always correct, a placeholder is not.
       setProjectData(normalized);
 
       const pId = activeProjectId || activeProject.id;
@@ -179,6 +184,19 @@ export default function ResearchSetupTab({ setActiveTab }) {
       const g2 = localStorage.getItem(`slr_gate2_criteria_approved_${pId}`);
       const isGate2Done = g2 === 'true' || (g2 !== 'false' && isGate1Done && hasCriteria);
       setCriteriaApproved(isGate2Done);
+
+      // activeStep defaults to 1 on every mount (useState(1) never persists),
+      // so leaving/returning to this tab silently reset progress back to
+      // step 1 even though topic/criteria were already approved and saved.
+      // Restore the step that matches what's actually done, same as the
+      // per-step "Đã duyệt" badges already reflect.
+      if (isGate2Done) {
+        setActiveStep(3);
+      } else if (isGate1Done) {
+        setActiveStep(2);
+      } else {
+        setActiveStep(1);
+      }
 
       try {
         const cachedScope = localStorage.getItem(`slr_scope_result_${pId}`);

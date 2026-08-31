@@ -34,7 +34,11 @@ function MainAppShell() {
   const [isTourOpen, setIsTourOpen] = useState(false);
 
   useEffect(() => {
-    if (isAuthenticated) {
+    // The tour walks through researcher-only tabs (Setup/Search/Synthesis) and
+    // steers activeTab as it goes -- for an admin account, whose navbar only
+    // ever exposes the Admin tab, that steering fights the admin redirect
+    // effect below and leaves the user stuck bouncing off the Admin tab.
+    if (isAuthenticated && currentUser?.role !== 'admin') {
       const tourCompleted = localStorage.getItem('litreview_tour_completed');
       if (!tourCompleted) {
         const timer = setTimeout(() => {
@@ -60,9 +64,17 @@ function MainAppShell() {
   };
 
   // ── Always remember/persist current active tab across refreshes ───────────
+  // Valid tabs the shell actually knows how to render (see the switch below).
+  // A tab that existed in a previous release (e.g. 'export', removed later)
+  // can still be sitting in a user's sessionStorage from before that release
+  // shipped -- restoring it unchecked renders an empty main content area with
+  // no tab matching. Validate against the known-render list and fall back to
+  // 'overview' instead.
+  const VALID_TABS = ['admin', 'overview', 'setup', 'search', 'chat', 'synthesis', 'data_analysis', 'analyze'];
   const [activeTab, setActiveTabState] = useState(() => {
     try {
-      return sessionStorage.getItem('litreview_active_tab') || 'overview';
+      const stored = sessionStorage.getItem('litreview_active_tab');
+      return stored && VALID_TABS.includes(stored) ? stored : 'overview';
     } catch {
       return 'overview';
     }
@@ -88,7 +100,13 @@ function MainAppShell() {
   }, [isAuthenticated]);
 
   useEffect(() => {
-    if (currentUser?.role === 'admin' && activeTab !== 'admin' && activeTab !== 'overview') {
+    // Admin accounts are a stats-only viewer role, not a researcher account --
+    // they must never land on the full Overview hub (project grid, "Tạo mới",
+    // search). The 'overview' exception below used to let that happen: a
+    // fresh login forces activeTab to 'overview' (see the effect above), and
+    // that value slipped past this guard's condition, so it never redirected
+    // an admin away from Overview.
+    if (currentUser?.role === 'admin' && activeTab !== 'admin') {
       setActiveTab('admin');
     }
   }, [activeTab, currentUser]);
@@ -217,6 +235,13 @@ function MainAppShell() {
     } catch {
       // ignore
     }
+    // activeCitation (which paper/quote the Verification panel is showing)
+    // belongs to whatever paper the user was just looking at -- it has no
+    // meaning once the project underneath it has changed, but it was never
+    // cleared here, so switching notebooks left the Verification panel
+    // showing a stale citation from the PREVIOUS project (wrong paper,
+    // wrong quote) until the user happened to click a new one themselves.
+    setActiveCitation(null);
   }, [activeProjectId, activeProject?.name]);
 
   useEffect(() => {

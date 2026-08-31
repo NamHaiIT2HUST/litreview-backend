@@ -74,6 +74,7 @@ from src.services.rag_eval_harness import rag_eval_harness
 from src.services.synthesis_response_builder import build_section_responses
 from src.services.synthesis_llm_service import synthesis_llm_service
 from src.services.synthesis_session_utils import json_paper_ids
+from src.services.synthesis_metrics_service import get_or_create_metrics
 
 processor = DocumentProcessor()
 
@@ -1069,39 +1070,53 @@ async def workspace_chat(
                         .join(PageText, PDFChunk.page_text_id == PageText.id)
                         .join(Paper, PDFChunk.paper_id == Paper.id)
                         .where((Paper.id == pid_uuid) if pid_uuid else (Paper.title.ilike(f"%{pid_str}%")))
-                        .order_by(PDFChunk.chunk_index)
-                        .limit(4)
+                        # chunk_index resets to 0 on every page (document_processor.py chunks
+                        # per-page independently), so ordering by chunk_index alone gives an
+                        # arbitrary mix of "first chunk of some page" across the whole paper --
+                        # not reliably page 1, where author/title metadata actually lives. Sort
+                        # by page first so this genuinely returns the paper's opening chunks.
+                        # limit(3) not 4: the structured metadata doc inserted below takes
+                        # the 4th "intro item" slot, keeping this paper's total contribution
+                        # to the context budget unchanged (MAX_CONTEXT_CHUNKS=10 downstream
+                        # in rag_service.py) rather than pushing out similarity-search chunks.
+                        .order_by(PageText.page_number, PDFChunk.chunk_index)
+                        .limit(3)
                     )
                     db_rows = (await db.execute(stmt_first_chunks)).fetchall()
-                    if db_rows:
-                        for chunk_row, page_num, file_path, title, abstract in db_rows:
-                            if not any(c.metadata.get("chunk_id") == str(chunk_row.id) for c in chunks):
-                                doc = Document(
-                                    page_content=chunk_row.chunk_text,
-                                    metadata={
-                                        "paper_id": pid_str,
-                                        "page_text_id": str(chunk_row.page_text_id),
-                                        "chunk_id": str(chunk_row.id),
-                                        "ingestion_id": str(chunk_row.ingestion_id),
-                                        "page": page_num,
-                                        "chunk_index": chunk_row.chunk_index,
-                                        "page_char_start": chunk_row.page_char_start,
-                                        "page_char_end": chunk_row.page_char_end,
-                                        "source": str(file_path) if file_path else f"paper_{pid_str}.pdf",
-                                        "paper_title": str(title) if title else "Unknown Title"
-                                    }
-                                )
-                                chunks.insert(0, doc)
-                    else:
-                        # Paper without PDF chunks: fetch metadata and Abstract from DB
-                        stmt = select(Paper).where(
-                            (Paper.id == pid_uuid) if pid_uuid else (Paper.title.ilike(f"%{pid_str}%") | Paper.dedup_key.ilike(f"%{pid_str}%"))
-                        )
-                        paper = (await db.execute(stmt)).scalars().first()
-                        if paper:
-                            text = f"Title: {paper.title}\nAuthors: {paper.authors}\nJournal: {paper.journal or 'N/A'} ({paper.year or 'N/A'})\nAbstract: {paper.abstract or 'Research Topic: ' + paper.title}"
-                            doc = Document(page_content=text, metadata={"paper_id": str(paper.id), "paper_title": paper.title, "page": 1, "source": paper.file_path or f"paper_{paper.id}.pdf"})
+                    for chunk_row, page_num, file_path, title, abstract in db_rows:
+                        if not any(c.metadata.get("chunk_id") == str(chunk_row.id) for c in chunks):
+                            doc = Document(
+                                page_content=chunk_row.chunk_text,
+                                metadata={
+                                    "paper_id": pid_str,
+                                    "page_text_id": str(chunk_row.page_text_id),
+                                    "chunk_id": str(chunk_row.id),
+                                    "ingestion_id": str(chunk_row.ingestion_id),
+                                    "page": page_num,
+                                    "chunk_index": chunk_row.chunk_index,
+                                    "page_char_start": chunk_row.page_char_start,
+                                    "page_char_end": chunk_row.page_char_end,
+                                    "source": str(file_path) if file_path else f"paper_{pid_str}.pdf",
+                                    "paper_title": str(title) if title else "Unknown Title"
+                                }
+                            )
                             chunks.insert(0, doc)
+
+                    # Structured metadata (title/authors/journal/year) straight from the
+                    # Paper row, ALWAYS added regardless of whether PDF chunks exist. A
+                    # short factual question like "who are the authors" matches poorly
+                    # against similarity search (no academic content to compare against),
+                    # and even the opening PDF chunks above are not guaranteed to contain
+                    # a cleanly-extracted author list (layout/OCR-dependent) -- the DB
+                    # fields are the reliable source for exactly this kind of question.
+                    stmt_meta = select(Paper).where(
+                        (Paper.id == pid_uuid) if pid_uuid else (Paper.title.ilike(f"%{pid_str}%") | Paper.dedup_key.ilike(f"%{pid_str}%"))
+                    )
+                    paper = (await db.execute(stmt_meta)).scalars().first()
+                    if paper:
+                        text = f"Title: {paper.title}\nAuthors: {paper.authors}\nJournal: {paper.journal or 'N/A'} ({paper.year or 'N/A'})\nAbstract: {paper.abstract or 'Research Topic: ' + paper.title}"
+                        doc = Document(page_content=text, metadata={"paper_id": str(paper.id), "paper_title": paper.title, "page": 1, "source": paper.file_path or f"paper_{paper.id}.pdf"})
+                        chunks.insert(0, doc)
                 except Exception as e:
                     logger.warning(f"Error fetching introductory chunks for {pid_str}: {e}")
         else:
@@ -2019,6 +2034,7 @@ async def execute_approved_synthesis(
         status=(SynthesisStatus.done if fast_v2_result.grounded else SynthesisStatus.failed),
         review_markdown=fast_v2_result.text,
         error_message=(None if fast_v2_result.grounded else fast_v2_result.grounding_warning),
+        citation_coverage_telemetry=fast_v2_result.diagnostics.get("citation_coverage_telemetry"),
     )
     db.add(persisted)
 
@@ -2035,6 +2051,40 @@ async def execute_approved_synthesis(
             source_char_end=item.source_char_end,
             quoted_snippet=item.quoted_snippet,
         ))
+
+    # /synthesis/execute never recorded LLMCallLog/SynthesisMetrics rows for
+    # this (the only user-reachable) synthesis path, so the admin dashboard's
+    # token-usage totals were always 0 even after real runs -- the writer and
+    # citation agent telemetry above already carries the token counts LangChain
+    # reports on each call, it just never got summed into SynthesisMetrics.
+    writer_tel = fast_v2_result.diagnostics.get("writer_telemetry") or {}
+    citation_tel = fast_v2_result.diagnostics.get("citation_coverage_telemetry") or {}
+    repair_tel = fast_v2_result.diagnostics.get("verbatim_repair_telemetry") or {}
+
+    def _int_or_zero(value) -> int:
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return 0
+
+    metrics = await get_or_create_metrics(db, persisted.id)
+    metrics.total_input_tokens = (
+        _int_or_zero(writer_tel.get("prompt_tokens"))
+        + _int_or_zero(citation_tel.get("total_input_tokens_used"))
+        + _int_or_zero(repair_tel.get("total_input_tokens_used"))
+    )
+    metrics.total_output_tokens = (
+        _int_or_zero(writer_tel.get("completion_tokens"))
+        + _int_or_zero(citation_tel.get("total_tokens_used"))
+        + _int_or_zero(repair_tel.get("total_output_tokens_used"))
+    )
+    metrics.total_llm_calls = (
+        1
+        + _int_or_zero(citation_tel.get("number_of_batches"))
+        + len(repair_tel.get("outcomes") or [])
+    )
+    metrics.synthesis_duration_ms = _int_or_zero(fast_v2_result.timings.get("total_ms"))
+
     await db.commit()
 
     payload = fast_v2_result.to_dict()
@@ -2262,6 +2312,7 @@ async def get_synthesis_session(
         status=session.status.value,
         review_markdown=session.review_markdown,
         error_message=session.error_message,
+        citation_coverage_telemetry=session.citation_coverage_telemetry,
         citations=[
             SynthesisCitationResponse(
                 id=item.id,
@@ -2292,6 +2343,102 @@ async def get_synthesis_session(
             for item in evidence_profile
         ],
     )
+
+class SynthesisQualityResponse(BaseModel):
+    """The 3-layer Evidence Quantification Engine's output metrics (see
+    MODULE_1_PLAN.md) for one finished synthesis session -- computed from
+    SynthesisClaim.verification_status and the section-level counters
+    finalize_review() records, not a separate LLM-judge pass (that's
+    ragas_eval_service.py / rag_guardrail_service.py, a different subsystem
+    over RAG chat answers, not synthesis claims -- these field names are the
+    same on purpose (same concepts) but the two are computed completely
+    differently and are not interchangeable)."""
+
+    session_id: uuid.UUID
+    total_claims: int
+    supported_claims: int
+    contradicted_claims: int
+    insufficient_claims: int
+    faithfulness_score_pct: float | None
+    hallucination_rate_pct: float | None
+    claim_sentences_proposed: int
+    claim_sentences_kept: int
+    citation_precision_pct: float | None
+
+
+@router.get(
+    "/synthesis-sessions/{session_id}/quality",
+    response_model=SynthesisQualityResponse,
+)
+async def get_synthesis_session_quality(
+    session_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+) -> SynthesisQualityResponse:
+    """Faithfulness / Hallucination Rate / Citation Precision for one
+    completed synthesis session -- the Tri-Layer Evidence Quantification
+    Engine's actual deliverable (MODULE_1_PLAN.md), not the claim-verification
+    step alone (that runs earlier, inside cross_paper_analysis(), and only
+    decides what to keep -- this endpoint reports how well it did).
+
+    Citation Precision is NOT "citations with a non-null evidence_id / total
+    citations": every Citation row that gets persisted is already built only
+    from claims verified supported, so that ratio is trivially 100% and
+    measures nothing. It is instead the fraction of factual sentences the
+    writer drafted that survived finalize_review()'s "no unsupported prose"
+    guard and got a citation -- section-level counts recorded at draft time
+    (see synthesis_service.py::finalize_review, "claim_sentences_proposed"/
+    "claim_sentences_kept" in SynthesisMetrics.section_metrics), since the
+    dropped candidates' content isn't retained anywhere queryable after the
+    fact.
+    """
+    from sqlalchemy import func
+    from src.models.db_models import EntailmentStatus, SynthesisClaim, SynthesisMetrics
+
+    session_result = await db.execute(
+        select(SynthesisSession).where(SynthesisSession.id == session_id)
+    )
+    if session_result.scalar_one_or_none() is None:
+        raise HTTPException(status_code=404, detail=f"Synthesis session '{session_id}' not found")
+
+    claim_counts_result = await db.execute(
+        select(SynthesisClaim.verification_status, func.count())
+        .where(SynthesisClaim.synthesis_session_id == session_id)
+        .group_by(SynthesisClaim.verification_status)
+    )
+    counts_by_status = {status: count for status, count in claim_counts_result.all()}
+    supported = counts_by_status.get(EntailmentStatus.supported, 0)
+    contradicted = counts_by_status.get(EntailmentStatus.contradicted, 0)
+    insufficient = counts_by_status.get(EntailmentStatus.insufficient, 0)
+    total_claims = supported + contradicted + insufficient
+
+    faithfulness_score_pct = round(supported / total_claims * 100, 2) if total_claims else None
+    hallucination_rate_pct = round(100 - faithfulness_score_pct, 2) if faithfulness_score_pct is not None else None
+
+    metrics_result = await db.execute(
+        select(SynthesisMetrics).where(SynthesisMetrics.session_id == session_id)
+    )
+    metrics = metrics_result.scalar_one_or_none()
+    section_metrics = (metrics.section_metrics if metrics else None) or []
+    claim_sentences_proposed = sum(int(s.get("claim_sentences_proposed", 0)) for s in section_metrics)
+    claim_sentences_kept = sum(int(s.get("claim_sentences_kept", 0)) for s in section_metrics)
+    citation_precision_pct = (
+        round(claim_sentences_kept / claim_sentences_proposed * 100, 2)
+        if claim_sentences_proposed else None
+    )
+
+    return SynthesisQualityResponse(
+        session_id=session_id,
+        total_claims=total_claims,
+        supported_claims=supported,
+        contradicted_claims=contradicted,
+        insufficient_claims=insufficient,
+        faithfulness_score_pct=faithfulness_score_pct,
+        hallucination_rate_pct=hallucination_rate_pct,
+        claim_sentences_proposed=claim_sentences_proposed,
+        claim_sentences_kept=claim_sentences_kept,
+        citation_precision_pct=citation_precision_pct,
+    )
+
 
 @router.delete("/synthesis-sessions/{session_id}")
 async def delete_synthesis_session(

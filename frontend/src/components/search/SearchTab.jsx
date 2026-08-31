@@ -39,7 +39,7 @@ function dbPaperToPaperSchema(dbPaper) {
   };
 }
 
-export default function SearchTab({ papers, setPapers, selectedPaperIds, selectedPapers = [], toggleSelectPaper, clearSelectedPapers, setActiveTab, darkMode }) {
+export default function SearchTab({ papers, setPapers, selectedPaperIds, selectedPapers = [], toggleSelectPaper, clearSelectedPapers, setActiveTab, workspacePapers = [], setWorkspacePapers, darkMode }) {
   const { t, language } = useLanguage();
   const isVi = language === 'vi';
   const { activeProject, activeProjectId } = useProject();
@@ -48,6 +48,12 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
   const [apiKey, setApiKey] = useState(() => {
     return localStorage.getItem('litreview_serpapi_key') || localStorage.getItem('serp_api_key') || '';
   });
+  // The input for this was dropped from the UI during the branding/layout
+  // overhaul while apiKey/handleApiKeyChange (and the X-API-Key header this
+  // feeds) stayed wired up -- there was no way left to actually set or
+  // change a SerpApi key. Collapsed by default so it doesn't clutter the
+  // main search bar for users who don't need it.
+  const [showApiKeyInput, setShowApiKeyInput] = useState(false);
 
   // Helper: Trích xuất và chuẩn hóa từ khóa học thuật chuẩn xác (tránh bị dính nguyên cả câu văn dài)
   const extractCleanKeywordsFromText = (text = '') => {
@@ -1088,6 +1094,37 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
             </button>
           </div>
 
+          {/* SerpApi Key (optional, collapsible) */}
+          <div className="pt-1">
+            <button
+              type="button"
+              onClick={() => setShowApiKeyInput(prev => !prev)}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-surface-500 hover:text-primary-600 dark:text-surface-400 dark:hover:text-primary-400 transition-colors"
+            >
+              <Key className="w-3.5 h-3.5" />
+              <span>{isVi ? 'Cấu hình SerpApi Key (tùy chọn)' : 'Configure SerpApi Key (optional)'}</span>
+              {apiKey.trim() && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />}
+              {showApiKeyInput ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            </button>
+            {showApiKeyInput && (
+              <div className="mt-2 flex flex-col sm:flex-row sm:items-center gap-2">
+                <div className="relative flex-1">
+                  <Key className="w-4 h-4 text-surface-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="password"
+                    value={apiKey}
+                    onChange={handleApiKeyChange}
+                    placeholder={isVi ? 'Dán SerpApi key của bạn tại đây...' : 'Paste your SerpApi key here...'}
+                    className="w-full pl-9 pr-3 py-2 border rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 bg-surface-50 border-surface-300 text-surface-900 placeholder-surface-400 dark:bg-surface-800 dark:border-surface-700 dark:text-white dark:placeholder-surface-500"
+                  />
+                </div>
+                <span className="text-xs text-surface-400 dark:text-surface-500 shrink-0">
+                  {isVi ? 'Dùng để tăng giới hạn tìm kiếm học thuật (Google Scholar).' : 'Used to raise the academic search (Google Scholar) rate limit.'}
+                </span>
+              </div>
+            )}
+          </div>
+
           {/* 1. Suggested Keywords from Topic Area */}
           {suggestedKeywords && suggestedKeywords.length > 0 && (
             <div className="pt-3 border-t border-surface-100 dark:border-surface-800 space-y-2.5">
@@ -1534,7 +1571,21 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
 
                 {/* Direct CTA: Go to Review */}
                 <button
-                  onClick={() => setActiveTab('synthesis')}
+                  onClick={() => {
+                    // Merge the papers the user just selected into the workspace
+                    // (dedup by id, keep whatever was already there) -- without
+                    // this, the button only switched tabs and SynthesisPanel
+                    // saw an empty workspacePapers, silently discarding the
+                    // selection the user just made.
+                    if (typeof setWorkspacePapers === 'function' && selectedPapers.length) {
+                      setWorkspacePapers((prev) => {
+                        const existingIds = new Set((prev || []).map((p) => p.id));
+                        const toAdd = selectedPapers.filter((p) => !existingIds.has(p.id));
+                        return toAdd.length ? [...(prev || []), ...toAdd] : (prev || []);
+                      });
+                    }
+                    setActiveTab('synthesis');
+                  }}
                   className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-xl text-xs transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
                 >
                   <span>{isVi ? 'Đưa vào Tổng quan' : 'Proceed to Review'}</span>

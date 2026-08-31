@@ -116,11 +116,17 @@ export default function HorizontalNavbar({
             <button
               id="tour-project-switcher"
               onClick={() => setProjectDropdownOpen(!projectDropdownOpen)}
-              className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-100/90 dark:bg-slate-800/90 hover:bg-slate-200/80 dark:hover:bg-slate-750 border border-slate-200/90 dark:border-slate-700/90 transition-all cursor-pointer shadow-2xs max-w-[150px] sm:max-w-[200px] md:max-w-[260px]"
-              title={isVi ? 'Đề tài hiện tại / Chuyển đề tài' : 'Current Project / Switch'}
+              className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-100/90 dark:bg-slate-800/90 hover:bg-slate-200/80 dark:hover:bg-slate-750 border border-slate-200/90 dark:border-slate-700/90 transition-all cursor-pointer shadow-2xs max-w-[150px] sm:max-w-[200px] md:max-w-[260px] overflow-hidden"
+              title={activeProject?.name || (isVi ? 'Đề tài hiện tại / Chuyển đề tài' : 'Current Project / Switch')}
             >
               <FolderKanban className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
-              <span className="truncate">{activeProject?.name || (isVi ? 'Tất cả Đề tài' : 'All Projects')}</span>
+              {/* min-w-0 is required here: a flex item's default min-width is
+                  "auto", which lets it grow to its text's full intrinsic
+                  width and ignore `truncate`/the button's max-w -- overflowing
+                  past the button and covering the nav tabs + right-side
+                  controls for long project names instead of actually
+                  ellipsizing. */}
+              <span className="truncate min-w-0">{activeProject?.name || (isVi ? 'Tất cả Đề tài' : 'All Projects')}</span>
               <ChevronDown className="w-3 h-3 text-slate-400 shrink-0 ml-0.5" />
             </button>
 
@@ -256,8 +262,8 @@ export default function HorizontalNavbar({
           <div className="relative" ref={profileDropdownRef}>
             <button
               onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-              className="flex items-center gap-2 py-1 pl-1 pr-2 sm:pr-2.5 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 transition-all cursor-pointer shadow-xs ml-1 max-w-[220px]"
-              title={currentUser?.name || 'User Profile'}
+              className="flex items-center gap-2 py-1 pl-1 pr-2 sm:pr-2.5 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 transition-all cursor-pointer shadow-xs ml-1 max-w-[180px] lg:max-w-[240px] xl:max-w-[300px]"
+              title={currentUser?.name ? `${currentUser.name} · ${currentUser.email || ''}` : 'User Profile'}
             >
               {currentUser?.picture ? (
                 <img

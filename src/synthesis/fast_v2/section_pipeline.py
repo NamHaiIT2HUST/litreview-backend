@@ -108,7 +108,7 @@ class SectionScopedSynthesisPipeline:
         max_evidence_per_section: int = 8,
         writer_max_tokens: int = 8192,
         artifact_dir: str | None = None,
-        citation_batch_size: int = 8,
+        citation_batch_size: int = 4,
         citation_concurrency: int = 4,
     ) -> None:
         self.retriever = retriever
@@ -132,10 +132,15 @@ class SectionScopedSynthesisPipeline:
         self.max_evidence_per_section = max_evidence_per_section
         self.writer_max_tokens = writer_max_tokens
         self.artifact_dir = artifact_dir
-        #: Deployment-latency-tuned defaults -- see
-        #: docs/superpowers/plans/2026-08-27-citation-stage-latency-optimization.md
-        #: for the benchmark that picked these. Configurable, not hardcoded,
-        #: per that plan's explicit requirement.
+        #: citation_batch_size was originally 8 (latency-tuned). Real-run
+        #: telemetry (2026-08-29) showed only ~47% of substantive paragraphs
+        #: ending up cited at batch_size=8 -- packing that many paragraphs'
+        #: claim-spans into one gpt-4o-mini call left many genuinely
+        #: supportable factual sentences with an empty assignment. Lowered to
+        #: 4 to trade some latency (more, smaller batches, still run
+        #: concurrently) for the model actually attending to each claim.
+        #: Configurable, not hardcoded, so this can be tuned further per
+        #: measured coverage rather than by feel.
         self.citation_batch_size = citation_batch_size
         self.citation_concurrency = citation_concurrency
 
@@ -367,10 +372,15 @@ class SectionScopedSynthesisPipeline:
             writer_finish_reason = "UNKNOWN"
 
         completion_tokens: Any = None
+        prompt_tokens: Any = None
         if usage_metadata:
             completion_tokens = usage_metadata.get("output_tokens")
+            prompt_tokens = usage_metadata.get("input_tokens")
         if completion_tokens is None and last_chunk is not None:
-            completion_tokens = getattr(last_chunk, "response_metadata", {}).get("token_usage", {}).get("completion_tokens")
+            token_usage = getattr(last_chunk, "response_metadata", {}).get("token_usage", {})
+            completion_tokens = token_usage.get("completion_tokens")
+            if prompt_tokens is None:
+                prompt_tokens = token_usage.get("prompt_tokens")
         if completion_tokens is None:
             completion_tokens = "UNKNOWN"
 
@@ -383,6 +393,7 @@ class SectionScopedSynthesisPipeline:
             "configured_max_output_tokens": configured_max_output_tokens,
             "actual_max_tokens_sent": actual_max_tokens_sent,
             "completion_tokens": completion_tokens,
+            "prompt_tokens": prompt_tokens,
             "finish_reason": writer_finish_reason,
             "words_generated": output_words,
             "ends_normally": ends_normally,
@@ -435,7 +446,16 @@ class SectionScopedSynthesisPipeline:
         )
         cited_text = attribution_result.attributed_markdown
         timings["citation_ms"] = round((time.perf_counter() - t0_cit) * 1000.0, 3)
+        ct = attribution_result.telemetry
         print(f"[Citation Agent] Attribution completed in {timings['citation_ms']/1000.0:.2f}s.", flush=True)
+        print(
+            f"[Citation Agent] Coverage: {ct.substantive_paragraphs - ct.uncited_substantive_paragraphs}/"
+            f"{ct.substantive_paragraphs} substantive paragraphs cited, "
+            f"{ct.semantic_empty_assignments} claim-spans explicitly judged unsupported by the model, "
+            f"{ct.valid_handles}/{ct.citation_markers_emitted} emitted handles valid, "
+            f"tier1_2_resolved={ct.tier1_2_resolved_claims}.",
+            flush=True,
+        )
 
         # ── 4b. Finalization: deterministic quality guards ────────────────────
         # Plain Python functions, not a new pipeline stage or agent -- both

@@ -36,11 +36,93 @@ import asyncio
 import json
 import re
 import time
+import uuid
 from dataclasses import dataclass, field
 from typing import Mapping, Sequence
 from langchain_openai import ChatOpenAI
+from src.config import get_settings
+from src.models.synthesis_schemas import EntailmentStatus
+from src.services.claim_verification_policy import fuzzy_verbatim_match
+from src.services.nli_checker import NLIChecker, NLIModelUnavailableError, resolve_claims_via_nli
 from src.synthesis.fast_v2.evidence.models import EvidenceUnit
 from src.synthesis.fast_v2.generator.prompt import format_evidence_context
+
+#: Bridges fast_v2's string handles ("E001") and claim-span ids ("p0_s1")
+#: into the uuid.UUID identifiers the Legacy Tier 1/2 modules are typed
+#: against (ClaimVerificationDecision.evidence_ids is Pydantic-validated as
+#: list[uuid.UUID]). Deterministic so re-derivation within one batch call
+#: always agrees with itself; never persisted or compared across processes.
+_TIER12_BRIDGE_NAMESPACE = uuid.uuid5(uuid.NAMESPACE_DNS, "litreview.fastv2.tier12-bridge")
+
+#: Above this many evidence units in a batch's scope, Tier 2 (NLI) is skipped
+#: for that batch -- every claim x evidence pair is one CPU forward pass
+#: (~130-170ms per pair, see models/nli_evidence_benchmark_report.md), so an
+#: unscoped/global-fallback batch (potentially 100+ evidence units) could
+#: otherwise turn one citation batch into a multi-minute stall. Tier 1
+#: (string matching, effectively free) always still runs. Skipping Tier 2
+#: never loses coverage -- the claim just falls through to Tier 3 (LLM)
+#: exactly as it would with NLI_EVIDENCE_ENABLED=false.
+TIER2_MAX_EVIDENCE_PER_BATCH = 20
+
+
+async def _resolve_tier12_assignments(
+    span_texts: Mapping[str, str],
+    handle_to_unit: Mapping[str, EvidenceUnit],
+    *,
+    checker: NLIChecker | None = None,
+) -> dict[str, list[str]]:
+    """Pre-resolve as many claim spans as possible via Tier 1 (deterministic
+    near-verbatim match) then Tier 2 (local NLI cross-encoder) before a batch
+    ever reaches the LLM (Tier 3). Only settles a span when Tier 1/2 finds
+    clear SUPPORT; anything unresolved or contradicted is left for the LLM,
+    which remains the only stage that decides "no citation" here -- Tier 1/2
+    exist to skip unnecessary LLM calls, not to veto a span the LLM never saw."""
+    if not handle_to_unit:
+        return {}
+
+    evidence_uuid_map = {
+        uuid.uuid5(_TIER12_BRIDGE_NAMESPACE, f"h:{handle}"): handle
+        for handle in handle_to_unit
+    }
+    evidence_pairs_for_match = [
+        (eid, handle_to_unit[handle].text) for eid, handle in evidence_uuid_map.items()
+    ]
+
+    resolved: dict[str, list[str]] = {}
+    remaining: list[tuple[str, str]] = []
+    for claim_id, claim_text in span_texts.items():
+        match = fuzzy_verbatim_match(claim_text, evidence_pairs_for_match)
+        if match is not None:
+            resolved[claim_id] = [evidence_uuid_map[match]]
+        else:
+            remaining.append((claim_id, claim_text))
+
+    if not remaining or len(evidence_uuid_map) > TIER2_MAX_EVIDENCE_PER_BATCH:
+        return resolved
+
+    evidence_for_nli = [
+        (eid, handle_to_unit[handle].text, "") for eid, handle in evidence_uuid_map.items()
+    ]
+    try:
+        tier2_decisions = await resolve_claims_via_nli(
+            claims_with_evidence=[
+                (uuid.uuid5(_TIER12_BRIDGE_NAMESPACE, f"c:{claim_id}"), claim_text, evidence_for_nli)
+                for claim_id, claim_text in remaining
+            ],
+            checker=checker,
+        )
+    except NLIModelUnavailableError:
+        return resolved
+
+    remaining_claim_uuid_map = {
+        uuid.uuid5(_TIER12_BRIDGE_NAMESPACE, f"c:{claim_id}"): claim_id for claim_id, _ in remaining
+    }
+    for claim_uuid, decision in tier2_decisions.items():
+        if decision.status == EntailmentStatus.supported:
+            claim_id = remaining_claim_uuid_map[claim_uuid]
+            resolved[claim_id] = [evidence_uuid_map[eid] for eid in decision.evidence_ids]
+
+    return resolved
 
 STRUCTURED_CITATION_SYSTEM_PROMPT = """You are a meticulous scientific citation agent.
 You are given a batch of finalized literature review paragraphs, plus an evidence pack. For each paragraph you are shown its FULL, immutable text as CONTEXT ONLY, and a list of claim/sentence spans within it as your actual attribution targets. You must NEVER reproduce, rewrite, paraphrase, normalize, or output any part of the paragraph prose -- your only job is to decide which evidence handle(s), if any, support each claim span.
@@ -48,14 +130,19 @@ You are given a batch of finalized literature review paragraphs, plus an evidenc
 Use the full paragraph to understand what an isolated span alone might not make clear: pronoun antecedents, comparison structure, what a "this" or "it" refers to, and how a claim continues or synthesizes a preceding statement. Evidence ownership is still assigned per claim_id, never to the paragraph as a whole.
 
 RULES:
-1. FACTUAL/TECHNICAL CLAIM: assign only evidence that directly supports that specific claim -- not merely the same topic, same paper, or a nearby result.
+1. FACTUAL/TECHNICAL CLAIM: assign evidence that supports that specific claim's
+   factual content. A close paraphrase, restatement, or accurate summary of
+   what the evidence says COUNTS as support -- exact wording is never
+   required. Evidence that is merely on the same topic, from the same paper,
+   or a nearby-but-different result does NOT count.
 2. MULTI-PAPER COMPARISON: a claim comparing multiple papers (e.g. "Study A uses X whereas Study B uses Y") needs support for BOTH/ALL sides -- include relevant evidence handles from each paper being compared.
 3. SYNTHESIS/INFERENCE: a synthesis claim may cite multiple handles when its conclusion is reasonably grounded in them together. Do not invent an empirical fact during synthesis.
 4. DISCOURSE/TRANSITION: a claim with no independently factual content (e.g. "This connection enabled...", "Taken together, these results show...") gets an empty list.
-5. UNSUPPORTED CLAIM: if no supplied evidence sufficiently supports a factual claim -- including evidence that is only topically related without supporting the specific claim -- return an empty list for it. An empty list is preferable to a topical citation.
+5. UNSUPPORTED CLAIM: if no supplied evidence sufficiently supports a factual claim -- including evidence that is only topically related without supporting the specific claim -- return an empty list for it. An empty list is preferable to a topical citation. This is NOT the same as rule 1's paraphrase case: a claim restating an evidence handle's actual content in different words IS supported by that handle and must NOT be treated as unsupported just because the wording differs.
 6. NEIGHBORING CLAIMS: a citation assigned to one claim is never support for a different claim unless that other claim independently receives the same handle. Do not let an unsupported claim borrow a neighbor's citation.
 7. Deduplicate: never list the same handle twice for one claim.
 8. NEVER invent a handle that is not present in the supplied evidence pack.
+9. DO NOT UNDER-CITE: reserve the empty list for claims the evidence pack genuinely does not address at all, not for claims that are merely phrased differently from the source text. If in doubt between "this is a paraphrase of E003" and "this is unsupported," and E003's content genuinely matches the claim's meaning, cite E003.
 
 Return ONLY a JSON object of the exact form:
 {"assignments": {"<claim_id>": ["E001", ...], "<claim_id>": [], ...}}
@@ -323,6 +410,10 @@ class CitationCoverageTelemetry:
     semantic_empty_assignments: int = 0
     batch_records: list[dict] = field(default_factory=list)
 
+    # Tier 1/2 pre-filter telemetry (Module 1 integration into fast_v2).
+    tier1_2_resolved_claims: int = 0
+    llm_calls_skipped_by_tier1_2: int = 0
+
     def to_dict(self) -> dict:
         latencies = sorted(r["provider_latency_seconds"] for r in self.batch_records if r.get("provider_latency_seconds") is not None)
 
@@ -360,6 +451,8 @@ class CitationCoverageTelemetry:
             "invalid_assignment_entries_rejected": self.invalid_assignment_entries_rejected,
             "unknown_claim_ids_rejected": self.unknown_claim_ids_rejected,
             "semantic_empty_assignments": self.semantic_empty_assignments,
+            "tier1_2_resolved_claims": self.tier1_2_resolved_claims,
+            "llm_calls_skipped_by_tier1_2": self.llm_calls_skipped_by_tier1_2,
             "batch_latency_p50_seconds": _pct(0.50),
             "batch_latency_p95_seconds": _pct(0.95),
             "batch_latency_max_seconds": round(latencies[-1], 2) if latencies else None,
@@ -424,8 +517,10 @@ async def attribute_paragraph_batch(
     context_text: str,
     available_handles: set[str],
     sem: asyncio.Semaphore,
+    handle_to_unit: Mapping[str, EvidenceUnit] | None = None,
     section_id: str | None = None,
     batch_id: int = 0,
+    nli_checker_override: NLIChecker | None = None,
 ) -> tuple[dict[int, tuple[str, str, list[str]]], int, int, int, dict]:
     """Structured claim-level citation assignment for a batch of paragraphs.
 
@@ -453,18 +548,33 @@ async def attribute_paragraph_batch(
     invalid_entries_total = 0
 
     paragraph_spans: dict[int, list[tuple[int, int, str]]] = {}
-    paragraph_payload: list[dict] = []
+    span_texts: dict[str, str] = {}
     total_claim_count = 0
     for local_id, (b_idx, p_text) in enumerate(batch_items):
         spans = split_paragraph_into_spans(p_text)
         paragraph_spans[b_idx] = spans
         total_claim_count += len(spans)
+        for i, (_start, _end, text) in enumerate(spans):
+            span_texts[f"p{local_id}_s{i}"] = text.strip()
+
+    settings = get_settings()
+    tier12_assignments: dict[str, list[str]] = {}
+    if settings.nli_evidence_enabled:
+        tier12_assignments = await _resolve_tier12_assignments(
+            span_texts, handle_to_unit or {}, checker=nli_checker_override
+        )
+    tier1_or_2_resolved_count = len(tier12_assignments)
+
+    paragraph_payload: list[dict] = []
+    for local_id, (b_idx, p_text) in enumerate(batch_items):
+        spans = paragraph_spans[b_idx]
         paragraph_payload.append({
             "paragraph_id": f"p{local_id}",
             "full_paragraph": p_text,
             "claim_spans": [
                 {"claim_id": f"p{local_id}_s{i}", "text": text.strip(), "char_start": start, "char_end": end}
                 for i, (start, end, text) in enumerate(spans)
+                if f"p{local_id}_s{i}" not in tier12_assignments
             ],
         })
 
@@ -513,21 +623,27 @@ Return ONLY the JSON assignments object described in your instructions, with exa
             return None, usage.get("output_tokens", 0), usage.get("input_tokens", 0), PARSE_FAILED
         return assignments, usage.get("output_tokens", 0), usage.get("input_tokens", 0), None
 
+    all_claims_resolved_by_tier12 = total_claim_count > 0 and tier1_or_2_resolved_count == total_claim_count
     t0_batch = time.perf_counter()
-    async with sem:
-        assignments, out_tok, in_tok, failure_type = await _call(paragraph_payload)
-        output_tokens += out_tok
-        input_tokens += in_tok
-
-        if assignments is None and STRUCTURED_CALL_MAX_ATTEMPTS > 1:
-            attempts += 1
-            assignments, out_tok, in_tok, failure_type = await _call(
-                paragraph_payload,
-                "\n\nYour previous response was not valid JSON in the required "
-                "{\"assignments\": {...}} shape. Return ONLY that JSON object, nothing else.",
-            )
+    if all_claims_resolved_by_tier12:
+        # Every claim in this batch was already settled by Tier 1/2 -- no
+        # prose left for the LLM to attribute, so skip the call entirely.
+        assignments, failure_type = {}, None
+    else:
+        async with sem:
+            assignments, out_tok, in_tok, failure_type = await _call(paragraph_payload)
             output_tokens += out_tok
             input_tokens += in_tok
+
+            if assignments is None and STRUCTURED_CALL_MAX_ATTEMPTS > 1:
+                attempts += 1
+                assignments, out_tok, in_tok, failure_type = await _call(
+                    paragraph_payload,
+                    "\n\nYour previous response was not valid JSON in the required "
+                    "{\"assignments\": {...}} shape. Return ONLY that JSON object, nothing else.",
+                )
+                output_tokens += out_tok
+                input_tokens += in_tok
     batch_latency = time.perf_counter() - t0_batch
 
     # A batch-level failure (transport or parse) after retries fails CLOSED
@@ -555,12 +671,22 @@ Return ONLY the JSON assignments object described in your instructions, with exa
         emitted_tags: list[str] = []
         for span_index in range(len(spans)):
             claim_id = f"p{local_id}_s{span_index}"
-            handles = assignments.get(claim_id, [])  # missing claim_id defaults explicitly to []
+            if claim_id in tier12_assignments:
+                handles = tier12_assignments[claim_id]
+            else:
+                handles = assignments.get(claim_id, [])  # missing claim_id defaults explicitly to []
             handle_lists.append(handles)
             if handles:
                 emitted_tags.append(f"[{', '.join(handles)}]")
             elif batch_succeeded:
                 empty_assignment_count += 1  # a genuine model judgment of "no support", not a failure
+                # Temporary diagnostic (2026-08-30): coverage stayed low after
+                # loosening the citation prompt (rule 1/5/9). Log exactly which
+                # spans the model judged unsupported so this can be read from
+                # production logs and classified as genuine discourse/inference
+                # (expected) vs. a real factual claim being under-cited (bug),
+                # instead of guessing from a UI screenshot.
+                print(f"[Citation Agent] EMPTY assignment for {claim_id}: {span_texts.get(claim_id, '')[:180]!r}", flush=True)
         attr_text = insert_citations_at_spans(p_text, spans, handle_lists)
         results_map[b_idx] = (attr_text, status, emitted_tags)
 
@@ -581,6 +707,8 @@ Return ONLY the JSON assignments object described in your instructions, with exa
         "invalid_assignment_entries": invalid_entries_total,
         "unknown_claim_ids_rejected": len(unknown_claim_ids),
         "semantic_empty_assignments": empty_assignment_count,
+        "tier1_2_resolved_claims": tier1_or_2_resolved_count,
+        "llm_call_skipped": all_claims_resolved_by_tier12,
     }
 
     return results_map, attempts, output_tokens, input_tokens, batch_record
@@ -611,6 +739,8 @@ async def attribute_all_prose_paragraphs(
     t0_stage = time.perf_counter()
     full_context_text, handle_mapping = format_evidence_context(evidence)
     global_available_handles = set(handle_mapping.keys())
+    handle_by_evidence_id, unit_by_evidence_id = _global_handle_index(evidence)
+    handle_to_unit_full = {handle: unit_by_evidence_id[eid] for eid, handle in handle_by_evidence_id.items()}
 
     raw_blocks = draft_markdown.split("\n\n")
     telemetry = CitationCoverageTelemetry(total_paragraphs=len(raw_blocks))
@@ -665,6 +795,7 @@ async def attribute_all_prose_paragraphs(
     # valid -- scoping must not silently widen what counts as "valid".
     paragraph_scope_handles: dict[int, set[str]] = {}
     batch_contexts: list[str] = []
+    batch_handle_to_units: list[dict[str, EvidenceUnit]] = []
     for batch in batches:
         batch_section_ids = [paragraph_section_ids.get(b_idx) for b_idx, _ in batch]
         scope_ids = resolve_batch_evidence_scope(batch_section_ids, section_evidence, section_papers_to_compare)
@@ -673,6 +804,7 @@ async def attribute_all_prose_paragraphs(
         else:
             batch_context_text, batch_handles = format_scoped_evidence_context(evidence, scope_ids)
         batch_contexts.append(batch_context_text)
+        batch_handle_to_units.append({h: handle_to_unit_full[h] for h in batch_handles})
         for b_idx, _ in batch:
             paragraph_scope_handles[b_idx] = batch_handles
 
@@ -683,6 +815,7 @@ async def attribute_all_prose_paragraphs(
             context_text=ctx,
             available_handles=paragraph_scope_handles[b[0][0]],
             sem=sem,
+            handle_to_unit=batch_handle_to_units[batch_idx],
             section_id=paragraph_section_ids.get(b[0][0]) if paragraph_section_ids else None,
             batch_id=batch_idx,
         )
@@ -702,6 +835,9 @@ async def attribute_all_prose_paragraphs(
         telemetry.invalid_assignment_entries_rejected += batch_record["invalid_assignment_entries"]
         telemetry.unknown_claim_ids_rejected += batch_record["unknown_claim_ids_rejected"]
         telemetry.semantic_empty_assignments += batch_record["semantic_empty_assignments"]
+        telemetry.tier1_2_resolved_claims += batch_record["tier1_2_resolved_claims"]
+        if batch_record["llm_call_skipped"]:
+            telemetry.llm_calls_skipped_by_tier1_2 += 1
         if batch_record["failure_type"] is None:
             telemetry.successful_batches += 1
         elif batch_record["failure_type"] == TRANSPORT_TIMEOUT:
