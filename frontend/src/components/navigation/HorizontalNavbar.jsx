@@ -238,49 +238,35 @@ export default function HorizontalNavbar({
           {/* Dark Mode Switch */}
           <button
             onClick={() => setDarkMode(!darkMode)}
-            className="px-2 sm:px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all text-xs font-bold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 flex items-center gap-1 cursor-pointer shadow-xs shrink-0"
-            title={isVi ? 'Giao diện Sáng/Tối' : 'Toggle Theme'}
+            className="p-2 sm:px-2.5 sm:py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all text-xs font-bold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 flex items-center gap-1.5 cursor-pointer shadow-xs shrink-0"
+            title={isVi ? (darkMode ? 'Chuyển sang giao diện Sáng' : 'Chuyển sang giao diện Tối') : (darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode')}
           >
             {darkMode ? (
-              <>
-                <Sun className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                <span className="hidden 2xl:inline text-[11px]">{isVi ? 'Sáng' : 'Light'}</span>
-              </>
+              <Sun className="w-3.5 h-3.5 text-amber-500 shrink-0" />
             ) : (
-              <>
-                <Moon className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                <span className="hidden 2xl:inline text-[11px]">{isVi ? 'Tối' : 'Dark'}</span>
-              </>
+              <Moon className="w-3.5 h-3.5 text-blue-600 shrink-0" />
             )}
           </button>
 
-          {/* User Profile Pill with Avatar Image, Full Name & Email */}
+          {/* User Profile Avatar Icon Button */}
           <div className="relative shrink-0" ref={profileDropdownRef}>
             <button
               onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-              className="flex items-center gap-1.5 sm:gap-2 py-1 pl-1 pr-1.5 sm:pr-2.5 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 transition-all cursor-pointer shadow-xs ml-0.5 sm:ml-1 max-w-[140px] sm:max-w-[180px] xl:max-w-[240px]"
-              title={currentUser?.name ? `${currentUser.name} · ${currentUser.email || ''}` : 'User Profile'}
+              className="p-1 sm:p-1.5 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 hover:border-blue-500/40 dark:hover:border-blue-500/40 transition-all cursor-pointer shadow-xs flex items-center gap-1.5 ml-0.5"
+              title={currentUser?.name ? `${currentUser.name} (${currentUser.email || ''})` : 'User Profile'}
             >
               {currentUser?.picture ? (
                 <img
                   src={currentUser.picture}
                   alt={currentUser.name}
-                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg object-cover ring-1 ring-blue-500/30 flex-shrink-0"
+                  className="w-7 h-7 sm:w-7.5 sm:h-7.5 rounded-lg object-cover ring-1 ring-blue-500/30 flex-shrink-0"
                 />
               ) : (
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-700 text-white font-extrabold text-xs flex items-center justify-center flex-shrink-0 shadow-xs">
+                <div className="w-7 h-7 sm:w-7.5 sm:h-7.5 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-700 text-white font-extrabold text-xs flex items-center justify-center flex-shrink-0 shadow-xs">
                   {userInitials}
                 </div>
               )}
-              <div className="hidden xl:block text-left min-w-0 flex-1">
-                <p className="font-bold text-xs text-slate-800 dark:text-white truncate leading-tight">
-                  {currentUser?.name || 'Researcher'}
-                </p>
-                <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate leading-tight lowercase">
-                  {currentUser?.email || currentUser?.role || 'user@research.edu'}
-                </p>
-              </div>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 hidden sm:block" />
+              <ChevronDown className="w-3 h-3 text-slate-400 dark:text-slate-400 shrink-0 pr-0.5" />
             </button>
 
             {profileDropdownOpen && (
