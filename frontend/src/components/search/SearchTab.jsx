@@ -926,17 +926,17 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
       )}
       
       {/* ====== LEFT SIDEBAR ====== */}
-      <aside className="hidden lg:flex flex-col w-72 shrink-0 sticky top-0 h-screen overflow-y-auto border-r border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 p-4 space-y-4">
+      <aside className="hidden lg:flex flex-col w-80 shrink-0 sticky top-0 h-screen overflow-y-auto border-r border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 p-4 space-y-4">
         {/* Topic Overview */}
         <div className="card p-4 space-y-3">
-          <div className="flex items-center justify-between gap-2 pb-2 border-b border-surface-100 dark:border-surface-800">
-            <div className="flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-primary-600 dark:text-primary-400" />
-              <h4 className="section-label">
+          <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-surface-100 dark:border-surface-800">
+            <div className="flex items-center gap-2 min-w-0">
+              <BookOpen className="w-4 h-4 text-primary-600 dark:text-primary-400 shrink-0" />
+              <h4 className="section-label whitespace-nowrap text-[10.5px] font-bold">
                 {t('search.topic_scope')}
               </h4>
             </div>
-            <span className="badge badge-primary text-[10px]">
+            <span className="badge badge-primary text-[10px] shrink-0 font-bold px-2.5 py-0.5 whitespace-nowrap">
               {projectData?.year_from || 2020} – {projectData?.year_to || 2026}
             </span>
           </div>
