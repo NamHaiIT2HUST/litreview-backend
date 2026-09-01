@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Plus, Sparkles, BookOpen, ArrowRight, Lightbulb, Compass } from 'lucide-react';
+import { X, Plus, BrainCircuit, BookOpen, ArrowRight, Lightbulb, Compass } from 'lucide-react';
 import { useProject } from '../../contexts/ProjectContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 
@@ -72,7 +72,7 @@ export default function NewProjectModal({ isOpen, onClose, onCreated }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-md animate-fade-in overflow-y-auto"
       onMouseDown={(e) => { mouseDownOnBackdrop.current = e.target === e.currentTarget; }}
       onClick={(e) => {
         if (mouseDownOnBackdrop.current && e.target === e.currentTarget && !loading) onClose();
@@ -80,18 +80,18 @@ export default function NewProjectModal({ isOpen, onClose, onCreated }) {
       }}
     >
       <div 
-        className="w-full max-w-lg flex flex-col overflow-hidden shadow-2xl bg-[#141A26] border border-slate-700/80 rounded-3xl animate-slide-up text-slate-100"
+        className="w-full max-w-lg max-h-[90dvh] overflow-y-auto custom-scrollbar flex flex-col shadow-2xl bg-[#141A26] border border-slate-700/80 rounded-3xl animate-slide-up text-slate-100"
         onClick={e => e.stopPropagation()}
       >
         
         {/* Modal Header */}
-        <div className="flex items-center justify-between p-5 sm:p-6 border-b border-slate-800 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/25">
-              <Plus className="w-5 h-5 stroke-[2.8]" />
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-slate-800 shrink-0 sticky top-0 bg-[#141A26]/95 backdrop-blur-md z-10">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/25 shrink-0">
+              <Plus className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.8]" />
             </div>
             <div>
-              <h3 className="font-display font-extrabold text-base sm:text-lg text-white">
+              <h3 className="font-display font-extrabold text-sm sm:text-lg text-white">
                 {isVi ? 'Tạo đề tài nghiên cứu mới' : 'Create New Research Project'}
               </h3>
               <p className="text-xs text-slate-400">
@@ -169,7 +169,7 @@ export default function NewProjectModal({ isOpen, onClose, onCreated }) {
 
           {/* Helpful Footnote */}
           <div className="p-3 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-[11px] text-blue-300 leading-relaxed flex items-start gap-2">
-            <Sparkles className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+            <BrainCircuit className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
             <span>
               {isVi 
                 ? 'Bạn có thể thiết lập chi tiết câu hỏi PICO, giai đoạn năm & Tiêu chí sàng lọc PRISMA ở bước 1 sau khi vào không gian làm việc.'

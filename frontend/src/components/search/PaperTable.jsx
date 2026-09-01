@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import {
   ExternalLink, FileText, Copy, Check, Quote, PlusCircle,
-  CheckCircle2, Sparkles, GitFork, BookOpen, Award,
+  CheckCircle2, BrainCircuit, GitFork, BookOpen, Award,
   ChevronDown, ChevronUp, Users, CalendarDays
 } from 'lucide-react';
 
@@ -125,7 +125,7 @@ function PaperCard({ paper, isSelected, onToggle, onOpenAiScreening, onOpenGenea
               <OABadge oaStatus={oaStatus} />
               {hasTldr && (
                 <span className="badge" style={{ background: '#EEF2FF', color: '#4338CA' }}>
-                  <Sparkles className="w-2.5 h-2.5" />
+                  <BrainCircuit className="w-2.5 h-2.5" />
                   AI Summary
                 </span>
               )}
@@ -169,7 +169,7 @@ function PaperCard({ paper, isSelected, onToggle, onOpenAiScreening, onOpenGenea
         </div>
 
         {/* ── Footer Actions ────────────────────────────────────────────── */}
-        <div className="flex items-center justify-between mt-3 pt-3 border-t border-surface-100 dark:border-surface-800">
+        <div className="flex flex-wrap items-center justify-between gap-2 mt-3 pt-3 border-t border-surface-100 dark:border-surface-800">
           {/* DOI */}
           <div className="flex items-center gap-1.5 text-[11px] text-surface-400 font-mono">
             {paper.doi && paper.doi !== 'N/A' ? (
@@ -179,7 +179,7 @@ function PaperCard({ paper, isSelected, onToggle, onOpenAiScreening, onOpenGenea
                 className="flex items-center gap-1 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
               >
                 {copiedDoi === paper.doi ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
-                <span className="max-w-[160px] truncate">{paper.doi}</span>
+                <span className="max-w-[140px] xs:max-w-[180px] sm:max-w-[220px] truncate">{paper.doi}</span>
               </button>
             ) : (
               <span>No DOI</span>
@@ -205,7 +205,7 @@ function PaperCard({ paper, isSelected, onToggle, onOpenAiScreening, onOpenGenea
                 className="btn btn-sm btn-ghost text-xs py-1 px-2 text-primary-600 dark:text-primary-400"
                 title="AI screening"
               >
-                <Sparkles className="w-3 h-3" />
+                <BrainCircuit className="w-3 h-3" />
               </button>
             )}
             <button
@@ -280,7 +280,7 @@ function PaperRow({ paper, isSelected, onToggle, copiedDoi, onCopyDoi, onOpenAiS
           {onOpenAiScreening && (
             <button type="button" onClick={() => onOpenAiScreening(paper)}
               className="p-1 rounded text-surface-400 hover:text-primary-600 dark:hover:text-primary-400">
-              <Sparkles className="w-3.5 h-3.5" />
+              <BrainCircuit className="w-3.5 h-3.5" />
             </button>
           )}
         </div>
@@ -329,7 +329,7 @@ export default function PaperTable({ papers, selectedPaperIds, toggleSelectPaper
   if (viewMode === 'table') {
     return (
       <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto touch-pan-x custom-scrollbar">
           <table className="w-full text-left">
             <thead>
               <tr className="bg-surface-50 dark:bg-surface-800 border-b border-surface-200 dark:border-surface-700">

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  BookOpen, Sparkles, Search, Layers, ShieldCheck, ArrowRight,
+  BookOpen, BrainCircuit, Search, Layers, ShieldCheck, ArrowRight,
   CheckCircle2, Bot, Database, Zap, FileText, Check, ChevronRight,
   Plus, Target, BarChart2, TrendingUp, Clock, Copy, Trash2,
   ExternalLink, ArrowUpRight, Filter, AlertCircle, RefreshCw,
@@ -430,24 +430,25 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
         </div>
       )}
       
-      {/* ── 1. Top Navbar Header Bar (Harmonized with Application Standard) ── */}
-      <header className="sticky top-0 z-50 w-full bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors shadow-xs">
-        <div className="w-full max-w-[1920px] mx-auto px-3 sm:px-4 lg:px-6 h-16 flex items-center justify-between gap-2 sm:gap-4">
+      {/* ── 1. Top Navbar Header Bar (Fixed on Scroll) ── */}
+      <header className="fixed top-0 left-0 right-0 z-50 w-full bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors shadow-xs">
+        <div className="w-full max-w-[1920px] mx-auto px-2 sm:px-4 lg:px-6 h-14 sm:h-16 flex items-center justify-between gap-1.5 sm:gap-4">
           
           {/* Left: Standard Brand Logo & Tagline */}
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             <BrandLogo
-              size="md"
+              size="sm"
               withText
               withTagline
               taglineClassName="hidden 2xl:block"
               isEn={!isVietnamese}
               badgeStyle
+              className="sm:scale-105 origin-left"
             />
           </div>
 
           {/* Right: Controls, Search, View Mode, + Tạo mới, Profile Menu */}
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
             
             {/* Search Input */}
             <div className="relative hidden md:block w-40 sm:w-52 lg:w-64">
@@ -462,7 +463,7 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
             </div>
 
             {/* Grid / List Toggle */}
-            <div className="flex items-center bg-slate-100/80 dark:bg-slate-800/80 p-0.5 rounded-xl border border-slate-200 dark:border-slate-700">
+            <div className="hidden xs:flex items-center bg-slate-100/80 dark:bg-slate-800/80 p-0.5 rounded-xl border border-slate-200 dark:border-slate-700">
               <button
                 onClick={() => setViewMode('grid')}
                 className={`p-1.5 rounded-lg transition-all cursor-pointer ${viewMode === 'grid' ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-white shadow-2xs' : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
@@ -493,48 +494,17 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
             {/* + Tạo mới Button */}
             <button
               onClick={onOpenNewProject}
-              className="h-9 px-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs flex items-center gap-1.5 transition-all hover:scale-[1.02] cursor-pointer shrink-0"
+              className="h-8 sm:h-9 px-2.5 sm:px-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs flex items-center gap-1 sm:gap-1.5 transition-all hover:scale-[1.02] cursor-pointer shrink-0"
             >
-              <Plus className="w-4 h-4 stroke-[2.8]" />
-              <span>{isVietnamese ? 'Tạo mới' : 'New Notebook'}</span>
-            </button>
-
-            {/* Quick Language Toggle Button */}
-            <button
-              onClick={() => {
-                const nextLang = language === 'vi' ? 'en' : 'vi';
-                setLanguage(nextLang);
-                showToast(nextLang === 'vi' ? 'Đã đổi sang Tiếng Việt' : 'Switched to English');
-              }}
-              className="px-2 sm:px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-750 transition-all text-xs font-bold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 flex items-center gap-1 cursor-pointer shadow-xs shrink-0"
-              title={isVietnamese ? 'Đổi ngôn ngữ' : 'Switch Language'}
-            >
-              <Languages className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-              <span className="font-mono uppercase text-[10.5px] sm:text-[11px]">{language}</span>
-            </button>
-
-            {/* Dark / Light Mode Switch */}
-            <button
-              onClick={() => {
-                const next = !darkMode;
-                setDarkMode(next);
-                showToast(next ? (isVietnamese ? 'Đã bật chế độ tối' : 'Dark mode enabled') : (isVietnamese ? 'Đã bật chế độ sáng' : 'Light mode enabled'));
-              }}
-              className="p-2 sm:px-2.5 sm:py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-750 transition-all text-xs font-bold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 flex items-center gap-1 cursor-pointer shadow-xs shrink-0"
-              title={isVietnamese ? 'Giao diện sáng/tối' : 'Toggle Theme'}
-            >
-              {darkMode ? (
-                <Sun className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-              ) : (
-                <Moon className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-              )}
+              <Plus className="w-3.5 sm:w-4 h-3.5 sm:h-4 stroke-[2.8]" />
+              <span>{isVietnamese ? 'Tạo mới' : 'New'}</span>
             </button>
 
             {/* User Profile Avatar Icon Button */}
             <div className="relative shrink-0" ref={profileMenuRef}>
               <button
                 onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-                className="p-1 sm:p-1.5 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 hover:border-blue-500/40 dark:hover:border-blue-500/40 transition-all cursor-pointer shadow-xs flex items-center gap-1.5 ml-0.5"
+                className="p-1 sm:p-1.5 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 hover:border-blue-500/40 dark:hover:border-blue-500/40 transition-all cursor-pointer shadow-xs flex items-center gap-1 sm:gap-1.5 ml-1"
                 title={currentUser?.name || 'User Profile'}
               >
                 {currentUser?.picture ? (
@@ -548,41 +518,126 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
                     {userInitials}
                   </div>
                 )}
-                <ChevronRight className="w-3 h-3 text-slate-400 dark:text-slate-400 shrink-0 pr-0.5 rotate-90" />
+                <ChevronRight className="w-3.5 h-3.5 text-slate-400 dark:text-slate-400 shrink-0 rotate-90" />
               </button>
 
               {/* Dropdown Menu Modal */}
               {isProfileMenuOpen && (
-                <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl p-3 text-slate-800 dark:text-slate-200 z-50 animate-slide-up backdrop-blur-xl">
+                <div className="absolute right-0 mt-2 w-72 max-w-[calc(100vw-1.5rem)] rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl py-2.5 z-50 animate-slide-up text-xs backdrop-blur-xl">
                   
                   {/* User Info Header */}
-                  <div className="flex items-center gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
-                    {currentUser?.picture ? (
-                      <img
-                        src={currentUser.picture}
-                        alt={currentUser.name}
-                        className="w-10 h-10 rounded-xl object-cover ring-2 ring-blue-500 shrink-0"
-                      />
-                    ) : (
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-bold text-sm flex items-center justify-center shrink-0">
-                        {userInitials}
+                  <div className="px-4 py-2 border-b border-slate-100 dark:border-slate-800 space-y-1.5">
+                    <div className="flex items-center gap-3">
+                      {currentUser?.picture ? (
+                        <img
+                          src={currentUser.picture}
+                          alt={currentUser.name}
+                          className="w-9 h-9 rounded-xl object-cover ring-2 ring-blue-500 shrink-0"
+                        />
+                      ) : (
+                        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-bold text-sm flex items-center justify-center shrink-0">
+                          {userInitials}
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white truncate">
+                          {currentUser?.name || 'Nguyễn Đào Nam Hải'}
+                        </h4>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate lowercase">
+                          {currentUser?.email || 'namhai23092005@gmail.com'}
+                        </p>
+                        <span className="inline-block mt-0.5 px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] font-semibold">
+                          {isVietnamese ? 'Học giả nghiên cứu' : 'Scholar Researcher'}
+                        </span>
                       </div>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <h4 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white truncate">
-                        {currentUser?.name || 'Nguyễn Đào Nam Hải'}
-                      </h4>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                        {currentUser?.email || 'namhai23092005@gmail.com'}
-                      </p>
-                      <span className="inline-block mt-0.5 px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] font-semibold">
-                        {isVietnamese ? 'Học giả nghiên cứu' : 'Scholar Researcher'}
+                    </div>
+                  </div>
+
+                  {/* Unified Settings Section: Language & Dark/Light Mode */}
+                  <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800 space-y-2">
+                    <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 px-1">
+                      {isVietnamese ? 'Tùy chọn hiển thị & Cài đặt' : 'Appearance & Settings'}
+                    </div>
+
+                    {/* Language Selector Row */}
+                    <div className="flex items-center justify-between px-2 py-1 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
+                      <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200">
+                        <Languages className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                        {isVietnamese ? 'Ngôn ngữ' : 'Language'}
                       </span>
+                      <div className="flex items-center bg-slate-200/80 dark:bg-slate-700/80 p-0.5 rounded-lg text-[10.5px] font-bold font-mono">
+                        <button
+                          onClick={() => {
+                            setLanguage('vi');
+                            showToast('Đã đổi sang Tiếng Việt');
+                          }}
+                          className={`px-2 py-0.5 rounded-md transition-all cursor-pointer ${
+                            language === 'vi'
+                              ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-2xs font-extrabold'
+                              : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                          }`}
+                        >
+                          VI
+                        </button>
+                        <button
+                          onClick={() => {
+                            setLanguage('en');
+                            showToast('Switched to English');
+                          }}
+                          className={`px-2 py-0.5 rounded-md transition-all cursor-pointer ${
+                            language === 'en'
+                              ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-2xs font-extrabold'
+                              : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                          }`}
+                        >
+                          EN
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Theme Mode Selector Row */}
+                    <div className="flex items-center justify-between px-2 py-1 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
+                      <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200">
+                        {darkMode ? <Moon className="w-3.5 h-3.5 text-blue-500" /> : <Sun className="w-3.5 h-3.5 text-amber-500" />}
+                        {isVietnamese ? 'Giao diện' : 'Theme'}
+                      </span>
+                      <div className="flex items-center bg-slate-200/80 dark:bg-slate-700/80 p-0.5 rounded-lg text-[10.5px] font-bold">
+                        <button
+                          onClick={() => {
+                            setDarkMode(false);
+                            showToast(isVietnamese ? 'Đã bật chế độ sáng' : 'Light mode enabled');
+                          }}
+                          className={`px-2 py-0.5 rounded-md flex items-center gap-1 transition-all cursor-pointer ${
+                            !darkMode
+                              ? 'bg-white text-amber-600 shadow-2xs font-bold'
+                              : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                          }`}
+                          title={isVietnamese ? 'Giao diện sáng' : 'Light mode'}
+                        >
+                          <Sun className="w-3 h-3" />
+                          <span>{isVietnamese ? 'Sáng' : 'Light'}</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            setDarkMode(true);
+                            showToast(isVietnamese ? 'Đã bật chế độ tối' : 'Dark mode enabled');
+                          }}
+                          className={`px-2 py-0.5 rounded-md flex items-center gap-1 transition-all cursor-pointer ${
+                            darkMode
+                              ? 'bg-slate-900 text-blue-400 shadow-2xs font-bold'
+                              : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                          }`}
+                          title={isVietnamese ? 'Giao diện tối' : 'Dark mode'}
+                        >
+                          <Moon className="w-3 h-3" />
+                          <span>{isVietnamese ? 'Tối' : 'Dark'}</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
 
                   {/* Logout Action */}
-                  <div className="pt-2">
+                  <div className="p-1">
                     <button
                       onClick={() => {
                         setIsProfileMenuOpen(false);
@@ -605,10 +660,22 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
       </header>
 
       {/* ── Main Hub Content Area (Standard Width & Proportion) ── */}
-      <main className="flex-1 w-full max-w-[1920px] mx-auto px-3 sm:px-4 lg:px-6 py-5 sm:py-6 space-y-6 sm:space-y-8 relative z-10">
+      <main className="flex-1 w-full max-w-[1920px] mx-auto px-3 sm:px-4 lg:px-6 pt-18 sm:pt-22 pb-4 sm:pb-6 space-y-4 sm:space-y-8 relative z-10">
         
+        {/* Mobile Search Bar (< md) */}
+        <div className="md:hidden relative w-full">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder={isVietnamese ? 'Tìm kiếm đề tài...' : 'Search projects...'}
+            className="w-full h-10 pl-9 pr-3 rounded-xl bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+          />
+        </div>
+
         {/* ── 2. Filter Category Tabs (All, Mine, Featured, Shared, Collections) ── */}
-        <nav className="flex items-center gap-1 p-1 rounded-2xl bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80 w-fit overflow-x-auto custom-scrollbar">
+        <nav className="flex items-center gap-1 p-1 rounded-2xl bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80 w-full sm:w-fit overflow-x-auto touch-pan-x no-scrollbar">
           {[
             { id: 'all', label: isVietnamese ? 'Tất cả' : 'All' },
             { id: 'mine', label: isVietnamese ? 'Đề tài của tôi' : 'My projects' },
@@ -638,7 +705,7 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
             </div>
             
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 text-xs font-bold mb-3">
-              <Sparkles className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+              <BrainCircuit className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
               <span>{isVietnamese ? 'Tính năng đang được phát triển trong thời gian tới' : 'Coming Soon in Next Release'}</span>
             </div>
 
@@ -678,9 +745,14 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
                 <BookOpen className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                 <span>{isVietnamese ? 'Đề tài gần đây' : 'Recent Projects'}</span>
               </h2>
-              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                {filteredProjects.length} {isVietnamese ? 'đề tài' : 'projects'}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="sm:hidden text-[11px] text-blue-600 dark:text-blue-400 font-medium">
+                  {isVietnamese ? 'Vuốt ngang →' : 'Swipe →'}
+                </span>
+                <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                  {filteredProjects.length} {isVietnamese ? 'đề tài' : 'projects'}
+                </span>
+              </div>
             </div>
 
             {/* Empty Search Result State */}
@@ -699,20 +771,20 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
                 </p>
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="px-3.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-white font-semibold text-xs flex items-center gap-1.5 border border-slate-200 dark:border-slate-700 transition-all cursor-pointer"
+                  className="px-3.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-750 text-slate-800 dark:text-white font-semibold text-xs flex items-center gap-1.5 border border-slate-200 dark:border-slate-700 transition-all cursor-pointer"
                 >
                   <X className="w-3.5 h-3.5" />
                   <span>{isVietnamese ? 'Xóa từ khóa tìm kiếm' : 'Clear search query'}</span>
                 </button>
               </div>
             ) : viewMode === 'grid' ? (
-              /* ── Grid View Mode ── */
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5 sm:gap-4">
+              /* ── Grid View Mode (Horizontal Carousel on Mobile, Grid on sm+) ── */
+              <div className="flex overflow-x-auto touch-pan-x snap-x snap-mandatory pb-3 sm:pb-0 sm:grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 sm:overflow-visible gap-3.5 sm:gap-4 no-scrollbar -mx-3 px-3 sm:mx-0 sm:px-0">
                 
                 {/* Card 1: + Tạo đề tài mới */}
                 <button
                   onClick={onOpenNewProject || handleCreateNewNotebook}
-                  className="h-60 sm:h-64 lg:h-72 rounded-2xl bg-slate-50/70 dark:bg-slate-900/50 border-2 border-dashed border-slate-300 dark:border-slate-700/80 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50/30 dark:hover:bg-blue-950/10 flex flex-col items-center justify-center p-5 text-center transition-all duration-200 group cursor-pointer shadow-2xs hover:shadow-xs relative overflow-hidden"
+                  className="w-[78vw] max-w-[280px] sm:w-auto sm:max-w-none shrink-0 snap-start h-60 sm:h-64 lg:h-72 rounded-2xl bg-slate-50/70 dark:bg-slate-900/50 border-2 border-dashed border-slate-300 dark:border-slate-700/80 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50/30 dark:hover:bg-blue-950/10 flex flex-col items-center justify-center p-5 text-center transition-all duration-200 group cursor-pointer shadow-2xs hover:shadow-xs relative overflow-hidden"
                 >
                   <div className="w-11 h-11 rounded-xl bg-blue-600 text-white flex items-center justify-center mb-2.5 shadow-sm shadow-blue-500/20 group-hover:scale-105 transition-transform">
                     <Plus className="w-6 h-6 stroke-[2.8]" />
@@ -750,7 +822,7 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
                     <div
                       key={proj.id}
                       onClick={() => handleOpenNotebook(proj)}
-                      className={`group relative rounded-2xl bg-white dark:bg-slate-900/90 border transition-all duration-200 cursor-pointer flex flex-col h-60 sm:h-64 lg:h-72 shadow-xs hover:shadow-md ${
+                      className={`w-[78vw] max-w-[280px] sm:w-auto sm:max-w-none shrink-0 snap-start group relative rounded-2xl bg-white dark:bg-slate-900/90 border transition-all duration-200 cursor-pointer flex flex-col h-60 sm:h-64 lg:h-72 shadow-xs hover:shadow-md ${
                         proj.is_pinned
                           ? 'border-blue-500/80 shadow-blue-500/10'
                           : `border-slate-200/80 dark:border-slate-800 hover:border-blue-500/60 dark:hover:border-blue-500/60`
@@ -1095,7 +1167,7 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
           <section className="space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                <BrainCircuit className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                 <span>{isVietnamese ? 'Đề tài nổi bật' : 'Featured Projects'}</span>
               </h2>
               <button
@@ -1108,12 +1180,12 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
             </div>
 
             {viewMode === 'grid' ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5 sm:gap-4">
+              <div className="flex overflow-x-auto touch-pan-x snap-x snap-mandatory pb-3 sm:pb-0 sm:grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 sm:overflow-visible gap-3.5 sm:gap-4 no-scrollbar -mx-3 px-3 sm:mx-0 sm:px-0">
                 {FEATURED_NOTEBOOKS.map(feat => (
                   <div
                     key={feat.id}
                     onClick={() => handleOpenFeatured(feat)}
-                    className="group relative rounded-2xl overflow-hidden bg-white dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 hover:border-blue-500/60 dark:hover:border-blue-500/60 shadow-xs hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col h-60 sm:h-64 lg:h-72"
+                    className="w-[74vw] max-w-[270px] sm:w-auto sm:max-w-none shrink-0 snap-start group relative rounded-2xl overflow-hidden bg-white dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 hover:border-blue-500/60 dark:hover:border-blue-500/60 shadow-xs hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col h-60 sm:h-64 lg:h-72"
                   >
                     {/* Cover Image */}
                     <div className="h-28 sm:h-32 lg:h-36 w-full relative overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0">

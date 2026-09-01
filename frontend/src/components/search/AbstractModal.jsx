@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Copy, Check, FileText, ExternalLink, Award, Sparkles, BookOpen } from 'lucide-react';
+import { X, Copy, Check, FileText, ExternalLink, Award, BrainCircuit, BookOpen } from 'lucide-react';
 
 export default function AbstractModal({ paper, onClose, darkMode }) {
   const [copied, setCopied] = useState(false);
@@ -55,7 +55,7 @@ export default function AbstractModal({ paper, onClose, darkMode }) {
           {paper.tldr && (
             <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60">
               <div className="flex items-center gap-2 font-bold text-emerald-800 dark:text-emerald-300 text-xs uppercase tracking-wider mb-1">
-                <Sparkles className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <BrainCircuit className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                 <span>⚡ Tóm tắt siêu tốc (AI TL;DR)</span>
               </div>
               <p className="text-emerald-900 dark:text-emerald-200 font-medium text-xs md:text-sm">

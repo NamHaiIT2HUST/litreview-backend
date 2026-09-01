@@ -14,7 +14,6 @@ import {
   Bot,
   UploadCloud,
   FileText,
-  Sparkles,
   CheckCircle2,
   Check,
   AlertCircle,
@@ -658,14 +657,16 @@ export default function WorkspaceTab({
     } catch (err) {
       console.error('Failed to trigger chat response from synthesis prompt:', err);
     }
-  };  return (
-    <div className="flex flex-col gap-4 h-[calc(100vh-4rem)] p-4 overflow-hidden font-sans text-surface-900 dark:text-surface-100">
-      <div className="flex flex-col lg:flex-row gap-4 flex-1 min-h-0">
+  };
+
+  return (
+    <div className="flex flex-col gap-3 sm:gap-4 h-[calc(100dvh-3.5rem-3.75rem)] md:h-[calc(100dvh-4rem)] p-2 sm:p-4 overflow-hidden font-sans text-surface-900 dark:text-surface-100">
+      <div className="flex flex-col lg:flex-row gap-3 sm:gap-4 flex-1 min-h-0">
       
       {/* ── LEFT: Sources Panel ── */}
       <div 
         ref={sidebarRef}
-        className={`relative shrink-0 ${isSourcesOpen ? 'w-full lg:w-[var(--sidebar-width,260px)]' : 'w-full lg:w-[64px]'} ${isResizing ? 'transition-none' : 'transition-all duration-300 ease-in-out'}`}
+        className={`relative shrink-0 ${isSourcesOpen ? 'w-full lg:w-[var(--sidebar-width,260px)] max-h-48 lg:max-h-none overflow-y-auto lg:overflow-visible' : 'w-full lg:w-[64px]'} ${isResizing ? 'transition-none' : 'transition-all duration-300 ease-in-out'}`}
       >
         <div className="card h-full flex flex-col overflow-hidden">
         
@@ -908,12 +909,12 @@ export default function WorkspaceTab({
         {activeCitation && (
           <div 
             ref={verifRef}
-            className="shrink-0 h-full overflow-visible card border-primary-200 dark:border-primary-800 animate-slide-up relative flex"
-            style={{ width: verificationWidth }}
+            className="fixed lg:relative inset-y-0 right-0 z-50 lg:z-auto w-full sm:w-[480px] lg:w-auto shrink-0 h-full overflow-visible card border-primary-200 dark:border-primary-800 animate-slide-up flex bg-white dark:bg-surface-900 shadow-2xl lg:shadow-none"
+            style={{ width: typeof window !== 'undefined' && window.innerWidth < 1024 ? '100%' : verificationWidth }}
           >
             {/* Left handle for verification panel */}
             <div 
-              className="absolute -left-2 top-0 bottom-0 w-4 cursor-col-resize z-20 flex items-center justify-center group"
+              className="hidden lg:flex absolute -left-2 top-0 bottom-0 w-4 cursor-col-resize z-20 items-center justify-center group"
               onMouseDown={(e) => { e.preventDefault(); setIsVerifResizing(true); }}
             >
               <div className={`w-0.5 h-12 rounded-full opacity-0 group-hover:opacity-100 transition-opacity bg-surface-300 dark:bg-surface-600 ${isVerifResizing ? 'opacity-100 bg-primary-500' : ''}`} />

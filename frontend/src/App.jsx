@@ -400,7 +400,7 @@ function MainAppShell() {
       )}
 
       {/* ── Main Content Area ─────── */}
-      <main className={isOverviewHub ? "w-full min-h-screen" : "w-full min-h-[calc(100vh-4rem)]"}>
+      <main className={isOverviewHub ? "w-full min-h-screen" : "w-full min-h-[calc(100vh-4rem)] pt-14 sm:pt-16 pb-16 md:pb-0"}>
         {renderMainContent()}
       </main>
 

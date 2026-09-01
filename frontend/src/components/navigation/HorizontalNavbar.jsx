@@ -5,7 +5,7 @@ import {
   FolderKanban, ChevronDown, LayoutList, PanelLeft,
   LayoutDashboard, User, ShieldCheck, ExternalLink,
   BookOpen, ArrowLeft, MessageSquare, FileText, BarChart2,
-  Sparkles, HelpCircle
+  BrainCircuit, HelpCircle, X, ChevronRight
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useProject } from '../../contexts/ProjectContext';
@@ -14,11 +14,56 @@ import { useDarkMode } from '../../contexts/DarkModeContext';
 import BrandLogo from '../common/BrandLogo';
 
 const NAV_ITEMS = [
-  { id: 'setup',        labelVi: 'Khung đề tài',       shortLabelVi: 'Khung đề tài',  labelEn: 'Setup',             shortLabelEn: 'Setup',      icon: Settings },
-  { id: 'search',       labelVi: 'Tìm kiếm',          shortLabelVi: 'Tìm kiếm',     labelEn: 'Search',            shortLabelEn: 'Search',     icon: Search },
-  { id: 'chat',         labelVi: 'Chat với nguồn',     shortLabelVi: 'Chat nguồn',   labelEn: 'Chat with Sources', shortLabelEn: 'Chat',       icon: MessageSquare },
-  { id: 'synthesis',    labelVi: 'Tổng quan tài liệu', shortLabelVi: 'Tổng quan',    labelEn: 'Literature Review', shortLabelEn: 'Review',     icon: FileText },
-  { id: 'data_analysis',labelVi: 'Phân tích dữ liệu',  shortLabelVi: 'Phân tích',    labelEn: 'Data Analysis',     shortLabelEn: 'Analytics',  icon: BarChart2 },
+  { 
+    id: 'setup',        
+    labelVi: 'Khung đề tài',       
+    shortLabelVi: 'Khung đề tài',  
+    labelEn: 'Setup',             
+    shortLabelEn: 'Setup',      
+    descVi: 'Định hình phạm vi, câu hỏi & tiêu chí PRISMA',
+    descEn: 'Scope, questions & PRISMA criteria',
+    icon: Settings 
+  },
+  { 
+    id: 'search',       
+    labelVi: 'Tìm kiếm',          
+    shortLabelVi: 'Tìm kiếm',     
+    labelEn: 'Search',            
+    shortLabelEn: 'Search',     
+    descVi: 'Tra cứu bài báo Scopus & Semantic Scholar',
+    descEn: 'Search Scopus & Semantic Scholar papers',
+    icon: Search 
+  },
+  { 
+    id: 'chat',         
+    labelVi: 'Chat với nguồn',     
+    shortLabelVi: 'Chat nguồn',   
+    labelEn: 'Chat with Sources', 
+    shortLabelEn: 'Chat',       
+    descVi: 'Hỏi đáp RAG đa tài liệu kèm trích dẫn gốc',
+    descEn: 'Multi-doc RAG Q&A with grounded citations',
+    icon: MessageSquare 
+  },
+  { 
+    id: 'synthesis',    
+    labelVi: 'Tổng quan tài liệu', 
+    shortLabelVi: 'Tổng quan',    
+    labelEn: 'Literature Review', 
+    shortLabelEn: 'Review',     
+    descVi: 'Tổng hợp luận điểm & xuất bản báo cáo',
+    descEn: 'Deep synthesis & publish report',
+    icon: FileText 
+  },
+  { 
+    id: 'data_analysis',
+    labelVi: 'Phân tích dữ liệu',  
+    shortLabelVi: 'Phân tích',    
+    labelEn: 'Data Analysis',     
+    shortLabelEn: 'Analytics',  
+    descVi: 'EDA, thống kê & trực quan hóa biểu đồ',
+    descEn: 'EDA, statistics & interactive charts',
+    icon: BarChart2 
+  },
 ];
 
 export default function HorizontalNavbar({
@@ -57,7 +102,16 @@ export default function HorizontalNavbar({
 
   const navItems = currentUser?.role === 'admin' 
     ? [
-        { id: 'admin', labelVi: 'Quản trị', shortLabelVi: 'Quản trị', labelEn: 'Admin', shortLabelEn: 'Admin', icon: LayoutDashboard },
+        { 
+          id: 'admin', 
+          labelVi: 'Quản trị', 
+          shortLabelVi: 'Quản trị', 
+          labelEn: 'Admin', 
+          shortLabelEn: 'Admin', 
+          descVi: 'Quản lý người dùng và hệ thống',
+          descEn: 'Manage users and system',
+          icon: LayoutDashboard 
+        },
       ]
     : NAV_ITEMS;
 
@@ -95,18 +149,21 @@ export default function HorizontalNavbar({
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors shadow-xs">
-      <div className="w-full max-w-[1920px] mx-auto px-2 sm:px-4 lg:px-6 h-16 flex items-center justify-between gap-1.5 sm:gap-2.5 lg:gap-4">
-        
-        {/* ── 1. Left: Brand Logo & Unified Project Switcher Hub ─────── */}
+    <>
+      {/* ── Top Header (Fixed at top) ── */}
+      <header className="fixed top-0 left-0 right-0 z-50 w-full bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors shadow-xs">
+        <div className="w-full max-w-[1920px] mx-auto px-2.5 sm:px-4 lg:px-6 h-14 sm:h-16 flex items-center justify-between gap-1.5 sm:gap-2.5 lg:gap-4">
+          
+          {/* ── 1. Left: Brand Logo & Unified Project Switcher Hub ─────── */}
         <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0 min-w-0">
           <BrandLogo
-            size="md"
+            size="sm"
             withText
             withTagline
             taglineClassName="hidden 2xl:block"
             isEn={!isVi}
             badgeStyle
+            className="sm:scale-105 origin-left"
             onClick={() => setActiveTab('overview')}
           />
           <div className="h-5 w-px bg-slate-200 dark:bg-slate-800 hidden sm:block shrink-0" />
@@ -116,23 +173,16 @@ export default function HorizontalNavbar({
             <button
               id="tour-project-switcher"
               onClick={() => setProjectDropdownOpen(!projectDropdownOpen)}
-              className="inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-100/90 dark:bg-slate-800/90 hover:bg-slate-200/80 dark:hover:bg-slate-750 border border-slate-200/90 dark:border-slate-700/90 transition-all cursor-pointer shadow-2xs max-w-[120px] sm:max-w-[150px] md:max-w-[180px] xl:max-w-[230px] overflow-hidden"
+              className="inline-flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2.5 py-1.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-100/90 dark:bg-slate-800/90 hover:bg-slate-200/80 dark:hover:bg-slate-750 border border-slate-200/90 dark:border-slate-700/90 transition-all cursor-pointer shadow-2xs max-w-[100px] xs:max-w-[130px] sm:max-w-[160px] md:max-w-[190px] xl:max-w-[240px] overflow-hidden"
               title={activeProject?.name || (isVi ? 'Đề tài hiện tại / chuyển đề tài' : 'Current Project / Switch')}
             >
               <FolderKanban className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
-              {/* min-w-0 is required here: a flex item's default min-width is
-                  "auto", which lets it grow to its text's full intrinsic
-                  width and ignore `truncate`/the button's max-w -- overflowing
-                  past the button and covering the nav tabs + right-side
-                  controls for long project names instead of actually
-                  ellipsizing. flex-1 just lets it claim the button's spare
-                  width before truncating; it doesn't replace min-w-0. */}
               <span className="truncate min-w-0 flex-1">{activeProject?.name || (isVi ? 'Tất cả đề tài' : 'All Projects')}</span>
               <ChevronDown className="w-3 h-3 text-slate-400 shrink-0 ml-0.5" />
             </button>
 
             {projectDropdownOpen && (
-              <div className="absolute left-0 mt-2 w-72 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl py-2 z-50 animate-slide-up text-xs">
+              <div className="absolute left-0 mt-2 w-72 max-w-[calc(100vw-1.5rem)] rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl py-2 z-50 animate-slide-up text-xs">
                 
                 {/* Back to All Projects Hub Option */}
                 <div className="px-2 pb-1.5 border-b border-slate-100 dark:border-slate-800">
@@ -205,7 +255,7 @@ export default function HorizontalNavbar({
           </div>
         </div>
 
-        {/* ── 2. Center: Primary Horizontal Navigation Tabs (5 Core Flat Steps) ── */}
+        {/* ── 2. Center: Primary Horizontal Navigation Tabs (Desktop only >= md) ── */}
         <nav className="hidden md:flex items-center p-0.5 sm:p-1 rounded-2xl bg-slate-100/70 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 backdrop-blur-sm shrink min-w-0 overflow-x-auto no-scrollbar">
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -214,7 +264,7 @@ export default function HorizontalNavbar({
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
-                className={`relative flex items-center gap-1 lg:gap-1.5 px-2 sm:px-2.5 lg:px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer whitespace-nowrap shrink-0 ${
+                className={`relative flex items-center gap-1 lg:gap-1.5 px-2.5 lg:px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer whitespace-nowrap shrink-0 ${
                   isActive
                     ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/30'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-white/80 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-700/60'
@@ -229,37 +279,24 @@ export default function HorizontalNavbar({
           })}
         </nav>
 
-        {/* ── 3. Right: Language, Theme, Profile ───────────────────────── */}
-        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+        {/* ── 3. Right: Avatar Profile Dropdown & Quick Actions ── */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
 
-          {/* Language Switch */}
+          {/* Quick New Project Button (Mobile visible) */}
           <button
-            onClick={() => setLanguage(language === 'vi' ? 'en' : 'vi')}
-            className="px-2 sm:px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all text-xs font-bold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 flex items-center gap-1 cursor-pointer shadow-xs shrink-0"
-            title={isVi ? 'Đổi ngôn ngữ' : 'Switch Language'}
+            onClick={onOpenNewProject}
+            className="md:hidden p-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400 border border-blue-200/80 dark:border-blue-800/60 flex items-center justify-center cursor-pointer shadow-2xs transition-colors"
+            title={isVi ? 'Tạo đề tài mới' : 'New Project'}
+            aria-label="New Project"
           >
-            <Languages className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-            <span className="font-mono uppercase text-[10.5px] sm:text-[11px]">{language}</span>
+            <Plus className="w-4 h-4 stroke-[2.5]" />
           </button>
 
-          {/* Dark Mode Switch */}
-          <button
-            onClick={() => setDarkMode(!darkMode)}
-            className="p-2 sm:px-2.5 sm:py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all text-xs font-bold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 flex items-center gap-1.5 cursor-pointer shadow-xs shrink-0"
-            title={isVi ? (darkMode ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối') : (darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode')}
-          >
-            {darkMode ? (
-              <Sun className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-            ) : (
-              <Moon className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-            )}
-          </button>
-
-          {/* User Profile Avatar Icon Button */}
+          {/* User Profile Avatar Icon Button (Includes Language & Theme Settings) */}
           <div className="relative shrink-0" ref={profileDropdownRef}>
             <button
               onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-              className="p-1 sm:p-1.5 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 hover:border-blue-500/40 dark:hover:border-blue-500/40 transition-all cursor-pointer shadow-xs flex items-center gap-1.5 ml-0.5"
+              className="p-1 sm:p-1.5 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 hover:border-blue-500/40 dark:hover:border-blue-500/40 transition-all cursor-pointer shadow-xs flex items-center gap-1 sm:gap-1.5"
               title={currentUser?.name ? `${currentUser.name} (${currentUser.email || ''})` : 'User Profile'}
             >
               {currentUser?.picture ? (
@@ -269,16 +306,19 @@ export default function HorizontalNavbar({
                   className="w-7 h-7 sm:w-[30px] sm:h-[30px] rounded-lg object-cover ring-1 ring-blue-500/30 flex-shrink-0"
                 />
               ) : (
-                <div className="w-7 h-7 sm:w-[30px] sm:h-[30px] rounded-lg bg-gradient-to-br from-blue-600 to-indigo-700 text-white font-extrabold text-xs flex items-center justify-center flex-shrink-0 shadow-xs">
+                <div className="w-7 h-7 sm:w-[30px] sm:h-[30px] rounded-lg bg-gradient-to-br from-blue-600 to-indigo-700 text-white font-extrabold text-[11px] sm:text-xs flex items-center justify-center flex-shrink-0 shadow-xs">
                   {userInitials}
                 </div>
               )}
-              <ChevronDown className="w-3 h-3 text-slate-400 dark:text-slate-400 shrink-0 pr-0.5" />
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 dark:text-slate-400 shrink-0" />
             </button>
 
+            {/* Avatar Dropdown Menu */}
             {profileDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl py-2 z-50 animate-slide-up text-xs">
-                <div className="px-4 py-2.5 border-b border-slate-100 dark:border-slate-800 space-y-1.5">
+              <div className="absolute right-0 mt-2 w-72 max-w-[calc(100vw-1.5rem)] rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl py-2.5 z-50 animate-slide-up text-xs backdrop-blur-xl">
+                
+                {/* User Card */}
+                <div className="px-4 py-2 border-b border-slate-100 dark:border-slate-800 space-y-1.5">
                   <div className="flex items-center gap-2.5">
                     {currentUser?.picture ? (
                       <img
@@ -296,15 +336,100 @@ export default function HorizontalNavbar({
                       <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate lowercase">{currentUser?.email || 'name@university.edu'}</p>
                     </div>
                   </div>
-                  <div className="pt-1 flex items-center gap-1.5">
-                    <span className="badge badge-primary text-[9.5px] uppercase">{currentUser?.role || 'Senior Researcher'}</span>
+                  <div className="pt-0.5 flex items-center gap-1.5">
+                    <span className="badge badge-primary text-[9.5px] uppercase font-bold">{currentUser?.role || 'Senior Researcher'}</span>
                     {currentUser?.institution && (
                       <span className="text-[10px] text-slate-400 truncate">{currentUser.institution}</span>
                     )}
                   </div>
                 </div>
 
+                {/* Unified Settings Section: Language & Dark/Light Mode */}
+                <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800 space-y-2">
+                  <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                    {isVi ? 'Tùy chọn hiển thị & Ngôn ngữ' : 'Language & Appearance'}
+                  </div>
+
+                  {/* Language Selector Row */}
+                  <div className="flex items-center justify-between px-2 py-1 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
+                    <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200">
+                      <Languages className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                      {isVi ? 'Ngôn ngữ' : 'Language'}
+                    </span>
+                    <div className="flex items-center bg-slate-200/80 dark:bg-slate-700/80 p-0.5 rounded-lg text-[10.5px] font-bold font-mono">
+                      <button
+                        onClick={() => setLanguage('vi')}
+                        className={`px-2 py-0.5 rounded-md transition-all cursor-pointer ${
+                          language === 'vi'
+                            ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-2xs font-extrabold'
+                            : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                        }`}
+                        title="Tiếng Việt"
+                      >
+                        VI
+                      </button>
+                      <button
+                        onClick={() => setLanguage('en')}
+                        className={`px-2 py-0.5 rounded-md transition-all cursor-pointer ${
+                          language === 'en'
+                            ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-2xs font-extrabold'
+                            : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                        }`}
+                        title="English"
+                      >
+                        EN
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Theme Mode Selector Row */}
+                  <div className="flex items-center justify-between px-2 py-1 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
+                    <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200">
+                      {darkMode ? <Moon className="w-3.5 h-3.5 text-blue-500" /> : <Sun className="w-3.5 h-3.5 text-amber-500" />}
+                      {isVi ? 'Giao diện' : 'Theme'}
+                    </span>
+                    <div className="flex items-center bg-slate-200/80 dark:bg-slate-700/80 p-0.5 rounded-lg text-[10.5px] font-bold">
+                      <button
+                        onClick={() => setDarkMode(false)}
+                        className={`px-2 py-0.5 rounded-md flex items-center gap-1 transition-all cursor-pointer ${
+                          !darkMode
+                            ? 'bg-white text-amber-600 shadow-2xs font-bold'
+                            : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                        }`}
+                        title={isVi ? 'Giao diện sáng' : 'Light mode'}
+                      >
+                        <Sun className="w-3 h-3" />
+                        <span>{isVi ? 'Sáng' : 'Light'}</span>
+                      </button>
+                      <button
+                        onClick={() => setDarkMode(true)}
+                        className={`px-2 py-0.5 rounded-md flex items-center gap-1 transition-all cursor-pointer ${
+                          darkMode
+                            ? 'bg-slate-900 text-blue-400 shadow-2xs font-bold'
+                            : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                        }`}
+                        title={isVi ? 'Giao diện tối' : 'Dark mode'}
+                      >
+                        <Moon className="w-3 h-3" />
+                        <span>{isVi ? 'Tối' : 'Dark'}</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick Project Export & Tour Actions */}
                 <div className="p-1 space-y-0.5">
+                  <button
+                    onClick={() => {
+                      setProfileDropdownOpen(false);
+                      handleExportFullProject();
+                    }}
+                    className="w-full px-3 py-2 rounded-xl text-left text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/80 font-medium flex items-center gap-2 transition-colors cursor-pointer"
+                  >
+                    <Download className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>{isVi ? 'Xuất gói đề tài (.json)' : 'Export Project (.json)'}</span>
+                  </button>
+
                   <button
                     onClick={() => {
                       setProfileDropdownOpen(false);
@@ -312,7 +437,7 @@ export default function HorizontalNavbar({
                     }}
                     className="w-full px-3 py-2 rounded-xl text-left text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-950/40 hover:text-blue-600 dark:hover:text-blue-400 font-semibold flex items-center gap-2 transition-colors cursor-pointer"
                   >
-                    <Sparkles className="w-3.5 h-3.5 text-blue-500" />
+                    <BrainCircuit className="w-3.5 h-3.5 text-blue-500" />
                     <span>{isVi ? 'Hướng dẫn sử dụng (Tour)' : 'Onboarding Tour'}</span>
                   </button>
 
@@ -332,34 +457,55 @@ export default function HorizontalNavbar({
               </div>
             )}
           </div>
-
-        </div>
-
-      </div>
-
-      {/* ── 4. Mobile Horizontal Navigation Bar (< md) ────────────────── */}
-      <div className="md:hidden w-full overflow-x-auto no-scrollbar px-2.5 py-1.5 border-t border-slate-200/60 dark:border-slate-800 bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur-sm">
-        <div className="flex items-center gap-1 min-w-max">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
-                  isActive
-                    ? 'bg-blue-600 text-white shadow-xs'
-                    : 'text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800'
-                }`}
-              >
-                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-slate-500 dark:text-slate-400'}`} />
-                <span>{isVi ? (item.shortLabelVi || item.labelVi) : (item.shortLabelEn || item.labelEn)}</span>
-              </button>
-            );
-          })}
         </div>
       </div>
     </header>
+
+      {/* ── 4. Mobile Fixed Bottom Navigation Tab Bar (< md) ──────────── */}
+      <nav
+        aria-label="Mobile Bottom Navigation"
+        className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-t border-slate-200/90 dark:border-slate-800/90 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] px-1 pt-1 pb-[max(0.375rem,env(safe-area-inset-bottom,0px))] flex items-center justify-around"
+      >
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = activeTab === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={() => setActiveTab(item.id)}
+              className={`flex-1 flex flex-col items-center justify-center py-1 px-1 rounded-xl transition-all duration-150 cursor-pointer min-w-0 max-w-[76px] relative active:scale-95 ${
+                isActive
+                  ? 'text-blue-600 dark:text-blue-400 font-bold'
+                  : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 font-medium'
+              }`}
+              title={isVi ? item.labelVi : item.labelEn}
+            >
+              {/* Active Icon Container / Pill */}
+              <div
+                className={`p-1.5 rounded-xl transition-all duration-200 flex items-center justify-center ${
+                  isActive
+                    ? 'bg-blue-50 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 shadow-xs border border-blue-500/25 scale-105'
+                    : 'text-slate-500 dark:text-slate-400'
+                }`}
+              >
+                <Icon className={`w-5 h-5 stroke-[1.8] ${isActive ? 'stroke-[2.4]' : ''}`} />
+              </div>
+
+              {/* Short Label */}
+              <span className={`text-[10px] mt-0.5 leading-tight tracking-tight truncate max-w-full ${
+                isActive ? 'font-extrabold text-blue-600 dark:text-blue-400' : 'text-slate-500 dark:text-slate-400 font-medium'
+              }`}>
+                {isVi ? (item.shortLabelVi || item.labelVi) : (item.shortLabelEn || item.labelEn)}
+              </span>
+
+              {/* Active Indicator Dot */}
+              {isActive && (
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-blue-400 mt-0.5 animate-pulse" />
+              )}
+            </button>
+          );
+        })}
+      </nav>
+    </>
   );
 }

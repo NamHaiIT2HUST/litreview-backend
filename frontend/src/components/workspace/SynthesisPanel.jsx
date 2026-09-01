@@ -13,7 +13,7 @@ import {
   Copy, 
   Check, 
   Download, 
-  Sparkles, 
+  BrainCircuit, 
   HelpCircle, 
   ExternalLink,
   Code2,
@@ -725,7 +725,7 @@ export default function SynthesisPanel({
         <div className="space-y-2 mt-4 pt-4 border-t dark:border-slate-800/80 border-slate-100">
           <div className="flex items-center justify-between">
             <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+              <BrainCircuit className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
               <span>{t('synthesis.focus_topic_label')}</span>
             </label>
             <span className="text-[11px] text-slate-400 font-mono">
@@ -748,7 +748,7 @@ export default function SynthesisPanel({
               disabled={!canRun || isRunning || isPlanning}
               className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold shadow-md shadow-blue-600/20 active:scale-95 transition-all shrink-0 cursor-pointer"
             >
-              {isPlanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+              {isPlanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <BrainCircuit className="w-4 h-4" />}
               <span>{isPlanning ? 'Đang lập dàn ý...' : '1. Lập Dàn ý Nghiên cứu'}</span>
             </button>
           </div>
@@ -1448,7 +1448,7 @@ export default function SynthesisPanel({
               'bg-blue-50/40 border-blue-100 dark:bg-blue-950/20 dark:border-blue-900/40'
             }`}>
               <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300 font-bold text-xs uppercase tracking-wider">
-                <Sparkles className="w-4 h-4" />
+                <BrainCircuit className="w-4 h-4" />
                 <span>{t('synthesis.followup_title')}</span>
               </div>
               <p className="text-[11px] text-slate-500 dark:text-slate-400">

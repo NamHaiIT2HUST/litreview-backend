@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Layers, Bot, Send, Copy, ThumbsUp, ThumbsDown, Check, ShieldCheck, Sparkles } from 'lucide-react';
+import { Layers, Bot, Send, Copy, ThumbsUp, ThumbsDown, Check, ShieldCheck } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import remarkGfm from 'remark-gfm';

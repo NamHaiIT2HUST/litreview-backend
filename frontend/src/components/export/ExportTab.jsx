@@ -10,7 +10,7 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { useProject } from '../../contexts/ProjectContext';
 import { 
   Download, Copy, Check, FileText, Database, 
-  Code, BookOpen, Layers, History, Sparkles, CheckCircle2
+  Code, BookOpen, Layers, History, CheckCircle2
 } from 'lucide-react';
 import { API_BASE, safeFetch } from '../../utils/apiConfig';
 
