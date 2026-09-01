@@ -148,6 +148,7 @@ tests/test_agents/test_graph.py::test_agent_state_structure PASSED
 | **Skipped** | 24 _(fixture/integration tests cần môi trường đặc biệt)_ |
 | **Failed** | **0** 🏆 |
 | **Pass rate** | **100%** (trên số tests chạy được) |
+| **Code coverage** | **61%** (Toàn bộ source code) |
 | **Thời gian chạy** | 39.62s |
 
 **Phạm vi test coverage (theo module):**
