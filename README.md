@@ -77,8 +77,8 @@ Chi tiết sơ đồ kiến trúc, data flow và agent pipeline:
 ```
 P-165/
 ├── README.md                  # Deliverable #2
-├── JOURNAL.md                 # Deliverable #8 — Development Journal
-├── WORKLOG.md                 # Deliverable #9 — Commit history
+├── JOURNAL.md                 # Deliverable #8 (copy — bản chính ở docs/journal.md)
+├── WORKLOG.md                 # Deliverable #9 (copy — bản chính ở docs/worklog.md)
 ├── Dockerfile                 # Docker build cho backend
 ├── docker-compose.yml         # Local dev stack (PostgreSQL + backend)
 ├── requirements.txt           # Python dependencies
@@ -107,9 +107,9 @@ P-165/
 │   ├── architecture.md        # Deliverable #3 — System architecture
 │   ├── ai-logs.md             # Deliverable #4 — LLM call traces (DB-backed)
 │   ├── video-demo.md          # Deliverable #6 — Demo video link
-│   ├── pitch_deck.pdf         # Deliverable #7 — Presentation slide
-│   ├── journal.md             # Deliverable #8 (copy)
-│   ├── worklog.md             # Deliverable #9 (copy)
+│   ├── pitch-deck.pdf         # Deliverable #7 — Presentation slide
+│   ├── journal.md             # Deliverable #8 — Development Journal
+│   ├── worklog.md             # Deliverable #9 — Worklog
 │   └── evaluation.md          # Deliverable #10 — Evaluation evidence
 │
 └── presentation/              # Screenshots (dùng trong README)
@@ -198,8 +198,8 @@ Truy cập: **http://localhost:5173**
 | 4 | AI Logs | [docs/ai-logs.md](docs/ai-logs.md) |
 | 5 | Live URL | [c3-app-165.io.vn](https://www.c3-app-165.io.vn/) |
 | 6 | Video Demo | [docs/video-demo.md](docs/video-demo.md) |
-| 7 | Presentation Slide | [docs/pitch_deck.pdf](docs/pitch_deck.pdf) |
-| 8 | Development Journal | [JOURNAL.md](JOURNAL.md) |
+| 7 | Presentation Slide | [docs/pitch-deck.pdf](docs/pitch-deck.pdf) |
+| 8 | Development Journal | [docs/journal.md](docs/journal.md) |
 | 9 | Worklog | [docs/worklog.md](docs/worklog.md) |
 | 10 | Evaluation Evidence | [docs/evaluation.md](docs/evaluation.md) |
 
