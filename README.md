@@ -105,7 +105,7 @@ P-165/
 ├── eval/                      # RAGAS evaluation scripts & results
 ├── docs/                      # Tất cả deliverables docs
 │   ├── architecture.md        # Deliverable #3 — System architecture
-│   ├── ai-logs.md             # Deliverable #4 — LangSmith traces
+│   ├── ai-logs.md             # Deliverable #4 — LLM call traces (DB-backed)
 │   ├── video-demo.md          # Deliverable #6 — Demo video link
 │   ├── journal.md             # Deliverable #8 (copy)
 │   ├── worklog.md             # Deliverable #9 (copy)
@@ -166,8 +166,8 @@ Truy cập: **http://localhost:5173**
 | `GEMINI_API_KEY` | ✅ | API key Google AI Studio |
 | `DATABASE_URL` | ✅ | PostgreSQL connection string |
 | `AI_LOG_API_KEY` | ✅ | AI20K tracking key |
-| `LANGCHAIN_TRACING_V2` | — | `true` để bật LangSmith tracing |
-| `LANGCHAIN_API_KEY` | — | LangSmith API key |
+| `LANGCHAIN_TRACING_V2` | — | LangSmith tracing — hiện bị tắt cứng trong `src/main.py`, xem [docs/ai-logs.md](docs/ai-logs.md) |
+| `LANGCHAIN_API_KEY` | — | LangSmith API key (không dùng, xem trên) |
 | `CORS_ORIGINS` | — | Frontend URL (mặc định: localhost:5173) |
 
 ---
