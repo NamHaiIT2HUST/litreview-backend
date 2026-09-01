@@ -1,4 +1,4 @@
-﻿<div align="center">
+<div align="center">
 
 <img src="https://raw.githubusercontent.com/AI20K-Build-Phase-Cohort-3/P-165/main/frontend/public/favicon.ico" alt="LitReview Logo" width="64" height="64" />
 
@@ -15,7 +15,7 @@
 
 Tự động hóa toàn bộ quy trình **Systematic Literature Review (SLR)** — từ tìm kiếm, sàng lọc AI, đến tổng hợp luận văn với trích dẫn grounded 100% trên DOI thật.
 
-[🌐 Live Demo](https://www.c3-app-165.io.vn/) · [📐 Architecture](docs/architecture.md) · [📊 Evaluation](docs/eval_evidence.md) · [🎬 Video Demo](docs/video-demo.md) · [📋 Worklog](docs/worklog.md)
+[🌐 Live Demo](https://www.c3-app-165.io.vn/) · [📐 Architecture](docs/architecture.md) · [📊 Evaluation](docs/evaluation.md) · [🎬 Video Demo](docs/video-demo.md) · [📋 Worklog](docs/worklog.md)
 
 </div>
 
@@ -138,7 +138,7 @@ Truy cập: **http://localhost:5173**
 | **Synthesis Speed Improvement** | **5.56x nhanh hơn** (-82%) |
 | **E2E Test Cases (manual)** | **5/5 Verified ✅** |
 
-→ Xem chi tiết: **[docs/eval_evidence.md](docs/eval_evidence.md)**
+→ Xem chi tiết: **[docs/evaluation.md](docs/evaluation.md)**
 
 ---
 
@@ -154,7 +154,7 @@ Truy cập: **http://localhost:5173**
 | 6 | Video Demo | [docs/video-demo.md](docs/video-demo.md) |
 | 8 | Development Journal | [JOURNAL.md](JOURNAL.md) |
 | 9 | Worklog | [docs/worklog.md](docs/worklog.md) |
-| 10 | Evaluation Evidence | [docs/eval_evidence.md](docs/eval_evidence.md) |
+| 10 | Evaluation Evidence | [docs/evaluation.md](docs/evaluation.md) |
 
 ---
 
