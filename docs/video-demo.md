@@ -4,10 +4,11 @@
 
 ## 🔗 Link Video
 
-> **YouTube:** 🔜 _Coming soon — đang upload_
+**YouTube:** [https://youtu.be/UjtQO3MDyvk](https://youtu.be/UjtQO3MDyvk)
 
-<!-- TODO: Thay link bên dưới sau khi upload YouTube -->
-<!-- [![Watch Demo](https://img.youtube.com/vi/VIDEO_ID/maxresdefault.jpg)](https://youtu.be/VIDEO_ID) -->
+[![Watch Demo](https://img.youtube.com/vi/UjtQO3MDyvk/maxresdefault.jpg)](https://youtu.be/UjtQO3MDyvk)
+
+> Bản gốc (raw) cũng được lưu trong repo tại [`docs/video_demo.zip`](video_demo.zip).
 
 ---
 

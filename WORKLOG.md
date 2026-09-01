@@ -16,8 +16,10 @@
 | ngatt-17 | Chuẩn hóa tên dự án "LitReview Agent" xuyên suốt toàn bộ tài liệu, gắn tag `v1.1` kèm bộ ảnh/slide demo mới | ✅ Done | Toàn bộ `docs/*.md`, `README.md`, `presentation/` | - |
 | Hung Nguyen | Thêm pitch deck HTML 10 slide cho Demo Day (bản đầu, sau đó được thay bằng PPTX/PDF trong `v1.1`) | ✅ Done | `presentation/pitch_deck.html` | - |
 | Nam Hải | Viết lại `WORKLOG.md` từ dạng liệt kê git-log thô sang bảng công việc theo ngày/người có cấu trúc; thêm script mirror AI log cá nhân (`.ai-log/`) lên Braintrust có redact secret trước khi upload | ✅ Done | `WORKLOG.md`, `scripts/upload_ailog_to_braintrust.py` | - |
+| Nam Hải | Viết lại `docs/ai-logs.md` (deliverable #4) mô tả đúng cơ chế trace thật đang chạy (`llm_call_logs` + `SynthesisMetrics`/Admin Dashboard) thay vì LangSmith đã bị tắt cứng trong `src/main.py` | ✅ Done | `docs/ai-logs.md`, `README.md` | - |
+| Nam Hải | Upload video demo lên YouTube, chốt `docs/slide.pdf` làm bản slide chính thức (deliverable #7), xóa 2 bản slide cũ trùng lặp (`presentation/pitch_deck.pdf`, `.pptx`) + 1 file rác Office lock, cập nhật `docs/video-demo.md` với link YouTube thật, bổ sung deliverable #7 vào bảng README | ✅ Done | `docs/video-demo.md`, `docs/slide.pdf`, `README.md` | - |
 
-**Tổng kết ngày:** Hoàn tất toàn bộ tài liệu deliverables còn thiếu (#2 README, #4 AI Logs, #6 Video Demo, #8 Journal, #9 Worklog, #10 Evaluation) với bằng chứng thật (pytest, coverage, user feedback), dọn sạch tài liệu nội bộ thừa, gắn tag `v1.1`, chuẩn bị pitch deck cho Demo Day.
+**Tổng kết ngày:** Hoàn tất toàn bộ tài liệu deliverables còn thiếu (#2 README, #4 AI Logs, #6 Video Demo, #7 Slide, #8 Journal, #9 Worklog, #10 Evaluation) với bằng chứng thật (pytest, coverage, user feedback, trace DB thật), dọn sạch tài liệu/file thừa, gắn tag `v1.1`, video demo lên YouTube.
 
 ---
 
