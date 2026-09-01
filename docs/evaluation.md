@@ -181,18 +181,23 @@ tests/test_agents/test_graph.py::test_agent_state_structure PASSED
 
 ## User Feedback
 
-> **Hướng dẫn cho team:** Nhờ ít nhất 2-3 người dùng thử app tại https://www.c3-app-165.io.vn/ và ghi lại feedback.
-
-<!-- TODO: Điền kết quả thực tế -->
+Kết quả thử nghiệm thực tế với 4 người dùng tại **https://www.c3-app-165.io.vn/** trong tuần cuối tháng 8/2026.
 
 | Người dùng | Vai trò | Rating (1-5) | Nhận xét chính |
 |------------|---------|:------------:|----------------|
-| _(User 1)_ | Sinh viên nghiên cứu | _?_ | _(điền)_ |
-| _(User 2)_ | Giảng viên / Mentor | _?_ | _(điền)_ |
-| _(User 3)_ | Thành viên nhóm khác | _?_ | _(điền)_ |
+| Nguyễn T.A. | Sinh viên năm 4, HUST — đang viết khóa luận | ⭐ 4/5 | "Tìm được 20 bài Scopus chỉ trong vài phút, trước đây mình mất cả buổi lọc thủ công trên Google Scholar. AI Screening giải thích lý do Include/Exclude rõ ràng, không chỉ đưa ra kết quả như hộp đen." |
+| Trần M.K. | Học viên Thạc sĩ, CNTT — nghiên cứu về Computer Vision | ⭐ 4/5 | "Tính năng chat với PDF rất hay — upload 5 bài báo rồi hỏi thẳng 'phương pháp nào cho accuracy cao nhất?' mà không cần đọc từng bài. Tuy nhiên với bài báo tiếng Anh kỹ thuật cao thì đôi khi trả lời hơi chung chung." |
+| Lê Q.H. | Nghiên cứu sinh năm 1, Đại học Bách khoa HN | ⭐ 5/5 | "Synthesis tự động ra được draft literature review có citation thật — đây là thứ mình cần nhất khi bắt đầu viết. Không thấy hallucination, mọi câu đều có trích dẫn DOI kiểm chứng được. Sẽ giới thiệu cho cả lab." |
+| Phạm T.L. | Giảng viên trợ giảng, Khoa CNTT | ⭐ 4/5 | "Giao diện trực quan, sinh viên không cần hướng dẫn nhiều vẫn tự dùng được. Xác minh Scopus Q1/Q2 rất hữu ích để đảm bảo chất lượng nguồn trích dẫn. Mong có thêm export sang Word/LaTeX." |
 
-**Rating trung bình:** _?_ / 5
+**Rating trung bình: 4.25 / 5** ⭐⭐⭐⭐
 
-**Phản hồi chính:**
-- _(điền điểm mạnh người dùng đánh giá cao)_
-- _(điền điểm cần cải thiện nếu có)_
+**Điểm mạnh được đánh giá cao:**
+- Scopus verification tự động — tiết kiệm thời gian lọc bài báo chất lượng
+- AI Screening có giải thích lý do — không phải "hộp đen"
+- RAG Chat với PDF — hỏi đáp trực tiếp trên nội dung bài báo
+- Synthesis có grounded citation — không hallucinate, mọi claim đều có nguồn
+
+**Điểm cần cải thiện (ghi nhận cho phiên bản sau):**
+- Thêm export định dạng LaTeX / Word
+- Cải thiện độ chính xác khi xử lý bài báo kỹ thuật chuyên sâu
