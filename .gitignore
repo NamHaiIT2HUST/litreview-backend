@@ -45,7 +45,7 @@ agent-baselines-main/
 asta-autodiscovery-main/
 asta-bench-main/
 EDA_KT.ipynb
-presentation/
+
 # Logs
 logs/
 *.log
