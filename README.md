@@ -107,7 +107,7 @@ P-165/
 │   ├── architecture.md        # Deliverable #3 — System architecture
 │   ├── ai-logs.md             # Deliverable #4 — LLM call traces (DB-backed)
 │   ├── video-demo.md          # Deliverable #6 — Demo video link
-│   ├── slide.pdf              # Deliverable #7 — Presentation slide
+│   ├── pitch_deck.pdf         # Deliverable #7 — Presentation slide
 │   ├── journal.md             # Deliverable #8 (copy)
 │   ├── worklog.md             # Deliverable #9 (copy)
 │   └── evaluation.md          # Deliverable #10 — Evaluation evidence
@@ -198,7 +198,7 @@ Truy cập: **http://localhost:5173**
 | 4 | AI Logs | [docs/ai-logs.md](docs/ai-logs.md) |
 | 5 | Live URL | [c3-app-165.io.vn](https://www.c3-app-165.io.vn/) |
 | 6 | Video Demo | [docs/video-demo.md](docs/video-demo.md) |
-| 7 | Presentation Slide | [docs/slide.pdf](docs/slide.pdf) |
+| 7 | Presentation Slide | [docs/pitch_deck.pdf](docs/pitch_deck.pdf) |
 | 8 | Development Journal | [JOURNAL.md](JOURNAL.md) |
 | 9 | Worklog | [docs/worklog.md](docs/worklog.md) |
 | 10 | Evaluation Evidence | [docs/evaluation.md](docs/evaluation.md) |
