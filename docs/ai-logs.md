@@ -8,7 +8,7 @@ Tài liệu này ghi lại các trace của AI agent pipeline thông qua **LangS
 
 | Thông số | Giá trị |
 |----------|---------|
-| **Project** | `P-165-LitReview` |
+| **Project** | `litreview-agent` |
 | **Dashboard** | https://smith.langchain.com/ |
 | **Env vars** | `LANGCHAIN_TRACING_V2`, `LANGCHAIN_API_KEY`, `LANGCHAIN_PROJECT` |
 
@@ -18,7 +18,7 @@ LangSmith tự động ghi lại mọi lần LangChain/LangGraph thực thi — 
 
 ## 📌 Cách lấy screenshot
 
-1. Truy cập [smith.langchain.com](https://smith.langchain.com/) → chọn project **P-165-LitReview**
+1. Truy cập [smith.langchain.com](https://smith.langchain.com/) → chọn project **litreview-agent**
 2. Chọn một run trace bất kỳ (AI Screening, RAG Chat, hoặc Research Setup)
 3. Screenshot toàn bộ trace tree (hiển thị các node LangGraph, input/output)
 4. Paste ảnh vào các section bên dưới

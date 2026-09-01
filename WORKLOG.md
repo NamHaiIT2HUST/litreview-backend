@@ -6,6 +6,21 @@
 
 ---
 
+## 2026-09-01
+
+| Member | Task | Status | Output | Time |
+|--------|------|--------|--------|------|
+| ngatt-17 | Viết lại hoàn chỉnh README (cấu trúc thư mục, bảng deliverables), hoàn thiện các doc còn thiếu cho deliverables #2/#4/#6/#8/#9: `docs/journal.md`, `docs/worklog.md`, `docs/ai-logs.md`, `docs/video-demo.md` | ✅ Done | `README.md`, `docs/*.md` | - |
+| ngatt-17 | Dọn repo: xóa 9 file doc nội bộ không liên quan (kế hoạch cũ, báo cáo tiến độ), xóa thư mục thư viện ngoài đã vendor (`ai2-scholarqa-lib-main`, `paper-qa-2026.08.12`), gộp `eval_evidence.md` → `evaluation.md`, thêm `uploads/` vào `.gitignore` | ✅ Done | Repo gọn hơn, `.gitignore` cập nhật | - |
+| ngatt-17 | Bổ sung bằng chứng đánh giá thật vào `evaluation.md` (deliverable #10): kết quả pytest thật (786 passed, 0 failed, 810 collected), coverage chính xác 61% đo bằng `pytest-cov`, code traceability map, khảo sát người dùng thật (4.25/5 trên 4 người test) | ✅ Done | `docs/evaluation.md` | - |
+| ngatt-17 | Chuẩn hóa tên dự án "LitReview Agent" xuyên suốt toàn bộ tài liệu, gắn tag `v1.1` kèm bộ ảnh/slide demo mới | ✅ Done | Toàn bộ `docs/*.md`, `README.md`, `presentation/` | - |
+| Hung Nguyen | Thêm pitch deck HTML 10 slide cho Demo Day (bản đầu, sau đó được thay bằng PPTX/PDF trong `v1.1`) | ✅ Done | `presentation/pitch_deck.html` | - |
+| Nam Hải | Viết lại `WORKLOG.md` từ dạng liệt kê git-log thô sang bảng công việc theo ngày/người có cấu trúc; thêm script mirror AI log cá nhân (`.ai-log/`) lên Braintrust có redact secret trước khi upload | ✅ Done | `WORKLOG.md`, `scripts/upload_ailog_to_braintrust.py` | - |
+
+**Tổng kết ngày:** Hoàn tất toàn bộ tài liệu deliverables còn thiếu (#2 README, #4 AI Logs, #6 Video Demo, #8 Journal, #9 Worklog, #10 Evaluation) với bằng chứng thật (pytest, coverage, user feedback), dọn sạch tài liệu nội bộ thừa, gắn tag `v1.1`, chuẩn bị pitch deck cho Demo Day.
+
+---
+
 ## 2026-08-31
 
 | Member | Task | Status | Output | Time |

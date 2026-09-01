@@ -178,6 +178,7 @@
 - [x] Xây dựng Admin dashboard
 - [x] Security hardening và fix các bugs trước Demo Day
 - [x] Deploy production tại https://www.c3-app-165.io.vn/
+- [x] Hoàn thiện toàn bộ tài liệu deliverables (README, journal, worklog, AI logs, evaluation evidence)
 
 ### Đã hoàn thành
 - UI/UX overhaul hoàn toàn — landing page mới, responsive, dark mode
@@ -186,6 +187,10 @@
 - Google OAuth integration cho production domain `c3-app-165.io.vn`
 - Fix 5 confirmed bugs trước merge: overflow, citation race condition, navbar truncation, etc.
 - Deploy AWS EC2 backend + Vercel frontend proxy
+- Viết lại README hoàn chỉnh, dọn repo (xóa doc nội bộ + thư viện vendor không liên quan), gộp `eval_evidence.md` → `evaluation.md`
+- Bổ sung bằng chứng đánh giá thật vào `evaluation.md`: kết quả pytest thật (786 passed, 810 collected), coverage 61% đo bằng `pytest-cov`, code traceability map, khảo sát người dùng thật (4.25/5 trên 4 người test)
+- Viết lại `WORKLOG.md` từ liệt kê git-log thô sang bảng công việc theo ngày/người; thêm script mirror AI log cá nhân lên Braintrust (có redact secret)
+- Gắn tag `v1.1`, chuẩn bị pitch deck cho Demo Day
 
 ### Quyết định kỹ thuật
 - **AWS EC2 + Vercel proxy** thay vì Render: cần control deployment environment, Render cold start quá chậm
