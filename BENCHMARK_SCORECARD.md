@@ -1,6 +1,6 @@
 # 🏆 BÁO CÁO KẾT QUẢ THỰC NGHIỆM MULTI-AGENT FINE-TUNE (P-165)
 
-**Dự án:** Hệ Thống Hỗ Trợ Tổng Quan Y Văn Tự Động (Systematic Literature Review - SLR Swarm)  
+**Dự án:** LitReview Agent (Systematic Literature Review)  
 **Mô hình nền tảng:** Llama-3-8B-Instruct (Nén 4-bit QLoRA)  
 **Phương pháp huấn luyện:** PEFT/LoRA với thư viện tăng tốc Unsloth  
 **Tập dữ liệu thực nghiệm:** 3 Lĩnh vực chuyên sâu (Toán học & Tối ưu, Y tế chẩn đoán hình ảnh/ECG, Robotics thông minh)  

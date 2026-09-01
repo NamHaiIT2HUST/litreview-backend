@@ -45,10 +45,17 @@ agent-baselines-main/
 asta-autodiscovery-main/
 asta-bench-main/
 EDA_KT.ipynb
-presentation/
+
 # Logs
 logs/
 *.log
+
+# Runtime uploads (user PDFs — không commit user data)
+uploads/
+
+# Dev databases
+*.db
+
 
 # Test coverage
 htmlcov/
