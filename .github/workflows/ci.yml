@@ -8,7 +8,7 @@ on:
 
 jobs:
   backend:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     steps:
       - uses: actions/checkout@v4
@@ -41,7 +41,7 @@ jobs:
           SECRET_KEY: ci-secret-key-not-used-outside-this-job-0123456789abcdef
 
   frontend:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     steps:
       - uses: actions/checkout@v4
