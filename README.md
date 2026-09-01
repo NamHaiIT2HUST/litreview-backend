@@ -4,7 +4,7 @@
 
 # LitReview Agent
 
-**AI-Powered Systematic Literature Review (SLR) System**
+**LitReview Agent — AI-Powered Systematic Literature Review**
 
 [![Live Demo](https://img.shields.io/badge/Live_Demo-c3--app--165.io.vn-22c55e?style=for-the-badge&logo=googlechrome&logoColor=white)](https://www.c3-app-165.io.vn/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)

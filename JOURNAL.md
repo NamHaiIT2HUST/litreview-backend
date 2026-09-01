@@ -3,7 +3,7 @@
 > Nhật ký phát triển ghi lại các quyết định kỹ thuật, khó khăn và bài học của team qua 6 tuần xây dựng hệ thống.
 
 **Team:** Nguyễn Đình Liêm · Tạ Thị Nga · Nguyễn Văn Hưng · Nguyễn Đào Nam Hải  
-**Dự án:** AI-Powered Systematic Literature Review (SLR) System  
+**Dự án:** LitReview Agent  
 **Chương trình:** AI Engineering Cohort 3 — AI20K Build Phase
 
 ---
