@@ -72,6 +72,51 @@ Chi tiết sơ đồ kiến trúc, data flow và agent pipeline:
 
 ---
 
+## 📁 Cấu trúc thư mục
+
+```
+P-165/
+├── README.md                  # Deliverable #2
+├── JOURNAL.md                 # Deliverable #8 — Development Journal
+├── WORKLOG.md                 # Deliverable #9 — Commit history
+├── Dockerfile                 # Docker build cho backend
+├── docker-compose.yml         # Local dev stack (PostgreSQL + backend)
+├── requirements.txt           # Python dependencies
+├── .env.example               # Template biến môi trường
+│
+├── src/                       # Deliverable #1 — Backend source code
+│   ├── main.py                # FastAPI app entrypoint
+│   ├── config.py              # App configuration
+│   ├── database.py            # PostgreSQL + SQLAlchemy setup
+│   ├── api/                   # REST API routes
+│   ├── agents/                # LangGraph agent definitions
+│   ├── services/              # Business logic (search, screening, RAG)
+│   ├── synthesis/             # Literature synthesis pipeline
+│   └── models/                # Pydantic models
+│
+├── frontend/                  # Deliverable #1 — Frontend source code
+│   ├── src/
+│   │   ├── components/        # React components
+│   │   └── App.jsx            # Main app component
+│   └── package.json
+│
+├── tests/                     # Test suite (pytest)
+├── benchmark/                 # Benchmark scripts & results CSV
+├── eval/                      # RAGAS evaluation scripts & results
+├── docs/                      # Tất cả deliverables docs
+│   ├── architecture.md        # Deliverable #3 — System architecture
+│   ├── ai-logs.md             # Deliverable #4 — LangSmith traces
+│   ├── video-demo.md          # Deliverable #6 — Demo video link
+│   ├── journal.md             # Deliverable #8 (copy)
+│   ├── worklog.md             # Deliverable #9 (copy)
+│   └── evaluation.md          # Deliverable #10 — Evaluation evidence
+│
+└── presentation/              # Pitch deck & screenshots
+```
+
+---
+
+
 ## 🚀 Cài đặt & Chạy (Quick Start)
 
 ### Yêu cầu

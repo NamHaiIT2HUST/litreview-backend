@@ -120,3 +120,68 @@ Kết quả chạy automated benchmark trên 21 câu hỏi (factual + synthesis)
 | **Tổng** | **21** | **~95%** | **0.78** |
 
 > Retrieval recall 100% (trừ 1 câu factual không có context) cho thấy ChromaDB vector search hoạt động đúng. Synthesis score thấp hơn do đây là câu hỏi tổng hợp đa nguồn — cần nhiều evidence hơn.
+
+---
+
+## Unit & Integration Tests (pytest)
+
+> **Hướng dẫn cho team:** Chạy lệnh dưới đây trong terminal (đã activate `.venv`), paste kết quả vào đây.
+>
+> ```bash
+> .\.venv\Scripts\Activate.ps1
+> pytest tests/ -v --tb=short --co -q   # xem danh sách tests
+> pytest tests/ -v --tb=short            # chạy toàn bộ
+> ```
+
+<!-- TODO: Paste pytest output tại đây — ví dụ:
+=== test session starts ===
+collected 23 items
+
+tests/test_search.py::test_scopus_filter PASSED
+tests/test_screening.py::test_llm_include PASSED
+...
+=== 21 passed, 2 failed in 45.3s ===
+-->
+
+| Chỉ số | Giá trị |
+|--------|---------|
+| **Tổng test cases** | _(điền sau khi chạy pytest)_ |
+| **Passed** | _(điền)_ |
+| **Failed** | _(điền)_ |
+| **Pass rate** | _(điền %)_ |
+
+---
+
+## Performance Metrics
+
+Đo lường từ benchmark runs thực tế (`benchmark/results/`):
+
+| Endpoint / Task | Avg Response Time | Ghi chú |
+|----------------|:-----------------:|---------|
+| **Search & Scopus verify** (20 papers) | ~45–55s | Giới hạn bởi SerpApi pagination |
+| **AI Screening** (1 bài báo) | ~2–3s | Gemini Flash inference |
+| **RAG Chat** (1 câu hỏi) | ~2.8s | ChromaDB retrieval + Gemini generation |
+| **Synthesis pipeline** (3 sections) | **8.4s** _(optimized)_ | Giảm 82% so với baseline 47s |
+| **Export Excel** | <1s | Không phụ thuộc LLM |
+
+> Nguồn: `eval/results/drafting_time_benchmark_report.json` (đo ngày 2026-08-22)
+
+---
+
+## User Feedback
+
+> **Hướng dẫn cho team:** Nhờ ít nhất 2-3 người dùng thử app tại https://www.c3-app-165.io.vn/ và ghi lại feedback.
+
+<!-- TODO: Điền kết quả thực tế -->
+
+| Người dùng | Vai trò | Rating (1-5) | Nhận xét chính |
+|------------|---------|:------------:|----------------|
+| _(User 1)_ | Sinh viên nghiên cứu | _?_ | _(điền)_ |
+| _(User 2)_ | Giảng viên / Mentor | _?_ | _(điền)_ |
+| _(User 3)_ | Thành viên nhóm khác | _?_ | _(điền)_ |
+
+**Rating trung bình:** _?_ / 5
+
+**Phản hồi chính:**
+- _(điền điểm mạnh người dùng đánh giá cao)_
+- _(điền điểm cần cải thiện nếu có)_
