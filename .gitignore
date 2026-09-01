@@ -50,6 +50,13 @@ EDA_KT.ipynb
 logs/
 *.log
 
+# Runtime uploads (user PDFs — không commit user data)
+uploads/
+
+# Dev databases
+*.db
+
+
 # Test coverage
 htmlcov/
 .coverage
