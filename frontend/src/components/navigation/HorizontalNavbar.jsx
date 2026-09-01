@@ -5,7 +5,7 @@ import {
   FolderKanban, ChevronDown, LayoutList, PanelLeft,
   LayoutDashboard, User, ShieldCheck, ExternalLink,
   BookOpen, ArrowLeft, MessageSquare, FileText, BarChart2,
-  Sparkles, HelpCircle, X, ChevronRight
+  BrainCircuit, HelpCircle, X, ChevronRight
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useProject } from '../../contexts/ProjectContext';
@@ -437,7 +437,7 @@ export default function HorizontalNavbar({
                     }}
                     className="w-full px-3 py-2 rounded-xl text-left text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-950/40 hover:text-blue-600 dark:hover:text-blue-400 font-semibold flex items-center gap-2 transition-colors cursor-pointer"
                   >
-                    <Sparkles className="w-3.5 h-3.5 text-blue-500" />
+                    <BrainCircuit className="w-3.5 h-3.5 text-blue-500" />
                     <span>{isVi ? 'Hướng dẫn sử dụng (Tour)' : 'Onboarding Tour'}</span>
                   </button>
 

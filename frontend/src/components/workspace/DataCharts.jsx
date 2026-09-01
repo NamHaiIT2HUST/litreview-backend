@@ -7,7 +7,7 @@ import {
   CheckCircle2, 
   AlertCircle, 
   FileSpreadsheet, 
-  Sparkles, 
+  BrainCircuit, 
   ChevronRight,
   Database,
   Layers,
@@ -435,7 +435,7 @@ export function DatasetHealthCard({ profile, filename, darkMode = false, onRunAu
             onClick={onRunAutoEDA}
             className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm active:scale-95 transition-all cursor-pointer shrink-0"
           >
-            <Sparkles className="w-3.5 h-3.5" />
+            <BrainCircuit className="w-3.5 h-3.5" />
             <span>Auto-EDA (Chuẩn 7 Phần)</span>
           </button>
         )}

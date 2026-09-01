@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Plus, Sparkles, BookOpen, ArrowRight, Lightbulb, Compass } from 'lucide-react';
+import { X, Plus, BrainCircuit, BookOpen, ArrowRight, Lightbulb, Compass } from 'lucide-react';
 import { useProject } from '../../contexts/ProjectContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 
@@ -169,7 +169,7 @@ export default function NewProjectModal({ isOpen, onClose, onCreated }) {
 
           {/* Helpful Footnote */}
           <div className="p-3 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-[11px] text-blue-300 leading-relaxed flex items-start gap-2">
-            <Sparkles className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+            <BrainCircuit className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
             <span>
               {isVi 
                 ? 'Bạn có thể thiết lập chi tiết câu hỏi PICO, giai đoạn năm & Tiêu chí sàng lọc PRISMA ở bước 1 sau khi vào không gian làm việc.'

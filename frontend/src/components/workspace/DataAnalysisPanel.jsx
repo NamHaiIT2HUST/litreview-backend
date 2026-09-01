@@ -6,7 +6,7 @@ import {
   BarChart2, 
   Copy, 
   Check, 
-  Sparkles, 
+  BrainCircuit, 
   FileSpreadsheet, 
   TrendingUp, 
   PieChart, 
@@ -1353,7 +1353,7 @@ export default function DataAnalysisPanel({
   // ASTA 4-Category Example Queries Matrix
   const exampleQueryCategories = [
     {
-      icon: <Sparkles className="w-4 h-4 text-emerald-500" />,
+      icon: <BrainCircuit className="w-4 h-4 text-emerald-500" />,
       title: isEn ? "Explore Tabula Sapiens & Biological Datasets" : "Khám phá Tập dữ liệu Y sinh & Tabula Sapiens",
       subtitle: isEn ? "Analyze cell types, compare across organs, and uncover biological insights." : "Phân tích loại tế bào, so sánh các cơ quan và trích xuất hiểu biết sinh học.",
       datasetKey: 'cell_biology',
@@ -1814,7 +1814,7 @@ export default function DataAnalysisPanel({
             <div className="pt-2 space-y-3">
               <div className="flex items-center justify-between border-b pb-2 dark:border-slate-800 border-slate-200">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-emerald-500" />
+                  <BrainCircuit className="w-4 h-4 text-emerald-500" />
                   <span className="text-xs font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-300">
                     {isEn ? 'Scientific Query & Dataset Library' : 'Thư viện câu hỏi & dữ liệu phân tích mẫu'}
                   </span>

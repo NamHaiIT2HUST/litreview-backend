@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  BookOpen, Sparkles, Search, Layers, ShieldCheck, ArrowRight,
+  BookOpen, BrainCircuit, Search, Layers, ShieldCheck, ArrowRight,
   CheckCircle2, Bot, Database, Zap, FileText, Check, ChevronRight,
   Sun, Moon, Languages, Users, BarChart2, Star, Key, Target,
   Cpu, FileCheck, HelpCircle, ExternalLink, Activity, Award,
@@ -1281,7 +1281,7 @@ export default function PublicLandingPage({ onOpenAuth }) {
                   </div>
 
                   {[
-                    { href: '#simulator', label: d.nav.simulator, icon: Sparkles, desc: language === 'vi' ? 'Mô phỏng quy trình tự động' : 'Autonomous SLR simulation' },
+                    { href: '#simulator', label: d.nav.simulator, icon: BrainCircuit, desc: language === 'vi' ? 'Mô phỏng quy trình tự động' : 'Autonomous SLR simulation' },
                     { href: '#agents', label: d.nav.agents, icon: Bot, desc: language === 'vi' ? '4 Tác tử AI chuyên biệt' : '4 Specialized AI Agents' },
                     { href: '#prisma', label: d.nav.prisma, icon: ShieldCheck, desc: language === 'vi' ? 'Sơ đồ luồng PRISMA 2020' : 'PRISMA 2020 flow diagram' },
                     { href: '#matrix', label: d.nav.matrix, icon: Table, desc: language === 'vi' ? 'Ma trận so sánh bài báo' : 'Methodology Matrix' },
@@ -1574,7 +1574,7 @@ export default function PublicLandingPage({ onOpenAuth }) {
           
           <ScrollReveal variant="morph" className="text-center space-y-2">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary-50 dark:bg-primary-950/70 border border-primary-200 dark:border-primary-800 text-[10px] font-bold text-primary-700 dark:text-primary-300 uppercase tracking-wider">
-              <Sparkles className="w-3 h-3" />
+              <BrainCircuit className="w-3 h-3" />
               <span>{d.demo.badge}</span>
             </div>
             <h2 className="font-display font-bold text-2xl sm:text-3xl text-surface-900 dark:text-white">
@@ -2065,7 +2065,7 @@ export default function PublicLandingPage({ onOpenAuth }) {
                       {/* Research Gaps Radar Cards */}
                       <div className="space-y-2.5">
                         <span className="text-xs font-bold text-surface-800 dark:text-surface-200 flex items-center gap-1.5">
-                          <Sparkles className="w-3.5 h-3.5 text-primary-600" />
+                          <BrainCircuit className="w-3.5 h-3.5 text-primary-600" />
                           <span>{language === 'vi' ? 'Khoảng trống nghiên cứu tự động phát hiện (Research Gaps Radar):' : 'Discovered Research Opportunities (Gap Radar):'}</span>
                         </span>
                         
@@ -2154,7 +2154,7 @@ export default function PublicLandingPage({ onOpenAuth }) {
                           onClick={() => onOpenAuth('login')}
                           className="btn btn-primary btn-sm shadow-primary-sm cursor-pointer ml-auto"
                         >
-                          <Sparkles className="w-3.5 h-3.5" />
+                          <BrainCircuit className="w-3.5 h-3.5" />
                           <span>{language === 'vi' ? 'Mở Toàn bộ Không gian Làm việc (Workspace)' : 'Open Full Workspace'}</span>
                           <ArrowRight className="w-3.5 h-3.5" />
                         </button>
@@ -2502,7 +2502,7 @@ export default function PublicLandingPage({ onOpenAuth }) {
 
               <div className="flex items-center gap-3 text-amber-500">
                 <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/60 flex items-center justify-center border border-amber-200 dark:border-amber-800/80 shadow-xs">
-                  <Sparkles className="w-5 h-5 animate-pulse" />
+                  <BrainCircuit className="w-5 h-5 animate-pulse" />
                 </div>
                 <div>
                   <span className="font-display font-bold text-sm text-surface-900 dark:text-white block">

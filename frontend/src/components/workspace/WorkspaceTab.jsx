@@ -14,7 +14,6 @@ import {
   Bot,
   UploadCloud,
   FileText,
-  Sparkles,
   CheckCircle2,
   Check,
   AlertCircle,

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   Search, Download, ExternalLink, Plus, PlusCircle, CheckCircle2, Key, Loader2, AlertCircle, 
   ChevronDown, ChevronUp, ShieldCheck, ShieldAlert, Activity, Check, X, HelpCircle,
-  BookOpen, Sparkles, Trash2, Target, GitFork, FileText, ArrowRight, Code
+  BookOpen, BrainCircuit, Trash2, Target, GitFork, FileText, ArrowRight, Code
 } from 'lucide-react';
 import SearchHistoryPanel from './SearchHistoryPanel';
 import FilterSortBar from './FilterSortBar';
@@ -1130,7 +1130,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
             <div className="pt-3 border-t border-surface-100 dark:border-surface-800 space-y-2.5">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <span className="text-xs font-bold text-surface-600 dark:text-surface-300 flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
+                  <BrainCircuit className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
                   <span>{isVi ? 'Gợi ý từ khóa từ đề tài nghiên cứu (PICO):' : 'Suggested Keywords from Topic (PICO):'}</span>
                 </span>
 
@@ -1463,7 +1463,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                       className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-bold transition-all bg-indigo-600 hover:bg-indigo-700 text-white shadow-md"
                       title="Phân tích AI Screening"
                     >
-                      <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
+                      <BrainCircuit className="w-4 h-4 text-amber-300 animate-pulse" />
                       <span>AI Screening</span>
                     </button>
 
@@ -1699,7 +1699,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
             <div className="flex items-start justify-between gap-4 border-b pb-4 border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-3">
                 <div className="p-3 rounded-2xl bg-indigo-100 dark:bg-indigo-900/60 text-indigo-600 dark:text-indigo-300">
-                  <Sparkles className="w-6 h-6 text-amber-400 animate-pulse" />
+                  <BrainCircuit className="w-6 h-6 text-amber-400 animate-pulse" />
                 </div>
                 <div>
                   <span className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
@@ -2022,7 +2022,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                       <div className="p-4 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 space-y-3">
                         <div className="flex items-center justify-between">
                           <h4 className="text-xs font-display font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                            <Sparkles className="w-3.5 h-3.5 text-blue-500" />
+                            <BrainCircuit className="w-3.5 h-3.5 text-blue-500" />
                             <span>{isVi ? 'Mật độ bài báo theo trục kiến trúc & Phương pháp' : 'Paper Density by Method & Architecture Axis'}</span>
                           </h4>
                           <span className="text-[11px] font-semibold text-slate-500">
@@ -2121,7 +2121,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                         {/* 3 Novel Research Directions */}
                         <div className={`p-4 rounded-2xl border ${'bg-blue-50/50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-800/60'} space-y-3`}>
                           <div className="flex items-center gap-2 text-xs font-bold text-blue-700 dark:text-sky-300">
-                            <Sparkles className="w-4 h-4" />
+                            <BrainCircuit className="w-4 h-4" />
                             <span>{isVi ? '3 hướng đề tài đề xuất có tiềm năng công bố cao:' : '3 Proposed High-Impact Research Directions:'}</span>
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
@@ -2171,7 +2171,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                 }}
                 className="px-5 py-2 rounded-xl text-xs font-bold bg-primary-600 hover:bg-primary-700 text-white transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
               >
-                <Sparkles className="w-3.5 h-3.5" />
+                <BrainCircuit className="w-3.5 h-3.5" />
                 <span>{isVi ? 'Sao chép 3 hướng đề tài' : 'Copy Research Directions'}</span>
               </button>
             </div>
@@ -2288,7 +2288,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
               {/* 3. Actionable Research Proposal Directions */}
               <div className="p-4.5 rounded-2xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/60 space-y-3">
                 <div className="flex items-center gap-2 text-xs font-bold text-blue-700 dark:text-sky-300">
-                  <Sparkles className="w-4 h-4 text-amber-500" />
+                  <BrainCircuit className="w-4 h-4 text-amber-500" />
                   <span>{isVi ? '2 hướng phát triển đột phá có thể công bố thành bài báo mới:' : '2 Novel Breakthrough Angles for Publication:'}</span>
                 </div>
 
@@ -2395,7 +2395,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                   {/* TL;DR Box */}
                   <div className={`p-5 rounded-2xl border ${'bg-emerald-50 border-emerald-100 dark:bg-emerald-950/30 dark:border-emerald-900/50'}`}>
                     <h5 className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-2 flex items-center gap-2">
-                      <Sparkles className="w-4 h-4" /> TÓM TẮT SIÊU TỐC (TL;DR)
+                      <BrainCircuit className="w-4 h-4" /> TÓM TẮT SIÊU TỐC (TL;DR)
                     </h5>
                     <p className="text-sm font-medium leading-relaxed">{summaryData.tldr}</p>
                   </div>
@@ -2596,7 +2596,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                               className="px-2.5 py-1.5 rounded-xl text-[11px] font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition-all flex items-center gap-1.5"
                               title="Kiểm tra AI Screening bài này"
                             >
-                              <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
+                              <BrainCircuit className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
                               <span>Screening</span>
                             </button>
 
@@ -2700,7 +2700,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
                               className="px-2.5 py-1.5 rounded-xl text-[11px] font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition-all flex items-center gap-1.5"
                               title="Kiểm tra AI Screening bài này"
                             >
-                              <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
+                              <BrainCircuit className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
                               <span>Screening</span>
                             </button>
 

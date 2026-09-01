@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  BookOpen, Sparkles, Search, Layers, ShieldCheck, ArrowRight,
+  BookOpen, BrainCircuit, Search, Layers, ShieldCheck, ArrowRight,
   CheckCircle2, Bot, Database, Zap, FileText, Check, ChevronRight,
   Plus, Target, BarChart2, TrendingUp, Clock, Copy, Trash2,
   ExternalLink, ArrowUpRight, Filter, AlertCircle, RefreshCw,
@@ -705,7 +705,7 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
             </div>
             
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 text-xs font-bold mb-3">
-              <Sparkles className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+              <BrainCircuit className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
               <span>{isVietnamese ? 'Tính năng đang được phát triển trong thời gian tới' : 'Coming Soon in Next Release'}</span>
             </div>
 
@@ -1167,7 +1167,7 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
           <section className="space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                <BrainCircuit className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                 <span>{isVietnamese ? 'Đề tài nổi bật' : 'Featured Projects'}</span>
               </h2>
               <button

@@ -11,7 +11,7 @@ import {
   Activity, 
   Zap, 
   Clock, 
-  Sparkles,
+  BrainCircuit,
   BarChart2,
   RefreshCw,
   Award,
@@ -261,7 +261,7 @@ export default function RAGEvalHarnessModal({ isOpen, onClose, workspacePapers =
               <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-4">
                 <div className="relative">
                   <div className="w-16 h-16 rounded-full border-4 border-blue-200 dark:border-blue-900 border-t-blue-600 animate-spin" />
-                  <Sparkles className="w-6 h-6 text-blue-500 absolute inset-0 m-auto animate-pulse" />
+                  <BrainCircuit className="w-6 h-6 text-blue-500 absolute inset-0 m-auto animate-pulse" />
                 </div>
                 <div>
                   <h4 className="font-extrabold text-base text-slate-800 dark:text-slate-200">
@@ -347,7 +347,7 @@ export default function RAGEvalHarnessModal({ isOpen, onClose, workspacePapers =
                     'bg-blue-50/50 border-blue-200/80 dark:bg-blue-950/20 dark:border-blue-900/50'
                   }`}>
                     <h5 className="text-xs font-bold text-blue-700 dark:text-blue-300 flex items-center gap-1.5 mb-2">
-                      <Sparkles className="w-3.5 h-3.5" />
+                      <BrainCircuit className="w-3.5 h-3.5" />
                       <span>{isEn ? 'RAG Optimization Recommendations' : 'Khuyến nghị Tối ưu hóa RAG'}</span>
                     </h5>
                     <ul className="space-y-1 text-xs text-slate-600 dark:text-slate-300">

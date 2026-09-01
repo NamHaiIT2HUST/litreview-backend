@@ -8,7 +8,7 @@ import {
   ChevronUp, 
   FileText, 
   Search,
-  Sparkles,
+  BrainCircuit,
   Info,
   ExternalLink
 } from 'lucide-react';
@@ -152,7 +152,7 @@ export default function RAGVerificationBadge({ guardrail, citations = [], darkMo
           {/* Claim-by-claim breakdown */}
           <div className="space-y-3">
             <h5 className="text-[11px] font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-blue-500" />
+              <BrainCircuit className="w-3.5 h-3.5 text-blue-500" />
               <span>{isEn ? 'Claim-level Attribution Audit' : 'Chi tiết kiểm định nguồn từng luận điểm'}</span>
             </h5>
 

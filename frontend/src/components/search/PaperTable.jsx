@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import {
   ExternalLink, FileText, Copy, Check, Quote, PlusCircle,
-  CheckCircle2, Sparkles, GitFork, BookOpen, Award,
+  CheckCircle2, BrainCircuit, GitFork, BookOpen, Award,
   ChevronDown, ChevronUp, Users, CalendarDays
 } from 'lucide-react';
 
@@ -125,7 +125,7 @@ function PaperCard({ paper, isSelected, onToggle, onOpenAiScreening, onOpenGenea
               <OABadge oaStatus={oaStatus} />
               {hasTldr && (
                 <span className="badge" style={{ background: '#EEF2FF', color: '#4338CA' }}>
-                  <Sparkles className="w-2.5 h-2.5" />
+                  <BrainCircuit className="w-2.5 h-2.5" />
                   AI Summary
                 </span>
               )}
@@ -205,7 +205,7 @@ function PaperCard({ paper, isSelected, onToggle, onOpenAiScreening, onOpenGenea
                 className="btn btn-sm btn-ghost text-xs py-1 px-2 text-primary-600 dark:text-primary-400"
                 title="AI screening"
               >
-                <Sparkles className="w-3 h-3" />
+                <BrainCircuit className="w-3 h-3" />
               </button>
             )}
             <button
@@ -280,7 +280,7 @@ function PaperRow({ paper, isSelected, onToggle, copiedDoi, onCopyDoi, onOpenAiS
           {onOpenAiScreening && (
             <button type="button" onClick={() => onOpenAiScreening(paper)}
               className="p-1 rounded text-surface-400 hover:text-primary-600 dark:hover:text-primary-400">
-              <Sparkles className="w-3.5 h-3.5" />
+              <BrainCircuit className="w-3.5 h-3.5" />
             </button>
           )}
         </div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  Sparkles, ArrowRight, ArrowLeft, X, Check, BookOpen,
+  BrainCircuit, ArrowRight, ArrowLeft, X, Check, BookOpen,
   Target, Search, Layers, Download, HelpCircle, Compass,
   MessageSquare, FileText, BarChart2, FolderKanban
 } from 'lucide-react';
@@ -267,7 +267,7 @@ export default function OnboardingTour({
     }
   }
 
-  const StepIcon = currentStep.icon || Sparkles;
+  const StepIcon = currentStep.icon || BrainCircuit;
 
   // SVG mask cutout coordinates with padding
   const maskPad = 6;

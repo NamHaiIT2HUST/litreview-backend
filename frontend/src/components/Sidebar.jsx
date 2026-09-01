@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Home, Settings, Search, Library, Download,
-  Sun, Moon, Languages, Menu, X, Sparkles,
+  Sun, Moon, Languages, Menu, X, BrainCircuit,
   ChevronRight, BookOpen, CheckCircle2, CircleDot,
   PanelLeftClose, PanelLeft, ChevronLeft, ChevronDown,
   Plus, LogOut, Check, FolderKanban,
@@ -539,7 +539,7 @@ export default function Sidebar({
               }`}
               title={t('tour.btn_restart')}
             >
-              <Sparkles className="w-4 h-4 text-primary-600 dark:text-primary-400 animate-pulse flex-shrink-0" />
+              <BrainCircuit className="w-4 h-4 text-primary-600 dark:text-primary-400 animate-pulse flex-shrink-0" />
               {!isCollapsed && (
                 <span className="truncate text-xs font-semibold">
                   {t('tour.btn_restart')}

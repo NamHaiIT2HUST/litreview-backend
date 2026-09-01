@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Quote, FileText, ChevronRight, Calendar, BookOpen, ExternalLink, Sparkles } from 'lucide-react';
+import { Quote, FileText, ChevronRight, Calendar, BookOpen, ExternalLink } from 'lucide-react';
 
 export default function CitationChip({ citeId, citeObj, onClick, darkMode, children }) {
   const [showTooltip, setShowTooltip] = useState(false);

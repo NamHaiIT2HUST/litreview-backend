@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   BookOpen, Target, Settings, Save, Loader2, Plus, X, 
   CheckCircle2, Compass, AlertCircle, ArrowRight, ArrowLeft, Check,
-  ShieldCheck, Edit3, Copy, Search, Sparkles,
+  ShieldCheck, Edit3, Copy, Search, BrainCircuit,
   ChevronRight, Layers, FileCheck, HelpCircle, Lightbulb,
   CheckCheck, Bookmark, ArrowUpRight, Filter, Zap, Download
 } from 'lucide-react';
@@ -32,9 +32,7 @@ function TopicStepperIcon({ isApproved, isActive }) {
   if (isActive) {
     return (
       <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 p-0.5 shadow-md shadow-blue-500/20 flex items-center justify-center ring-4 ring-blue-500/20">
-        <svg className="w-5 h-5 text-white animate-spin-slow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <polygon points="12 2 19 21 12 17 5 21 12 2" className="fill-blue-400/30" />
-        </svg>
+        <Compass className="w-5 h-5 text-white animate-spin-slow" />
       </div>
     );
   }
@@ -92,7 +90,7 @@ function PicoStepperIcon({ isApproved, isActive }) {
   if (isActive) {
     return (
       <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-700 p-0.5 shadow-md shadow-indigo-500/20 flex items-center justify-center ring-4 ring-indigo-500/20">
-        <Sparkles className="w-5 h-5 text-white animate-pulse" />
+        <BrainCircuit className="w-5 h-5 text-white animate-pulse" />
       </div>
     );
   }
@@ -782,7 +780,7 @@ export default function ResearchSetupTab({ setActiveTab }) {
                 />
 
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5 pl-1">
-                  <Sparkles className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                  <BrainCircuit className="w-3.5 h-3.5 text-blue-500 shrink-0" />
                   <span>{isVi ? 'Mẹo: Nêu rõ đối tượng, phương pháp và mục tiêu so sánh giúp AI đề xuất tiêu chí & từ khóa chuẩn xác nhất.' : 'Tip: Stating the method, target, and evaluation criteria helps AI generate the most accurate keywords.'}</span>
                 </p>
               </div>
@@ -904,7 +902,7 @@ export default function ResearchSetupTab({ setActiveTab }) {
                     disabled={loadingCriteria}
                     className="btn btn-sm btn-secondary flex items-center gap-1.5 font-semibold cursor-pointer"
                   >
-                    {loadingCriteria ? <Loader2 className="w-3.5 h-3.5 animate-spin text-teal-500" /> : <Sparkles className="w-3.5 h-3.5 text-teal-500" />}
+                    {loadingCriteria ? <Loader2 className="w-3.5 h-3.5 animate-spin text-teal-500" /> : <BrainCircuit className="w-3.5 h-3.5 text-teal-500" />}
                     <span>{isVi ? 'AI gợi ý tiêu chí' : 'AI Suggested Criteria'}</span>
                   </button>
                 </div>
