@@ -505,10 +505,10 @@ export default function ResearchSetupTab({ setActiveTab }) {
       
       {/* ── Page Header ─────────────────────────────────────────────────── */}
       <div className="pt-2">
-        <h1 className="font-display font-bold text-2xl sm:text-3xl text-surface-900 dark:text-white tracking-tight">
+        <h1 className="font-display font-bold text-xl sm:text-2xl lg:text-3xl text-surface-900 dark:text-white tracking-tight">
           {isVi ? 'Xây dựng khung đề tài nghiên cứu' : 'Research Setup Framework'}
         </h1>
-        <p className="text-sm text-surface-500 dark:text-surface-400 mt-1">
+        <p className="text-xs sm:text-sm text-surface-500 dark:text-surface-400 mt-1">
           {isVi 
             ? 'Thiết lập phạm vi đề tài, tiêu chí sàng lọc PRISMA và bộ từ khóa tìm kiếm học thuật cho nghiên cứu của bạn.' 
             : 'Define your research topic, screening criteria, and academic search keywords for your study.'}

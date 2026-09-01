@@ -926,7 +926,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
       )}
       
       {/* ====== LEFT SIDEBAR ====== */}
-      <aside className="hidden lg:flex flex-col w-80 shrink-0 sticky top-0 h-screen overflow-y-auto border-r border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 p-4 space-y-4">
+      <aside className="hidden lg:flex flex-col w-80 shrink-0 sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto border-r border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 p-4 space-y-4">
         {/* Topic Overview */}
         <div className="card p-4 space-y-3">
           <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-surface-100 dark:border-surface-800">
@@ -1002,7 +1002,7 @@ export default function SearchTab({ papers, setPapers, selectedPaperIds, selecte
       </aside>
 
       {/* ====== MAIN CONTENT ====== */}
-      <div className="flex-1 min-w-0 px-6 py-6 space-y-5">
+      <div className="flex-1 min-w-0 px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-5">
 
         {/* Research Topic Banner */}
         {projectData && (

@@ -131,7 +131,7 @@ export default function HomeTab({ setActiveTab }) {
           </div>
 
           {/* Headline */}
-          <h1 className="font-display font-bold text-4xl md:text-5xl lg:text-6xl text-surface-900 dark:text-white tracking-tight leading-[1.1] mb-6">
+          <h1 className="font-display font-bold text-3xl sm:text-4xl md:text-5xl lg:text-6xl text-surface-900 dark:text-white tracking-tight leading-[1.18] sm:leading-[1.15] mb-6 [text-wrap:balance]">
             {t('home.hero_title_1')}
             <br />
             <span className="gradient-text">{t('home.hero_title_2')}</span>

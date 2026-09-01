@@ -169,7 +169,7 @@ function PaperCard({ paper, isSelected, onToggle, onOpenAiScreening, onOpenGenea
         </div>
 
         {/* ── Footer Actions ────────────────────────────────────────────── */}
-        <div className="flex items-center justify-between mt-3 pt-3 border-t border-surface-100 dark:border-surface-800">
+        <div className="flex flex-wrap items-center justify-between gap-2 mt-3 pt-3 border-t border-surface-100 dark:border-surface-800">
           {/* DOI */}
           <div className="flex items-center gap-1.5 text-[11px] text-surface-400 font-mono">
             {paper.doi && paper.doi !== 'N/A' ? (
@@ -179,7 +179,7 @@ function PaperCard({ paper, isSelected, onToggle, onOpenAiScreening, onOpenGenea
                 className="flex items-center gap-1 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
               >
                 {copiedDoi === paper.doi ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
-                <span className="max-w-[160px] truncate">{paper.doi}</span>
+                <span className="max-w-[140px] xs:max-w-[180px] sm:max-w-[220px] truncate">{paper.doi}</span>
               </button>
             ) : (
               <span>No DOI</span>
@@ -329,7 +329,7 @@ export default function PaperTable({ papers, selectedPaperIds, toggleSelectPaper
   if (viewMode === 'table') {
     return (
       <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto touch-pan-x custom-scrollbar">
           <table className="w-full text-left">
             <thead>
               <tr className="bg-surface-50 dark:bg-surface-800 border-b border-surface-200 dark:border-surface-700">

@@ -230,28 +230,41 @@ export default function OnboardingTour({
 
   // Calculate Tooltip Position
   const padding = 12;
+  const isMobileScreen = typeof window !== 'undefined' && window.innerWidth < 640;
   const tooltipWidth = Math.min(380, window.innerWidth - 32);
   let tooltipStyle = {};
 
-  const placement = currentStep.placement || 'bottom';
-
-  if (placement === 'bottom') {
-    const top = targetRect.bottom + padding;
-    const left = Math.max(16, Math.min(window.innerWidth - tooltipWidth - 16, targetRect.left + targetRect.width / 2 - tooltipWidth / 2));
-    tooltipStyle = { top: `${Math.min(window.innerHeight - 280, top)}px`, left: `${left}px`, width: `${tooltipWidth}px` };
-  } else if (placement === 'top') {
-    const top = targetRect.top - 240 - padding;
-    const left = Math.max(16, Math.min(window.innerWidth - tooltipWidth - 16, targetRect.left + targetRect.width / 2 - tooltipWidth / 2));
-    tooltipStyle = { top: `${Math.max(16, top)}px`, left: `${left}px`, width: `${tooltipWidth}px` };
-  } else if (placement === 'right') {
-    const top = Math.max(16, Math.min(window.innerHeight - 280, targetRect.top + 20));
-    const left = Math.min(window.innerWidth - tooltipWidth - 16, targetRect.right + padding);
-    tooltipStyle = { top: `${top}px`, left: `${left}px`, width: `${tooltipWidth}px` };
+  if (isMobileScreen) {
+    // Dock nicely at the bottom on mobile screens
+    tooltipStyle = {
+      bottom: '16px',
+      left: '16px',
+      right: '16px',
+      width: 'auto',
+      maxWidth: 'calc(100vw - 32px)',
+      position: 'fixed'
+    };
   } else {
-    // left
-    const top = Math.max(16, Math.min(window.innerHeight - 280, targetRect.top + 20));
-    const left = Math.max(16, targetRect.left - tooltipWidth - padding);
-    tooltipStyle = { top: `${top}px`, left: `${left}px`, width: `${tooltipWidth}px` };
+    const placement = currentStep.placement || 'bottom';
+
+    if (placement === 'bottom') {
+      const top = targetRect.bottom + padding;
+      const left = Math.max(16, Math.min(window.innerWidth - tooltipWidth - 16, targetRect.left + targetRect.width / 2 - tooltipWidth / 2));
+      tooltipStyle = { top: `${Math.min(window.innerHeight - 280, top)}px`, left: `${left}px`, width: `${tooltipWidth}px` };
+    } else if (placement === 'top') {
+      const top = targetRect.top - 240 - padding;
+      const left = Math.max(16, Math.min(window.innerWidth - tooltipWidth - 16, targetRect.left + targetRect.width / 2 - tooltipWidth / 2));
+      tooltipStyle = { top: `${Math.max(16, top)}px`, left: `${left}px`, width: `${tooltipWidth}px` };
+    } else if (placement === 'right') {
+      const top = Math.max(16, Math.min(window.innerHeight - 280, targetRect.top + 20));
+      const left = Math.min(window.innerWidth - tooltipWidth - 16, targetRect.right + padding);
+      tooltipStyle = { top: `${top}px`, left: `${left}px`, width: `${tooltipWidth}px` };
+    } else {
+      // left
+      const top = Math.max(16, Math.min(window.innerHeight - 280, targetRect.top + 20));
+      const left = Math.max(16, targetRect.left - tooltipWidth - padding);
+      tooltipStyle = { top: `${top}px`, left: `${left}px`, width: `${tooltipWidth}px` };
+    }
   }
 
   const StepIcon = currentStep.icon || Sparkles;

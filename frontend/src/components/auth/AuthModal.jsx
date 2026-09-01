@@ -226,13 +226,13 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-      <div className="card w-full max-w-md overflow-hidden shadow-2xl animate-slide-up bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-fade-in overflow-y-auto">
+      <div className="card w-full max-w-md max-h-[90dvh] overflow-y-auto shadow-2xl animate-slide-up bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl custom-scrollbar">
         
         {/* ── 1. Clean Header ─────────────────────────────────────────── */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
-          <div className="flex items-center gap-3">
-            <BrandLogo size="md" />
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-slate-100 dark:border-slate-800 shrink-0 sticky top-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md z-10">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <BrandLogo size="sm" className="sm:scale-105" />
             <div>
               <span className="font-display font-extrabold text-sm text-slate-900 dark:text-white leading-none block">
                 {t.title}

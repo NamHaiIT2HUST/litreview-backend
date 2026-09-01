@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   BookOpen, Sparkles, Search, Layers, ShieldCheck, ArrowRight,
   CheckCircle2, Bot, Database, Zap, FileText, Check, ChevronRight,
@@ -6,7 +7,7 @@ import {
   Cpu, FileCheck, HelpCircle, ExternalLink, Activity, Award,
   Compass, ArrowUpRight, Copy, CheckCheck, Play, Pause, RotateCcw,
   Table, SplitSquareVertical, AlertCircle, FileCode, CheckSquare,
-  Sparkle, ChevronDown, MessageSquare, Download, Share2
+  Sparkle, ChevronDown, MessageSquare, Download, Share2, Menu, X
 } from 'lucide-react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useDarkMode } from '../../contexts/DarkModeContext';
@@ -830,6 +831,7 @@ export default function PublicLandingPage({ onOpenAuth }) {
   // ── Active Topic State ─────────────────────────────────────────────────
   const [activeTopicKey, setActiveTopicKey] = useState('ecg');
   const activeTopic = TOPIC_PRESETS[activeTopicKey] || TOPIC_PRESETS.ecg;
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // ── Autonomous Live Demo Engine ──────────────────────────────────────────
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
@@ -1073,15 +1075,27 @@ export default function PublicLandingPage({ onOpenAuth }) {
 
       {/* ── 1. Top Glassmorphic Navigation Bar (Always Fixed on Scroll) ─── */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-800/80 transition-colors shadow-xs w-full">
-        <div className="w-full max-w-[1680px] mx-auto px-4 sm:px-6 lg:px-8 h-18 sm:h-20 flex items-center justify-between gap-4 relative z-10">
+        <div className="w-full max-w-[1680px] mx-auto px-3 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-2 sm:gap-4 relative z-10">
           
           {/* Left: Brand Logo */}
-          <div className="flex items-center shrink-0">
+          <div className="flex items-center shrink min-w-0">
+            {/* Mobile compact logo */}
+            <BrandLogo
+              size="sm"
+              withText
+              withTagline
+              taglineClassName="hidden sm:block"
+              isEn={language === 'en'}
+              className="sm:hidden"
+              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            />
+            {/* Desktop / Tablet full logo */}
             <BrandLogo
               size="md"
               withText
               withTagline
               isEn={language === 'en'}
+              className="hidden sm:inline-flex"
               onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
             />
           </div>
@@ -1190,23 +1204,23 @@ export default function PublicLandingPage({ onOpenAuth }) {
             </div>
           </nav>
 
-          {/* Right: Controls & Actions (Đầy đủ không gian rộng rãi ở góc phải) */}
+          {/* Right: Controls & Actions */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             
-            {/* Language Switch */}
+            {/* Desktop Language Switch (hidden on < lg, available in mobile hamburger menu) */}
             <button
               onClick={() => setLanguage(language === 'vi' ? 'en' : 'vi')}
-              className="px-2 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all text-xs font-bold flex items-center gap-1 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer shadow-2xs shrink-0"
+              className="hidden lg:flex px-2 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-750 transition-all text-xs font-bold items-center gap-1 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer shadow-2xs shrink-0"
               title="Chuyển đổi ngôn ngữ / Switch language"
             >
               <Languages className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
               <span className="uppercase font-mono">{language}</span>
             </button>
 
-            {/* Dark Mode Switch */}
+            {/* Desktop Dark Mode Switch (hidden on < lg, available in mobile hamburger menu) */}
             <button
               onClick={() => setDarkMode(!darkMode)}
-              className="p-1.5 sm:p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 cursor-pointer shadow-2xs shrink-0"
+              className="hidden lg:flex p-1.5 sm:p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-750 transition-all text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 cursor-pointer shadow-2xs shrink-0"
               title="Giao diện Sáng/Tối"
             >
               {darkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-blue-600" />}
@@ -1215,13 +1229,185 @@ export default function PublicLandingPage({ onOpenAuth }) {
             {/* Auth Button (Sign In / Đăng nhập) */}
             <button
               onClick={() => onOpenAuth('login')}
-              className="btn btn-primary px-3.5 sm:px-4.5 py-1.5 sm:py-2 text-xs sm:text-sm font-bold shadow-md shadow-blue-500/20 inline-flex items-center gap-1.5 cursor-pointer hover:scale-105 transition-all shrink-0 whitespace-nowrap"
+              className="btn btn-primary px-2.5 sm:px-4.5 py-1.5 sm:py-2 text-xs sm:text-sm font-bold shadow-md shadow-blue-500/20 inline-flex items-center gap-1.5 cursor-pointer hover:scale-105 transition-all shrink-0 whitespace-nowrap"
             >
               <span>{d.nav.login}</span>
+            </button>
+
+            {/* Mobile Hamburger Menu Button (< lg) */}
+            <button
+              onClick={() => setMobileMenuOpen(true)}
+              className="lg:hidden p-1.5 sm:p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 flex items-center justify-center cursor-pointer shadow-xs transition-colors shrink-0"
+              title={language === 'vi' ? 'Mở menu' : 'Open menu'}
+              aria-label="Open Mobile Menu"
+            >
+              <Menu className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5]" />
             </button>
           </div>
 
         </div>
+
+        {/* ── Mobile Hamburger Navigation Drawer Sheet (< lg) ── */}
+        {mobileMenuOpen && typeof document !== 'undefined' && createPortal(
+          <div className="fixed inset-0 z-[9999] lg:hidden flex justify-end animate-fade-in" style={{ height: '100dvh', width: '100vw' }}>
+            {/* Backdrop */}
+            <div
+              className="fixed inset-0 bg-black/65 backdrop-blur-xs transition-opacity"
+              onClick={() => setMobileMenuOpen(false)}
+            />
+
+            {/* Drawer Container */}
+            <div className="relative z-10 w-[85vw] max-w-sm h-full bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col overflow-hidden animate-slide-left" style={{ height: '100%' }}>
+              
+              {/* Drawer Header */}
+              <div className="flex items-center justify-between px-4 h-18 border-b border-slate-100 dark:border-slate-800 shrink-0 bg-slate-50/70 dark:bg-slate-850/70">
+                <BrandLogo size="xs" withText isEn={language === 'en'} />
+                <button
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                  aria-label="Close menu"
+                >
+                  <X className="w-5 h-5 stroke-[2.5]" />
+                </button>
+              </div>
+
+              {/* Drawer Content (Scrollable) */}
+              <div className="flex-1 overflow-y-auto min-h-0 p-4 space-y-4 custom-scrollbar">
+                
+                {/* Navigation Links */}
+                <div className="space-y-1">
+                  <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 px-1 mb-2">
+                    {language === 'vi' ? 'Điều hướng trang' : 'Navigation'}
+                  </div>
+
+                  {[
+                    { href: '#simulator', label: d.nav.simulator, icon: Sparkles, desc: language === 'vi' ? 'Mô phỏng quy trình tự động' : 'Autonomous SLR simulation' },
+                    { href: '#agents', label: d.nav.agents, icon: Bot, desc: language === 'vi' ? '4 Tác tử AI chuyên biệt' : '4 Specialized AI Agents' },
+                    { href: '#prisma', label: d.nav.prisma, icon: ShieldCheck, desc: language === 'vi' ? 'Sơ đồ luồng PRISMA 2020' : 'PRISMA 2020 flow diagram' },
+                    { href: '#matrix', label: d.nav.matrix, icon: Table, desc: language === 'vi' ? 'Ma trận so sánh bài báo' : 'Methodology Matrix' },
+                    { href: '#team', label: d.nav.team, icon: Users, desc: language === 'vi' ? 'Đội ngũ phát triển & Cố vấn' : 'Team & Academic Mentors' },
+                    { href: '#faq', label: d.nav.faq, icon: HelpCircle, desc: language === 'vi' ? 'Câu hỏi thường gặp' : 'Frequently Asked Questions' },
+                    { href: '#acknowledgments', label: d.nav.acknowledgments, icon: Award, desc: language === 'vi' ? 'Tri ân VinUni & Cố vấn' : 'Gratitude to VinUni' },
+                  ].map((item, idx) => {
+                    const Icon = item.icon;
+                    return (
+                      <a
+                        key={idx}
+                        href={item.href}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="p-2.5 rounded-2xl flex items-center gap-3 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-colors group"
+                      >
+                        <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/60 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                          <Icon className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                            {item.label}
+                          </p>
+                          <p className="text-[10.5px] text-slate-400 truncate">
+                            {item.desc}
+                          </p>
+                        </div>
+                      </a>
+                    );
+                  })}
+                </div>
+
+                {/* Unified Settings Section: Language & Dark/Light Mode */}
+                <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60 space-y-2.5">
+                  <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                    {language === 'vi' ? 'Tùy chọn hiển thị & Ngôn ngữ' : 'Language & Appearance'}
+                  </div>
+
+                  {/* Language Row */}
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200">
+                      <Languages className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                      {language === 'vi' ? 'Ngôn ngữ' : 'Language'}
+                    </span>
+                    <div className="flex items-center bg-slate-200/80 dark:bg-slate-700/80 p-0.5 rounded-lg text-[10.5px] font-bold font-mono">
+                      <button
+                        onClick={() => setLanguage('vi')}
+                        className={`px-2 py-0.5 rounded-md transition-all cursor-pointer ${
+                          language === 'vi'
+                            ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-2xs font-extrabold'
+                            : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                        }`}
+                      >
+                        VI
+                      </button>
+                      <button
+                        onClick={() => setLanguage('en')}
+                        className={`px-2 py-0.5 rounded-md transition-all cursor-pointer ${
+                          language === 'en'
+                            ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-2xs font-extrabold'
+                            : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                        }`}
+                      >
+                        EN
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Theme Row */}
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200">
+                      {darkMode ? <Moon className="w-3.5 h-3.5 text-blue-500" /> : <Sun className="w-3.5 h-3.5 text-amber-500" />}
+                      {language === 'vi' ? 'Giao diện' : 'Theme'}
+                    </span>
+                    <div className="flex items-center bg-slate-200/80 dark:bg-slate-700/80 p-0.5 rounded-lg text-[10.5px] font-bold">
+                      <button
+                        onClick={() => setDarkMode(false)}
+                        className={`px-2 py-0.5 rounded-md flex items-center gap-1 transition-all cursor-pointer ${
+                          !darkMode
+                            ? 'bg-white text-amber-600 shadow-2xs font-bold'
+                            : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                        }`}
+                      >
+                        <Sun className="w-3 h-3" />
+                        <span>{language === 'vi' ? 'Sáng' : 'Light'}</span>
+                      </button>
+                      <button
+                        onClick={() => setDarkMode(true)}
+                        className={`px-2 py-0.5 rounded-md flex items-center gap-1 transition-all cursor-pointer ${
+                          darkMode
+                            ? 'bg-slate-900 text-blue-400 shadow-2xs font-bold'
+                            : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                        }`}
+                      >
+                        <Moon className="w-3 h-3" />
+                        <span>{language === 'vi' ? 'Tối' : 'Dark'}</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Auth Action in Drawer */}
+                <div className="pt-2">
+                  <button
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      onOpenAuth('login');
+                    }}
+                    className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-xs shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 cursor-pointer transition-transform hover:scale-[1.02]"
+                  >
+                    <span>{d.nav.login}</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+              </div>
+
+              {/* Drawer Footer */}
+              <div className="p-3.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-850/60 text-center text-[10px] text-slate-400 shrink-0 font-mono">
+                LitReview AI • VinUniversity 2026
+              </div>
+
+            </div>
+          </div>,
+          document.body
+        )}
+
       </header>
 
       {/* ── 2. Full-Screen Majestic Two-Column Split Hero Section ─────── */}
@@ -1242,9 +1428,16 @@ export default function PublicLandingPage({ onOpenAuth }) {
               </div>
 
               {/* Headline */}
-              <h1 className="font-display font-extrabold text-3xl sm:text-4xl lg:text-[36px] xl:text-[42px] text-slate-900 dark:text-white tracking-tight leading-[1.22] space-y-1.5 sm:space-y-2">
-                <span className="block whitespace-normal xl:whitespace-nowrap">{d.hero.title1}</span>
-                <span className="inline-block gradient-text pt-1 pb-1">
+              <h1 className="font-display font-extrabold text-[27px] xs:text-[30px] sm:text-4xl lg:text-[38px] xl:text-[42px] text-slate-900 dark:text-white tracking-tight leading-[1.2] sm:leading-[1.22] space-y-1 sm:space-y-1.5 [text-wrap:balance]">
+                {language === 'vi' ? (
+                  <span className="block">
+                    <span className="inline-block whitespace-nowrap">Tự động hóa</span>{' '}
+                    <span className="inline-block whitespace-nowrap">tổng quan tài liệu</span>
+                  </span>
+                ) : (
+                  <span className="block">{d.hero.title1}</span>
+                )}
+                <span className="inline-block gradient-text pt-0.5 sm:pt-1 pb-0.5 sm:pb-1">
                   {d.hero.titleHighlight}
                 </span>
               </h1>
@@ -1975,16 +2168,16 @@ export default function PublicLandingPage({ onOpenAuth }) {
             
           </ScrollReveal>
 
-          {/* 3 Metric Cards with Viewport-Triggered Counter & 3D Tilt */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+          {/* 3 Metric Cards with Viewport-Triggered Counter & 3D Tilt (Horizontal Snap on Mobile) */}
+          <div className="flex overflow-x-auto touch-pan-x snap-x snap-mandatory pb-2 md:pb-0 md:grid md:grid-cols-3 md:overflow-visible gap-3 md:gap-4 no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0 pt-2">
             {[
               { num: d.demo.stat1Num, unit: d.demo.stat1Unit, label: d.demo.stat1Label, color: 'text-emerald-600 dark:text-emerald-400' },
               { num: d.demo.stat2Num, unit: d.demo.stat2Unit, label: d.demo.stat2Label, color: 'text-primary-600 dark:text-primary-400' },
               { num: d.demo.stat3Num, unit: d.demo.stat3Unit, label: d.demo.stat3Label, color: 'text-indigo-600 dark:text-indigo-400' },
             ].map((stat, i) => (
-              <ScrollReveal key={i} variant="cascade" delay={i * 100}>
+              <ScrollReveal key={i} variant="cascade" delay={i * 100} className="w-[72vw] max-w-[260px] shrink-0 snap-start md:w-auto md:max-w-none">
                 
-                  <div className="card p-5 space-y-1 scrolly-card">
+                  <div className="card p-5 space-y-1 scrolly-card h-full">
                     <div className={`font-display text-3xl font-bold ${stat.color}`}>
                       <AnimatedCounter target={stat.num} suffix={stat.unit} />
                     </div>
@@ -2010,7 +2203,12 @@ export default function PublicLandingPage({ onOpenAuth }) {
           </p>
         </ScrollReveal>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+        {/* Visual swipe hint for mobile */}
+        <div className="md:hidden flex items-center justify-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 font-medium">
+          <span>{language === 'vi' ? '← Vuốt ngang để xem 4 Module AI Tác tử →' : '← Swipe to explore 4 AI Agents →'}</span>
+        </div>
+
+        <div className="flex overflow-x-auto touch-pan-x snap-x snap-mandatory pb-4 md:pb-0 md:grid md:grid-cols-2 lg:grid-cols-4 md:overflow-visible gap-4 md:gap-5 no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
           {[
             { icon: Target, title: d.agents.a1Title, desc: d.agents.a1Desc, tag: 'MODULE 01', color: 'text-indigo-600 bg-indigo-50 dark:bg-indigo-950/60' },
             { icon: Database, title: d.agents.a2Title, desc: d.agents.a2Desc, tag: 'MODULE 02', color: 'text-sky-600 bg-sky-50 dark:bg-sky-950/60' },
@@ -2019,9 +2217,9 @@ export default function PublicLandingPage({ onOpenAuth }) {
           ].map((agent, i) => {
             const Icon = agent.icon;
             return (
-              <ScrollReveal key={i} variant="cascade" delay={i * 90}>
+              <ScrollReveal key={i} variant="cascade" delay={i * 90} className="w-[82vw] max-w-[310px] shrink-0 snap-start md:w-auto md:max-w-none">
                 
-                  <div className="card p-6 flex flex-col justify-between hover:border-primary-400 hover:shadow-xl transition-all group backdrop-blur-md scrolly-card min-h-[260px]">
+                  <div className="card p-6 flex flex-col justify-between hover:border-primary-400 hover:shadow-xl transition-all group backdrop-blur-md scrolly-card min-h-[260px] h-full">
                     <div>
                       <div className="flex items-center justify-between mb-4">
                         <div className={`w-10 h-10 rounded-xl ${agent.color} flex items-center justify-center group-hover:scale-110 group-hover:rotate-6 transition-transform shadow-xs`}>
@@ -2134,16 +2332,21 @@ export default function PublicLandingPage({ onOpenAuth }) {
           {/* Animated Connecting Laser Beam Line */}
           <div className="hidden lg:block absolute top-1/2 left-8 right-8 h-1 laser-beam-line -translate-y-1/2 z-0 rounded-full opacity-60 pointer-events-none" />
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 relative z-10">
+          {/* Visual swipe hint on mobile */}
+          <div className="sm:hidden flex items-center justify-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 font-medium mb-3">
+            <span>{language === 'vi' ? '← Vuốt ngang xem 4 Bước PRISMA 2020 →' : '← Swipe to view 4 PRISMA Steps →'}</span>
+          </div>
+
+          <div className="flex overflow-x-auto touch-pan-x snap-x snap-mandatory pb-4 sm:pb-0 sm:grid sm:grid-cols-2 lg:grid-cols-4 sm:overflow-visible gap-4 no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0 relative z-10">
             {[
               { num: d.prismaSection.s1Num, title: d.prismaSection.s1Title, desc: d.prismaSection.s1Desc, tag: 'N = 100+ Records' },
               { num: d.prismaSection.s2Num, title: d.prismaSection.s2Title, desc: d.prismaSection.s2Desc, tag: 'Scopus Matched' },
               { num: d.prismaSection.s3Num, title: d.prismaSection.s3Title, desc: d.prismaSection.s3Desc, tag: 'Inclusion Scored' },
               { num: d.prismaSection.s4Num, title: d.prismaSection.s4Title, desc: d.prismaSection.s4Desc, tag: 'Synthesis Matrix' },
             ].map((st, i) => (
-              <ScrollReveal key={i} variant="cascade" delay={i * 100}>
+              <ScrollReveal key={i} variant="cascade" delay={i * 100} className="w-[78vw] max-w-[280px] shrink-0 snap-start sm:w-auto sm:max-w-none">
                 
-                  <div className="card p-5 space-y-3 relative hover:border-primary-500 hover:shadow-xl transition-all scrolly-card min-h-[190px]">
+                  <div className="card p-5 space-y-3 relative hover:border-primary-500 hover:shadow-xl transition-all scrolly-card min-h-[190px] h-full">
                     <div className="flex items-center justify-between">
                       <span className="w-8 h-8 rounded-xl bg-primary-600 text-white font-mono font-bold text-xs flex items-center justify-center shadow-xs">
                         {st.num}
@@ -2214,10 +2417,15 @@ export default function PublicLandingPage({ onOpenAuth }) {
             </p>
           </ScrollReveal>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* Visual swipe hint on mobile */}
+          <div className="sm:hidden flex items-center justify-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 font-medium mb-3">
+            <span>{language === 'vi' ? '← Vuốt ngang xem các thành viên đội ngũ →' : '← Swipe to meet the team →'}</span>
+          </div>
+
+          <div className="flex overflow-x-auto touch-pan-x snap-x snap-mandatory pb-4 sm:pb-0 sm:grid sm:grid-cols-2 lg:grid-cols-4 sm:overflow-visible gap-4 sm:gap-6 no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
             {d.team.members.map((member, idx) => (
-              <ScrollReveal key={idx} variant="cascade" delay={idx * 80}>
-                <div className="card p-6 flex flex-col items-center text-center space-y-4 hover:border-primary-500/80 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 group backdrop-blur-md scrolly-card relative overflow-hidden bg-surface-50/80 dark:bg-surface-900/60 border border-surface-200/80 dark:border-surface-800 rounded-2xl">
+              <ScrollReveal key={idx} variant="cascade" delay={idx * 80} className="w-[76vw] max-w-[280px] shrink-0 snap-start sm:w-auto sm:max-w-none">
+                <div className="card p-6 flex flex-col items-center text-center space-y-4 hover:border-primary-500/80 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 group backdrop-blur-md scrolly-card relative overflow-hidden bg-surface-50/80 dark:bg-surface-900/60 border border-surface-200/80 dark:border-surface-800 rounded-2xl h-full">
                   
                   {/* Subtle top accent bar */}
                   <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${member.color} opacity-90`} />

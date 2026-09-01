@@ -45,7 +45,7 @@ html {
 }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: 'Be Vietnam Pro', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -56,7 +56,11 @@ body {
 }
 
 .font-brand {
-  font-family: 'Outfit', 'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif;
+  font-family: 'Be Vietnam Pro', 'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif;
+}
+
+.font-display {
+  font-family: 'Be Vietnam Pro', 'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif;
 }
 
 /* Origami Brand Logo Unified Vibrant Palette & Interactive Hover Glow */
@@ -140,6 +144,42 @@ body {
   0% { transform: translateY(0px); }
   50% { transform: translateY(-8px); }
   100% { transform: translateY(0px); }
+}
+
+@keyframes slideLeft {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes slideRight {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(12px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-slide-left {
+  animation: slideLeft 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-slide-right {
+  animation: slideRight 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s ease forwards;
 }
 
 /* ─── Focus Styles (Accessibility) ──────────────────────────────────────── */
@@ -734,3 +774,28 @@ body {
 .react-pdf__Page__textContent {
   z-index: 1 !important;
 }
+
+/* ─── Mobile & Tablet Responsive Utilities ────────────────────────────── */
+@supports (height: 100dvh) {
+  .min-h-screen-dvh { min-height: 100dvh; }
+  .h-screen-dvh { height: 100dvh; }
+  .max-h-screen-dvh { max-height: 100dvh; }
+}
+
+.touch-pan-x {
+  touch-action: pan-x;
+  -webkit-overflow-scrolling: touch;
+}
+
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Ensure no horizontal scrollbar on mobile containers */
+@media (max-width: 640px) {
+  .input, .btn {
+    font-size: 13px;
+  }
+}
+
