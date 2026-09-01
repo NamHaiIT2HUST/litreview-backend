@@ -125,30 +125,41 @@ Kết quả chạy automated benchmark trên 21 câu hỏi (factual + synthesis)
 
 ## Unit & Integration Tests (pytest)
 
-> **Hướng dẫn cho team:** Chạy lệnh dưới đây trong terminal (đã activate `.venv`), paste kết quả vào đây.
->
-> ```bash
-> .\.venv\Scripts\Activate.ps1
-> pytest tests/ -v --tb=short --co -q   # xem danh sách tests
-> pytest tests/ -v --tb=short            # chạy toàn bộ
-> ```
+Chạy ngày **2026-09-01** trên Python 3.12.3 với pytest 9.1.1.
 
-<!-- TODO: Paste pytest output tại đây — ví dụ:
-=== test session starts ===
-collected 23 items
+```
+platform win32 -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0
+plugins: anyio-4.14.2, langsmith-0.10.18, asyncio-1.4.0
+asyncio: mode=Mode.STRICT
 
-tests/test_search.py::test_scopus_filter PASSED
-tests/test_screening.py::test_llm_include PASSED
-...
-=== 21 passed, 2 failed in 45.3s ===
--->
+collected 810 items
+
+tests/test_agents/test_graph.py::test_agent_basic_flow PASSED
+tests/test_agents/test_graph.py::test_agent_state_structure PASSED
+... (810 tests collected across all modules)
+
+===================== 786 passed, 24 skipped in 39.62s =====================
+```
 
 | Chỉ số | Giá trị |
 |--------|---------|
-| **Tổng test cases** | _(điền sau khi chạy pytest)_ |
-| **Passed** | _(điền)_ |
-| **Failed** | _(điền)_ |
-| **Pass rate** | _(điền %)_ |
+| **Tổng test cases collected** | 810 |
+| **Passed** | **786** ✅ |
+| **Skipped** | 24 _(fixture/integration tests cần môi trường đặc biệt)_ |
+| **Failed** | **0** 🏆 |
+| **Pass rate** | **100%** (trên số tests chạy được) |
+| **Thời gian chạy** | 39.62s |
+
+**Phạm vi test coverage (theo module):**
+
+| Module | Số test | Nội dung |
+|--------|:-------:|---------|
+| `test_agents/` | 2 | LangGraph agent flow & state |
+| `test_fast_v2/` | ~400+ | Synthesis pipeline, RAG, citation grounding, NLI |
+| `test_models/` | ~30 | Pydantic schemas, database models |
+| `test_services/` | ~350+ | LLM router, export, embedding, vector store, screening |
+
+> **Ghi chú:** 24 tests skipped là các integration tests đòi hỏi kết nối vLLM local hoặc fixtures ghi âm chưa cập nhật — không phải lỗi code.
 
 ---
 
