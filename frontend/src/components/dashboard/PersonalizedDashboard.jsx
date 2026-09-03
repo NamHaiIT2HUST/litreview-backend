@@ -253,27 +253,27 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
 
   // Helper to dynamically calculate actual source count (uploaded/selected documents in notebook)
   const getProjectSourceCount = (proj) => {
+    // proj.paper_count comes straight from the backend (real, device-independent).
+    // localStorage caches are per-browser and only used to reflect an upload the
+    // user just made in this tab before the next /projects refetch catches up —
+    // take whichever signal is higher so neither a stale cache nor a stale
+    // fetch can hide papers that actually exist.
+    const backendCount = proj.paper_count || 0;
     try {
       const wsPapers = localStorage.getItem(`litreview_workspace_papers_${proj.id}`);
       const selectedPapers = localStorage.getItem(`litreview_selected_papers_${proj.id}`);
       const selectedIds = localStorage.getItem(`litreview_selected_ids_${proj.id}`);
-      
+      const papers = localStorage.getItem(`litreview_papers_${proj.id}`);
+
       const parsedWs = wsPapers ? JSON.parse(wsPapers) : [];
       const parsedSel = selectedPapers ? JSON.parse(selectedPapers) : [];
       const parsedIds = selectedIds ? JSON.parse(selectedIds) : [];
-      
-      const uploadedCount = Math.max(parsedWs.length, parsedSel.length, parsedIds.length);
-      if (uploadedCount > 0) return uploadedCount;
-
-      // Fallback for featured templates or projects with pre-populated papers
-      const papers = localStorage.getItem(`litreview_papers_${proj.id}`);
       const parsedPapers = papers ? JSON.parse(papers) : [];
-      if (parsedPapers.length > 0 && parsedPapers.length <= 15) {
-        return parsedPapers.length;
-      }
-      return proj.paper_count && proj.paper_count <= 15 ? proj.paper_count : 0;
+
+      const localCount = Math.max(parsedWs.length, parsedSel.length, parsedIds.length, parsedPapers.length);
+      return Math.max(localCount, backendCount);
     } catch {
-      return 0;
+      return backendCount;
     }
   };
 

@@ -26,6 +26,7 @@ class ProjectResponse(BaseModel):
     criteria_exclude: list[str] | None = []
     created_at: datetime
     updated_at: datetime
+    paper_count: int = 0
 
     model_config = {"from_attributes": True}
 

@@ -5,12 +5,12 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.deps import AuthenticatedUser, get_current_user
 from src.database import get_db
-from src.models.db_models import Project
+from src.models.db_models import Paper, Project
 from src.models.project_schemas import (
     CriteriaUpdateRequest,
     KeywordSuggestionResponse,
@@ -80,7 +80,22 @@ async def list_projects(
     result = await db.execute(stmt)
     projects = result.scalars().all()
     # Hide internal system placeholder project from user dashboard (NotebookLM style)
-    return [p for p in projects if str(p.id) != "00000000-0000-0000-0000-000000000001" and p.name != "Default Project"]
+    visible = [p for p in projects if str(p.id) != "00000000-0000-0000-0000-000000000001" and p.name != "Default Project"]
+
+    # Real per-project source count, server-side — the dashboard card previously
+    # derived this from localStorage (device/browser-local), which showed 0 on
+    # any device that hadn't locally cached that project's papers (e.g. mobile).
+    if visible:
+        counts_result = await db.execute(
+            select(Paper.project_id, func.count(Paper.id))
+            .where(Paper.project_id.in_([p.id for p in visible]))
+            .group_by(Paper.project_id)
+        )
+        counts_by_project = dict(counts_result.all())
+        for p in visible:
+            p.paper_count = counts_by_project.get(p.id, 0)
+
+    return visible
 
 
 @router.post("/projects", response_model=ProjectResponse, status_code=201)
