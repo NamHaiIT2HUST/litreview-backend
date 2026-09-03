@@ -82,20 +82,30 @@ async def list_projects(
     # Hide internal system placeholder project from user dashboard (NotebookLM style)
     visible = [p for p in projects if str(p.id) != "00000000-0000-0000-0000-000000000001" and p.name != "Default Project"]
 
-    # Real per-project source count, server-side — the dashboard card previously
-    # derived this from localStorage (device/browser-local), which showed 0 on
-    # any device that hadn't locally cached that project's papers (e.g. mobile).
-    if visible:
-        counts_result = await db.execute(
-            select(Paper.project_id, func.count(Paper.id))
-            .where(Paper.project_id.in_([p.id for p in visible]))
-            .group_by(Paper.project_id)
-        )
-        counts_by_project = dict(counts_result.all())
-        for p in visible:
-            p.paper_count = counts_by_project.get(p.id, 0)
-
+    await _attach_paper_counts(db, visible)
     return visible
+
+
+async def _attach_paper_counts(db: AsyncSession, projects: list[Project]) -> None:
+    """Set the real, server-side paper_count on each project in place.
+
+    Every endpoint returning ProjectResponse must go through this: the
+    dashboard card used to derive its source count from localStorage
+    (device/browser-local), which showed 0 on any device that hadn't locally
+    cached that project's papers (e.g. mobile). paper_count has no ORM column
+    or Python-level default, so an endpoint that skips this silently reports 0
+    for a project that actually has papers.
+    """
+    if not projects:
+        return
+    counts_result = await db.execute(
+        select(Paper.project_id, func.count(Paper.id))
+        .where(Paper.project_id.in_([p.id for p in projects]))
+        .group_by(Paper.project_id)
+    )
+    counts_by_project = dict(counts_result.all())
+    for p in projects:
+        p.paper_count = counts_by_project.get(p.id, 0)
 
 
 @router.post("/projects", response_model=ProjectResponse, status_code=201)
@@ -123,6 +133,7 @@ async def create_project(
     db.add(project)
     await db.commit()
     await db.refresh(project)
+    project.paper_count = 0  # freshly created; guaranteed no papers yet
     return project
 
 
@@ -176,6 +187,7 @@ async def update_project(
         db.add(project)
         await db.commit()
         await db.refresh(project)
+        project.paper_count = 0  # freshly created; guaranteed no papers yet
         return project
 
     _authorize_project_access(project, user)
@@ -190,6 +202,7 @@ async def update_project(
 
     await db.commit()
     await db.refresh(project)
+    await _attach_paper_counts(db, [project])
     return project
 
 
@@ -206,6 +219,7 @@ async def get_project(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     _authorize_project_access(project, user)
+    await _attach_paper_counts(db, [project])
     return project
 
 @router.get("/projects/{project_id}/papers", response_model=list[PaperRecord])
@@ -364,6 +378,7 @@ async def update_criteria(
 
     await db.commit()
     await db.refresh(project)
+    await _attach_paper_counts(db, [project])
     return project
 
 @router.post("/projects/{project_id}/suggest-keywords", response_model=KeywordSuggestionResponse)
