@@ -21,7 +21,23 @@ import pytest  # noqa: E402
 import pytest_asyncio  # noqa: E402
 from httpx import ASGITransport, AsyncClient  # noqa: E402
 
+from src.database import create_all_tables  # noqa: E402
 from src.main import app  # noqa: E402
+
+
+@pytest_asyncio.fixture(scope="session", autouse=True)
+async def _create_test_tables():
+    """Ensure the schema exists before any test hits the database.
+
+    httpx's ASGITransport does not run the app's lifespan (that's what calls
+    create_all_tables() in production), so a test is the first thing to touch
+    the DB in a given environment. Most tests never notice because they 401
+    before a query runs, or because a developer's local data/app.db already
+    has the schema from running the real server. On a clean checkout (e.g. a
+    fresh CI runner) with no such file, the first test that actually performs
+    a real insert -- registering a user -- fails with "no such table: users".
+    """
+    await create_all_tables()
 
 
 @pytest_asyncio.fixture
