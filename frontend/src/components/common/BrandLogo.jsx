@@ -48,14 +48,14 @@ export default function BrandLogo({
       dot: 'w-1.5 h-1.5 mb-1.5',
     },
     lg: {
-      img: 'h-13 sm:h-14 w-auto max-w-[66px]',
+      img: 'h-[3.25rem] sm:h-14 w-auto max-w-[66px]',
       title: 'text-2xl sm:text-3xl font-extrabold tracking-[-0.03em]',
       tagline: 'text-xs sm:text-[13px]',
       gap: 'gap-3.5',
       dot: 'w-2 h-2 mb-2',
     },
     xl: {
-      img: 'h-16 sm:h-18 w-auto max-w-[86px]',
+      img: 'h-16 sm:h-[4.5rem] w-auto max-w-[86px]',
       title: 'text-3xl sm:text-4xl font-black tracking-[-0.035em]',
       tagline: 'text-sm sm:text-base',
       gap: 'gap-4',

@@ -1260,7 +1260,7 @@ export default function PublicLandingPage({ onOpenAuth }) {
             <div className="relative z-10 w-[85vw] max-w-sm h-full bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col overflow-hidden animate-slide-left" style={{ height: '100%' }}>
               
               {/* Drawer Header */}
-              <div className="flex items-center justify-between px-4 h-18 border-b border-slate-100 dark:border-slate-800 shrink-0 bg-slate-50/70 dark:bg-slate-850/70">
+              <div className="flex items-center justify-between px-4 h-[4.5rem] border-b border-slate-100 dark:border-slate-800 shrink-0 bg-slate-50/70 dark:bg-slate-850/70">
                 <BrandLogo size="xs" withText isEn={language === 'en'} />
                 <button
                   onClick={() => setMobileMenuOpen(false)}

@@ -660,7 +660,7 @@ export default function PersonalizedDashboard({ setActiveTab, onOpenNewProject, 
       </header>
 
       {/* ── Main Hub Content Area (Standard Width & Proportion) ── */}
-      <main className="flex-1 w-full max-w-[1920px] mx-auto px-3 sm:px-4 lg:px-6 pt-18 sm:pt-22 pb-4 sm:pb-6 space-y-4 sm:space-y-8 relative z-10">
+      <main className="flex-1 w-full max-w-[1920px] mx-auto px-3 sm:px-4 lg:px-6 pt-[4.5rem] sm:pt-[5.5rem] pb-4 sm:pb-6 space-y-4 sm:space-y-8 relative z-10">
         
         {/* Mobile Search Bar (< md) */}
         <div className="md:hidden relative w-full">
